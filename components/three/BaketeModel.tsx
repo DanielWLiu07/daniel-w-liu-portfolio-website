@@ -10,6 +10,10 @@ export function BaketeModel() {
   const scene = useMemo(() => {
     const clonedScene = gltf.scene.clone(true);
     
+    clonedScene.position.set(0, 0, 0);
+    clonedScene.rotation.set(0, 0, 0);
+    clonedScene.scale.set(1, 1, 1);
+    
     clonedScene.traverse((obj) => {
       if ((obj as THREE.Mesh).isMesh) {
         const mesh = obj as THREE.Mesh;
