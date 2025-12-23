@@ -1,24 +1,49 @@
 'use client';
 
-import {useFrame} from "@react-three/fiber";
-import {OrbitControls} from '@react-three/drei';
-import {useRef} from "react";
-import * as THREE from "three";
+import { Canvas } from '@react-three/fiber';
+import { OrbitControls } from '@react-three/drei';
+import { BaketeModel } from './BaketeModel';
+import { StrokeModel } from './StrokeModel';
 
-export function Scene() {
-    const cubeRef = useRef<THREE.Mesh>(null);
-    useFrame((state, delta) => { if (!cubeRef.current) return; cubeRef.current.rotation.y += delta * 0.4; cubeRef.current.rotation.x += delta * 0.2; });
+export default function Scene() {
+  return (
+    <div className="relative w-full h-full">
+      <Canvas
+      camera={{ position: [0, 0, 5], fov: 45 }}
+      style={{ 
+        background: "url('/paper_bg.png')", 
+        backgroundSize: 'cover', 
+        backgroundPosition: 'center' 
+      }}
+    >
+      <ambientLight intensity={0.5} />
+      <directionalLight position={[5, 5, 5]} intensity={1} />
+      
+      <mesh position={[0, 0, 0]}>
+        <boxGeometry args={[0.5, 0.5, 0.5]} />
+        <meshStandardMaterial color="red" />
+      </mesh>
+      
+      <group>
+        <BaketeModel />
+        <StrokeModel />
+      </group>
+      
+      <OrbitControls
+        enableZoom={true}
+        zoomSpeed={1}
+        minDistance={1}
+        maxDistance={20}
+      />
+    </Canvas>
+      <div className="absolute top-[50%] left-[50%]" >
+        <div className="flex">
 
-    return ( <> 
-     <OrbitControls /> 
+        </div>
 
-     <ambientLight intensity={0.5} /> 
-     <directionalLight position={[3, 5, 2]} intensity={1.2} /> 
-     
-     <mesh ref={cubeRef}> 
-        <boxGeometry args={[1, 1, 1]} /> 
-        <meshStandardMaterial color={"white"} /> 
-     </mesh> 
-     </> 
-     );
+      </div>
+    </div>
+    
+  );
 }
+
