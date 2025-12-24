@@ -4,55 +4,31 @@ import { useGLTF } from '@react-three/drei';
 import { useMemo } from 'react';
 import * as THREE from 'three';
 
-const TRANSPARENCY_THRESHOLD = 0.3;
-
 export function StrokeModel() {
   const gltf = useGLTF('/stroke.glb');
   
   const scene = useMemo(() => {
     const clonedScene = gltf.scene.clone(true);
     
+    clonedScene.position.set(0, 0, 0);
+    clonedScene.rotation.set(0, 0, 0);
+    clonedScene.scale.set(1, 1, 1);
+    
     clonedScene.traverse((obj) => {
       if ((obj as THREE.Mesh).isMesh) {
         const mesh = obj as THREE.Mesh;
-        const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        const originalMat = mesh.material as THREE.MeshStandardMaterial;
+        const internalTexture = originalMat.map || originalMat.emissiveMap;
         
-        const newMaterials = materials.map((mat: THREE.Material) => {
-          const originalMat = mat as THREE.MeshStandardMaterial | THREE.MeshPhysicalMaterial;
-          const textureToUse = originalMat.emissiveMap || originalMat.map;
-          
-          if (textureToUse) {
-            textureToUse.colorSpace = THREE.SRGBColorSpace;
-          }
-          
-          return new THREE.ShaderMaterial({
-            transparent: true,
-            side: THREE.DoubleSide,
-            uniforms: {
-              mainTexture: { value: textureToUse },
-            },
-            vertexShader: `
-              varying vec2 vUv;
-              void main() {
-                vUv = uv;
-                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-              }
-            `,
-            fragmentShader: `
-              uniform sampler2D mainTexture;
-              varying vec2 vUv;
-              
-              void main() {
-                vec4 color = texture2D(mainTexture, vUv);
-                float brightness = dot(color.rgb, vec3(0.299, 0.587, 0.114));
-                float alpha = smoothstep(0.0, ${TRANSPARENCY_THRESHOLD.toFixed(1)}, brightness);
-                gl_FragColor = vec4(color.rgb, alpha);
-              }
-            `,
-          });
+        if (internalTexture) {
+          internalTexture.colorSpace = THREE.SRGBColorSpace;
+        }
+        
+        mesh.material = new THREE.MeshBasicMaterial({
+          map: internalTexture,
+          transparent: true,
+          side: THREE.DoubleSide,
         });
-        
-        mesh.material = Array.isArray(mesh.material) ? newMaterials : newMaterials[0];
       }
     });
     
@@ -63,3 +39,4 @@ export function StrokeModel() {
 }
 
 useGLTF.preload('/stroke.glb');
+
