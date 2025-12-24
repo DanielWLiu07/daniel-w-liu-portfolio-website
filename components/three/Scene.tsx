@@ -7,7 +7,6 @@ import { StrokeModel } from './StrokeModel';
 
 export default function Scene() {
   return (
-    <div className="relative w-full h-full">
       <Canvas
       camera={{ position: [0, 0, 5], fov: 45 }}
       style={{ 
@@ -35,15 +34,7 @@ export default function Scene() {
         minDistance={1}
         maxDistance={20}
       />
-    </Canvas>
-      <div className="absolute top-[50%] left-[50%]" >
-        <div className="flex">
-
-        </div>
-
-      </div>
-    </div>
-    
+    </Canvas>    
   );
 }
 
