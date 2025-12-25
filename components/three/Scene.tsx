@@ -1,9 +1,21 @@
 'use client';
 
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { Suspense } from 'react';
 import ButterflyModel from './ButterflyModel';
+
+function ResponsiveButterflies() {
+  const { viewport } = useThree();
+  const widthFactor = Math.min(viewport.width / 10, 1);
+  
+  return (
+    <group>
+      <ButterflyModel position={[0.2 * widthFactor, -0.1, 5]} rotation={[0, -Math.PI / 2, 0]} delay={0} />
+      <ButterflyModel position={[1 * widthFactor, -0.3, 4]} rotation={[0, Math.PI / 3, -Math.PI/6]} delay={1.5} />
+    </group>
+  );
+}
 
 export default function Scene() {
   return (
@@ -15,14 +27,13 @@ export default function Scene() {
       <directionalLight position={[5, 5, 5]} intensity={1} />
       
       <Suspense fallback={null}>
-        <group>
-          <ButterflyModel />
-        </group>
+        <ResponsiveButterflies />
       </Suspense>
       
       <OrbitControls
-        enableZoom={true}
-        zoomSpeed={1}
+        target={[0, 0, 4.5]}
+        enableZoom={false}
+        enablePan={false}
         minDistance={1}
         maxDistance={20}
       />
