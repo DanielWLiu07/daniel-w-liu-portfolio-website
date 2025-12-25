@@ -2,31 +2,23 @@
 
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
-import { BaketeModel } from './BaketeModel';
-import { StrokeModel } from './StrokeModel';
+import { Suspense } from 'react';
+import ButterflyModel from './ButterflyModel';
 
 export default function Scene() {
   return (
       <Canvas
+      gl={{ alpha: true, antialias: false, powerPreference: 'high-performance' }}
       camera={{ position: [0, 0, 5], fov: 45 }}
-      style={{ 
-        background: "url('/paper_bg.png')", 
-        backgroundSize: 'cover', 
-        backgroundPosition: 'center' 
-      }}
     >
       <ambientLight intensity={0.5} />
       <directionalLight position={[5, 5, 5]} intensity={1} />
       
-      <mesh position={[0, 0, 0]}>
-        <boxGeometry args={[0.5, 0.5, 0.5]} />
-        <meshStandardMaterial color="red" />
-      </mesh>
-      
-      <group>
-        <BaketeModel />
-        <StrokeModel />
-      </group>
+      <Suspense fallback={null}>
+        <group>
+          <ButterflyModel />
+        </group>
+      </Suspense>
       
       <OrbitControls
         enableZoom={true}
