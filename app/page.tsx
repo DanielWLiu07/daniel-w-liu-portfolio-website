@@ -18,6 +18,9 @@ export default function Home() {
       gsap.from(".mountain5", { y: "100%", duration: 1.2, ease: "power3.out", delay: 0.4 });
       gsap.from(".mountain6", { y: "100%", duration: 1.2, ease: "power3.out", delay: 0.2 });
 
+      gsap.from(".tree-right", { x: "100%", duration: 1.5, ease: "power3.out", delay: 0.6 });
+      gsap.from(".tree-left", { x: "-100%", duration: 1.5, ease: "power3.out", delay: 0.6 });
+
       gsap.to(".sun-container", {
         y: 40,
         duration: 3,
@@ -56,16 +59,33 @@ export default function Home() {
         <Image src="/landing_imgs/mountain6.png" alt="Mountain 6" fill className="object-cover" priority />
       </div>
 
-      <div className="sun-container absolute z-50 top-[12.5%] left-1/2 w-[200px] h-[200px] -translate-x-1/2 -translate-y-1/2 rounded-full overflow-hidden">
-        <video className="w-full h-full object-cover" src="/sun.webm" autoPlay loop muted playsInline />
+      <div className="sun-container absolute z-50 top-[12.5%] left-1/2 w-[200px] h-[200px] -translate-x-1/2 -translate-y-1/2">
+        <svg width="200" height="200" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+          <defs>
+            <filter id="sunFilter">
+              <feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="10" result="noise" />
+              <feDisplacementMap in="SourceGraphic" in2="noise" scale="100" xChannelSelector="R" yChannelSelector="G" />
+            </filter>
+            <mask id="sunMask">
+              <circle cx="100" cy="100" r="0" fill="white" filter="url(#sunFilter)">
+                <animate attributeName="r" from="0" to="200" dur="2s" fill="freeze" />
+              </circle>
+            </mask>
+          </defs>
+          <foreignObject width="200" height="200" mask="url(#sunMask)">
+            <div className="w-full h-full rounded-full overflow-hidden">
+              <video className="w-full h-full object-cover" src="/sun.webm" autoPlay loop muted playsInline />
+            </div>
+          </foreignObject>
+        </svg>
       </div>
 
       <div className="fixed inset-0 z-[60] overflow-hidden pointer-events-none">
-        <video className="absolute top-0 right-0 h-screen w-auto object-cover object-top" src="/tree_right.webm" autoPlay loop muted playsInline />
+        <video className="tree-right absolute top-0 right-0 h-screen w-auto object-cover object-top" src="/tree_right.webm" autoPlay loop muted playsInline />
       </div>
 
       <div className="fixed inset-0 z-[60] overflow-hidden pointer-events-none">
-        <video className="absolute top-0 left-0 h-screen w-auto object-cover object-top" src="/tree_left.webm" autoPlay loop muted playsInline />
+        <video className="tree-left absolute top-0 left-0 h-screen w-auto object-cover object-top" src="/tree_left.webm" autoPlay loop muted playsInline />
       </div>
 
       <div className="fixed inset-0 z-[70] pointer-events-none">
