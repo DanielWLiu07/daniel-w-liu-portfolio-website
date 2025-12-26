@@ -3,8 +3,13 @@ import { useEffect, useRef } from "react";
 import Image from "next/image";
 import gsap from "gsap";
 import dynamic from "next/dynamic";
+import localFont from 'next/font/local';
 
 const Scene = dynamic(() => import("@/components/three/Scene"), { ssr: false });
+
+const weddingDay = localFont({
+    src: '../public/fonts/weddingday-font/ancient-wedding-font/AncientWeddingDemoRegular-MAm1n.ttf',
+});
 
 export default function Home() {
   const rootRef = useRef(null);
@@ -55,9 +60,13 @@ export default function Home() {
         <Image src="/landing_imgs/mountain5.png" alt="Mountain 5" fill className="object-cover" priority />
       </div>
 
-      <div className="absolute inset-0 z-50 mountain6">
-        <Image src="/landing_imgs/mountain6.png" alt="Mountain 6" fill className="object-cover" priority />
-      </div>
+          <div className="absolute inset-0 z-50 mountain6">
+            <video src="/dragon_body_24fps.webm" autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" />
+          </div>
+
+          <div className="absolute inset-0 z-[51] dragon-head">
+            <video src="/dragon_head_24fps.webm" autoPlay loop muted playsInline className="absolute inset-0 w-full h-full overflow-visible translate-x-20 sm:translate-x-0 object-cover" />
+          </div>
 
       <div className="sun-container absolute z-50 top-[12.5%] left-1/2 w-[200px] h-[200px] -translate-x-1/2 -translate-y-1/2">
         <svg width="200" height="200" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
@@ -80,7 +89,26 @@ export default function Home() {
         </svg>
       </div>
 
-      <div className="fixed inset-0 z-[60] overflow-hidden pointer-events-none">
+      <div className="absolute z-[62] top-[38%] sm:top-[45%] left-1/2 sm:left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center">
+        <div className="flex flex-wrap sm:flex-nowrap gap-x-4 items-center sm:items-center justify-center -ml-12 sm:ml-0">
+          <div className="flex gap-4 items-center justify-center">
+            <div className={`text-8xl sm:text-9xl tracking-tighter text-stroke-white ${weddingDay.className}`}>
+              Daniel
+            </div>
+            <div className={`text-[11rem] sm:text-[12rem] tracking-tighter text-stroke-white mt-50 sm:mt-15 -mr-5 ${weddingDay.className}`}>
+              W
+            </div>
+          </div>
+          <div className={`text-8xl sm:text-9xl tracking-tighter text-stroke-white -mt-60 sm:mt-0 ${weddingDay.className}`}>
+            Liu
+          </div>
+        </div>
+        <div className={`text-2xl sm:text-3xl tracking-wide text-stroke-white-sm -mt-20 sm:-mt-25 text-center font-bold whitespace-nowrap ${weddingDay.className}`}>
+          Waterloo CS and Finance Double Major
+        </div>
+      </div>
+
+      <div className="fixed inset-0 z-[65] overflow-hidden pointer-events-none">
         <video className="tree-right absolute top-0 right-0 h-screen w-auto object-cover object-top" src="/tree_right.webm" autoPlay loop muted playsInline />
       </div>
 
