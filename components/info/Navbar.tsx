@@ -23,6 +23,17 @@ export default function Navbar(){
                             About
                         </NavigationMenu.Link>
                     </NavigationMenu.Item>
+
+
+                    <NavigationMenu.Item>
+                        <NavigationMenu.Link 
+                            className="text-gray-900 hover:bg-gray-100 focus:shadow-violet7 block select-none rounded-[4px] px-3 py-2 text-[15px] font-medium leading-none no-underline outline-none focus:shadow-[0_0_0_2px] transition-colors duration-200" 
+                            href="/experience"
+                        >
+                            Experience
+                        </NavigationMenu.Link>
+                    </NavigationMenu.Item>
+
                     
                     <NavigationMenu.Item>
                         <NavigationMenu.Link 
@@ -32,15 +43,7 @@ export default function Navbar(){
                             Projects
                         </NavigationMenu.Link>
                     </NavigationMenu.Item>
-                    
-                    <NavigationMenu.Item>
-                        <NavigationMenu.Link 
-                            className="text-gray-900 hover:bg-gray-100 focus:shadow-violet7 block select-none rounded-[4px] px-3 py-2 text-[15px] font-medium leading-none no-underline outline-none focus:shadow-[0_0_0_2px] transition-colors duration-200" 
-                            href="/contact"
-                        >
-                            Contact
-                        </NavigationMenu.Link>
-                    </NavigationMenu.Item>
+                
                     
                     <NavigationMenu.Item>
                         <NavigationMenu.Link 
