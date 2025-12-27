@@ -8,7 +8,6 @@ import ButterflyModel from './ButterflyModel';
 function ResponsiveButterflies() {
   const { viewport } = useThree();
   const widthFactor = Math.min(viewport.width / 10, 1);
-  // Move butterflies further down on small screens
   const yOffset = viewport.width < 6.4 ? -0.08 : 0;
   
   return (
@@ -40,8 +39,6 @@ export default function Scene() {
         maxDistance={20}
         enableRotate={false}
       />
-    </Canvas>    
+    </Canvas>
   );
 }
-
-
