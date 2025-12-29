@@ -91,10 +91,11 @@ export default function ProjectsPage() {
     cardHeight: 1.6
   }
 
-  const WHEEL_ACCEL = 0.003
+  const WHEEL_ACCEL = 0.005
   const FRICTION = 0.92
   const MAX_VELOCITY = 3.0
   const AUTO_SCROLL_VELOCITY = 0.02
+  const MIN_SCROLL_THRESHOLD = 0.1
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -242,7 +243,12 @@ export default function ProjectsPage() {
       const primaryDelta =
         Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY
 
-      const impulse = -primaryDelta * WHEEL_ACCEL
+      const absDelta = Math.abs(primaryDelta)
+
+      if (absDelta < MIN_SCROLL_THRESHOLD) return
+
+      const sensitivity = Math.pow(absDelta / 100, 0.85)
+      const impulse = -Math.sign(primaryDelta) * sensitivity * WHEEL_ACCEL * 100
 
       velocityRef.current = Math.max(
         -MAX_VELOCITY,

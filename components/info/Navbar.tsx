@@ -46,9 +46,9 @@ export default function Navbar(){
                 
                     
                     <NavigationMenu.Item>
-                        <NavigationMenu.Link 
-                            className="text-gray-900 hover:bg-gray-100 focus:shadow-violet7 block select-none rounded-[4px] px-3 py-2 text-[15px] font-medium leading-none no-underline outline-none focus:shadow-[0_0_0_2px] transition-colors duration-200" 
-                            href="/Daniel_W_Liu_Resume_Dec_2025.pdf" target="_blank" rel="noopener noreferrer"
+                        <NavigationMenu.Link
+                            className="text-gray-900 hover:bg-gray-100 focus:shadow-violet7 block select-none rounded-[4px] px-3 py-2 text-[15px] font-medium leading-none no-underline outline-none focus:shadow-[0_0_0_2px] transition-colors duration-200"
+                            href="/resume"
                         >
                             Resume
                         </NavigationMenu.Link>
