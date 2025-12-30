@@ -132,3 +132,12 @@
     @apply bg-background text-foreground;
   }
 }
+
+#__next-build-watcher {
+  display: none !important;
+}
+
+div[data-nextjs-dialog-overlay],
+div[data-nextjs-toast] {
+  display: none !important;
+}
