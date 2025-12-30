@@ -16,7 +16,6 @@ export default function ExperiencePage() {
         backgroundRepeat: 'no-repeat',
       }}
     >
-      {/* <h1 className="text-4xl font-bold mb-8">Experience</h1> */}
       <div className="flex flex-wrap sm:flex-nowrap gap-x-4 items-center sm:items-center justify-center -ml-12 sm:ml-0 mb-4">
         <div className="flex gap-4 items-center justify-center">
           <div className={`text-8xl sm:text-9xl tracking-tighter text-stroke-white ${weddingDay.className}`}> 
