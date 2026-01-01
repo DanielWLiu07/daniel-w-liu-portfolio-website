@@ -61,7 +61,7 @@ export default function Home() {
         <video src="/landing/videos/dragon_head_24fps.webm" autoPlay loop muted playsInline className="absolute inset-0 w-full h-full overflow-visible translate-x-20 sm:translate-x-0 object-cover" />
       </div>
 
-      <div className="sun-container absolute z-50 top-[12.5%] left-1/2 w-[200px] h-[200px] -translate-x-1/2 -translate-y-1/2">
+      <div className="sun-container absolute z-[68] top-[12.5%] left-1/2 w-[200px] h-[200px] -translate-x-1/2 -translate-y-1/2">
         <svg width="200" height="200" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
           <defs>
             <filter id="sunFilter">
