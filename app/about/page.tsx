@@ -10,9 +10,9 @@ const katieRoze = localFont({
 });
 
 const socialLinks = [
-  { href: "https://github.com/DanielWLiu07", label: "GitHub" },
-  { href: "https://www.linkedin.com/in/danielliu2007/", label: "LinkedIn" },
-  { href: "https://docs.google.com/forms/d/e/1FAIpQLSdsaj2nXuReGTo1Fu9PaW7jsxUZPpPAiCMuf0gBvmZBYFe1nw/viewform?usp=dialog", label: "Email" },
+  { href: "https://github.com/DanielWLiu07", label: "GitHub", image: "/about/images/github.png" },
+  { href: "https://www.linkedin.com/in/danielliu2007/", label: "LinkedIn", image: "/about/images/linkedln.png" },
+  { href: "https://docs.google.com/forms/d/e/1FAIpQLSdsaj2nXuReGTo1Fu9PaW7jsxUZPpPAiCMuf0gBvmZBYFe1nw/viewform?usp=dialog", label: "Email", image: "/about/images/gmail.png" },
 ];
 
 const personalInfo = [
@@ -45,10 +45,6 @@ export default function About() {
 
       <div className="hidden md:block fixed inset-0 z-0">
         <Image src="/about/images/right_graphics.png" alt="Water Colour Graphics" fill className="object-cover object-right-top" priority />
-      </div>
-
-      <div className="fixed bottom-0 right-0 z-[1] w-[200px] h-[100px]">
-        <Image src="/about/images/socials.png" alt="Socials" fill className="object-contain object-right-bottom" priority />
       </div>
 
       <section className="md:hidden relative h-screen">
@@ -97,9 +93,16 @@ export default function About() {
             href={link.href}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-10 h-10 rounded-lg bg-transparent transition-all hover:scale-110 duration-200"
+            className="relative w-10 h-10 transition-all hover:scale-110 duration-200"
             aria-label={link.label}
-          />
+          >
+            <Image
+              src={link.image}
+              alt={link.label}
+              fill
+              className="object-contain"
+            />
+          </a>
         ))}
       </div>
     </div>
