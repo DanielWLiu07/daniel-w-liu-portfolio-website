@@ -45,7 +45,7 @@ const links: SocialLink[] = [
 
 export function SocialLinks() {
   return (
-    <div className="fixed bottom-8 right-8 z-[80] flex flex-col gap-4 pointer-events-auto">
+    <div className="fixed bottom-8 right-8 z-[80] flex flex-row gap-4 pointer-events-auto">
       {links.map((link) => (
         <a
           key={link.label}
