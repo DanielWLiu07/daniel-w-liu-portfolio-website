@@ -1,27 +1,34 @@
 "use client";
+
 import { useEffect, useRef } from "react";
 import Image from "next/image";
 import gsap from "gsap";
 import dynamic from "next/dynamic";
 import localFont from 'next/font/local';
+import { SocialLinks } from "@/components/ui/social-links";
 
 const Scene = dynamic(() => import("@/components/three/Scene"), { ssr: false });
 
 const weddingDay = localFont({
-    src: '../public/fonts/weddingday-font/ancient-wedding-font/AncientWeddingDemoRegular-MAm1n.ttf',
+  src: '../public/fonts/weddingday-font/ancient-wedding-font/AncientWeddingDemoRegular-MAm1n.ttf',
 });
+
+const mountainLayers = [
+  { src: "/images/landing/mountain1.png", alt: "Mountain 1", className: "mountain1", zIndex: "z-0", delay: 0.1 },
+  { src: "/images/landing/mountain2.png", alt: "Mountain 2", className: "mountain2", zIndex: "z-10", delay: 0.2 },
+  { src: "/images/landing/mountain3.png", alt: "Mountain 3", className: "mountain3", zIndex: "z-20", delay: 0.3 },
+  { src: "/images/landing/mountain4.png", alt: "Mountain 4", className: "mountain4", zIndex: "z-30", delay: 0.5 },
+  { src: "/images/landing/mountain5.png", alt: "Mountain 5", className: "mountain5", zIndex: "z-40", delay: 0.4 },
+];
 
 export default function Home() {
   const rootRef = useRef(null);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
-      gsap.from(".mountain1", { y: "100%", duration: 1.2, ease: "power3.out", delay: 0.1 });
-      gsap.from(".mountain2", { y: "100%", duration: 1.2, ease: "power3.out", delay: 0.2 });
-      gsap.from(".mountain3", { y: "100%", duration: 1.2, ease: "power3.out", delay: 0.3 });
-      gsap.from(".mountain4", { y: "100%", duration: 1.2, ease: "power3.out", delay: 0.5 });
-      gsap.from(".mountain5", { y: "100%", duration: 1.2, ease: "power3.out", delay: 0.4 });
-      gsap.from(".mountain6", { y: "100%", duration: 1.2, ease: "power3.out", delay: 0.2 });
+      mountainLayers.forEach(({ className, delay }) => {
+        gsap.from(`.${className}`, { y: "100%", duration: 1.2, ease: "power3.out", delay });
+      });
 
       gsap.from(".tree-right", { x: "100%", duration: 1.5, ease: "power3.out", delay: 0.6 });
       gsap.from(".tree-left", { x: "-100%", duration: 1.5, ease: "power3.out", delay: 0.6 });
@@ -40,33 +47,19 @@ export default function Home() {
 
   return (
     <div ref={rootRef} className="relative w-full h-screen bg-[#cacda7] overflow-hidden">
-      <div className="absolute inset-0 z-0 mountain1">
-        <Image src="/landing_imgs/mountain1.png" alt="Mountain 1" fill className="object-cover" priority />
+      {mountainLayers.map(({ src, alt, className, zIndex }) => (
+        <div key={alt} className={`absolute inset-0 ${zIndex} ${className}`}>
+          <Image src={src} alt={alt} fill className="object-cover" priority />
+        </div>
+      ))}
+
+      <div className="absolute inset-0 z-50 mountain6">
+        <video src="/videos/landing/dragon_body_24fps.webm" autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" />
       </div>
 
-      <div className="absolute inset-0 z-10 mountain2">
-        <Image src="/landing_imgs/mountain2.png" alt="Mountain 2" fill className="object-cover" priority />
+      <div className="absolute inset-0 z-[51] dragon-head">
+        <video src="/videos/landing/dragon_head_24fps.webm" autoPlay loop muted playsInline className="absolute inset-0 w-full h-full overflow-visible translate-x-20 sm:translate-x-0 object-cover" />
       </div>
-
-      <div className="absolute inset-0 z-20 mountain3">
-        <Image src="/landing_imgs/mountain3.png" alt="Mountain 3" fill className="object-cover" priority />
-      </div>
-
-      <div className="absolute inset-0 z-30 mountain4">
-        <Image src="/landing_imgs/mountain4.png" alt="Mountain 4" fill className="object-cover" priority />
-      </div>
-
-      <div className="absolute inset-0 z-40 mountain5">
-        <Image src="/landing_imgs/mountain5.png" alt="Mountain 5" fill className="object-cover" priority />
-      </div>
-
-          <div className="absolute inset-0 z-50 mountain6">
-            <video src="/dragon_body_24fps.webm" autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" />
-          </div>
-
-          <div className="absolute inset-0 z-[51] dragon-head">
-            <video src="/dragon_head_24fps.webm" autoPlay loop muted playsInline className="absolute inset-0 w-full h-full overflow-visible translate-x-20 sm:translate-x-0 object-cover" />
-          </div>
 
       <div className="sun-container absolute z-50 top-[12.5%] left-1/2 w-[200px] h-[200px] -translate-x-1/2 -translate-y-1/2">
         <svg width="200" height="200" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
@@ -83,7 +76,7 @@ export default function Home() {
           </defs>
           <foreignObject width="200" height="200" mask="url(#sunMask)">
             <div className="w-full h-full rounded-full overflow-hidden">
-              <video className="w-full h-full object-cover" src="/sun.webm" autoPlay loop muted playsInline />
+              <video className="w-full h-full object-cover" src="/videos/landing/sun.webm" autoPlay loop muted playsInline />
             </div>
           </foreignObject>
         </svg>
@@ -109,16 +102,18 @@ export default function Home() {
       </div>
 
       <div className="fixed inset-0 z-[65] overflow-hidden pointer-events-none">
-        <video className="tree-right absolute top-0 right-0 h-screen w-auto object-cover object-top" src="/tree_right.webm" autoPlay loop muted playsInline />
+        <video className="tree-right absolute top-0 right-0 h-screen w-auto object-cover object-top" src="/videos/landing/tree_right.webm" autoPlay loop muted playsInline />
       </div>
 
       <div className="fixed inset-0 z-[60] overflow-hidden pointer-events-none">
-        <video className="tree-left absolute top-0 left-0 h-screen w-auto object-cover object-top" src="/tree_left.webm" autoPlay loop muted playsInline />
+        <video className="tree-left absolute top-0 left-0 h-screen w-auto object-cover object-top" src="/videos/landing/tree_left.webm" autoPlay loop muted playsInline />
       </div>
 
       <div className="fixed inset-0 z-[70] pointer-events-none">
         <Scene />
       </div>
+
+      <SocialLinks />
     </div>
   );
 }
