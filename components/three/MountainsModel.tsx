@@ -5,7 +5,7 @@ import { useMemo } from 'react';
 import * as THREE from 'three';
 
 export function MountainsModel() {
-  const gltf = useGLTF('/landing_models/mountains.glb');
+  const gltf = useGLTF('/models/mountains.glb');
   
   const scene = useMemo(() => {
     const clonedScene = gltf.scene.clone(true);
@@ -23,4 +23,4 @@ export function MountainsModel() {
   return <primitive object={scene} />;
 }
 
-useGLTF.preload('/landing_models/mountains.glb');
+useGLTF.preload('/models/mountains.glb');

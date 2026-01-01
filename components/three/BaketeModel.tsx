@@ -5,7 +5,7 @@ import { useMemo } from 'react';
 import * as THREE from 'three';
 
 export function BaketeModel() {
-  const gltf = useGLTF('/bakete11st.glb');
+  const gltf = useGLTF('/models/bakete11st.glb');
   
   const scene = useMemo(() => {
     const clonedScene = gltf.scene.clone(true);
@@ -39,4 +39,4 @@ export function BaketeModel() {
   return <primitive object={scene} />;
 }
 
-useGLTF.preload('/bakete11st.glb');
+useGLTF.preload('/models/bakete11st.glb');
