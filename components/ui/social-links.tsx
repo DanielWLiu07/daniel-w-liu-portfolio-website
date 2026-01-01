@@ -21,12 +21,15 @@ const links: SocialLink[] = [
     href: "https://www.linkedin.com/in/danielliu2007/",
     label: "LinkedIn",
     icon: (
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M20 3H4a1 1 0 00-1 1v16a1 1 0 001 1h16a1 1 0 001-1V4a1 1 0 00-1-1zM8 11v6M8 8v.01M12 16v-4M12 12v-.01M16 16v-6"
-      />
+      <>
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6zM2 9h4v12H2z"
+        />
+        <circle cx="4" cy="4" r="2" strokeWidth={2} />
+      </>
     ),
   },
   {
