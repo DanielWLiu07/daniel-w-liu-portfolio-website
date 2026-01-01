@@ -2,18 +2,11 @@
 
 import { useState, useEffect, useRef } from 'react'
 import * as THREE from 'three'
+import Image from 'next/image'
 import ProjectModal from '@/components/projects/ProjectModal'
+import { projects, sceneOptions, animationConstants } from '@/components/projects/project-data'
 
-interface Project {
-  id: number
-  title: string
-  description: string
-  detailedDescription: string
-  image: string
-  technologies: string[]
-  link?: string
-  github?: string
-}
+const { WHEEL_ACCEL, FRICTION, MAX_VELOCITY, AUTO_SCROLL_VELOCITY, MIN_SCROLL_THRESHOLD } = animationConstants;
 
 export default function ProjectsPage() {
   const [expandedProject, setExpandedProject] = useState<number | null>(null)
@@ -29,88 +22,21 @@ export default function ProjectsPage() {
   const velocityRef = useRef(0)
   const isManualScrollingRef = useRef(false)
   const autoScrollDirectionRef = useRef(1)
+  const hoveredPlaneRef = useRef<THREE.Mesh | null>(null)
+  const isPausedRef = useRef(false)
 
-  const projects: Project[] = [
-    {
-      id: 1,
-      title: "Project One",
-      description: "A brief description of your first project",
-      detailedDescription: "A detailed description of your first project. Add details about what you built, the impact it had, the challenges you faced, and what you learned. You can add multiple paragraphs here to provide comprehensive information about your project.",
-      image: "/watercolour/waterloo.png",
-      technologies: ["React", "Next.js", "TypeScript"],
-      link: "https://example.com",
-      github: "https://github.com/yourusername/project1"
-    },
-    {
-      id: 2,
-      title: "Project Two",
-      description: "A brief description of your second project",
-      detailedDescription: "A detailed description of your second project. Highlight key features and technologies used. Explain the problem it solves and the value it provides to users. Include metrics or results if available.",
-      image: "/watercolour/waterloo.png",
-      technologies: ["Node.js", "Express", "MongoDB"],
-      link: "https://example.com",
-      github: "https://github.com/yourusername/project2"
-    },
-    {
-      id: 3,
-      title: "Project Three",
-      description: "A brief description of your third project",
-      detailedDescription: "A detailed description of your third project. Explain the problem it solves, your approach to solving it, and the technologies you chose. Discuss any interesting technical challenges you overcame.",
-      image: "/watercolour/waterloo.png",
-      technologies: ["Python", "Django", "PostgreSQL"],
-      link: "https://example.com",
-      github: "https://github.com/yourusername/project3"
-    },
-    {
-      id: 4,
-      title: "Project Four",
-      description: "A brief description of your fourth project",
-      detailedDescription: "A detailed description of your fourth project. Share what you learned while building it, the design decisions you made, and how you iterated on the solution. Include any feedback or results you received.",
-      image: "/watercolour/waterloo.png",
-      technologies: ["Vue.js", "Firebase", "TailwindCSS"],
-      link: "https://example.com",
-      github: "https://github.com/yourusername/project4"
-    },
-    {
-      id: 5,
-      title: "Project Five",
-      description: "A brief description of your fifth project",
-      detailedDescription: "A detailed description of your fifth project. Mention any awards or recognition, the team size if collaborative, your specific contributions, and the overall impact of the project.",
-      image: "/watercolour/waterloo.png",
-      technologies: ["React Native", "AWS", "GraphQL"],
-      link: "https://example.com",
-      github: "https://github.com/yourusername/project5"
-    }
-  ]
-
-  const options = {
-    speed: 35,
-    gap: 15,
-    curve: 8,
-    cardWidth: 1.2,
-    cardHeight: 1.6
-  }
-
-  const WHEEL_ACCEL = 0.005
-  const FRICTION = 0.92
-  const MAX_VELOCITY = 3.0
-  const AUTO_SCROLL_VELOCITY = 0.02
-  const MIN_SCROLL_THRESHOLD = 0.1
+  useEffect(() => {
+    isPausedRef.current = isPaused
+  }, [isPaused])
 
   useEffect(() => {
     if (!containerRef.current) return
 
     const container = containerRef.current
-
     const scene = new THREE.Scene()
     sceneRef.current = scene
 
-    const camera = new THREE.PerspectiveCamera(
-      75,
-      container.clientWidth / container.clientHeight,
-      0.1,
-      20
-    )
+    const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 20)
     camera.position.z = 2
     cameraRef.current = camera
 
@@ -121,7 +47,7 @@ export default function ProjectsPage() {
 
     container.appendChild(renderer.domElement)
 
-    const getWidth = (gap: number) => options.cardWidth + gap / 100
+    const getWidth = (gap: number) => sceneOptions.cardWidth + gap / 100
 
     const getPlaneWidth = (camera: THREE.PerspectiveCamera) => {
       const vFov = (camera.fov * Math.PI) / 180
@@ -131,9 +57,9 @@ export default function ProjectsPage() {
       return container.clientWidth / width
     }
 
-    const planeSpace = getPlaneWidth(camera) * getWidth(options.gap)
+    const planeSpace = getPlaneWidth(camera) * getWidth(sceneOptions.gap)
     const visibleCards = Math.ceil(container.clientWidth / planeSpace)
-    const totalCards = visibleCards + projects.length * 4 // Generate enough for scrolling both ways
+    const totalCards = visibleCards + projects.length * 4
     const initialOffset = Math.ceil(totalCards / 2)
 
     const allProjects = []
@@ -150,27 +76,27 @@ export default function ProjectsPage() {
       canvas.height = 683
       const ctx = canvas.getContext('2d')!
 
-      ctx.fillStyle = '#ffffff'
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)'
       ctx.fillRect(0, 0, 512, 683)
-      ctx.strokeStyle = '#e5e7eb'
+      ctx.strokeStyle = 'rgba(229, 231, 235, 0.5)'
       ctx.lineWidth = 4
       ctx.strokeRect(2, 2, 508, 679)
 
-      ctx.fillStyle = '#1f2937'
+      ctx.fillStyle = 'rgba(31, 41, 55, 0.9)'
       ctx.font = 'bold 48px sans-serif'
       ctx.textAlign = 'center'
       ctx.fillText(project.title, 256, 341)
 
       const texture = new THREE.CanvasTexture(canvas)
-
-      const geometry = new THREE.PlaneGeometry(options.cardWidth, options.cardHeight, 20, 20)
+      const geometry = new THREE.PlaneGeometry(sceneOptions.cardWidth, sceneOptions.cardHeight, 20, 20)
 
       const material = new THREE.ShaderMaterial({
         uniforms: {
           tex: { value: texture },
-          curve: { value: options.curve },
+          curve: { value: sceneOptions.curve },
           isExpanded: { value: 0.0 }
         },
+        transparent: true,
         vertexShader: `
           uniform float curve;
           uniform float isExpanded;
@@ -187,13 +113,14 @@ export default function ProjectsPage() {
           uniform sampler2D tex;
           varying vec2 vertexUV;
           void main(){
-            gl_FragColor = texture2D(tex, vertexUV);
+            vec4 texColor = texture2D(tex, vertexUV);
+            gl_FragColor = texColor;
           }
         `
       })
 
       const plane = new THREE.Mesh(geometry, material)
-      plane.position.x = -(i - initialOffset) * getWidth(options.gap)
+      plane.position.x = -(i - initialOffset) * getWidth(sceneOptions.gap)
       plane.userData = {
         projectId: project.id,
         projectIndex: i % projects.length,
@@ -227,7 +154,7 @@ export default function ProjectsPage() {
         setIsPaused(true)
 
         const currentX = clickedPlane.position.x + scene.position.x
-        targetTimeRef.current = timeRef.current - currentX / options.speed
+        targetTimeRef.current = timeRef.current - currentX / sceneOptions.speed
 
         setTimeout(() => {
           setExpandedProject(projectId)
@@ -237,12 +164,36 @@ export default function ProjectsPage() {
 
     renderer.domElement.addEventListener('click', onCanvasClick)
 
+    const onMouseMove = (event: MouseEvent) => {
+      if (!containerRef.current) return
+
+      const rect = containerRef.current.getBoundingClientRect()
+      mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
+      mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
+
+      raycaster.setFromCamera(mouse, camera)
+      const intersects = raycaster.intersectObjects(planes)
+
+      if (intersects.length > 0) {
+        const hoveredPlane = intersects[0].object as THREE.Mesh
+        if (hoveredPlaneRef.current !== hoveredPlane) {
+          hoveredPlaneRef.current = hoveredPlane
+        }
+      } else {
+        hoveredPlaneRef.current = null
+      }
+    }
+
+    renderer.domElement.addEventListener('mousemove', onMouseMove)
+
     const onWheel = (event: WheelEvent) => {
       event.preventDefault()
 
-      const primaryDelta =
-        Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY
+      if (isPausedRef.current) {
+        setIsPaused(false)
+      }
 
+      const primaryDelta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY
       const absDelta = Math.abs(primaryDelta)
 
       if (absDelta < MIN_SCROLL_THRESHOLD) return
@@ -250,10 +201,7 @@ export default function ProjectsPage() {
       const sensitivity = Math.pow(absDelta / 100, 0.85)
       const impulse = -Math.sign(primaryDelta) * sensitivity * WHEEL_ACCEL * 100
 
-      velocityRef.current = Math.max(
-        -MAX_VELOCITY,
-        Math.min(MAX_VELOCITY, velocityRef.current + impulse)
-      )
+      velocityRef.current = Math.max(-MAX_VELOCITY, Math.min(MAX_VELOCITY, velocityRef.current + impulse))
 
       isManualScrollingRef.current = true
     }
@@ -265,8 +213,8 @@ export default function ProjectsPage() {
     const animate = (currentTime: number) => {
       const timePassed = currentTime - previousTime
 
-      if (!isPaused) {
-        const loopWidth = getWidth(options.gap) * projects.length
+      if (!isPausedRef.current) {
+        const loopWidth = getWidth(sceneOptions.gap) * projects.length
 
         if (isManualScrollingRef.current) {
           if (Math.abs(velocityRef.current) > 0.01) {
@@ -279,24 +227,31 @@ export default function ProjectsPage() {
             velocityRef.current = AUTO_SCROLL_VELOCITY * autoScrollDirectionRef.current
             isManualScrollingRef.current = false
           }
-        }
-        else {
+        } else {
           velocityRef.current = AUTO_SCROLL_VELOCITY * autoScrollDirectionRef.current
         }
 
         timeRef.current += velocityRef.current * timePassed * 0.001
 
-        if (timeRef.current * options.speed > loopWidth) {
-          timeRef.current -= loopWidth / options.speed
-        } else if (timeRef.current * options.speed < -loopWidth) {
-          timeRef.current += loopWidth / options.speed
+        if (timeRef.current * sceneOptions.speed > loopWidth) {
+          timeRef.current -= loopWidth / sceneOptions.speed
+        } else if (timeRef.current * sceneOptions.speed < -loopWidth) {
+          timeRef.current += loopWidth / sceneOptions.speed
         }
       } else {
         const diff = targetTimeRef.current - timeRef.current
         timeRef.current += diff * 0.1
       }
 
-      scene.position.x = timeRef.current * options.speed
+      scene.position.x = timeRef.current * sceneOptions.speed
+
+      planes.forEach(plane => {
+        const targetScale = plane === hoveredPlaneRef.current ? 1.15 : 1
+        const currentScale = plane.scale.x
+        const scaleDiff = targetScale - currentScale
+        const newScale = currentScale + scaleDiff * 0.15
+        plane.scale.set(newScale, newScale, newScale)
+      })
 
       renderer.render(scene, camera)
 
@@ -322,6 +277,7 @@ export default function ProjectsPage() {
     return () => {
       window.removeEventListener('resize', handleResize)
       renderer.domElement.removeEventListener('click', onCanvasClick)
+      renderer.domElement.removeEventListener('mousemove', onMouseMove)
       renderer.domElement.removeEventListener('wheel', onWheel)
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current)
@@ -339,21 +295,37 @@ export default function ProjectsPage() {
         }
       })
     }
-  }, [isPaused])
+  }, [])
 
   const handleCloseExpanded = () => {
     setExpandedProject(null)
+    velocityRef.current = 0
+    isManualScrollingRef.current = false
     setIsPaused(false)
+    hoveredPlaneRef.current = null
   }
 
   const expandedProjectData = projects.find(p => p.id === expandedProject)
 
   return (
     <div className="relative w-full h-screen overflow-hidden">
-      <div
-        ref={containerRef}
-        className="absolute inset-x-0 top-32 bottom-0 curved-slider"
-      />
+      <div className="absolute w-full h-full z-0">
+        <Image src='/manga_img/starry.png' alt='starry background' className='object-cover' fill priority />
+        <video
+          src='/videos/manga_bg_slowed.webm?v=4'
+          className='absolute inset-0 w-full h-full object-cover'
+          muted
+          autoPlay
+          loop
+          playsInline
+        />
+      </div>
+
+      <div ref={containerRef} className="absolute inset-x-0 top-32 bottom-0 curved-slider z-10" />
+
+      <div className="absolute inset-0 w-full h-full z-20 pointer-events-none">
+        <video src='/videos/manga_man.webm?v=2' className='absolute inset-0 w-full h-full object-cover' muted autoPlay loop playsInline />
+      </div>
 
       {expandedProjectData && (
         <ProjectModal project={expandedProjectData} onClose={handleCloseExpanded} />
@@ -369,12 +341,8 @@ export default function ProjectsPage() {
         }
 
         @keyframes fadeIn {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
+          from { opacity: 0; }
+          to { opacity: 1; }
         }
 
         @keyframes scaleIn {
