@@ -310,9 +310,9 @@ export default function ProjectsPage() {
   return (
     <div className="relative w-full h-screen overflow-hidden">
       <div className="absolute w-full h-full z-0">
-        <Image src='/manga_img/starry.png' alt='starry background' className='object-cover' fill priority />
+        <Image src='/projects/images/starry.png' alt='starry background' className='object-cover' fill priority />
         <video
-          src='/videos/manga_bg_slowed.webm?v=4'
+          src='/projects/videos/manga_bg_slowed.webm?v=4'
           className='absolute inset-0 w-full h-full object-cover'
           muted
           autoPlay
@@ -324,7 +324,7 @@ export default function ProjectsPage() {
       <div ref={containerRef} className="absolute inset-x-0 top-32 bottom-0 curved-slider z-10" />
 
       <div className="absolute inset-0 w-full h-full z-20 pointer-events-none">
-        <video src='/videos/manga_man.webm?v=2' className='absolute inset-0 w-full h-full object-cover' muted autoPlay loop playsInline />
+        <video src='/projects/videos/manga_man.webm?v=2' className='absolute inset-0 w-full h-full object-cover' muted autoPlay loop playsInline />
       </div>
 
       {expandedProjectData && (

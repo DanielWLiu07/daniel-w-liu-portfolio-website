@@ -5,7 +5,7 @@ import { useMemo } from 'react';
 import * as THREE from 'three';
 
 export function StrokeModel() {
-  const gltf = useGLTF('/models/stroke.glb');
+  const gltf = useGLTF('/landing/models/stroke.glb');
   
   const scene = useMemo(() => {
     const clonedScene = gltf.scene.clone(true);
@@ -38,5 +38,5 @@ export function StrokeModel() {
   return <primitive object={scene} />;
 }
 
-useGLTF.preload('/models/stroke.glb');
+useGLTF.preload('/landing/models/stroke.glb');
 

@@ -12,7 +12,7 @@ interface ButterflyModelProps {
 
 export default function ButterflyModel({ position = [0.2, -0.075, 5], rotation = [0, -Math.PI / 2, 0], delay = 0 }: ButterflyModelProps) {
   const groupRef = useRef<THREE.Group>(null);
-  const { scene, animations } = useGLTF('/models/butterfly_compressed.glb');
+  const { scene, animations } = useGLTF('/landing/models/butterfly_compressed.glb');
   
   const clonedScene = useMemo(() => scene.clone(true), [scene]);
   
@@ -88,4 +88,4 @@ export default function ButterflyModel({ position = [0.2, -0.075, 5], rotation =
   );
 }
 
-useGLTF.preload('/models/butterfly_compressed.glb');
+useGLTF.preload('/landing/models/butterfly_compressed.glb');

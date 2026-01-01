@@ -96,11 +96,11 @@ export const createInteractiveButtons = (): InteractiveButton[] => [
 
 export const VIDEO_CONFIG = {
   ASPECT_RATIO: 16 / 9,
-  SRC: "/videos/resume_loading_anim_24fps.webm",
-  BUTTON_IMAGE_PATH: "/resume_img/button_img",
+  SRC: "/resume/videos/resume_loading_anim_24fps.webm",
+  BUTTON_IMAGE_PATH: "/resume/button_img",
 };
 
 export const PHOTO_IMAGES = {
-  selfie: "/resume_img/photo_img/self.JPG",
-  cat: "/resume_img/photo_img/cat.jpg",
+  selfie: "/resume/images/photo_img/self.JPG",
+  cat: "/resume/images/photo_img/cat.jpg",
 };

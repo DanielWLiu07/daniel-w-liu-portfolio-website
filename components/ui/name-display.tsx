@@ -1,7 +1,7 @@
 import localFont from 'next/font/local';
 
 const weddingDay = localFont({
-  src: '../../public/fonts/weddingday-font/ancient-wedding-font/AncientWeddingDemoRegular-MAm1n.ttf',
+  src: '../../public/shared/fonts/weddingday-font/ancient-wedding-font/AncientWeddingDemoRegular-MAm1n.ttf',
 });
 
 interface NameDisplayProps {

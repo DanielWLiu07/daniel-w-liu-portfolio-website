@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { TechStack } from "@/components/about/tech-stack";
 
 const katieRoze = localFont({
-  src: '../../public/fonts/Katie Roze Watercolour Font - By Lef/KatieRoze.otf',
+  src: '../../public/shared/fonts/Katie Roze Watercolour Font - By Lef/KatieRoze.otf',
 });
 
 const socialLinks = [
@@ -28,42 +28,42 @@ export default function About() {
   return (
     <div className="relative w-full min-h-screen">
       <div className="hidden md:block fixed inset-0 z-0">
-        <video src="/videos/watercolour/water_colour.webm" autoPlay muted playsInline className="absolute inset-0 w-full h-full object-cover object-bottom" />
+        <video src="/about/videos/water_colour.webm" autoPlay muted playsInline className="absolute inset-0 w-full h-full object-cover object-bottom" />
       </div>
 
       <div className="hidden md:block fixed inset-0 z-10">
         {!sparkleDone ? (
-          <video src="/videos/watercolour/sparkle_being.webm" autoPlay muted playsInline onEnded={() => setSparkleDone(true)} className="absolute inset-0 w-full h-full object-cover" />
+          <video src="/about/videos/sparkle_being.webm" autoPlay muted playsInline onEnded={() => setSparkleDone(true)} className="absolute inset-0 w-full h-full object-cover" />
         ) : (
-          <video src="/videos/watercolour/sparkle_loop.webm?v=2" autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" />
+          <video src="/about/videos/sparkle_loop.webm?v=2" autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" />
         )}
       </div>
 
       <div className="hidden md:block fixed inset-0 z-0">
-        <video src="/videos/watercolour/right_colour.webm" autoPlay muted playsInline className="absolute inset-0 w-full h-full object-cover" />
+        <video src="/about/videos/right_colour.webm" autoPlay muted playsInline className="absolute inset-0 w-full h-full object-cover" />
       </div>
 
       <div className="hidden md:block fixed inset-0 z-0">
-        <Image src="/watercolour/images/right_graphics.png" alt="Water Colour Graphics" fill className="object-cover object-right-top" priority />
+        <Image src="/about/images/right_graphics.png" alt="Water Colour Graphics" fill className="object-cover object-right-top" priority />
       </div>
 
       <div className="fixed bottom-0 right-0 z-[1] w-[200px] h-[100px]">
-        <Image src="/watercolour/images/socials.png" alt="Socials" fill className="object-contain object-right-bottom" priority />
+        <Image src="/about/images/socials.png" alt="Socials" fill className="object-contain object-right-bottom" priority />
       </div>
 
       <section className="md:hidden relative h-screen">
-        <video src="/videos/watercolour/water_colour.webm" autoPlay muted playsInline className="absolute inset-0 w-full h-full object-cover object-[10%_100%] z-0" />
+        <video src="/about/videos/water_colour.webm" autoPlay muted playsInline className="absolute inset-0 w-full h-full object-cover object-[10%_100%] z-0" />
         {!sparkleDone ? (
-          <video src="/videos/watercolour/sparkle_being.webm" autoPlay muted playsInline onEnded={() => setSparkleDone(true)} className="absolute inset-0 w-full h-full object-cover object-[10%_100%] z-10" />
+          <video src="/about/videos/sparkle_being.webm" autoPlay muted playsInline onEnded={() => setSparkleDone(true)} className="absolute inset-0 w-full h-full object-cover object-[10%_100%] z-10" />
         ) : (
-          <video src="/videos/watercolour/sparkle_loop.webm?v=2" autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover object-[10%_100%] z-10" />
+          <video src="/about/videos/sparkle_loop.webm?v=2" autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover object-[10%_100%] z-10" />
         )}
       </section>
 
       <section className="md:hidden relative h-[300vh]">
         <div className="sticky top-0 h-screen">
-          <video src="/videos/watercolour/right_colour_phone.webm" autoPlay muted playsInline className="absolute inset-0 w-full h-full object-cover object-right" />
-          <Image src="/watercolour/images/right_graphics.png" alt="Water Colour Graphics" fill className="object-cover object-right-top" priority />
+          <video src="/about/videos/right_colour_phone.webm" autoPlay muted playsInline className="absolute inset-0 w-full h-full object-cover object-right" />
+          <Image src="/about/images/right_graphics.png" alt="Water Colour Graphics" fill className="object-cover object-right-top" priority />
         </div>
       </section>
 

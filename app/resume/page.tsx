@@ -8,7 +8,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { createInteractiveButtons, VIDEO_CONFIG, PHOTO_IMAGES, InteractiveButton } from "@/components/resume/resume-buttons";
 
 const weddingDay = localFont({
-  src: "../../public/fonts/weddingday-font/ancient-wedding-font/AncientWeddingDemoRegular-MAm1n.ttf",
+  src: "../../public/shared/fonts/weddingday-font/ancient-wedding-font/AncientWeddingDemoRegular-MAm1n.ttf",
 });
 
 export default function Resume() {

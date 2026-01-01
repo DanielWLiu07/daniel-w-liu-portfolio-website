@@ -10,15 +10,15 @@ import { SocialLinks } from "@/components/ui/social-links";
 const Scene = dynamic(() => import("@/components/three/Scene"), { ssr: false });
 
 const weddingDay = localFont({
-  src: '../public/fonts/weddingday-font/ancient-wedding-font/AncientWeddingDemoRegular-MAm1n.ttf',
+  src: '../public/shared/fonts/weddingday-font/ancient-wedding-font/AncientWeddingDemoRegular-MAm1n.ttf',
 });
 
 const mountainLayers = [
-  { src: "/images/landing/mountain1.png", alt: "Mountain 1", className: "mountain1", zIndex: "z-0", delay: 0.1 },
-  { src: "/images/landing/mountain2.png", alt: "Mountain 2", className: "mountain2", zIndex: "z-10", delay: 0.2 },
-  { src: "/images/landing/mountain3.png", alt: "Mountain 3", className: "mountain3", zIndex: "z-20", delay: 0.3 },
-  { src: "/images/landing/mountain4.png", alt: "Mountain 4", className: "mountain4", zIndex: "z-30", delay: 0.5 },
-  { src: "/images/landing/mountain5.png", alt: "Mountain 5", className: "mountain5", zIndex: "z-40", delay: 0.4 },
+  { src: "/landing/images/mountain1.png", alt: "Mountain 1", className: "mountain1", zIndex: "z-0", delay: 0.1 },
+  { src: "/landing/images/mountain2.png", alt: "Mountain 2", className: "mountain2", zIndex: "z-10", delay: 0.2 },
+  { src: "/landing/images/mountain3.png", alt: "Mountain 3", className: "mountain3", zIndex: "z-20", delay: 0.3 },
+  { src: "/landing/images/mountain4.png", alt: "Mountain 4", className: "mountain4", zIndex: "z-30", delay: 0.5 },
+  { src: "/landing/images/mountain5.png", alt: "Mountain 5", className: "mountain5", zIndex: "z-40", delay: 0.4 },
 ];
 
 export default function Home() {
@@ -54,11 +54,11 @@ export default function Home() {
       ))}
 
       <div className="absolute inset-0 z-50 mountain6">
-        <video src="/videos/landing/dragon_body_24fps.webm" autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" />
+        <video src="/landing/videos/dragon_body_24fps.webm" autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" />
       </div>
 
       <div className="absolute inset-0 z-[51] dragon-head">
-        <video src="/videos/landing/dragon_head_24fps.webm" autoPlay loop muted playsInline className="absolute inset-0 w-full h-full overflow-visible translate-x-20 sm:translate-x-0 object-cover" />
+        <video src="/landing/videos/dragon_head_24fps.webm" autoPlay loop muted playsInline className="absolute inset-0 w-full h-full overflow-visible translate-x-20 sm:translate-x-0 object-cover" />
       </div>
 
       <div className="sun-container absolute z-50 top-[12.5%] left-1/2 w-[200px] h-[200px] -translate-x-1/2 -translate-y-1/2">
@@ -76,7 +76,7 @@ export default function Home() {
           </defs>
           <foreignObject width="200" height="200" mask="url(#sunMask)">
             <div className="w-full h-full rounded-full overflow-hidden">
-              <video className="w-full h-full object-cover" src="/videos/landing/sun.webm" autoPlay loop muted playsInline />
+              <video className="w-full h-full object-cover" src="/landing/videos/sun.webm" autoPlay loop muted playsInline />
             </div>
           </foreignObject>
         </svg>
@@ -102,11 +102,11 @@ export default function Home() {
       </div>
 
       <div className="fixed inset-0 z-[65] overflow-hidden pointer-events-none">
-        <video className="tree-right absolute top-0 right-0 h-screen w-auto object-cover object-top" src="/videos/landing/tree_right.webm" autoPlay loop muted playsInline />
+        <video className="tree-right absolute top-0 right-0 h-screen w-auto object-cover object-top" src="/landing/videos/tree_right.webm" autoPlay loop muted playsInline />
       </div>
 
       <div className="fixed inset-0 z-[60] overflow-hidden pointer-events-none">
-        <video className="tree-left absolute top-0 left-0 h-screen w-auto object-cover object-top" src="/videos/landing/tree_left.webm" autoPlay loop muted playsInline />
+        <video className="tree-left absolute top-0 left-0 h-screen w-auto object-cover object-top" src="/landing/videos/tree_left.webm" autoPlay loop muted playsInline />
       </div>
 
       <div className="fixed inset-0 z-[70] pointer-events-none">

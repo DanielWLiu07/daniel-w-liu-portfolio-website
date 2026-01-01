@@ -15,7 +15,7 @@ export const projects: Project[] = [
     title: "Project One",
     description: "A brief description of your first project",
     detailedDescription: "A detailed description of your first project. Add details about what you built, the impact it had, the challenges you faced, and what you learned. You can add multiple paragraphs here to provide comprehensive information about your project.",
-    image: "/watercolour/images/waterloo.png",
+    image: "/about/images/waterloo.png",
     technologies: ["React", "Next.js", "TypeScript"],
     link: "https://example.com",
     github: "https://github.com/yourusername/project1"
@@ -25,7 +25,7 @@ export const projects: Project[] = [
     title: "Project Two",
     description: "A brief description of your second project",
     detailedDescription: "A detailed description of your second project. Highlight key features and technologies used. Explain the problem it solves and the value it provides to users. Include metrics or results if available.",
-    image: "/watercolour/images/waterloo.png",
+    image: "/about/images/waterloo.png",
     technologies: ["Node.js", "Express", "MongoDB"],
     link: "https://example.com",
     github: "https://github.com/yourusername/project2"
@@ -35,7 +35,7 @@ export const projects: Project[] = [
     title: "Project Three",
     description: "A brief description of your third project",
     detailedDescription: "A detailed description of your third project. Explain the problem it solves, your approach to solving it, and the technologies you chose. Discuss any interesting technical challenges you overcame.",
-    image: "/watercolour/images/waterloo.png",
+    image: "/about/images/waterloo.png",
     technologies: ["Python", "Django", "PostgreSQL"],
     link: "https://example.com",
     github: "https://github.com/yourusername/project3"
@@ -45,7 +45,7 @@ export const projects: Project[] = [
     title: "Project Four",
     description: "A brief description of your fourth project",
     detailedDescription: "A detailed description of your fourth project. Share what you learned while building it, the design decisions you made, and how you iterated on the solution. Include any feedback or results you received.",
-    image: "/watercolour/images/waterloo.png",
+    image: "/about/images/waterloo.png",
     technologies: ["Vue.js", "Firebase", "TailwindCSS"],
     link: "https://example.com",
     github: "https://github.com/yourusername/project4"
@@ -55,7 +55,7 @@ export const projects: Project[] = [
     title: "Project Five",
     description: "A brief description of your fifth project",
     detailedDescription: "A detailed description of your fifth project. Mention any awards or recognition, the team size if collaborative, your specific contributions, and the overall impact of the project.",
-    image: "/watercolour/images/waterloo.png",
+    image: "/about/images/waterloo.png",
     technologies: ["React Native", "AWS", "GraphQL"],
     link: "https://example.com",
     github: "https://github.com/yourusername/project5"
