@@ -5,110 +5,11 @@ import Image from "next/image";
 import localFont from "next/font/local";
 import gsap from "gsap";
 import * as Dialog from "@radix-ui/react-dialog";
+import { createInteractiveButtons, VIDEO_CONFIG, PHOTO_IMAGES, InteractiveButton } from "@/components/resume/resume-buttons";
 
 const weddingDay = localFont({
   src: "../../public/fonts/weddingday-font/ancient-wedding-font/AncientWeddingDemoRegular-MAm1n.ttf",
 });
-
-const VIDEO_ASPECT_RATIO = 16 / 9;
-const VIDEO_SRC = "/resume_loading_anim_24fps.webm";
-const BUTTON_IMAGE_PATH = "/resume_img/button_img";
-
-interface InteractiveButton {
-  id: string;
-  imageName: string;
-  shape: "rounded-full" | "square";
-  left: string;
-  top: string;
-  width: string;
-  height: string;
-  rotation: number;
-  action: () => void;
-}
-
-const INTERACTIVE_BUTTONS: InteractiveButton[] = [
-  {
-    id: "folder",
-    imageName: "folder_selected.png",
-    shape: "square",
-    left: "50.29%",
-    top: "44.91%",
-    width: "40.57%",
-    height: "66.49%",
-    rotation: -12.5306,
-    action: () => window.open("/Daniel_W_Liu_Resume_Dec_2025.pdf", "_blank"),
-  },
-  {
-    id: "github",
-    imageName: "github_selected.png",
-    shape: "rounded-full",
-    left: "79.66%",
-    top: "57.45%",
-    width: "12.00%",
-    height: "21.52%",
-    rotation: 0,
-    action: () => window.open("https://github.com/DanielWLiu07", "_blank"),
-  },
-  {
-    id: "linkedin",
-    imageName: "linkedln_selected.png",
-    shape: "square",
-    left: "90.31%",
-    top: "74.5%",
-    width: "12.83%",
-    height: "19.85%",
-    rotation: 0,
-    action: () => window.open("https://www.linkedin.com/in/danielliu2007/", "_blank"),
-  },
-  {
-    id: "email",
-    imageName: "email_selected.png",
-    shape: "rounded-full",
-    left: "74.43%",
-    top: "82.14%",
-    width: "9.75%",
-    height: "17.29%",
-    rotation: 0,
-    action: () =>
-      window.open(
-        "https://docs.google.com/forms/d/e/1FAIpQLSdsaj2nXuReGTo1Fu9PaW7jsxUZPpPAiCMuf0gBvmZBYFe1nw/viewform?usp=dialog",
-        "_blank"
-      ),
-  },
-  {
-    id: "waterloo",
-    imageName: "waterloo_selected.png",
-    shape: "rounded-full",
-    left: "86.07%",
-    top: "23.76%",
-    width: "23.44%",
-    height: "41.63%",
-    rotation: 0,
-    action: () => window.open("https://uwaterloo.ca", "_blank"),
-  },
-  {
-    id: "selfie",
-    imageName: "selfie_selected.png",
-    shape: "square",
-    left: "13.95%",
-    top: "30.27%",
-    width: "22.91%",
-    height: "41.49%",
-    rotation: -8,
-    action: () => {},
-  },
-  {
-    id: "cat",
-    imageName: "cat_selected.png",
-    shape: "square",
-    left: "14.49%",
-    top: "73.67%",
-    width: "16.51%",
-    height: "28.49%",
-    rotation: 3.84,
-    action: () => {},
-  },
-];
 
 export default function Resume() {
   const [videoEnded, setVideoEnded] = useState(false);
@@ -118,6 +19,8 @@ export default function Resume() {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const scrollTextRef = useRef<HTMLDivElement>(null);
+
+  const INTERACTIVE_BUTTONS = createInteractiveButtons();
 
   useEffect(() => {
     const centerViewport = () => {
@@ -201,17 +104,17 @@ export default function Resume() {
 
   const handleButtonClick = (button: InteractiveButton) => {
     if (button.id === "selfie") {
-      setShowImageModal("/resume_img/photo_img/self.JPG");
+      setShowImageModal(PHOTO_IMAGES.selfie);
     } else if (button.id === "cat") {
-      setShowImageModal("/resume_img/photo_img/cat.jpg");
+      setShowImageModal(PHOTO_IMAGES.cat);
     } else {
       button.action();
     }
   };
 
   const contentWrapperStyle = {
-    width: `max(100vw, calc(100vh * ${VIDEO_ASPECT_RATIO}))`,
-    height: `max(100vh, calc(100vw / ${VIDEO_ASPECT_RATIO}))`,
+    width: `max(100vw, calc(100vh * ${VIDEO_CONFIG.ASPECT_RATIO}))`,
+    height: `max(100vh, calc(100vw / ${VIDEO_CONFIG.ASPECT_RATIO}))`,
   };
 
   const hoveredButtonData = INTERACTIVE_BUTTONS.find(
@@ -227,7 +130,7 @@ export default function Resume() {
       <div className="relative inline-block" style={contentWrapperStyle}>
         <video
           ref={videoRef}
-          src={VIDEO_SRC}
+          src={VIDEO_CONFIG.SRC}
           autoPlay
           muted
           playsInline
@@ -237,7 +140,7 @@ export default function Resume() {
 
         {hoveredButtonData && videoEnded && (
           <Image
-            src={`${BUTTON_IMAGE_PATH}/${hoveredButtonData.imageName}`}
+            src={`${VIDEO_CONFIG.BUTTON_IMAGE_PATH}/${hoveredButtonData.imageName}`}
             alt={hoveredButtonData.id}
             width={1920}
             height={1080}
