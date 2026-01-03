@@ -1,16 +1,22 @@
 'use client'
 
-import { useRef } from 'react'
+import { useRef, useEffect } from 'react'
 import Image from 'next/image'
 
 interface BackgroundVideosProps {
   visible: boolean
-  onVideosReady?: (refs: { bg: HTMLVideoElement | null; man: HTMLVideoElement | null }) => void
 }
 
-export default function BackgroundVideos({ visible, onVideosReady }: BackgroundVideosProps) {
+export default function BackgroundVideos({ visible }: BackgroundVideosProps) {
   const bgVideoRef = useRef<HTMLVideoElement>(null)
   const manVideoRef = useRef<HTMLVideoElement>(null)
+
+  useEffect(() => {
+    if (visible) {
+      bgVideoRef.current?.play()
+      manVideoRef.current?.play()
+    }
+  }, [visible])
 
   return (
     <>
@@ -24,7 +30,6 @@ export default function BackgroundVideos({ visible, onVideosReady }: BackgroundV
           loop
           playsInline
           preload="auto"
-          onLoadedData={() => onVideosReady?.({ bg: bgVideoRef.current, man: manVideoRef.current })}
         />
       </div>
 

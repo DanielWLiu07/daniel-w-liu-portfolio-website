@@ -14,16 +14,25 @@ export default function IntroVideo({ onEnded, onFlashStart }: IntroVideoProps) {
     }
   }
 
+  const handleEnded = () => {
+    onEnded()
+  }
+
+  const handleError = () => {
+    onEnded()
+  }
+
   return (
-    <div className="absolute inset-0 w-full h-full z-0">
+    <div className="absolute inset-0 w-full h-full z-0 pointer-events-none">
       <video
         src='/projects/videos/manga_intro.webm'
-        className='absolute inset-0 w-full h-full object-cover'
+        className='absolute inset-0 w-full h-full object-cover pointer-events-none'
         muted
         autoPlay
         playsInline
         onTimeUpdate={handleTimeUpdate}
-        onEnded={onEnded}
+        onEnded={handleEnded}
+        onError={handleError}
       />
     </div>
   )
