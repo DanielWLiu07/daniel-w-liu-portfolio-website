@@ -2,17 +2,18 @@
 
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
-import { projects, sceneOptions, animationConstants } from './project-data'
-
-const { WHEEL_ACCEL, FRICTION, MAX_VELOCITY, AUTO_SCROLL_VELOCITY, MIN_SCROLL_THRESHOLD } = animationConstants
+import { projects, sceneOptions } from './project-data'
+import { getPlaneWidth, createCardGeometry, createCardMaterial } from './carousel-helpers'
+import { handleWheelScroll, updateScrollVelocity } from './carousel-animation'
 
 interface ProjectSliderProps {
   isPaused: boolean
   onProjectClick: (projectId: number) => void
   onPauseChange: (paused: boolean) => void
+  visible: boolean
 }
 
-export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange }: ProjectSliderProps) {
+export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange, visible }: ProjectSliderProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const sceneRef = useRef<THREE.Scene | null>(null)
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null)
@@ -23,7 +24,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange 
   const animationFrameRef = useRef<number | null>(null)
   const velocityRef = useRef(0)
   const isManualScrollingRef = useRef(false)
-  const autoScrollDirectionRef = useRef(1)
+  const autoScrollDirectionRef = useRef(-1)
   const hoveredPlaneRef = useRef<THREE.Mesh | null>(null)
   const isPausedRef = useRef(false)
 
@@ -32,7 +33,9 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange 
   }, [isPaused])
 
   useEffect(() => {
-    if (!containerRef.current) return
+    if (!containerRef.current) {
+      return
+    }
 
     const container = containerRef.current
     const scene = new THREE.Scene()
@@ -49,17 +52,8 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange 
 
     container.appendChild(renderer.domElement)
 
-    const getWidth = (gap: number) => sceneOptions.cardWidth + gap / 100
-
-    const getPlaneWidth = (camera: THREE.PerspectiveCamera) => {
-      const vFov = (camera.fov * Math.PI) / 180
-      const height = 2 * Math.tan(vFov / 2) * camera.position.z
-      const aspect = container.clientWidth / container.clientHeight
-      const width = height * aspect
-      return container.clientWidth / width
-    }
-
-    const planeSpace = getPlaneWidth(camera) * getWidth(sceneOptions.gap)
+    const cardWidth = sceneOptions.cardWidth + sceneOptions.gap / 100
+    const planeSpace = getPlaneWidth(camera, container.clientWidth, container.clientHeight, sceneOptions.cardWidth, sceneOptions.gap) * cardWidth
     const visibleCards = Math.ceil(container.clientWidth / planeSpace)
     const totalCards = visibleCards + projects.length * 4
     const initialOffset = Math.ceil(totalCards / 2)
@@ -73,56 +67,15 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange 
     planesRef.current = planes
 
     allProjects.forEach((project, i) => {
-      const canvas = document.createElement('canvas')
-      canvas.width = 512
-      canvas.height = 683
-      const ctx = canvas.getContext('2d')!
+      const textureLoader = new THREE.TextureLoader()
+      const texture = textureLoader.load(project.image)
 
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)'
-      ctx.fillRect(0, 0, 512, 683)
-      ctx.strokeStyle = 'rgba(229, 231, 235, 0.5)'
-      ctx.lineWidth = 4
-      ctx.strokeRect(2, 2, 508, 679)
-
-      ctx.fillStyle = 'rgba(31, 41, 55, 0.9)'
-      ctx.font = 'bold 48px sans-serif'
-      ctx.textAlign = 'center'
-      ctx.fillText(project.title, 256, 341)
-
-      const texture = new THREE.CanvasTexture(canvas)
-      const geometry = new THREE.PlaneGeometry(sceneOptions.cardWidth, sceneOptions.cardHeight, 20, 20)
-
-      const material = new THREE.ShaderMaterial({
-        uniforms: {
-          tex: { value: texture },
-          curve: { value: sceneOptions.curve },
-          isExpanded: { value: 0.0 }
-        },
-        transparent: true,
-        vertexShader: `
-          uniform float curve;
-          uniform float isExpanded;
-          varying vec2 vertexUV;
-          void main(){
-            vertexUV = uv;
-            vec3 newPosition = position;
-            float distanceFromCenter = abs(modelMatrix*vec4(position, 1.0)).x;
-            newPosition.y *= 1.0 + (curve/100.0)*pow(distanceFromCenter,2.0)*(1.0-isExpanded);
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
-          }
-        `,
-        fragmentShader: `
-          uniform sampler2D tex;
-          varying vec2 vertexUV;
-          void main(){
-            vec4 texColor = texture2D(tex, vertexUV);
-            gl_FragColor = texColor;
-          }
-        `
-      })
+      const geometry = createCardGeometry(sceneOptions.cardWidth, sceneOptions.cardHeight)
+      const material = createCardMaterial(texture, sceneOptions.curve)
 
       const plane = new THREE.Mesh(geometry, material)
-      plane.position.x = -(i - initialOffset) * getWidth(sceneOptions.gap)
+      plane.position.x = -(i - initialOffset) * cardWidth
+
       plane.userData = {
         projectId: project.id,
         projectIndex: i % projects.length,
@@ -135,6 +88,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange 
 
     const raycaster = new THREE.Raycaster()
     const mouse = new THREE.Vector2()
+    const lastMousePosition = new THREE.Vector2(-999, -999)
 
     const onCanvasClick = (event: MouseEvent) => {
       if (!containerRef.current) return
@@ -152,11 +106,9 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange 
 
         isManualScrollingRef.current = false
         velocityRef.current = 0
+        targetTimeRef.current = timeRef.current
 
         onPauseChange(true)
-
-        const currentX = clickedPlane.position.x + scene.position.x
-        targetTimeRef.current = timeRef.current - currentX / sceneOptions.speed
 
         setTimeout(() => {
           onProjectClick(projectId)
@@ -172,8 +124,11 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange 
       const rect = containerRef.current.getBoundingClientRect()
       mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
       mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
+      lastMousePosition.copy(mouse)
+    }
 
-      raycaster.setFromCamera(mouse, camera)
+    const checkHover = () => {
+      raycaster.setFromCamera(lastMousePosition, camera)
       const intersects = raycaster.intersectObjects(planes)
 
       if (intersects.length > 0) {
@@ -181,31 +136,29 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange 
         if (hoveredPlaneRef.current !== hoveredPlane) {
           hoveredPlaneRef.current = hoveredPlane
         }
+        if (!isPausedRef.current) {
+          velocityRef.current = 0
+          isManualScrollingRef.current = false
+          targetTimeRef.current = timeRef.current
+          onPauseChange(true)
+        }
       } else {
         hoveredPlaneRef.current = null
+        if (isPausedRef.current) {
+          onPauseChange(false)
+        }
       }
     }
 
     renderer.domElement.addEventListener('mousemove', onMouseMove)
 
     const onWheel = (event: WheelEvent) => {
-      event.preventDefault()
-
       if (isPausedRef.current) {
         onPauseChange(false)
       }
 
-      const primaryDelta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY
-      const absDelta = Math.abs(primaryDelta)
-
-      if (absDelta < MIN_SCROLL_THRESHOLD) return
-
-      const sensitivity = Math.pow(absDelta / 100, 0.85)
-      const impulse = -Math.sign(primaryDelta) * sensitivity * WHEEL_ACCEL * 100
-
-      velocityRef.current = Math.max(-MAX_VELOCITY, Math.min(MAX_VELOCITY, velocityRef.current + impulse))
-
-      isManualScrollingRef.current = true
+      hoveredPlaneRef.current = null
+      handleWheelScroll(event, velocityRef, isManualScrollingRef)
     }
 
     renderer.domElement.addEventListener('wheel', onWheel, { passive: false })
@@ -216,22 +169,9 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange 
       const timePassed = currentTime - previousTime
 
       if (!isPausedRef.current) {
-        const loopWidth = getWidth(sceneOptions.gap) * projects.length
+        const loopWidth = cardWidth * projects.length
 
-        if (isManualScrollingRef.current) {
-          if (Math.abs(velocityRef.current) > 0.01) {
-            autoScrollDirectionRef.current = velocityRef.current > 0 ? 1 : -1
-          }
-
-          velocityRef.current *= FRICTION
-
-          if (Math.abs(velocityRef.current) < AUTO_SCROLL_VELOCITY * 1.5) {
-            velocityRef.current = AUTO_SCROLL_VELOCITY * autoScrollDirectionRef.current
-            isManualScrollingRef.current = false
-          }
-        } else {
-          velocityRef.current = AUTO_SCROLL_VELOCITY * autoScrollDirectionRef.current
-        }
+        updateScrollVelocity(isManualScrollingRef, velocityRef, autoScrollDirectionRef)
 
         timeRef.current += velocityRef.current * timePassed * 0.001
 
@@ -246,6 +186,8 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange 
       }
 
       scene.position.x = timeRef.current * sceneOptions.speed
+
+      checkHover()
 
       planes.forEach(plane => {
         const targetScale = plane === hoveredPlaneRef.current ? 1.15 : 1
@@ -301,7 +243,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange 
 
   return (
     <>
-      <div ref={containerRef} className="absolute inset-x-0 top-32 bottom-0 curved-slider z-10" />
+      <div ref={containerRef} className={`absolute inset-x-0 top-32 bottom-0 curved-slider z-10 transition-opacity ${!visible ? 'opacity-0 pointer-events-none' : 'opacity-100'}`} />
       <style jsx>{`
         .curved-slider canvas {
           position: absolute;
