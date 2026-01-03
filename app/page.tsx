@@ -5,6 +5,8 @@ import gsap from "gsap";
 import localFont from 'next/font/local';
 import Image from 'next/image';
 import { SocialLinks } from "@/components/ui/social-links";
+import { useMobile } from "@/hooks/use-mobile";
+import { useBodyOverflow } from "@/hooks/use-body-overflow";
 
 const weddingDay = localFont({
   src: '../public/shared/fonts/weddingday-font/ancient-wedding-font/AncientWeddingDemoRegular-MAm1n.ttf',
@@ -12,6 +14,8 @@ const weddingDay = localFont({
 
 export default function Home() {
   const rootRef = useRef(null);
+  const isMobile = useMobile();
+  useBodyOverflow('hidden');
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -47,7 +51,7 @@ export default function Home() {
     <div ref={rootRef} className="relative w-full h-screen overflow-hidden">
       <div className="absolute inset-0 w-full h-full overflow-hidden">
         <Image src="/landing/images/painted_bg.png" alt="painted background" fill className="object-cover" priority />
-        <video src="/landing/videos/landing_composite.webm" autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" />
+        <video src="/landing/videos/landing_composite.webm" autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" preload={isMobile ? "none" : "auto"} />
       </div>
 
       <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" className="absolute inset-0 w-full h-full z-0">
@@ -59,7 +63,7 @@ export default function Home() {
                 attributeName="scale"
                 values="200;490"
                 dur="3s"
-                begin="0.5s"
+                begin="0.6s"
                 calcMode="spline"
                 keySplines="0.2 0.8 0.3 1"
                 fill="freeze"
@@ -73,7 +77,7 @@ export default function Home() {
                 attributeName="x"
                 values="50%;6.75%"
                 dur="3s"
-                begin="0.5s"
+                begin="0.6s"
                 calcMode="spline"
                 keySplines="0.2 0.8 0.3 1"
                 fill="freeze"
@@ -82,7 +86,7 @@ export default function Home() {
                 attributeName="y"
                 values="50%;3.75%"
                 dur="3s"
-                begin="0.5s"
+                begin="0.6s"
                 calcMode="spline"
                 keySplines="0.2 0.8 0.3 1"
                 fill="freeze"
@@ -91,7 +95,7 @@ export default function Home() {
                 attributeName="width"
                 values="0%;87%"
                 dur="3s"
-                begin="0.5s"
+                begin="0.6s"
                 calcMode="spline"
                 keySplines="0.2 0.8 0.3 1"
                 fill="freeze"
@@ -100,7 +104,7 @@ export default function Home() {
                 attributeName="height"
                 values="0%;92%"
                 dur="3s"
-                begin="0.5s"
+                begin="0.6s"
                 calcMode="spline"
                 keySplines="0.2 0.8 0.3 1"
                 fill="freeze"
@@ -135,11 +139,11 @@ export default function Home() {
       </div>
 
       <div className="fixed inset-0 z-[65] overflow-hidden pointer-events-none">
-        <video className="tree-right absolute top-0 right-0 h-screen w-auto object-cover object-top" src="/landing/videos/tree_right.webm" autoPlay loop muted playsInline />
+        <video className="tree-right absolute top-0 right-0 h-screen w-auto object-cover object-top" src="/landing/videos/tree_right.webm" autoPlay loop muted playsInline preload={isMobile ? "none" : "auto"} />
       </div>
 
       <div className="fixed inset-0 z-[60] overflow-hidden pointer-events-none">
-        <video className="tree-left absolute top-0 left-0 h-screen w-auto object-cover object-top" src="/landing/videos/tree_left.webm" autoPlay loop muted playsInline />
+        <video className="tree-left absolute top-0 left-0 h-screen w-auto object-cover object-top" src="/landing/videos/tree_left.webm" autoPlay loop muted playsInline preload={isMobile ? "none" : "auto"} />
       </div>
 
       <SocialLinks variant="black" />
