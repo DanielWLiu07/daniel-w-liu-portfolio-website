@@ -6,6 +6,8 @@ import localFont from "next/font/local";
 import gsap from "gsap";
 import * as Dialog from "@radix-ui/react-dialog";
 import { createInteractiveButtons, VIDEO_CONFIG, PHOTO_IMAGES, InteractiveButton } from "@/components/resume/resume-buttons";
+import { useMobile } from "@/hooks/use-mobile";
+import { useBodyOverflow } from "@/hooks/use-body-overflow";
 
 const weddingDay = localFont({
   src: "../../public/shared/fonts/weddingday-font/ancient-wedding-font/AncientWeddingDemoRegular-MAm1n.ttf",
@@ -19,6 +21,9 @@ export default function Resume() {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const scrollTextRef = useRef<HTMLDivElement>(null);
+  const isMobile = useMobile();
+
+  useBodyOverflow('hidden');
 
   const INTERACTIVE_BUTTONS = createInteractiveButtons();
 
@@ -64,8 +69,12 @@ export default function Resume() {
 
     window.addEventListener("resize", centerViewport);
 
+    centerViewport();
+    const timeoutId = setTimeout(centerViewport, 100);
+
     return () => {
       window.removeEventListener("resize", centerViewport);
+      clearTimeout(timeoutId);
       if (video) {
         video.removeEventListener("loadedmetadata", centerViewport);
       }
@@ -134,6 +143,7 @@ export default function Resume() {
           autoPlay
           muted
           playsInline
+          preload={isMobile ? "none" : "auto"}
           onEnded={handleVideoEnd}
           className="w-full h-full block object-cover object-center"
         />
