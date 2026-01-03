@@ -1,88 +1,121 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import Image from "next/image";
 import gsap from "gsap";
-import dynamic from "next/dynamic";
 import localFont from 'next/font/local';
+import Image from 'next/image';
 import { SocialLinks } from "@/components/ui/social-links";
-
-const Scene = dynamic(() => import("@/components/three/Scene"), { ssr: false });
 
 const weddingDay = localFont({
   src: '../public/shared/fonts/weddingday-font/ancient-wedding-font/AncientWeddingDemoRegular-MAm1n.ttf',
 });
-
-const mountainLayers = [
-  { src: "/landing/images/mountain1.png", alt: "Mountain 1", className: "mountain1", zIndex: "z-0", delay: 0.1 },
-  { src: "/landing/images/mountain2.png", alt: "Mountain 2", className: "mountain2", zIndex: "z-10", delay: 0.2 },
-  { src: "/landing/images/mountain3.png", alt: "Mountain 3", className: "mountain3", zIndex: "z-20", delay: 0.3 },
-  { src: "/landing/images/mountain4.png", alt: "Mountain 4", className: "mountain4", zIndex: "z-30", delay: 0.5 },
-  { src: "/landing/images/mountain5.png", alt: "Mountain 5", className: "mountain5", zIndex: "z-40", delay: 0.4 },
-];
 
 export default function Home() {
   const rootRef = useRef(null);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
-      mountainLayers.forEach(({ className, delay }) => {
-        gsap.from(`.${className}`, { y: "100%", duration: 1.2, ease: "power3.out", delay });
+      const timeline = gsap.timeline();
+
+      timeline.from(".name-container", {
+        y: "-100vh",
+        scale: 1.8,
+        duration: 0.6,
+        ease: "power2.in",
       });
 
-      gsap.from(".tree-right", { x: "100%", duration: 1.5, ease: "power3.out", delay: 0.6 });
-      gsap.from(".tree-left", { x: "-100%", duration: 1.5, ease: "power3.out", delay: 0.6 });
+      timeline.to(".name-container", {
+        scale: 0.92,
+        duration: 0.1,
+        ease: "power2.out",
+      }, "-=0.05");
 
-      gsap.to(".sun-container", {
-        y: 40,
-        duration: 3,
-        ease: "sine.inOut",
-        repeat: -1,
-        yoyo: true,
+      timeline.to(".name-container", {
+        scale: 1,
+        duration: 0.4,
+        ease: "elastic.out(1.2, 0.4)",
       });
+
+      gsap.from(".tree-right", { x: "100%", duration: 1.5, ease: "power3.out", delay: 1.5 });
+      gsap.from(".tree-left", { x: "-100%", duration: 1.5, ease: "power3.out", delay: 1.5 });
     }, rootRef);
 
     return () => ctx.revert();
   }, []);
 
   return (
-    <div ref={rootRef} className="relative w-full h-screen bg-[#cacda7] overflow-hidden">
-      {mountainLayers.map(({ src, alt, className, zIndex }) => (
-        <div key={alt} className={`absolute inset-0 ${zIndex} ${className}`}>
-          <Image src={src} alt={alt} fill className="object-cover" priority />
-        </div>
-      ))}
-
-      <div className="absolute inset-0 z-50 mountain6">
-        <video src="/landing/videos/dragon_body_24fps.webm" autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" />
+    <div ref={rootRef} className="relative w-full h-screen overflow-hidden">
+      <div className="absolute inset-0 w-full h-full overflow-hidden">
+        <Image src="/landing/images/painted_bg.png" alt="painted background" fill className="object-cover" priority />
+        <video src="/landing/videos/landing_composite.webm" autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" />
       </div>
 
-      <div className="absolute inset-0 z-[51] dragon-head">
-        <video src="/landing/videos/dragon_head_24fps.webm" autoPlay loop muted playsInline className="absolute inset-0 w-full h-full overflow-visible translate-x-20 sm:translate-x-0 object-cover" />
-      </div>
+      <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" className="absolute inset-0 w-full h-full z-0">
+        <defs>
+          <filter id="bgFilter">
+            <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="8" result="noise" />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="0" xChannelSelector="R" yChannelSelector="G">
+              <animate
+                attributeName="scale"
+                values="200;490"
+                dur="3s"
+                begin="0.5s"
+                calcMode="spline"
+                keySplines="0.2 0.8 0.3 1"
+                fill="freeze"
+              />
+            </feDisplacementMap>
+          </filter>
+          <mask id="bgMask">
+            <rect x="0" y="0" width="100%" height="100%" fill="white" />
+            <rect x="50%" y="50%" width="0%" height="0%" fill="black" filter="url(#bgFilter)">
+              <animate
+                attributeName="x"
+                values="50%;6.75%"
+                dur="3s"
+                begin="0.5s"
+                calcMode="spline"
+                keySplines="0.2 0.8 0.3 1"
+                fill="freeze"
+              />
+              <animate
+                attributeName="y"
+                values="50%;3.75%"
+                dur="3s"
+                begin="0.5s"
+                calcMode="spline"
+                keySplines="0.2 0.8 0.3 1"
+                fill="freeze"
+              />
+              <animate
+                attributeName="width"
+                values="0%;87%"
+                dur="3s"
+                begin="0.5s"
+                calcMode="spline"
+                keySplines="0.2 0.8 0.3 1"
+                fill="freeze"
+              />
+              <animate
+                attributeName="height"
+                values="0%;92%"
+                dur="3s"
+                begin="0.5s"
+                calcMode="spline"
+                keySplines="0.2 0.8 0.3 1"
+                fill="freeze"
+              />
+            </rect>
+          </mask>
+        </defs>
+        <foreignObject width="100%" height="100%" mask="url(#bgMask)">
+          <div className="relative w-full h-full overflow-hidden">
+            <Image src="/landing/images/white_paper.png" alt="white paper background" fill className="object-cover" priority />
+          </div>
+        </foreignObject>
+      </svg>
 
-      <div className="sun-container absolute z-50 top-[12.5%] left-1/2 w-[200px] h-[200px] -translate-x-1/2 -translate-y-1/2">
-        <svg width="200" height="200" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-          <defs>
-            <filter id="sunFilter">
-              <feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="10" result="noise" />
-              <feDisplacementMap in="SourceGraphic" in2="noise" scale="100" xChannelSelector="R" yChannelSelector="G" />
-            </filter>
-            <mask id="sunMask">
-              <circle cx="100" cy="100" r="0" fill="white" filter="url(#sunFilter)">
-                <animate attributeName="r" from="0" to="200" dur="2s" fill="freeze" />
-              </circle>
-            </mask>
-          </defs>
-          <foreignObject width="200" height="200" mask="url(#sunMask)">
-            <div className="w-full h-full rounded-full overflow-hidden">
-              <video className="w-full h-full object-cover" src="/landing/videos/sun.webm" autoPlay loop muted playsInline />
-            </div>
-          </foreignObject>
-        </svg>
-      </div>
-
-      <div className="absolute z-[62] top-[38%] sm:top-[45%] left-1/2 sm:left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center">
+      <div className="name-container absolute z-[62] top-[38%] sm:top-[45%] left-1/2 sm:left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center">
         <div className="flex flex-wrap sm:flex-nowrap gap-x-4 items-center sm:items-center justify-center -ml-12 sm:ml-0">
           <div className="flex gap-4 items-center justify-center">
             <div className={`text-8xl sm:text-9xl tracking-tighter text-stroke-white ${weddingDay.className}`}>
@@ -109,11 +142,7 @@ export default function Home() {
         <video className="tree-left absolute top-0 left-0 h-screen w-auto object-cover object-top" src="/landing/videos/tree_left.webm" autoPlay loop muted playsInline />
       </div>
 
-      <div className="fixed inset-0 z-[70] pointer-events-none">
-        <Scene />
-      </div>
-
-      <SocialLinks />
+      <SocialLinks variant="black" />
     </div>
   );
 }
