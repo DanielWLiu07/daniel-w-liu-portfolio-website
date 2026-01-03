@@ -1,12 +1,10 @@
 "use client";
 
 import localFont from 'next/font/local';
-import { useEffect, useRef } from 'react';
 import { TechStack } from "@/components/about/tech-stack";
 import { BackgroundLayers } from "@/components/about/background-layers";
 import { MobileBackground } from "@/components/about/mobile-background";
 import { SocialLinksImages } from "@/components/about/social-links-images";
-import gsap from "gsap";
 
 const katieRoze = localFont({
   src: '../../public/shared/fonts/Katie Roze Watercolour Font - By Lef/KatieRoze.otf',
@@ -21,22 +19,8 @@ const INFO_ITEMS = [
 ];
 
 export default function About() {
-  const rootRef = useRef(null);
-
-  useEffect(() => {
-    const ctx = gsap.context(() => {
-      gsap.from(".right-graphics", {
-        x: "100%",
-        duration: 1.5,
-        ease: "power3.out",
-      });
-    }, rootRef);
-
-    return () => ctx.revert();
-  }, []);
-
   return (
-    <div ref={rootRef} className="relative w-full min-h-screen">
+    <div className="relative w-full min-h-screen">
       <BackgroundLayers />
       <MobileBackground />
 
