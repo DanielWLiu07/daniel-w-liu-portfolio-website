@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import localFont from 'next/font/local';
 import Image from 'next/image';
@@ -13,11 +13,22 @@ const weddingDay = localFont({
 });
 
 export default function Home() {
+  const [isLoaded, setIsLoaded] = useState(false);
   const rootRef = useRef(null);
+  const loadCountRef = useRef(0);
   const isMobile = useMobile();
   useBodyOverflow('hidden');
 
+  const handleAssetLoad = () => {
+    loadCountRef.current += 1;
+    if (loadCountRef.current >= 2) {
+      setIsLoaded(true);
+    }
+  };
+
   useEffect(() => {
+    if (!isLoaded) return;
+
     const ctx = gsap.context(() => {
       const timeline = gsap.timeline();
 
@@ -45,13 +56,23 @@ export default function Home() {
     }, rootRef);
 
     return () => ctx.revert();
-  }, []);
+  }, [isLoaded]);
 
   return (
-    <div ref={rootRef} className="relative w-full h-screen overflow-hidden">
-      <div className="absolute inset-0 w-full h-full overflow-hidden">
-        <Image src="/landing/images/painted_bg.png" alt="painted background" fill className="object-cover" priority />
-        <video src="/landing/videos/landing_composite.webm" autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" preload={isMobile ? "none" : "auto"} />
+    <>
+      {!isLoaded && (
+        <div className="fixed inset-0 z-[1000] bg-black flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin" />
+            <p className={`text-2xl text-white ${weddingDay.className}`}>Loading...</p>
+          </div>
+        </div>
+      )}
+
+      <div ref={rootRef} className={`relative w-full h-screen overflow-hidden ${!isLoaded ? 'opacity-0' : 'opacity-100'}`}>
+        <div className="absolute inset-0 w-full h-full overflow-hidden">
+          <Image src="/landing/images/painted_bg.png" alt="painted background" fill className="object-cover" priority onLoad={handleAssetLoad} />
+          <video src="/landing/videos/landing_composite.webm" autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" preload={isMobile ? "none" : "auto"} onCanPlay={handleAssetLoad} />
       </div>
 
       <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" className="absolute inset-0 w-full h-full z-0">
@@ -147,6 +168,7 @@ export default function Home() {
       </div>
 
       <SocialLinks variant="black" />
-    </div>
+      </div>
+    </>
   );
 }

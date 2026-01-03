@@ -14,6 +14,7 @@ const weddingDay = localFont({
 });
 
 export default function Resume() {
+  const [isLoaded, setIsLoaded] = useState(false);
   const [videoEnded, setVideoEnded] = useState(false);
   const [hoveredButton, setHoveredButton] = useState<string | null>(null);
   const [showImageModal, setShowImageModal] = useState<string | null>(null);
@@ -26,6 +27,21 @@ export default function Resume() {
   useBodyOverflow('hidden');
 
   const INTERACTIVE_BUTTONS = createInteractiveButtons();
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handleCanPlay = () => {
+      setIsLoaded(true);
+    };
+
+    video.addEventListener('canplay', handleCanPlay);
+
+    return () => {
+      video.removeEventListener('canplay', handleCanPlay);
+    };
+  }, []);
 
   useEffect(() => {
     const centerViewport = () => {
@@ -131,22 +147,32 @@ export default function Resume() {
   );
 
   return (
-    <div
-      ref={containerRef}
-      className="w-full h-screen overflow-auto bg-black"
-      style={{ WebkitOverflowScrolling: "touch" }}
-    >
-      <div className="relative inline-block" style={contentWrapperStyle}>
-        <video
-          ref={videoRef}
-          src={VIDEO_CONFIG.SRC}
-          autoPlay
-          muted
-          playsInline
-          preload={isMobile ? "none" : "auto"}
-          onEnded={handleVideoEnd}
-          className="w-full h-full block object-cover object-center"
-        />
+    <>
+      {!isLoaded && (
+        <div className="fixed inset-0 z-[1000] bg-black flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin" />
+            <p className={`text-2xl text-white ${weddingDay.className}`}>Loading...</p>
+          </div>
+        </div>
+      )}
+
+      <div
+        ref={containerRef}
+        className={`w-full h-screen overflow-auto bg-black ${!isLoaded ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+        style={{ WebkitOverflowScrolling: "touch" }}
+      >
+        <div className="relative inline-block" style={contentWrapperStyle}>
+          <video
+            ref={videoRef}
+            src={VIDEO_CONFIG.SRC}
+            autoPlay
+            muted
+            playsInline
+            preload={isMobile ? "none" : "auto"}
+            onEnded={handleVideoEnd}
+            className="w-full h-full block object-cover object-center"
+          />
 
         {hoveredButtonData && videoEnded && (
           <Image
@@ -217,6 +243,7 @@ export default function Resume() {
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
-    </div>
+      </div>
+    </>
   );
 }

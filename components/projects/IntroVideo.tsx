@@ -5,9 +5,10 @@ import { useMobile } from '@/hooks/use-mobile'
 interface IntroVideoProps {
   onEnded: () => void
   onFlashStart: () => void
+  onLoaded: () => void
 }
 
-export default function IntroVideo({ onEnded, onFlashStart }: IntroVideoProps) {
+export default function IntroVideo({ onEnded, onFlashStart, onLoaded }: IntroVideoProps) {
   const isMobile = useMobile()
   const handleTimeUpdate = (e: React.SyntheticEvent<HTMLVideoElement>) => {
     const video = e.currentTarget
@@ -37,6 +38,7 @@ export default function IntroVideo({ onEnded, onFlashStart }: IntroVideoProps) {
         onTimeUpdate={handleTimeUpdate}
         onEnded={handleEnded}
         onError={handleError}
+        onCanPlay={onLoaded}
       />
     </div>
   )
