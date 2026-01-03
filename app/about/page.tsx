@@ -6,6 +6,7 @@ import { TechStack } from "@/components/about/tech-stack";
 import { BackgroundLayers } from "@/components/about/background-layers";
 import { MobileBackground } from "@/components/about/mobile-background";
 import { SocialLinksImages } from "@/components/about/social-links-images";
+import { useBodyOverflow } from "@/hooks/use-body-overflow";
 
 const katieRoze = localFont({
   src: '../../public/shared/fonts/Katie Roze Watercolour Font - By Lef/KatieRoze.otf',
@@ -21,6 +22,7 @@ const INFO_ITEMS = [
 
 export default function About() {
   const [isLoaded, setIsLoaded] = useState(false);
+  useBodyOverflow('hidden');
 
   return (
     <>
