@@ -25,6 +25,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <link
+          rel="preload"
+          href="/shared/fonts/Katie Roze Watercolour Font - By Lef/KatieRoze.otf"
+          as="font"
+          type="font/otf"
+          crossOrigin="anonymous"
+        />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
