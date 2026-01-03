@@ -56,7 +56,7 @@ export function SocialLinks({ variant = 'white' }: SocialLinksProps) {
   const isBlack = variant === 'black';
 
   return (
-    <div className="fixed bottom-8 right-8 z-[80] flex flex-row gap-4 pointer-events-auto">
+    <div className="fixed bottom-4 right-4 z-[80] flex flex-row gap-4 pointer-events-auto">
       {links.map((link) => (
         <a
           key={link.label}
