@@ -1,7 +1,9 @@
+import React from 'react'
+
 interface SocialLink {
   href: string;
   label: string;
-  icon: JSX.Element;
+  icon: React.ReactElement;
 }
 
 const links: SocialLink[] = [
