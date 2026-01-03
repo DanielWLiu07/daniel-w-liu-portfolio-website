@@ -36,10 +36,21 @@ export default function Resume() {
       setIsLoaded(true);
     };
 
+    if (video.readyState >= 3) {
+      setIsLoaded(true);
+    }
+
     video.addEventListener('canplay', handleCanPlay);
+    video.addEventListener('loadeddata', handleCanPlay);
+
+    const timeout = setTimeout(() => {
+      setIsLoaded(true);
+    }, 1000);
 
     return () => {
       video.removeEventListener('canplay', handleCanPlay);
+      video.removeEventListener('loadeddata', handleCanPlay);
+      clearTimeout(timeout);
     };
   }, []);
 
