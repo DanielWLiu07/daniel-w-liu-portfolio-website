@@ -46,7 +46,13 @@ const links: SocialLink[] = [
   },
 ];
 
-export function SocialLinks() {
+interface SocialLinksProps {
+  variant?: 'white' | 'black';
+}
+
+export function SocialLinks({ variant = 'white' }: SocialLinksProps) {
+  const isBlack = variant === 'black';
+
   return (
     <div className="fixed bottom-8 right-8 z-[80] flex flex-row gap-4 pointer-events-auto">
       {links.map((link) => (
@@ -55,11 +61,15 @@ export function SocialLinks() {
           href={link.href}
           target="_blank"
           rel="noopener noreferrer"
-          className="w-14 h-14 rounded-lg bg-white/10 backdrop-blur-sm border-2 border-white/30 transition-all hover:scale-110 hover:bg-white/20 duration-200 flex items-center justify-center"
+          className={`w-14 h-14 rounded-lg backdrop-blur-sm border-2 transition-all hover:scale-110 duration-200 flex items-center justify-center ${
+            isBlack
+              ? 'bg-black/10 border-black/30 hover:bg-black/20'
+              : 'bg-white/10 border-white/30 hover:bg-white/20'
+          }`}
           aria-label={link.label}
         >
           <svg
-            className="w-8 h-8 text-white"
+            className={`w-8 h-8 ${isBlack ? 'text-black' : 'text-white'}`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
