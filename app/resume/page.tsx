@@ -37,7 +37,7 @@ export default function Resume() {
     };
 
     if (video.readyState >= 3) {
-      setIsLoaded(true);
+      setTimeout(() => setIsLoaded(true), 0);
     }
 
     video.addEventListener('canplay', handleCanPlay);
