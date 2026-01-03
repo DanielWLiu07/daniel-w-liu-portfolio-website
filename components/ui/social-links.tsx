@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { memo } from 'react'
 
 interface SocialLink {
   href: string;
@@ -52,7 +52,7 @@ interface SocialLinksProps {
   variant?: 'white' | 'black';
 }
 
-export function SocialLinks({ variant = 'white' }: SocialLinksProps) {
+export const SocialLinks = memo(function SocialLinks({ variant = 'white' }: SocialLinksProps) {
   const isBlack = variant === 'black';
 
   return (
@@ -63,10 +63,10 @@ export function SocialLinks({ variant = 'white' }: SocialLinksProps) {
           href={link.href}
           target="_blank"
           rel="noopener noreferrer"
-          className={`w-14 h-14 rounded-lg backdrop-blur-sm border-2 transition-all hover:scale-110 duration-200 flex items-center justify-center ${
+          className={`w-14 h-14 rounded-lg border-2 transition-all hover:scale-110 duration-200 flex items-center justify-center ${
             isBlack
-              ? 'bg-black/10 border-black/30 hover:bg-black/20'
-              : 'bg-white/10 border-white/30 hover:bg-white/20'
+              ? 'bg-black/30 border-black/40 hover:bg-black/40'
+              : 'bg-white/30 border-white/40 hover:bg-white/40'
           }`}
           aria-label={link.label}
         >
@@ -83,4 +83,4 @@ export function SocialLinks({ variant = 'white' }: SocialLinksProps) {
       ))}
     </div>
   );
-}
+})

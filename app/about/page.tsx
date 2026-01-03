@@ -35,7 +35,7 @@ export default function About() {
             </p>
           </div>
 
-          <div className="pl-3 md:pl-2 text-black text-xl md:text-3xl font-bold drop-shadow-[0_1px_2px_rgba(0,0,0,0.2)] max-w-sm md:max-w-none bg-white/40 xl:bg-transparent p-3 xl:p-0 rounded-lg xl:rounded-none backdrop-blur-sm xl:backdrop-blur-none">
+          <div className="pl-3 md:pl-2 text-black text-xl md:text-3xl font-bold drop-shadow-[0_1px_2px_rgba(0,0,0,0.2)] max-w-sm md:max-w-none bg-white/60 xl:bg-transparent p-3 xl:p-0 rounded-lg xl:rounded-none">
             {INFO_ITEMS.map((info, index) => (
               <p key={index} className="text-2xl md:text-4xl md:max-w-lg text-stroke-white-xs">
                 {info}

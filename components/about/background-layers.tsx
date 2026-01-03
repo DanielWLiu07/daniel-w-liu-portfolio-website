@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, memo } from 'react'
 import Image from 'next/image'
 import { useMobile } from '@/hooks/use-mobile'
 
-export function BackgroundLayers() {
+export const BackgroundLayers = memo(function BackgroundLayers() {
   const [sparkleDone, setSparkleDone] = useState(false)
   const isMobile = useMobile()
 
@@ -17,7 +17,7 @@ export function BackgroundLayers() {
       <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" className="hidden md:block fixed inset-0 z-0">
         <defs>
           <filter id="waterColourFilter">
-            <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="4" result="noise" />
+            <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="2" result="noise" />
             <feDisplacementMap in="SourceGraphic" in2="noise" scale="0" xChannelSelector="R" yChannelSelector="G">
               <animate
                 attributeName="scale"
@@ -65,7 +65,7 @@ export function BackgroundLayers() {
       <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" className="hidden md:block fixed inset-0 z-0">
         <defs>
           <filter id="aboutBgFilter">
-            <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="4" result="noise" />
+            <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="2" result="noise" />
             <feDisplacementMap in="SourceGraphic" in2="noise" scale="0" xChannelSelector="R" yChannelSelector="G">
               <animate
                 attributeName="scale"
@@ -91,7 +91,7 @@ export function BackgroundLayers() {
             </circle>
           </mask>
           <filter id="socialFilter">
-            <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="4" result="noise" />
+            <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="2" result="noise" />
             <feDisplacementMap in="SourceGraphic" in2="noise" scale="0" xChannelSelector="R" yChannelSelector="G">
               <animate
                 attributeName="scale"
@@ -125,4 +125,4 @@ export function BackgroundLayers() {
       </svg>
     </>
   )
-}
+})

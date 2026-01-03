@@ -78,7 +78,7 @@ export default function Home() {
       <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" className="absolute inset-0 w-full h-full z-0">
         <defs>
           <filter id="bgFilter">
-            <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="8" result="noise" />
+            <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="2" result="noise" />
             <feDisplacementMap in="SourceGraphic" in2="noise" scale="0" xChannelSelector="R" yChannelSelector="G">
               <animate
                 attributeName="scale"
@@ -140,7 +140,7 @@ export default function Home() {
         </foreignObject>
       </svg>
 
-      <div className="name-container absolute z-[62] top-[38%] sm:top-[45%] left-1/2 sm:left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center">
+      <div className="name-container absolute z-[62] top-[38%] sm:top-[45%] left-1/2 sm:left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center will-change-transform">
         <div className="flex flex-wrap sm:flex-nowrap gap-x-4 items-center sm:items-center justify-center -ml-12 sm:ml-0">
           <div className="flex gap-4 items-center justify-center">
             <div className={`text-8xl sm:text-9xl tracking-tighter text-stroke-white ${weddingDay.className}`}>
@@ -159,12 +159,12 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="fixed inset-0 z-[65] overflow-hidden pointer-events-none">
-        <video className="tree-right absolute top-0 right-0 h-screen w-auto object-cover object-top" src="/landing/videos/tree_right.webm" autoPlay loop muted playsInline preload={isMobile ? "none" : "auto"} />
+      <div className="fixed inset-0 z-[65] overflow-hidden pointer-events-none will-change-transform">
+        <video className="tree-right absolute top-0 right-0 h-screen w-auto object-cover object-top will-change-transform" src="/landing/videos/tree_right.webm" autoPlay loop muted playsInline preload={isMobile ? "none" : "auto"} />
       </div>
 
-      <div className="fixed inset-0 z-[60] overflow-hidden pointer-events-none">
-        <video className="tree-left absolute top-0 left-0 h-screen w-auto object-cover object-top" src="/landing/videos/tree_left.webm" autoPlay loop muted playsInline preload={isMobile ? "none" : "auto"} />
+      <div className="fixed inset-0 z-[60] overflow-hidden pointer-events-none will-change-transform">
+        <video className="tree-left absolute top-0 left-0 h-screen w-auto object-cover object-top will-change-transform" src="/landing/videos/tree_left.webm" autoPlay loop muted playsInline preload={isMobile ? "none" : "auto"} />
       </div>
 
       <SocialLinks variant="black" />
