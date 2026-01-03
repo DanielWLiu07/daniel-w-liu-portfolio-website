@@ -1,11 +1,14 @@
 'use client'
 
+import { useMobile } from '@/hooks/use-mobile'
+
 interface IntroVideoProps {
   onEnded: () => void
   onFlashStart: () => void
 }
 
 export default function IntroVideo({ onEnded, onFlashStart }: IntroVideoProps) {
+  const isMobile = useMobile()
   const handleTimeUpdate = (e: React.SyntheticEvent<HTMLVideoElement>) => {
     const video = e.currentTarget
     const timeRemaining = video.duration - video.currentTime
@@ -30,6 +33,7 @@ export default function IntroVideo({ onEnded, onFlashStart }: IntroVideoProps) {
         muted
         autoPlay
         playsInline
+        preload={isMobile ? "none" : "auto"}
         onTimeUpdate={handleTimeUpdate}
         onEnded={handleEnded}
         onError={handleError}

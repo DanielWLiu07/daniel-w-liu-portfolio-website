@@ -2,6 +2,7 @@
 
 import { useRef, useEffect } from 'react'
 import Image from 'next/image'
+import { useMobile } from '@/hooks/use-mobile'
 
 interface BackgroundVideosProps {
   visible: boolean
@@ -10,6 +11,7 @@ interface BackgroundVideosProps {
 export default function BackgroundVideos({ visible }: BackgroundVideosProps) {
   const bgVideoRef = useRef<HTMLVideoElement>(null)
   const manVideoRef = useRef<HTMLVideoElement>(null)
+  const isMobile = useMobile()
 
   useEffect(() => {
     if (visible) {
@@ -29,7 +31,7 @@ export default function BackgroundVideos({ visible }: BackgroundVideosProps) {
           muted
           loop
           playsInline
-          preload="auto"
+          preload={isMobile ? "none" : "auto"}
         />
       </div>
 
@@ -41,7 +43,7 @@ export default function BackgroundVideos({ visible }: BackgroundVideosProps) {
           muted
           loop
           playsInline
-          preload="auto"
+          preload={isMobile ? "none" : "auto"}
         />
       </div>
     </>

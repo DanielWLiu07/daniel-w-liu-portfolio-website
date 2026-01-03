@@ -8,12 +8,15 @@ import ProjectSlider from '@/components/projects/ProjectSlider'
 import TransitionFlash from '@/components/projects/TransitionFlash'
 import { projects } from '@/components/projects/project-data'
 import { SocialLinks } from '@/components/ui/social-links'
+import { useBodyOverflow } from '@/hooks/use-body-overflow'
 
 export default function ProjectsPage() {
   const [expandedProject, setExpandedProject] = useState<number | null>(null)
   const [isPaused, setIsPaused] = useState(false)
   const [introFinished, setIntroFinished] = useState(false)
   const [flashOpacity, setFlashOpacity] = useState(0)
+
+  useBodyOverflow('hidden')
 
   const handleFlashStart = () => {
     if (flashOpacity === 0) {
