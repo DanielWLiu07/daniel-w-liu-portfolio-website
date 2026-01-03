@@ -15,16 +15,38 @@ const weddingDay = localFont({
 export default function Home() {
   const [isLoaded, setIsLoaded] = useState(false);
   const rootRef = useRef(null);
-  const loadCountRef = useRef(0);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const loadedCalledRef = useRef(false);
   const isMobile = useMobile();
   useBodyOverflow('hidden');
 
   const handleAssetLoad = () => {
-    loadCountRef.current += 1;
-    if (loadCountRef.current >= 2) {
-      setIsLoaded(true);
-    }
+    if (loadedCalledRef.current) return;
+    loadedCalledRef.current = true;
+    setTimeout(() => setIsLoaded(true), 0);
   };
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handleCanPlay = () => handleAssetLoad();
+
+    if (video.readyState >= 3) {
+      setTimeout(handleAssetLoad, 0);
+    }
+
+    video.addEventListener('canplay', handleCanPlay);
+    video.addEventListener('loadeddata', handleCanPlay);
+
+    const timeout = setTimeout(handleAssetLoad, 1000);
+
+    return () => {
+      video.removeEventListener('canplay', handleCanPlay);
+      video.removeEventListener('loadeddata', handleCanPlay);
+      clearTimeout(timeout);
+    };
+  }, []);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -71,8 +93,8 @@ export default function Home() {
 
       <div ref={rootRef} className={`relative w-full h-screen overflow-hidden ${!isLoaded ? 'opacity-0' : 'opacity-100'}`}>
         <div className="absolute inset-0 w-full h-full overflow-hidden">
-          <Image src="/landing/images/painted_bg.png" alt="painted background" fill className="object-cover" priority onLoad={handleAssetLoad} />
-          <video src="/landing/videos/landing_composite.webm" autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" preload={isMobile ? "none" : "auto"} onCanPlay={handleAssetLoad} />
+          <Image src="/landing/images/painted_bg.png" alt="painted background" fill className="object-cover" priority />
+          <video ref={videoRef} src="/landing/videos/landing_composite.webm" autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" preload={isMobile ? "none" : "auto"} />
       </div>
 
       <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" className="absolute inset-0 w-full h-full z-0">
