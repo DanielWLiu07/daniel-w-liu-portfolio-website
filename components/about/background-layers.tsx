@@ -1,12 +1,46 @@
 'use client'
 
-import { useState, memo } from 'react'
+import { useState, memo, useEffect, useRef, useCallback } from 'react'
 import Image from 'next/image'
 import { useMobile } from '@/hooks/use-mobile'
 
-export const BackgroundLayers = memo(function BackgroundLayers() {
+interface BackgroundLayersProps {
+  onLoaded?: () => void
+}
+
+export const BackgroundLayers = memo(function BackgroundLayers({ onLoaded }: BackgroundLayersProps) {
   const [sparkleDone, setSparkleDone] = useState(false)
   const isMobile = useMobile()
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const loadedCalledRef = useRef(false)
+
+  const handleLoaded = useCallback(() => {
+    if (loadedCalledRef.current) return
+    loadedCalledRef.current = true
+    onLoaded?.()
+  }, [onLoaded])
+
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+
+    const handleCanPlay = () => handleLoaded()
+
+    if (video.readyState >= 3) {
+      setTimeout(handleLoaded, 0)
+    }
+
+    video.addEventListener('canplay', handleCanPlay)
+    video.addEventListener('loadeddata', handleCanPlay)
+
+    const timeout = setTimeout(handleLoaded, 1000)
+
+    return () => {
+      video.removeEventListener('canplay', handleCanPlay)
+      video.removeEventListener('loadeddata', handleCanPlay)
+      clearTimeout(timeout)
+    }
+  }, [handleLoaded])
 
   return (
     <>
@@ -15,7 +49,7 @@ export const BackgroundLayers = memo(function BackgroundLayers() {
       </div>
 
       <div className="hidden md:block fixed inset-0 z-[3]">
-        <video src="/about/videos/right_colour.webm" autoPlay muted playsInline className="absolute inset-0 w-full h-full object-cover" preload={isMobile ? "none" : "auto"} />
+        <video ref={videoRef} src="/about/videos/right_colour.webm" autoPlay muted playsInline className="absolute inset-0 w-full h-full object-cover" preload={isMobile ? "none" : "auto"} />
       </div>
 
       <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" className="hidden md:block fixed inset-0 z-0">
