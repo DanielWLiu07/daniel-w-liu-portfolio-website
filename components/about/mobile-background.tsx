@@ -27,7 +27,7 @@ export function MobileBackground() {
           <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" className="absolute inset-0">
             <defs>
               <filter id="aboutBgFilter">
-                <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="8" result="noise" />
+                <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="4" result="noise" />
                 <feDisplacementMap in="SourceGraphic" in2="noise" scale="0" xChannelSelector="R" yChannelSelector="G">
                   <animate
                     attributeName="scale"
@@ -53,7 +53,7 @@ export function MobileBackground() {
                 </circle>
               </mask>
               <filter id="socialFilter">
-                <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="8" result="noise" />
+                <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="4" result="noise" />
                 <feDisplacementMap in="SourceGraphic" in2="noise" scale="0" xChannelSelector="R" yChannelSelector="G">
                   <animate
                     attributeName="scale"
