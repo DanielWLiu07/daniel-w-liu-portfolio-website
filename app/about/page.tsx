@@ -58,9 +58,9 @@ export default function About() {
                   </p>
                 ))}
               </div>
-            </div>
 
-            <TechStack />
+              <TechStack />
+            </div>
           </div>
         </div>
 

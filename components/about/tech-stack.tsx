@@ -57,12 +57,12 @@ const techCategories = [
 
 export function TechStack() {
   return (
-    <div className="overflow-visible -space-y-6 max-w-sm md:max-w-none">
+    <div className="overflow-visible -space-y-6 max-w-sm md:max-w-none mt-2">
       <h1 className="text-6xl font-black bg-gradient-to-r from-purple-700 via-pink-700 to-blue-700 bg-clip-text text-transparent drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)] leading-tight py-2">
         Tech Stack
       </h1>
 
-      <div className="pl-3 md:pl-2 text-black text-xl md:text-3xl font-bold drop-shadow-[0_1px_2px_rgba(0,0,0,0.2)] flex flex-col gap-y-4 max-w-sm md:max-w-none bg-white/60 xl:bg-transparent p-3 xl:p-0 rounded-lg xl:rounded-none">
+      <div className="pl-3 md:pl-2 text-black text-xl md:text-3xl font-bold drop-shadow-[0_1px_2px_rgba(0,0,0,0.2)] flex flex-col gap-y-4 max-w-sm md:max-w-none">
         {techCategories.map((category) => (
           <div key={category.title}>
             <p className="text-2xl md:text-4xl mb-2 text-stroke-white-xs">0 {category.title}</p>
