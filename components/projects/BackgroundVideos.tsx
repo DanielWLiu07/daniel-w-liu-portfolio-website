@@ -29,6 +29,7 @@ export default function BackgroundVideos({ visible }: BackgroundVideosProps) {
           src='/projects/videos/manga_bg_slowed.webm?v=4'
           className='absolute inset-0 w-full h-full object-cover'
           muted
+          autoPlay
           loop
           playsInline
           preload={isMobile ? "none" : "auto"}
@@ -41,6 +42,7 @@ export default function BackgroundVideos({ visible }: BackgroundVideosProps) {
           src='/projects/videos/manga_man.webm?v=2'
           className='absolute inset-0 w-full h-full object-cover'
           muted
+          autoPlay
           loop
           playsInline
           preload={isMobile ? "none" : "auto"}
