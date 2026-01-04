@@ -11,8 +11,11 @@ interface BackgroundLayersProps {
 export const BackgroundLayers = memo(function BackgroundLayers({ onLoaded }: BackgroundLayersProps) {
   const [sparkleDone, setSparkleDone] = useState(false)
   const isMobile = useMobile()
-  const videoRef = useRef<HTMLVideoElement>(null)
+  const rightColourRef = useRef<HTMLVideoElement>(null)
+  const waterColourRef = useRef<HTMLVideoElement>(null)
+  const sparkleRef = useRef<HTMLVideoElement>(null)
   const loadedCalledRef = useRef(false)
+  const videosReady = useRef({ rightColour: false, waterColour: false, sparkle: false })
 
   const handleLoaded = useCallback(() => {
     if (loadedCalledRef.current) return
@@ -20,27 +23,57 @@ export const BackgroundLayers = memo(function BackgroundLayers({ onLoaded }: Bac
     onLoaded?.()
   }, [onLoaded])
 
-  useEffect(() => {
-    const video = videoRef.current
-    if (!video) return
-
-    const handleCanPlay = () => handleLoaded()
-
-    if (video.readyState >= 3) {
-      setTimeout(handleLoaded, 0)
-    }
-
-    video.addEventListener('canplay', handleCanPlay)
-    video.addEventListener('loadeddata', handleCanPlay)
-
-    const timeout = setTimeout(handleLoaded, 1000)
-
-    return () => {
-      video.removeEventListener('canplay', handleCanPlay)
-      video.removeEventListener('loadeddata', handleCanPlay)
-      clearTimeout(timeout)
+  const checkAllVideosReady = useCallback(() => {
+    if (videosReady.current.rightColour && videosReady.current.waterColour && videosReady.current.sparkle) {
+      handleLoaded()
     }
   }, [handleLoaded])
+
+  useEffect(() => {
+    const rightColour = rightColourRef.current
+    const waterColour = waterColourRef.current
+    const sparkle = sparkleRef.current
+
+    const handleRightColourReady = () => {
+      videosReady.current.rightColour = true
+      checkAllVideosReady()
+    }
+
+    const handleWaterColourReady = () => {
+      videosReady.current.waterColour = true
+      checkAllVideosReady()
+    }
+
+    const handleSparkleReady = () => {
+      videosReady.current.sparkle = true
+      checkAllVideosReady()
+    }
+
+    if (rightColour?.readyState >= 3) videosReady.current.rightColour = true
+    if (waterColour?.readyState >= 3) videosReady.current.waterColour = true
+    if (sparkle?.readyState >= 3) videosReady.current.sparkle = true
+
+    rightColour?.addEventListener('canplay', handleRightColourReady)
+    rightColour?.addEventListener('loadeddata', handleRightColourReady)
+    waterColour?.addEventListener('canplay', handleWaterColourReady)
+    waterColour?.addEventListener('loadeddata', handleWaterColourReady)
+    sparkle?.addEventListener('canplay', handleSparkleReady)
+    sparkle?.addEventListener('loadeddata', handleSparkleReady)
+
+    checkAllVideosReady()
+
+    const timeout = setTimeout(handleLoaded, 2000)
+
+    return () => {
+      rightColour?.removeEventListener('canplay', handleRightColourReady)
+      rightColour?.removeEventListener('loadeddata', handleRightColourReady)
+      waterColour?.removeEventListener('canplay', handleWaterColourReady)
+      waterColour?.removeEventListener('loadeddata', handleWaterColourReady)
+      sparkle?.removeEventListener('canplay', handleSparkleReady)
+      sparkle?.removeEventListener('loadeddata', handleSparkleReady)
+      clearTimeout(timeout)
+    }
+  }, [checkAllVideosReady, handleLoaded])
 
   return (
     <>
@@ -49,7 +82,7 @@ export const BackgroundLayers = memo(function BackgroundLayers({ onLoaded }: Bac
       </div>
 
       <div className="hidden md:block fixed inset-0 z-[3]">
-        <video ref={videoRef} src="/about/videos/right_colour.webm" autoPlay muted playsInline className="absolute inset-0 w-full h-full object-cover" preload={isMobile ? "none" : "auto"} />
+        <video ref={rightColourRef} src="/about/videos/right_colour.webm" autoPlay muted playsInline className="absolute inset-0 w-full h-full object-cover" preload={isMobile ? "none" : "auto"} />
       </div>
 
       <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" className="hidden md:block fixed inset-0 z-0">
@@ -83,7 +116,7 @@ export const BackgroundLayers = memo(function BackgroundLayers({ onLoaded }: Bac
         </defs>
         <foreignObject width="100%" height="100%" mask="url(#waterColourMask)">
           <div className="relative w-full h-full">
-            <video src="/about/videos/water_colour.webm" autoPlay muted playsInline className="absolute inset-0 w-full h-full object-cover object-bottom" preload={isMobile ? "none" : "auto"} />
+            <video ref={waterColourRef} src="/about/videos/water_colour.webm" autoPlay muted playsInline className="absolute inset-0 w-full h-full object-cover object-bottom" preload={isMobile ? "none" : "auto"} />
           </div>
         </foreignObject>
       </svg>
@@ -152,7 +185,7 @@ export const BackgroundLayers = memo(function BackgroundLayers({ onLoaded }: Bac
 
       <div className="hidden md:block fixed inset-0 z-10">
         {!sparkleDone ? (
-          <video src="/about/videos/sparkle_being.webm" autoPlay muted playsInline onEnded={() => setSparkleDone(true)} className="absolute inset-0 w-full h-full object-cover" preload={isMobile ? "none" : "auto"} />
+          <video ref={sparkleRef} src="/about/videos/sparkle_being.webm" autoPlay muted playsInline onEnded={() => setSparkleDone(true)} className="absolute inset-0 w-full h-full object-cover" preload={isMobile ? "none" : "auto"} />
         ) : (
           <video src="/about/videos/sparkle_loop.webm?v=2" autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" preload={isMobile ? "none" : "auto"} />
         )}
