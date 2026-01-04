@@ -22,7 +22,7 @@ const INFO_ITEMS = [
 
 export default function About() {
   const [isLoaded, setIsLoaded] = useState(false);
-  useBodyOverflow('hidden');
+  useBodyOverflow('auto');
 
   return (
     <>
@@ -41,7 +41,7 @@ export default function About() {
 
         <div className="relative z-10 flex flex-col md:flex-row md:justify-end md:min-h-screen -mt-[300vh] md:mt-0">
           <div className={`w-[85%] mx-auto md:mx-0 md:w-1/2 px-4 md:pl-4 pb-5 flex flex-col justify-start md:min-h-0 pt-8 ${katieRoze.className}`}>
-            <div className="overflow-visible -space-y-6 md:-space-y-8 max-w-sm md:max-w-none">
+            <div className="overflow-visible -space-y-6 md:-space-y-8 max-w-sm md:max-w-none bg-white/60 xl:bg-transparent p-3 xl:p-0 rounded-lg xl:rounded-none">
               <h1 className="text-7xl md:text-9xl font-black bg-gradient-to-r from-purple-700 via-pink-700 to-blue-700 bg-clip-text text-transparent drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)] leading-32 py-2">
                 Daniel W Liu
               </h1>
@@ -50,7 +50,7 @@ export default function About() {
               </p>
             </div>
 
-            <div className="pl-3 md:pl-2 text-black text-xl md:text-3xl font-bold drop-shadow-[0_1px_2px_rgba(0,0,0,0.2)] max-w-sm md:max-w-none bg-white/60 xl:bg-transparent p-3 xl:p-0 rounded-lg xl:rounded-none">
+            <div className="pl-3 md:pl-2 text-black text-xl md:text-3xl font-bold drop-shadow-[0_1px_2px_rgba(0,0,0,0.2)] max-w-sm md:max-w-none bg-white/60 xl:bg-transparent p-3 xl:p-0 rounded-lg xl:rounded-none mt-2">
               {INFO_ITEMS.map((info, index) => (
                 <p key={index} className="text-2xl md:text-4xl md:max-w-lg text-stroke-white-xs">
                   {info}
