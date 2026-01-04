@@ -15,8 +15,11 @@ const weddingDay = localFont({
 export default function Home() {
   const [isLoaded, setIsLoaded] = useState(false);
   const rootRef = useRef(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const compositeVideoRef = useRef<HTMLVideoElement>(null);
+  const treeRightRef = useRef<HTMLVideoElement>(null);
+  const treeLeftRef = useRef<HTMLVideoElement>(null);
   const loadedCalledRef = useRef(false);
+  const videosReady = useRef({ composite: false, treeRight: false, treeLeft: false });
   const isMobile = useMobile();
   useBodyOverflow('hidden');
 
@@ -26,24 +29,54 @@ export default function Home() {
     setTimeout(() => setIsLoaded(true), 0);
   };
 
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const handleCanPlay = () => handleAssetLoad();
-
-    if (video.readyState >= 3) {
-      setTimeout(handleAssetLoad, 0);
+  const checkAllVideosReady = () => {
+    if (videosReady.current.composite && videosReady.current.treeRight && videosReady.current.treeLeft) {
+      handleAssetLoad();
     }
+  };
 
-    video.addEventListener('canplay', handleCanPlay);
-    video.addEventListener('loadeddata', handleCanPlay);
+  useEffect(() => {
+    const composite = compositeVideoRef.current;
+    const treeRight = treeRightRef.current;
+    const treeLeft = treeLeftRef.current;
 
-    const timeout = setTimeout(handleAssetLoad, 1000);
+    const handleCompositeReady = () => {
+      videosReady.current.composite = true;
+      checkAllVideosReady();
+    };
+
+    const handleTreeRightReady = () => {
+      videosReady.current.treeRight = true;
+      checkAllVideosReady();
+    };
+
+    const handleTreeLeftReady = () => {
+      videosReady.current.treeLeft = true;
+      checkAllVideosReady();
+    };
+
+    if (composite?.readyState >= 3) videosReady.current.composite = true;
+    if (treeRight?.readyState >= 3) videosReady.current.treeRight = true;
+    if (treeLeft?.readyState >= 3) videosReady.current.treeLeft = true;
+
+    composite?.addEventListener('canplay', handleCompositeReady);
+    composite?.addEventListener('loadeddata', handleCompositeReady);
+    treeRight?.addEventListener('canplay', handleTreeRightReady);
+    treeRight?.addEventListener('loadeddata', handleTreeRightReady);
+    treeLeft?.addEventListener('canplay', handleTreeLeftReady);
+    treeLeft?.addEventListener('loadeddata', handleTreeLeftReady);
+
+    checkAllVideosReady();
+
+    const timeout = setTimeout(handleAssetLoad, 2000);
 
     return () => {
-      video.removeEventListener('canplay', handleCanPlay);
-      video.removeEventListener('loadeddata', handleCanPlay);
+      composite?.removeEventListener('canplay', handleCompositeReady);
+      composite?.removeEventListener('loadeddata', handleCompositeReady);
+      treeRight?.removeEventListener('canplay', handleTreeRightReady);
+      treeRight?.removeEventListener('loadeddata', handleTreeRightReady);
+      treeLeft?.removeEventListener('canplay', handleTreeLeftReady);
+      treeLeft?.removeEventListener('loadeddata', handleTreeLeftReady);
       clearTimeout(timeout);
     };
   }, []);
@@ -94,7 +127,7 @@ export default function Home() {
       <div ref={rootRef} className={`relative w-full h-screen overflow-hidden ${!isLoaded ? 'opacity-0' : 'opacity-100'}`}>
         <div className="absolute inset-0 w-full h-full overflow-hidden">
           <Image src="/landing/images/painted_bg.png" alt="painted background" fill className="object-cover" priority />
-          <video ref={videoRef} src="/landing/videos/landing_composite.webm" autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" preload={isMobile ? "none" : "auto"} />
+          <video ref={compositeVideoRef} src="/landing/videos/landing_composite.webm" autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" preload={isMobile ? "none" : "auto"} />
       </div>
 
       <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" className="absolute inset-0 w-full h-full z-0">
@@ -182,11 +215,11 @@ export default function Home() {
       </div>
 
       <div className="fixed inset-0 z-[65] overflow-hidden pointer-events-none will-change-transform">
-        <video className="tree-right absolute top-0 right-0 h-screen w-auto object-cover object-top will-change-transform" src="/landing/videos/tree_right.webm" autoPlay loop muted playsInline preload={isMobile ? "none" : "auto"} />
+        <video ref={treeRightRef} className="tree-right absolute top-0 right-0 h-screen w-auto object-cover object-top will-change-transform" src="/landing/videos/tree_right.webm" autoPlay loop muted playsInline preload={isMobile ? "none" : "auto"} />
       </div>
 
       <div className="fixed inset-0 z-[60] overflow-hidden pointer-events-none will-change-transform">
-        <video className="tree-left absolute top-0 left-0 h-screen w-auto object-cover object-top will-change-transform" src="/landing/videos/tree_left.webm" autoPlay loop muted playsInline preload={isMobile ? "none" : "auto"} />
+        <video ref={treeLeftRef} className="tree-left absolute top-0 left-0 h-screen w-auto object-cover object-top will-change-transform" src="/landing/videos/tree_left.webm" autoPlay loop muted playsInline preload={isMobile ? "none" : "auto"} />
       </div>
 
       <SocialLinks variant="black" />
