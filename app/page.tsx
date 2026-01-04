@@ -16,7 +16,9 @@ const weddingDay = localFont({
 
 export default function Home() {
   const [isLoaded, setIsLoaded] = useState(false);
+  const [startMaskAnimation, setStartMaskAnimation] = useState(false);
   const rootRef = useRef(null);
+  const svgMaskRef = useRef<SVGAnimateElement>(null);
   const compositeVideoRef = useRef<HTMLVideoElement>(null);
   const treeRightRef = useRef<HTMLVideoElement>(null);
   const treeLeftRef = useRef<HTMLVideoElement>(null);
@@ -95,7 +97,11 @@ export default function Home() {
     if (!isLoaded || mode === null) return;
 
     const ctx = gsap.context(() => {
-      const timeline = gsap.timeline();
+      const timeline = gsap.timeline({
+        onComplete: () => {
+          setStartMaskAnimation(true);
+        }
+      });
 
       timeline.from(".name-container", {
         y: "-100vh",
@@ -125,6 +131,18 @@ export default function Home() {
     return () => ctx.revert();
   }, [isLoaded, mode]);
 
+  useEffect(() => {
+    if (startMaskAnimation) {
+      setTimeout(() => {1
+        svgMaskRef.current?.beginElement();
+        const otherAnimations = document.querySelectorAll('#bgMask animate');
+        otherAnimations.forEach((anim) => {
+          (anim as SVGAnimateElement).beginElement();
+        });
+      }, 0);
+    }
+  }, [startMaskAnimation]);
+
   return (
     <>
       <ModeSelector />
@@ -137,6 +155,10 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      <div className="absolute inset-0 w-full h-full overflow-hidden">
+        <Image src="/landing/images/white_paper.png" alt="white paper background" fill className="object-cover" priority />
+      </div>
 
       <div ref={rootRef} className={`relative w-full h-screen overflow-hidden ${!isLoaded || mode === null ? 'opacity-0' : 'opacity-100'}`}>
         <div className="absolute inset-0 w-full h-full overflow-hidden">
@@ -152,10 +174,11 @@ export default function Home() {
             <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="2" result="noise" />
             <feDisplacementMap in="SourceGraphic" in2="noise" scale="0" xChannelSelector="R" yChannelSelector="G">
               <animate
+                ref={svgMaskRef}
                 attributeName="scale"
                 values="200;490"
                 dur="3s"
-                begin="0.6s"
+                begin="indefinite"
                 calcMode="spline"
                 keySplines="0.2 0.8 0.3 1"
                 fill="freeze"
@@ -169,7 +192,7 @@ export default function Home() {
                 attributeName="x"
                 values="50%;6.75%"
                 dur="3s"
-                begin="0.6s"
+                begin="indefinite"
                 calcMode="spline"
                 keySplines="0.2 0.8 0.3 1"
                 fill="freeze"
@@ -178,7 +201,7 @@ export default function Home() {
                 attributeName="y"
                 values="50%;3.75%"
                 dur="3s"
-                begin="0.6s"
+                begin="indefinite"
                 calcMode="spline"
                 keySplines="0.2 0.8 0.3 1"
                 fill="freeze"
@@ -187,7 +210,7 @@ export default function Home() {
                 attributeName="width"
                 values="0%;87%"
                 dur="3s"
-                begin="0.6s"
+                begin="indefinite"
                 calcMode="spline"
                 keySplines="0.2 0.8 0.3 1"
                 fill="freeze"
@@ -196,7 +219,7 @@ export default function Home() {
                 attributeName="height"
                 values="0%;92%"
                 dur="3s"
-                begin="0.6s"
+                begin="indefinite"
                 calcMode="spline"
                 keySplines="0.2 0.8 0.3 1"
                 fill="freeze"

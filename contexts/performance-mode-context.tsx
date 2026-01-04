@@ -16,21 +16,12 @@ const PerformanceModeContext = createContext<PerformanceModeContextType | undefi
 export function PerformanceModeProvider({ children }: { children: ReactNode }) {
   const [mode, setModeState] = useState<PerformanceMode>(null)
 
-  useEffect(() => {
-    const saved = localStorage.getItem('performanceMode')
-    if (saved === 'high' || saved === 'low') {
-      setModeState(saved)
-    }
-  }, [])
-
   const setMode = (newMode: 'high' | 'low') => {
     setModeState(newMode)
-    localStorage.setItem('performanceMode', newMode)
   }
 
   const resetMode = () => {
     setModeState(null)
-    localStorage.removeItem('performanceMode')
   }
 
   return (
