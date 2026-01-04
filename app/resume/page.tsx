@@ -8,6 +8,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { createInteractiveButtons, VIDEO_CONFIG, PHOTO_IMAGES, InteractiveButton } from "@/components/resume/resume-buttons";
 import { useMobile } from "@/hooks/use-mobile";
 import { useBodyOverflow } from "@/hooks/use-body-overflow";
+import { usePerformanceMode } from "@/contexts/performance-mode-context";
 
 const weddingDay = localFont({
   src: "../../public/shared/fonts/weddingday-font/ancient-wedding-font/AncientWeddingDemoRegular-MAm1n.ttf",
@@ -23,6 +24,7 @@ export default function Resume() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const scrollTextRef = useRef<HTMLDivElement>(null);
   const isMobile = useMobile();
+  const { isLowPerformance } = usePerformanceMode();
 
   useBodyOverflow('hidden');
 
@@ -177,10 +179,10 @@ export default function Resume() {
           <video
             ref={videoRef}
             src={VIDEO_CONFIG.SRC}
-            autoPlay
+            autoPlay={!isLowPerformance}
             muted
             playsInline
-            preload={isMobile ? "none" : "auto"}
+            preload={isLowPerformance ? "none" : "auto"}
             onEnded={handleVideoEnd}
             className="w-full h-full block object-cover object-center"
           />

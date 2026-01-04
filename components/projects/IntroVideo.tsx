@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useCallback } from 'react'
-import { useMobile } from '@/hooks/use-mobile'
+import { usePerformanceMode } from '@/contexts/performance-mode-context'
 
 interface IntroVideoProps {
   onEnded: () => void
@@ -10,7 +10,7 @@ interface IntroVideoProps {
 }
 
 export default function IntroVideo({ onEnded, onFlashStart, onLoaded }: IntroVideoProps) {
-  const isMobile = useMobile()
+  const { isLowPerformance } = usePerformanceMode()
   const videoRef = useRef<HTMLVideoElement>(null)
   const loadedCalledRef = useRef(false)
 
@@ -60,7 +60,7 @@ export default function IntroVideo({ onEnded, onFlashStart, onLoaded }: IntroVid
         muted
         autoPlay
         playsInline
-        preload={isMobile ? "none" : "auto"}
+        preload="auto"
         onTimeUpdate={handleTimeUpdate}
         onEnded={handleEnded}
         onError={handleError}

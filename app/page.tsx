@@ -7,6 +7,8 @@ import Image from 'next/image';
 import { SocialLinks } from "@/components/ui/social-links";
 import { useMobile } from "@/hooks/use-mobile";
 import { useBodyOverflow } from "@/hooks/use-body-overflow";
+import { usePerformanceMode } from "@/contexts/performance-mode-context";
+import { ModeSelector } from "@/components/ui/mode-selector";
 
 const weddingDay = localFont({
   src: '../public/shared/fonts/weddingday-font/ancient-wedding-font/AncientWeddingDemoRegular-MAm1n.ttf',
@@ -21,6 +23,7 @@ export default function Home() {
   const loadedCalledRef = useRef(false);
   const videosReady = useRef({ composite: false, treeRight: false, treeLeft: false });
   const isMobile = useMobile();
+  const { mode, isLowPerformance } = usePerformanceMode();
   useBodyOverflow('hidden');
 
   const handleAssetLoad = () => {
@@ -36,6 +39,13 @@ export default function Home() {
   };
 
   useEffect(() => {
+    if (mode === null) return;
+
+    if (isLowPerformance) {
+      handleAssetLoad();
+      return;
+    }
+
     const composite = compositeVideoRef.current;
     const treeRight = treeRightRef.current;
     const treeLeft = treeLeftRef.current;
@@ -79,10 +89,10 @@ export default function Home() {
       treeLeft?.removeEventListener('loadeddata', handleTreeLeftReady);
       clearTimeout(timeout);
     };
-  }, []);
+  }, [mode, isLowPerformance]);
 
   useEffect(() => {
-    if (!isLoaded) return;
+    if (!isLoaded || mode === null) return;
 
     const ctx = gsap.context(() => {
       const timeline = gsap.timeline();
@@ -108,14 +118,18 @@ export default function Home() {
 
       gsap.from(".tree-right", { x: "100%", duration: 1.5, ease: "power3.out", delay: 1.5 });
       gsap.from(".tree-left", { x: "-100%", duration: 1.5, ease: "power3.out", delay: 1.5 });
+      gsap.from("nav", { y: "-100%", duration: 1, ease: "power3.out", delay: 1.5 });
+      gsap.from(".social-links", { y: "100%", duration: 1, ease: "power3.out", delay: 1.5 });
     }, rootRef);
 
     return () => ctx.revert();
-  }, [isLoaded]);
+  }, [isLoaded, mode]);
 
   return (
     <>
-      {!isLoaded && (
+      <ModeSelector />
+
+      {!isLoaded && mode !== null && (
         <div className="fixed inset-0 z-[1000] bg-black flex items-center justify-center">
           <div className="flex flex-col items-center gap-4">
             <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin" />
@@ -124,10 +138,12 @@ export default function Home() {
         </div>
       )}
 
-      <div ref={rootRef} className={`relative w-full h-screen overflow-hidden ${!isLoaded ? 'opacity-0' : 'opacity-100'}`}>
+      <div ref={rootRef} className={`relative w-full h-screen overflow-hidden ${!isLoaded || mode === null ? 'opacity-0' : 'opacity-100'}`}>
         <div className="absolute inset-0 w-full h-full overflow-hidden">
           <Image src="/landing/images/painted_bg.png" alt="painted background" fill className="object-cover" priority />
-          <video ref={compositeVideoRef} src="/landing/videos/landing_composite.webm" autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" preload={isMobile ? "none" : "auto"} />
+          {!isLowPerformance && (
+            <video ref={compositeVideoRef} src="/landing/videos/landing_composite.webm" autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" preload="auto" />
+          )}
       </div>
 
       <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" className="absolute inset-0 w-full h-full z-0">
@@ -214,15 +230,21 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="fixed inset-0 z-[65] overflow-hidden pointer-events-none will-change-transform">
-        <video ref={treeRightRef} className="tree-right absolute top-0 right-0 h-screen w-auto object-cover object-top will-change-transform" src="/landing/videos/tree_right.webm" autoPlay loop muted playsInline preload={isMobile ? "none" : "auto"} />
-      </div>
+      {!isLowPerformance && (
+        <>
+          <div className="fixed inset-0 z-[65] overflow-hidden pointer-events-none will-change-transform">
+            <video ref={treeRightRef} className="tree-right absolute top-0 right-0 h-screen w-auto object-cover object-top will-change-transform" src="/landing/videos/tree_right.webm" autoPlay loop muted playsInline preload="auto" />
+          </div>
 
-      <div className="fixed inset-0 z-[60] overflow-hidden pointer-events-none will-change-transform">
-        <video ref={treeLeftRef} className="tree-left absolute top-0 left-0 h-screen w-auto object-cover object-top will-change-transform" src="/landing/videos/tree_left.webm" autoPlay loop muted playsInline preload={isMobile ? "none" : "auto"} />
-      </div>
+          <div className="fixed inset-0 z-[60] overflow-hidden pointer-events-none will-change-transform">
+            <video ref={treeLeftRef} className="tree-left absolute top-0 left-0 h-screen w-auto object-cover object-top will-change-transform" src="/landing/videos/tree_left.webm" autoPlay loop muted playsInline preload="auto" />
+          </div>
+        </>
+      )}
 
-      <SocialLinks variant="black" />
+      <div className="social-links">
+        <SocialLinks variant="black" />
+      </div>
       </div>
     </>
   );
