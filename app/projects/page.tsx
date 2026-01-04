@@ -15,7 +15,7 @@ export default function ProjectsPage() {
   const [expandedProject, setExpandedProject] = useState<number | null>(null)
   const [isPaused, setIsPaused] = useState(false)
   const [introFinished, setIntroFinished] = useState(false)
-  const [flashOpacity, setFlashOpacity] = useState(0)
+  const [showFlash, setShowFlash] = useState(false)
 
   useBodyOverflow('hidden')
 
@@ -24,16 +24,14 @@ export default function ProjectsPage() {
   }
 
   const handleFlashStart = () => {
-    if (flashOpacity === 0) {
-      setFlashOpacity(1)
-    }
+    setShowFlash(true)
   }
 
   const handleIntroEnd = () => {
-    setIntroFinished(true)
     setTimeout(() => {
-      setFlashOpacity(0)
-    }, 200)
+      setIntroFinished(true)
+      setShowFlash(false)
+    }, 100)
   }
 
   const handleCloseExpanded = () => {
@@ -68,7 +66,7 @@ export default function ProjectsPage() {
           <IntroVideo onEnded={handleIntroEnd} onFlashStart={handleFlashStart} onLoaded={handleIntroLoaded} />
         )}
 
-      <TransitionFlash opacity={flashOpacity} />
+      <TransitionFlash show={showFlash} />
 
       {expandedProjectData && (
         <ProjectModal project={expandedProjectData} onClose={handleCloseExpanded} />
