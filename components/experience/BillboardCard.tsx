@@ -19,7 +19,7 @@ export function BillboardCard({ experience }: BillboardCardProps) {
       <div className="absolute top-2 -left-2 w-full h-full bg-gradient-to-br from-gray-900 to-black rounded-lg border-3 border-gray-800 transition-transform group-hover:-translate-x-1 group-hover:-translate-y-1 opacity-50" />
 
       <div
-        className="relative bg-gradient-to-br from-white to-gray-50 rounded-lg border-3 border-gray-300 p-3 md:p-4 shadow-2xl transition-all group-hover:shadow-3xl min-h-[100px] md:min-h-[140px] z-10 group-hover:-translate-x-1 group-hover:-translate-y-1 opacity-90 md:opacity-85 hover:opacity-100"
+        className="relative bg-gradient-to-br from-white to-gray-50 rounded-lg border-3 border-gray-300 p-3 md:p-4 shadow-2xl transition-all group-hover:shadow-3xl min-h-[100px] md:min-h-[140px] z-10 group-hover:-translate-x-1 group-hover:-translate-y-1 opacity-85 hover:opacity-100"
         style={{ filter: CARD_GLOW }}
       >
         <div className="flex items-center gap-3 md:gap-4">
