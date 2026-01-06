@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useCallback } from 'react'
+import Image from 'next/image'
 import { usePerformanceMode } from '@/contexts/performance-mode-context'
 
 interface IntroVideoProps {
@@ -51,22 +52,41 @@ export default function IntroVideo({ onEnded, onFlashStart, onLoaded }: IntroVid
     onEnded()
   }
 
+  useEffect(() => {
+    if (isLowPerformance) {
+      handleLoaded()
+      setTimeout(() => {
+        onFlashStart()
+        onEnded()
+      }, 100)
+    }
+  }, [isLowPerformance, handleLoaded, onFlashStart, onEnded])
+
   return (
     <div className="absolute inset-0 w-full h-full z-0 pointer-events-none">
-      <video
-        ref={videoRef}
-        src='/projects/videos/manga_intro.webm'
-        className='absolute inset-0 w-full h-full object-cover pointer-events-none'
-        muted
-        autoPlay
-        playsInline
-        preload="auto"
-        onTimeUpdate={handleTimeUpdate}
-        onEnded={handleEnded}
-        onError={handleError}
-        onCanPlay={handleLoaded}
-        onLoadedData={handleLoaded}
-      />
+      {isLowPerformance ? (
+        <Image
+          src='/animation_frames/manga/manga_intro/0075.png'
+          alt='manga intro'
+          className='absolute inset-0 w-full h-full object-cover pointer-events-none'
+          fill
+        />
+      ) : (
+        <video
+          ref={videoRef}
+          src='/projects/videos/manga_intro.webm'
+          className='absolute inset-0 w-full h-full object-cover pointer-events-none'
+          muted
+          autoPlay
+          playsInline
+          preload="auto"
+          onTimeUpdate={handleTimeUpdate}
+          onEnded={handleEnded}
+          onError={handleError}
+          onCanPlay={handleLoaded}
+          onLoadedData={handleLoaded}
+        />
+      )}
     </div>
   )
 }

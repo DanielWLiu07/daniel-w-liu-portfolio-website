@@ -133,7 +133,7 @@ export default function Home() {
 
   useEffect(() => {
     if (startMaskAnimation) {
-      setTimeout(() => {1
+      setTimeout(() => {
         svgMaskRef.current?.beginElement();
         const otherAnimations = document.querySelectorAll('#bgMask animate');
         otherAnimations.forEach((anim) => {
@@ -163,7 +163,9 @@ export default function Home() {
       <div ref={rootRef} className={`relative w-full h-screen overflow-hidden ${!isLoaded || mode === null ? 'opacity-0' : 'opacity-100'}`}>
         <div className="absolute inset-0 w-full h-full overflow-hidden">
           <Image src="/landing/images/painted_bg.png" alt="painted background" fill className="object-cover" priority />
-          {!isLowPerformance && (
+          {isLowPerformance ? (
+            <Image src="/animation_frames/landing/composed_bg/dragon_body0003.png" alt="composite background" fill className="absolute inset-0 w-full h-full object-cover" />
+          ) : (
             <video ref={compositeVideoRef} src="/landing/videos/landing_composite.webm" autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" preload="auto" />
           )}
       </div>
@@ -253,7 +255,17 @@ export default function Home() {
         </div>
       </div>
 
-      {!isLowPerformance && (
+{isLowPerformance ? (
+        <>
+          <div className="fixed inset-0 z-[65] overflow-hidden pointer-events-none will-change-transform">
+            <Image src="/animation_frames/landing/tree_right0200.png" alt="tree right" width={1920} height={1080} className="tree-right absolute top-0 right-0 h-screen w-auto object-cover object-top will-change-transform" />
+          </div>
+
+          <div className="fixed inset-0 z-[60] overflow-hidden pointer-events-none will-change-transform">
+            <Image src="/animation_frames/landing/tree_left0200.png" alt="tree left" width={1920} height={1080} className="tree-left absolute top-0 left-0 h-screen w-auto object-cover object-top will-change-transform" />
+          </div>
+        </>
+      ) : (
         <>
           <div className="fixed inset-0 z-[65] overflow-hidden pointer-events-none will-change-transform">
             <video ref={treeRightRef} className="tree-right absolute top-0 right-0 h-screen w-auto object-cover object-top will-change-transform" src="/landing/videos/tree_right.webm" autoPlay loop muted playsInline preload="auto" />

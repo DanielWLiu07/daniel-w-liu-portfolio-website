@@ -88,7 +88,17 @@ export const BackgroundLayers = memo(function BackgroundLayers({ onLoaded }: Bac
         <Image src="/about/images/bg.png" alt="Background" fill className="object-cover" priority />
       </div>
 
-      {!isLowPerformance && (
+      {isLowPerformance ? (
+        <>
+          <div className="hidden md:block fixed inset-0 z-[3]">
+            <Image src="/animation_frames/watercolour_sequences/colour_vid/render_compositing_080.png" alt="colour background" fill className="object-cover" />
+          </div>
+
+          <div className="hidden md:block fixed inset-0 z-0">
+            <Image src="/animation_frames/watercolour_sequences/portrait_vid/render_compositing_080.png" alt="water colour" fill className="object-cover object-bottom" />
+          </div>
+        </>
+      ) : (
         <>
           <div className="hidden md:block fixed inset-0 z-[3]">
             <video ref={rightColourRef} src="/about/videos/right_colour.webm" autoPlay muted playsInline className="absolute inset-0 w-full h-full object-cover" preload="auto" />
@@ -194,7 +204,11 @@ export const BackgroundLayers = memo(function BackgroundLayers({ onLoaded }: Bac
         </foreignObject>
       </svg>
 
-      {!isLowPerformance && (
+      {isLowPerformance ? (
+        <div className="hidden md:block fixed inset-0 z-10">
+          <Image src="/animation_frames/watercolour_sequences/sparkle_loop_vid/render_compositing_250.png" alt="sparkle" fill className="object-cover" />
+        </div>
+      ) : (
         <div className="hidden md:block fixed inset-0 z-10">
           {!sparkleDone ? (
             <video ref={sparkleRef} src="/about/videos/sparkle_being.webm" autoPlay muted playsInline onEnded={() => setSparkleDone(true)} className="absolute inset-0 w-full h-full object-cover" preload="auto" />

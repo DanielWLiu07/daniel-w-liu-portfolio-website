@@ -31,6 +31,11 @@ export default function Resume() {
   const INTERACTIVE_BUTTONS = createInteractiveButtons();
 
   useEffect(() => {
+    if (isLowPerformance) {
+      setTimeout(() => setIsLoaded(true), 0);
+      return;
+    }
+
     const video = videoRef.current;
     if (!video) return;
 
@@ -54,7 +59,7 @@ export default function Resume() {
       video.removeEventListener('loadeddata', handleCanPlay);
       clearTimeout(timeout);
     };
-  }, []);
+  }, [isLowPerformance]);
 
   useEffect(() => {
     const centerViewport = () => {
@@ -176,16 +181,27 @@ export default function Resume() {
         style={{ WebkitOverflowScrolling: "touch" }}
       >
         <div className="relative inline-block" style={contentWrapperStyle}>
-          <video
-            ref={videoRef}
-            src={VIDEO_CONFIG.SRC}
-            autoPlay={!isLowPerformance}
-            muted
-            playsInline
-            preload={isLowPerformance ? "none" : "auto"}
-            onEnded={handleVideoEnd}
-            className="w-full h-full block object-cover object-center"
-          />
+          {isLowPerformance ? (
+            <Image
+              src="/animation_frames/resume/loading_anim/sliding_img0028.png"
+              alt="resume"
+              width={1920}
+              height={1080}
+              className="w-full h-full block object-cover object-center"
+              onLoad={handleVideoEnd}
+            />
+          ) : (
+            <video
+              ref={videoRef}
+              src={VIDEO_CONFIG.SRC}
+              autoPlay
+              muted
+              playsInline
+              preload="auto"
+              onEnded={handleVideoEnd}
+              className="w-full h-full block object-cover object-center"
+            />
+          )}
 
         {hoveredButtonData && videoEnded && (
           <Image
@@ -193,7 +209,7 @@ export default function Resume() {
             alt={hoveredButtonData.id}
             width={1920}
             height={1080}
-            className="absolute top-0 left-0 w-full h-full object-cover object-center pointer-events-none"
+            className="absolute top-0 left-0 w-full h-full object-cover object-center pointer-events-none z-10"
           />
         )}
 
