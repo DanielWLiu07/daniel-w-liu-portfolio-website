@@ -157,7 +157,7 @@ export default function Home() {
       )}
 
       <div className="absolute inset-0 w-full h-full overflow-hidden">
-        <Image src="/landing/images/white_paper.png" alt="white paper background" fill className="object-cover" priority />
+        <Image src="/landing/images/rough_paper.png" alt="paper background" fill className="object-cover" priority />
       </div>
 
       <div ref={rootRef} className={`relative w-full h-screen overflow-hidden ${!isLoaded || mode === null ? 'opacity-0' : 'opacity-100'}`}>
@@ -231,7 +231,7 @@ export default function Home() {
         </defs>
         <foreignObject width="100%" height="100%" mask="url(#bgMask)">
           <div className="relative w-full h-full overflow-hidden">
-            <Image src="/landing/images/white_paper.png" alt="white paper background" fill className="object-cover" priority />
+            <Image src="/landing/images/rough_paper.png" alt="paper background" fill className="object-cover" priority />
           </div>
         </foreignObject>
       </svg>
