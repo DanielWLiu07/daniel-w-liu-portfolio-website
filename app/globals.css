@@ -25,6 +25,13 @@
       -1px 1px 0 white, 0px 1px 0 white, 1px 1px 0 white,
       2px 2px 3px rgba(0,0,0,0.2);
   }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 @theme inline {
