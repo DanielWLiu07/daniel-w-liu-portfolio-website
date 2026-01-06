@@ -3,8 +3,8 @@ import * as NavigationMenu from '@radix-ui/react-navigation-menu';
 
 export default function Navbar(){
     return (
-        <div className="fixed top-0 left-0 right-0 z-[100] flex justify-center sm:justify-start items-center p-5">
-            <NavigationMenu.Root className="relative z-[1] flex justify-start">
+        <div className="fixed top-5 left-5 z-[150] pointer-events-none">
+            <NavigationMenu.Root className="relative z-[1] flex justify-start pointer-events-auto">
                 <NavigationMenu.List className="center shadow-blackA4 m-0 flex list-none rounded-[6px] bg-white p-1 shadow-[0_2px_10px]">
                     <NavigationMenu.Item>
                         <NavigationMenu.Link 
