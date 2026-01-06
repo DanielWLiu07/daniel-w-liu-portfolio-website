@@ -1,32 +1,30 @@
-"use client";
+"use client"
 
-import { useEffect, useRef, useState } from "react";
-import gsap from "gsap";
-import localFont from 'next/font/local';
-import Image from 'next/image';
-import { SocialLinks } from "@/components/ui/social-links";
-import { useMobile } from "@/hooks/use-mobile";
-import { useBodyOverflow } from "@/hooks/use-body-overflow";
-import { usePerformanceMode } from "@/contexts/performance-mode-context";
-import { ModeSelector } from "@/components/ui/mode-selector";
+import { useEffect, useRef, useState } from "react"
+import gsap from "gsap"
+import localFont from 'next/font/local'
+import Image from 'next/image'
+import { SocialLinks } from "@/components/ui/social-links"
+import { useBodyOverflow } from "@/hooks/use-body-overflow"
+import { usePerformanceMode } from "@/contexts/performance-mode-context"
+import { ModeSelector } from "@/components/ui/mode-selector"
 
 const weddingDay = localFont({
   src: '../public/shared/fonts/weddingday-font/ancient-wedding-font/AncientWeddingDemoRegular-MAm1n.ttf',
-});
+})
 
 export default function Home() {
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [startMaskAnimation, setStartMaskAnimation] = useState(false);
-  const rootRef = useRef(null);
-  const svgMaskRef = useRef<SVGAnimateElement>(null);
-  const compositeVideoRef = useRef<HTMLVideoElement>(null);
-  const treeRightRef = useRef<HTMLVideoElement>(null);
-  const treeLeftRef = useRef<HTMLVideoElement>(null);
-  const loadedCalledRef = useRef(false);
-  const videosReady = useRef({ composite: false, treeRight: false, treeLeft: false });
-  const isMobile = useMobile();
-  const { mode, isLowPerformance } = usePerformanceMode();
-  useBodyOverflow('hidden');
+  const [isLoaded, setIsLoaded] = useState(false)
+  const [startMaskAnimation, setStartMaskAnimation] = useState(false)
+  const rootRef = useRef(null)
+  const svgMaskRef = useRef<SVGAnimateElement>(null)
+  const compositeVideoRef = useRef<HTMLVideoElement>(null)
+  const treeRightRef = useRef<HTMLVideoElement>(null)
+  const treeLeftRef = useRef<HTMLVideoElement>(null)
+  const loadedCalledRef = useRef(false)
+  const videosReady = useRef({ composite: false, treeRight: false, treeLeft: false })
+  const { mode, isLowPerformance } = usePerformanceMode()
+  useBodyOverflow('hidden')
 
   const handleAssetLoad = () => {
     if (loadedCalledRef.current) return;
@@ -67,9 +65,9 @@ export default function Home() {
       checkAllVideosReady();
     };
 
-    if (composite?.readyState >= 3) videosReady.current.composite = true;
-    if (treeRight?.readyState >= 3) videosReady.current.treeRight = true;
-    if (treeLeft?.readyState >= 3) videosReady.current.treeLeft = true;
+    if (composite?.readyState && composite.readyState >= 3) videosReady.current.composite = true
+    if (treeRight?.readyState && treeRight.readyState >= 3) videosReady.current.treeRight = true
+    if (treeLeft?.readyState && treeLeft.readyState >= 3) videosReady.current.treeLeft = true
 
     composite?.addEventListener('canplay', handleCompositeReady);
     composite?.addEventListener('loadeddata', handleCompositeReady);
@@ -125,7 +123,10 @@ export default function Home() {
       gsap.from(".tree-right", { x: "100%", duration: 1.5, ease: "power3.out", delay: 1.5 });
       gsap.from(".tree-left", { x: "-100%", duration: 1.5, ease: "power3.out", delay: 1.5 });
       gsap.from("nav", { y: "-100%", duration: 1, ease: "power3.out", delay: 1.5 });
-      gsap.from(".social-links", { y: "100%", duration: 1, ease: "power3.out", delay: 1.5 });
+      gsap.fromTo(".social-links",
+        { y: "100%", opacity: 0 },
+        { y: "0%", opacity: 1, duration: 1, ease: "power3.out", delay: 1.5 }
+      );
     }, rootRef);
 
     return () => ctx.revert();
@@ -157,7 +158,7 @@ export default function Home() {
       )}
 
       <div className="absolute inset-0 w-full h-full overflow-hidden">
-        <Image src="/landing/images/rough_paper.png" alt="paper background" fill className="object-cover" priority />
+        <Image src="/landing/images/white_paper.png" alt="white paper background" fill className="object-cover" priority />
       </div>
 
       <div ref={rootRef} className={`relative w-full h-screen overflow-hidden ${!isLoaded || mode === null ? 'opacity-0' : 'opacity-100'}`}>
@@ -231,7 +232,7 @@ export default function Home() {
         </defs>
         <foreignObject width="100%" height="100%" mask="url(#bgMask)">
           <div className="relative w-full h-full overflow-hidden">
-            <Image src="/landing/images/rough_paper.png" alt="paper background" fill className="object-cover" priority />
+            <Image src="/landing/images/white_paper.png" alt="white paper background" fill className="object-cover" priority />
           </div>
         </foreignObject>
       </svg>
@@ -277,9 +278,7 @@ export default function Home() {
         </>
       )}
 
-      <div className="social-links">
-        <SocialLinks variant="black" />
-      </div>
+      <SocialLinks variant="black" className="social-links" />
       </div>
     </>
   );

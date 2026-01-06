@@ -1,15 +1,10 @@
 'use client'
 
-import { BackgroundVideo, ExperienceHeader, ExperienceList, experiences } from '@/components/experience'
+import { BackgroundVideo, ExperienceHeader, ExperienceList, SocialLinks, experiences } from '@/components/experience'
 
 export default function ExperiencePage() {
   return (
     <main className="flex min-h-screen relative overflow-hidden">
-      <style jsx>{`
-        .hide-scrollbar::-webkit-scrollbar {
-          display: none;
-        }
-      `}</style>
 
       <BackgroundVideo />
 
@@ -24,6 +19,8 @@ export default function ExperiencePage() {
         <ExperienceHeader />
         <ExperienceList experiences={experiences} />
       </div>
+
+      <SocialLinks />
     </main>
   )
 }
