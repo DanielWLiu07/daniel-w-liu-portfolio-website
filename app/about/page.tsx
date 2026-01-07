@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import localFont from 'next/font/local';
+import Image from 'next/image';
 import { TechStack } from "@/components/about/tech-stack";
 import { BackgroundLayers } from "@/components/about/background-layers";
 import { MobileBackground } from "@/components/about/mobile-background";
@@ -40,7 +41,7 @@ export default function About() {
         <MobileBackground />
 
         <div className="relative z-10 flex flex-col md:flex-row md:justify-end min-h-screen -mt-[300vh] md:mt-0">
-          <div className={`w-[95%] mx-auto md:mx-0 md:w-1/2 px-2 md:pl-4 pb-5 flex flex-col justify-start md:min-h-0 pt-8 ${katieRoze.className}`}>
+          <div className={`w-[95%] mx-auto md:mx-0 md:w-1/2 px-2 md:pl-4 pb-5 flex flex-col justify-start md:min-h-0 pt-8 overflow-visible ${katieRoze.className}`}>
             <div className="bg-white/60 xl:bg-transparent p-3 xl:p-0 rounded-lg xl:rounded-none">
               <div className="overflow-visible -space-y-6 md:-space-y-8 max-w-sm md:max-w-none">
                 <h1 className="text-8xl lg:text-9xl font-black bg-gradient-to-r from-purple-700 via-pink-700 to-blue-700 bg-clip-text text-transparent drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)] leading-32 py-2 whitespace-nowrap">
@@ -60,6 +61,17 @@ export default function About() {
               </div>
 
               <TechStack />
+            </div>
+            
+            <div className="flex flex-col mt-20 -ml-50 md:-ml-50">
+              <Image 
+                src="/about/images/cat3.png" 
+                alt="Cat" 
+                width={700} 
+                height={150} 
+                className="object-contain"
+                style={{ minWidth: '700px' }}
+              />
             </div>
           </div>
         </div>

@@ -17,15 +17,15 @@ export const SocialLinks = memo(function SocialLinks({ variant = 'white', classN
           href={link.href}
           target="_blank"
           rel="noopener noreferrer"
-          className={`w-14 h-14 rounded-xl backdrop-blur-sm border transition-all hover:scale-110 duration-300 flex items-center justify-center shadow-lg hover:shadow-xl ${
+          className={`w-14 h-14 rounded-xl backdrop-blur-sm border-2 transition-all hover:scale-110 duration-300 flex items-center justify-center shadow-lg hover:shadow-xl ${
             isBlack
-              ? 'bg-white/20 hover:bg-white/30 border-white/20 hover:border-white/40'
-              : 'bg-black/20 hover:bg-black/30 border-black/20 hover:border-black/40'
+              ? 'bg-white/20 hover:bg-white/30 border-black/40 hover:border-black/60'
+              : 'bg-black/20 hover:bg-black/30 border-white/40 hover:border-white/60'
           }`}
           aria-label={link.label}
         >
           <svg
-            className={`w-14 h-14 drop-shadow-md ${isBlack ? 'text-black' : 'text-white'}`}
+            className={`${link.label === 'LinkedIn' ? 'w-10 h-10' : 'w-14 h-14'} drop-shadow-md ${isBlack ? 'text-black' : 'text-white'}`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"

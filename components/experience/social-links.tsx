@@ -19,11 +19,11 @@ export const SocialLinks = memo(function SocialLinks() {
           href={link.href}
           target="_blank"
           rel="noopener noreferrer"
-          className="w-14 h-14 rounded-xl backdrop-blur-sm bg-white/20 hover:bg-white/30 border border-white/20 hover:border-white/40 transition-all hover:scale-110 duration-300 flex items-center justify-center shadow-lg hover:shadow-xl"
+          className="w-14 h-14 rounded-xl backdrop-blur-sm bg-white/20 hover:bg-white/30 border-2 border-purple-400/60 hover:border-pink-400/80 transition-all hover:scale-110 duration-300 flex items-center justify-center shadow-lg hover:shadow-xl"
           aria-label={link.label}
         >
           <svg
-            className="w-14 h-14 drop-shadow-md"
+            className={`${link.label === 'LinkedIn' ? 'w-10 h-10' : 'w-14 h-14'} drop-shadow-md`}
             fill="none"
             stroke="url(#social-gradient)"
             viewBox="0 0 24 24"

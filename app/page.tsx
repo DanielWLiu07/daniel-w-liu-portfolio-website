@@ -122,12 +122,17 @@ export default function Home() {
 
       gsap.from(".tree-right", { x: "100%", duration: 1.5, ease: "power3.out", delay: 1.5 });
       gsap.from(".tree-left", { x: "-100%", duration: 1.5, ease: "power3.out", delay: 1.5 });
-      gsap.from("nav", { y: "-100%", duration: 1, ease: "power3.out", delay: 1.5 });
       gsap.fromTo(".social-links",
         { y: "100%", opacity: 0 },
         { y: "0%", opacity: 1, duration: 1, ease: "power3.out", delay: 1.5 }
       );
     }, rootRef);
+
+    // Animate nav outside of context since it's in layout
+    gsap.fromTo("nav", 
+      { y: "-100%" },
+      { y: "0%", duration: 1, ease: "power3.out", delay: 1.5 }
+    );
 
     return () => ctx.revert();
   }, [isLoaded, mode]);
@@ -174,7 +179,7 @@ export default function Home() {
       <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" className="absolute inset-0 w-full h-full z-0">
         <defs>
           <filter id="bgFilter">
-            <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="2" result="noise" />
+            <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="6" result="noise" />
             <feDisplacementMap in="SourceGraphic" in2="noise" scale="0" xChannelSelector="R" yChannelSelector="G">
               <animate
                 ref={svgMaskRef}
