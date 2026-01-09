@@ -3,7 +3,7 @@ import { socialLinksData } from '@/components/ui/social-links-data'
 
 export const SocialLinks = memo(function SocialLinks() {
   return (
-    <div className="fixed bottom-4 right-4 z-[80] flex flex-row gap-4 pointer-events-auto">
+    <div className="experience-social-links fixed bottom-4 right-4 z-[80] flex flex-row gap-4 pointer-events-auto">
       <svg width="0" height="0" className="absolute">
         <defs>
           <linearGradient id="social-gradient" x1="0%" y1="0%" x2="100%" y2="100%">

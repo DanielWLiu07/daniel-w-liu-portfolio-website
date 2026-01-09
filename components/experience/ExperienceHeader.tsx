@@ -5,7 +5,7 @@ const SHADOW_FILTER = 'brightness(0.5)'
 
 export function ExperienceHeader() {
   return (
-    <div className="relative ml-0 mt-5 flex flex-col items-center md:ml-21 md:mt-5 md:block [transform:rotateZ(0deg)] md:[transform:rotateZ(1deg)]">
+    <div className="experience-header relative ml-0 mt-5 flex flex-col items-center md:ml-21 md:mt-5 md:block [transform:rotateZ(0deg)] md:[transform:rotateZ(1deg)]">
       <Image
         src="/experience/images/experience_text.png"
         alt=""
