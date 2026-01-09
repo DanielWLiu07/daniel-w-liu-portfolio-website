@@ -56,9 +56,9 @@ export const BackgroundLayers = memo(function BackgroundLayers({ onLoaded }: Bac
       checkAllVideosReady()
     }
 
-    if (rightColour?.readyState >= 3) videosReady.current.rightColour = true
-    if (waterColour?.readyState >= 3) videosReady.current.waterColour = true
-    if (sparkle?.readyState >= 3) videosReady.current.sparkle = true
+    if (rightColour && rightColour.readyState >= 3) videosReady.current.rightColour = true
+    if (waterColour && waterColour.readyState >= 3) videosReady.current.waterColour = true
+    if (sparkle && sparkle.readyState >= 3) videosReady.current.sparkle = true
 
     rightColour?.addEventListener('canplay', handleRightColourReady)
     rightColour?.addEventListener('loadeddata', handleRightColourReady)

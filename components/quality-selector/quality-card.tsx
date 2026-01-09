@@ -8,7 +8,7 @@ const fredrick = localFont({
 
 interface QualityCardProps {
   title: string
-  features: Array<{ icon: string; text: string }>
+  features: ReadonlyArray<{ readonly icon: string; readonly text: string }>
   imageSrc: string
   rotation: string
   order: string
@@ -24,6 +24,14 @@ export const QualityCard = forwardRef<HTMLDivElement, QualityCardProps>(
         style={{ willChange: 'opacity' }}
         onClick={onClick}
       >
+        <Image
+          src="/quality/images/pin_outline_1.png"
+          alt="pin"
+          width={80}
+          height={80}
+          className="absolute -top-8 left-1/2 -translate-x-1/2 z-20 pointer-events-none"
+          priority
+        />
         <div
           className={`relative w-[280px] h-[280px] md:w-[420px] md:h-[420px] ${rotation} hover:scale-105 hover:rotate-0 transition-all duration-300 ease-out overflow-visible will-change-transform`}
         >

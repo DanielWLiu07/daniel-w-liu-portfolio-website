@@ -6,7 +6,7 @@ const fredrick = localFont({
 })
 
 interface SelectorTitleProps {
-  subtitleRef: React.RefObject<HTMLParagraphElement>
+  subtitleRef: React.RefObject<HTMLParagraphElement | null>
 }
 
 export const SelectorTitle = forwardRef<HTMLDivElement, SelectorTitleProps>(

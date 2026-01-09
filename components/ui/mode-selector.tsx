@@ -382,6 +382,14 @@ export function ModeSelector() {
             style={{ willChange: 'opacity' }}
             onClick={() => handleModeSelect('high')}
           >
+            <Image
+              src="/quality/images/pin_outline_1.png"
+              alt="pin"
+              width={80}
+              height={80}
+              className="absolute -top-8 left-1/2 -translate-x-1/2 z-20 pointer-events-none"
+              priority
+            />
             <div
               className="relative w-[280px] h-[280px] md:w-[420px] md:h-[420px] -rotate-[5deg] hover:scale-105 hover:rotate-0 transition-all duration-300 ease-out overflow-visible will-change-transform"
             >
@@ -415,6 +423,14 @@ export function ModeSelector() {
             style={{ willChange: 'opacity' }}
             onClick={() => handleModeSelect('low')}
           >
+            <Image
+              src="/quality/images/pin_outline_1.png"
+              alt="pin"
+              width={80}
+              height={80}
+              className="absolute -top-8 left-1/2 -translate-x-1/2 z-20 pointer-events-none"
+              priority
+            />
             <div
               className="relative w-[280px] h-[280px] md:w-[420px] md:h-[420px] rotate-[4deg] hover:scale-105 hover:rotate-0 transition-all duration-300 ease-out overflow-visible will-change-transform"
             >

@@ -7,7 +7,7 @@ const SOCIAL_LINKS = [
   { href: 'https://docs.google.com/forms/d/e/1FAIpQLSdsaj2nXuReGTo1Fu9PaW7jsxUZPpPAiCMuf0gBvmZBYFe1nw/viewform?usp=dialog', label: 'Email', image: '/about/images/gmail.png' },
 ]
 
-export const SelectorSocials = forwardRef<HTMLDivElement, Record<string, never>>(
+export const SelectorSocials = forwardRef<HTMLDivElement, Record<string, unknown>>(
   (props, ref) => {
     return (
       <svg

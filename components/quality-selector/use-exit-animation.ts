@@ -1,15 +1,15 @@
 import gsap from 'gsap'
 
 interface ExitAnimationRefs {
-  titleRef: React.RefObject<HTMLDivElement>
-  subtitleRef: React.RefObject<HTMLParagraphElement>
-  highQualityRef: React.RefObject<HTMLDivElement>
-  lowQualityRef: React.RefObject<HTMLDivElement>
-  helperTextRef: React.RefObject<HTMLParagraphElement>
-  selfieRef: React.RefObject<HTMLDivElement>
-  catRef: React.RefObject<HTMLDivElement>
-  waterlooRef: React.RefObject<HTMLDivElement>
-  socialsRef: React.RefObject<HTMLDivElement>
+  titleRef: React.RefObject<HTMLDivElement | null>
+  subtitleRef: React.RefObject<HTMLParagraphElement | null>
+  highQualityRef: React.RefObject<HTMLDivElement | null>
+  lowQualityRef: React.RefObject<HTMLDivElement | null>
+  helperTextRef: React.RefObject<HTMLParagraphElement | null>
+  selfieRef: React.RefObject<HTMLDivElement | null>
+  catRef: React.RefObject<HTMLDivElement | null>
+  waterlooRef: React.RefObject<HTMLDivElement | null>
+  socialsRef: React.RefObject<HTMLDivElement | null>
 }
 
 export function createExitAnimation(

@@ -1,7 +1,7 @@
 import { forwardRef } from 'react'
 import Image from 'next/image'
 
-export const WaterlooLogo = forwardRef<HTMLDivElement, Record<string, never>>(
+export const WaterlooLogo = forwardRef<HTMLDivElement, Record<string, unknown>>(
   (props, ref) => {
     return (
       <div
