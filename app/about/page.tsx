@@ -2,6 +2,10 @@
 
 import { useState } from 'react';
 import localFont from 'next/font/local';
+// Import Fredrick font for list
+const fredrick = localFont({
+  src: '../../public/fonts/FrederickatheGreat-Regular.ttf',
+});
 import Image from 'next/image';
 import { TechStack } from "@/components/about/tech-stack";
 import { BackgroundLayers } from "@/components/about/background-layers";
@@ -15,10 +19,10 @@ const katieRoze = localFont({
 });
 
 const INFO_ITEMS = [
-  "0 University of Waterloo - Computer Science and Finance Double Major (2025 - Present)",
-  "0 45/45 Final IB Score (Top 0.1% Global)",
-  "0 Fullstack and ML - Jack of All Trades",
-  "0 Hobbies: Rock Climbing, Brawl Stars, Riot Games, Pingpong, Pokemon, Calisthenics, Game Dev.",
+  "- University of Waterloo - Computer Science and Finance Double Major (2025 - Present)",
+  "-  45/45 Final IB Score (Top 0.1% Global)",
+  "- Fullstack and ML - Jack of All Trades",
+  "- Hobbies: Rock Climbing, Brawl Stars, Riot Games, Pingpong, Pokemon, Calisthenics, Game Dev.",
 ];
 
 export default function About() {
@@ -52,9 +56,9 @@ export default function About() {
                 </p>
               </div>
 
-              <div className="pl-3 md:pl-2 text-black text-xl md:text-3xl font-bold drop-shadow-[0_1px_2px_rgba(0,0,0,0.2)] max-w-sm md:max-w-none mt-2">
+              <div className="pl-3 md:pl-2 text-black text-xl md:text-3xl drop-shadow-[0_1px_2px_rgba(0,0,0,0.2)] max-w-sm md:max-w-none mt-2">
                 {INFO_ITEMS.map((info, index) => (
-                  <p key={index} className="text-2xl md:text-4xl md:max-w-lg text-stroke-white-xs">
+                  <p key={index} className={`text-2xl md:text-3xl md:max-w-lg text-stroke-white-xs ${fredrick.className}`}>
                     {info}
                   </p>
                 ))}
