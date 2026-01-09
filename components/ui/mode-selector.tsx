@@ -32,6 +32,16 @@ export function ModeSelector() {
   const waterlooRef = useRef<HTMLDivElement>(null)
   const socialsRef = useRef<HTMLDivElement>(null)
 
+  // Draggable decoration refs
+  const pin1Ref = useRef<HTMLDivElement>(null)
+  const pin2Ref = useRef<HTMLDivElement>(null)
+  const pin3Ref = useRef<HTMLDivElement>(null)
+  const paperClip1Ref = useRef<HTMLDivElement>(null)
+  const paperClip2Ref = useRef<HTMLDivElement>(null)
+  const paperClip3Ref = useRef<HTMLDivElement>(null)
+  const clip1Ref = useRef<HTMLDivElement>(null)
+  const stationaryRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
     if (mode !== null) return
 
@@ -300,6 +310,114 @@ export function ModeSelector() {
         />
       </div>
 
+      {/* Draggable Pins */}
+      <div
+        ref={pin1Ref}
+        className="draggable-graphic fixed left-[10%] top-[10%] w-20 h-20 z-[200] cursor-move"
+      >
+        <Image
+          src="/quality/images/pin_outline_1.png"
+          alt="pin 1"
+          width={80}
+          height={80}
+          className="w-full h-full object-contain"
+        />
+      </div>
+
+      <div
+        ref={pin2Ref}
+        className="draggable-graphic fixed left-[20%] top-[15%] w-20 h-20 z-[201] cursor-move"
+      >
+        <Image
+          src="/quality/images/pin_outline_2.png"
+          alt="pin 2"
+          width={80}
+          height={80}
+          className="w-full h-full object-contain"
+        />
+      </div>
+
+      <div
+        ref={pin3Ref}
+        className="draggable-graphic fixed left-[30%] top-[10%] w-20 h-20 z-[202] cursor-move"
+      >
+        <Image
+          src="/quality/images/pin_outline_3.png"
+          alt="pin 3"
+          width={80}
+          height={80}
+          className="w-full h-full object-contain"
+        />
+      </div>
+
+      {/* Draggable Paper Clips */}
+      <div
+        ref={paperClip1Ref}
+        className="draggable-graphic fixed right-[10%] top-[10%] w-16 h-16 z-[203] cursor-move"
+      >
+        <Image
+          src="/quality/images/paper_clip_outline_1.png"
+          alt="paper clip 1"
+          width={64}
+          height={64}
+          className="w-full h-full object-contain"
+        />
+      </div>
+
+      <div
+        ref={paperClip2Ref}
+        className="draggable-graphic fixed right-[20%] top-[15%] w-16 h-16 z-[204] cursor-move"
+      >
+        <Image
+          src="/quality/images/paper_clip_outline_2.png"
+          alt="paper clip 2"
+          width={64}
+          height={64}
+          className="w-full h-full object-contain"
+        />
+      </div>
+
+      <div
+        ref={paperClip3Ref}
+        className="draggable-graphic fixed right-[30%] top-[10%] w-16 h-16 z-[205] cursor-move"
+      >
+        <Image
+          src="/quality/images/paper_clip_outline_3.png"
+          alt="paper clip 3"
+          width={64}
+          height={64}
+          className="w-full h-full object-contain"
+        />
+      </div>
+
+      {/* Draggable Clip */}
+      <div
+        ref={clip1Ref}
+        className="draggable-graphic fixed left-[15%] bottom-[10%] w-20 h-20 z-[206] cursor-move"
+      >
+        <Image
+          src="/quality/images/clip_1_outline.png"
+          alt="clip"
+          width={80}
+          height={80}
+          className="w-full h-full object-contain"
+        />
+      </div>
+
+      {/* Draggable Stationary */}
+      <div
+        ref={stationaryRef}
+        className="draggable-graphic fixed right-[15%] bottom-[10%] w-24 h-24 z-[207] cursor-move"
+      >
+        <Image
+          src="/quality/images/stationary_outline.png"
+          alt="stationary"
+          width={96}
+          height={96}
+          className="w-full h-full object-contain"
+        />
+      </div>
+
       <div
         ref={sticky3Ref}
         className="fixed left-0 top-0 h-screen opacity-0 overflow-visible pointer-events-none z-[1] -ml-80 md:-ml-20 -mt-5"
@@ -342,15 +460,14 @@ export function ModeSelector() {
 
       <div
         ref={sticky4Ref}
-        className="fixed right-0 top-0 h-screen opacity-0 overflow-visible pointer-events-none z-[1] -mr-80 md:-mr-20 mt-10"
+        className="fixed right-[10%] top-[5%] w-[400px] h-[600px] z-[1] pointer-events-none opacity-0"
         style={{ willChange: 'opacity' }}
       >
         <Image
           src="/quality/images/cat_tongue_outline.png"
           alt="Bongo"
-          width={500}
-          height={1750}
-          className="h-full w-auto object-contain -scale-x-125 scale-y-125 -rotate-[30deg]"
+          fill
+          className="object-contain"
           style={{
             filter: `brightness(1.05) saturate(1.15) contrast(1.05)`
           }}
