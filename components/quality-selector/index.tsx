@@ -112,10 +112,14 @@ export function ModeSelector() {
             onClick={() => handleModeSelect('low')}
           />
         </div>
+      </div>
 
+      <div
+        ref={helperTextRef}
+        className="fixed bottom-8 left-0 right-0 z-[100] flex items-center justify-center px-4 opacity-0"
+      >
         <p
-          ref={helperTextRef}
-          className={`text-xs md:text-base text-center max-w-2xl px-2 md:px-4 font-bold text-stroke-white-sm ${fredrick.className} opacity-0`}
+          className={`text-xs md:text-base text-center max-w-[90%] md:max-w-2xl font-bold text-stroke-white-sm ${fredrick.className}`}
           style={{ color: '#2c1810' }}
         >
           Don&apos;t worry, you can always change this later by returning to the landing page

@@ -6,7 +6,7 @@ export const WaterlooLogo = forwardRef<HTMLDivElement, Record<string, never>>(
     return (
       <div
         ref={ref}
-        className="fixed left-0 bottom-15 md:bottom-0 h-[15vh] md:h-[30vh] opacity-0 overflow-visible z-[90] ml-2 mb-2 will-change-transform"
+        className="fixed left-0 bottom-15 md:bottom-0 h-[25vh] md:h-[30vh] opacity-0 overflow-visible z-[90] ml-2 mb-2 will-change-transform"
       >
         <a
           href="https://uwaterloo.ca"
