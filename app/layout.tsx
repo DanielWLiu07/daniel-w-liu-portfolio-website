@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/info/Navbar";
 import { PerformanceModeProvider } from "@/contexts/performance-mode-context";
+import { PageTransition } from "@/components/ui/page-transition";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -40,7 +41,9 @@ export default function RootLayout({
       >
         <PerformanceModeProvider>
           <Navbar />
-          {children}
+          <PageTransition>
+            {children}
+          </PageTransition>
         </PerformanceModeProvider>
       </body>
     </html>
