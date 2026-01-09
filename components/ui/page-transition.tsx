@@ -51,7 +51,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
       setTimeout(() => {
         setTransitionStage('idle')
         prevPathname.current = pathname
-      }, 1550) // 1.5s fade-in animation
+      }, 2550) // 2.5s fade-in animation
     }
   }, [pathname, transitionStage])
 
@@ -100,7 +100,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
       setTimeout(() => {
         setTransitionStage('loading')
         router.push(href)
-      }, 1500) // 1.5s fade-out animation
+      }, 2500) // 2.5s fade-out animation
     }
 
     document.addEventListener('click', handleClick, true)
@@ -154,7 +154,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
                     ref={svgMaskOutRef}
                     attributeName="scale"
                     values="200;490"
-                    dur="1.5s"
+                    dur="2.5s"
                     begin="indefinite"
                     calcMode="spline"
                     keySplines="0.2 0.8 0.3 1"
@@ -175,7 +175,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
                   <animate
                     attributeName="x"
                     values="50%;-25%"
-                    dur="1.5s"
+                    dur="2.5s"
                     begin="indefinite"
                     calcMode="spline"
                     keySplines="0.2 0.8 0.3 1"
@@ -184,7 +184,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
                   <animate
                     attributeName="y"
                     values="50%;-25%"
-                    dur="1.5s"
+                    dur="2.5s"
                     begin="indefinite"
                     calcMode="spline"
                     keySplines="0.2 0.8 0.3 1"
@@ -193,7 +193,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
                   <animate
                     attributeName="width"
                     values="0%;150%"
-                    dur="1.5s"
+                    dur="2.5s"
                     begin="indefinite"
                     calcMode="spline"
                     keySplines="0.2 0.8 0.3 1"
@@ -202,7 +202,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
                   <animate
                     attributeName="height"
                     values="0%;150%"
-                    dur="1.5s"
+                    dur="2.5s"
                     begin="indefinite"
                     calcMode="spline"
                     keySplines="0.2 0.8 0.3 1"
@@ -255,7 +255,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
                     ref={svgMaskInRef}
                     attributeName="scale"
                     values="490;200"
-                    dur="1.5s"
+                    dur="2.5s"
                     begin="indefinite"
                     calcMode="spline"
                     keySplines="0.2 0.8 0.3 1"
@@ -276,7 +276,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
                   <animate
                     attributeName="x"
                     values="50%;-25%"
-                    dur="1.5s"
+                    dur="2.5s"
                     begin="indefinite"
                     calcMode="spline"
                     keySplines="0.2 0.8 0.3 1"
@@ -285,7 +285,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
                   <animate
                     attributeName="y"
                     values="50%;-25%"
-                    dur="1.5s"
+                    dur="2.5s"
                     begin="indefinite"
                     calcMode="spline"
                     keySplines="0.2 0.8 0.3 1"
@@ -294,7 +294,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
                   <animate
                     attributeName="width"
                     values="0%;150%"
-                    dur="1.5s"
+                    dur="2.5s"
                     begin="indefinite"
                     calcMode="spline"
                     keySplines="0.2 0.8 0.3 1"
@@ -303,7 +303,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
                   <animate
                     attributeName="height"
                     values="0%;150%"
-                    dur="1.5s"
+                    dur="2.5s"
                     begin="indefinite"
                     calcMode="spline"
                     keySplines="0.2 0.8 0.3 1"
