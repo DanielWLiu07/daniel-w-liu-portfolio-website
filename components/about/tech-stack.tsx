@@ -1,4 +1,9 @@
+import localFont from 'next/font/local'
 import { TechBadge } from "./tech-badge";
+
+const mochi = localFont({
+  src: '../../public/fonts/MochibopBold-Demo.ttf',
+})
 
 const techCategories = [
   {
@@ -62,11 +67,11 @@ export function TechStack() {
         Tech Stack
       </h1>
 
-      <div className="pl-3 md:pl-2 text-black text-xl md:text-3xl font-bold drop-shadow-[0_1px_2px_rgba(0,0,0,0.2)] flex flex-col gap-y-4 max-w-sm md:max-w-none">
+      <div className="pl-3 md:pl-2 text-black text-xl md:text-3xl drop-shadow-[0_1px_2px_rgba(0,0,0,0.2)] max-w-sm md:max-w-none">
         {techCategories.map((category) => (
-          <div key={category.title}>
-            <p className="text-2xl md:text-4xl mb-2 text-stroke-white-xs">0 {category.title}</p>
-            <div className="flex flex-wrap gap-2">
+          <div key={category.title} className="mb-4">
+            <p className={`text-2xl md:text-3xl md:max-w-lg text-stroke-white-xs ${mochi.className}`}>- {category.title}</p>
+            <div className="flex flex-wrap gap-2 mt-2">
               {category.badges.map((badge) => (
                 <TechBadge key={badge.alt} {...badge} />
               ))}
