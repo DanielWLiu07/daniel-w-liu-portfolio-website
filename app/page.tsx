@@ -8,6 +8,7 @@ import { SocialLinks } from "@/components/ui/social-links"
 import { useBodyOverflow } from "@/hooks/use-body-overflow"
 import { usePerformanceMode } from "@/contexts/performance-mode-context"
 import { ModeSelector } from "@/components/ui/mode-selector"
+import { useMobile } from "@/hooks/use-mobile"
 
 const weddingDay = localFont({
   src: '../public/shared/fonts/weddingday-font/ancient-wedding-font/AncientWeddingDemoRegular-MAm1n.ttf',
@@ -24,7 +25,12 @@ export default function Home() {
   const loadedCalledRef = useRef(false)
   const videosReady = useRef({ composite: false, treeRight: false, treeLeft: false })
   const { mode, isLowPerformance } = usePerformanceMode()
+  const isMobile = useMobile(768)
   useBodyOverflow('hidden')
+
+  // Responsive mask dimensions
+  const maskWidth = isMobile ? "95%" : "87%"
+  const maskX = isMobile ? "2.5%" : "6.5%"
 
   const handleAssetLoad = () => {
     if (loadedCalledRef.current) return;
@@ -95,24 +101,22 @@ export default function Home() {
     if (!isLoaded || mode === null) return;
 
     const ctx = gsap.context(() => {
-      const timeline = gsap.timeline({
-        onComplete: () => {
-          setStartMaskAnimation(true);
-        }
-      });
-
-      timeline.from(".name-container", {
+      // Set initial state to prevent flash
+      gsap.set(".name-container", {
         y: "-100vh",
         scale: 1.8,
+        opacity: 0
+      });
+
+      const timeline = gsap.timeline();
+
+      timeline.to(".name-container", {
+        y: 0,
+        scale: 0.92,
+        opacity: 1,
         duration: 0.6,
         ease: "power2.in",
       });
-
-      timeline.to(".name-container", {
-        scale: 0.92,
-        duration: 0.1,
-        ease: "power2.out",
-      }, "-=0.05");
 
       timeline.to(".name-container", {
         scale: 1,
@@ -120,21 +124,30 @@ export default function Home() {
         ease: "elastic.out(1.2, 0.4)",
       });
 
-      gsap.from(".tree-right", { x: "100%", duration: 1.5, ease: "power3.out", delay: 1.5 });
-      gsap.from(".tree-left", { x: "-100%", duration: 1.5, ease: "power3.out", delay: 1.5 });
+      // Trigger mask animation partway through the name animation
+      timeline.call(() => {
+        setStartMaskAnimation(true);
+      }, null, 0.55);
+
+      gsap.from(".tree-right", { xPercent: 100, duration: 1.5, ease: "power3.out", delay: 1.5 });
+      gsap.from(".tree-left", { xPercent: -100, duration: 1.5, ease: "power3.out", delay: 1.5 });
       gsap.fromTo(".social-links",
-        { y: "100%", opacity: 0 },
-        { y: "0%", opacity: 1, duration: 1, ease: "power3.out", delay: 1.5 }
+        { yPercent: 100, opacity: 0 },
+        { yPercent: 0, opacity: 1, duration: 1, ease: "power3.out", delay: 1.5 }
+      );
+
+      // Animate nav inside context for proper cleanup
+      gsap.fromTo("nav", 
+        { yPercent: -100 },
+        { yPercent: 0, duration: 1, ease: "power3.out", delay: 1.5 }
       );
     }, rootRef);
 
-    // Animate nav outside of context since it's in layout
-    gsap.fromTo("nav", 
-      { y: "-100%" },
-      { y: "0%", duration: 1, ease: "power3.out", delay: 1.5 }
-    );
-
-    return () => ctx.revert();
+    return () => {
+      ctx.revert();
+      // Clear any remaining transforms on nav
+      gsap.set("nav", { clearProps: "all" });
+    };
   }, [isLoaded, mode]);
 
   useEffect(() => {
@@ -154,10 +167,11 @@ export default function Home() {
       <ModeSelector />
 
       {!isLoaded && mode !== null && (
-        <div className="fixed inset-0 z-[1000] bg-black flex items-center justify-center">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin" />
-            <p className={`text-2xl text-white ${weddingDay.className}`}>Loading...</p>
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center">
+          <Image src="/landing/images/white_paper.png" alt="loading background" fill className="object-cover" priority />
+          <div className="relative z-10 flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-gray-800 border-t-transparent rounded-full animate-spin" />
+            <p className={`text-2xl text-gray-800 ${weddingDay.className}`}>Loading...</p>
           </div>
         </div>
       )}
@@ -172,7 +186,7 @@ export default function Home() {
           {isLowPerformance ? (
             <Image src="/animation_frames/landing/composed_bg/dragon_body0003.png" alt="composite background" fill className="absolute inset-0 w-full h-full object-cover" />
           ) : (
-            <video ref={compositeVideoRef} src="/landing/videos/landing_composite.webm" autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" preload="auto" />
+            <video ref={compositeVideoRef} src="/landing/videos/landing_composite_24fps.webm" autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" preload="auto" />
           )}
       </div>
 
@@ -198,7 +212,7 @@ export default function Home() {
             <rect x="50%" y="50%" width="0%" height="0%" fill="black" filter="url(#bgFilter)">
               <animate
                 attributeName="x"
-                values="50%;6.75%"
+                values={`50%;${maskX}`}
                 dur="3s"
                 begin="indefinite"
                 calcMode="spline"
@@ -207,7 +221,7 @@ export default function Home() {
               />
               <animate
                 attributeName="y"
-                values="50%;3.75%"
+                values="50%;4%"
                 dur="3s"
                 begin="indefinite"
                 calcMode="spline"
@@ -216,7 +230,7 @@ export default function Home() {
               />
               <animate
                 attributeName="width"
-                values="0%;87%"
+                values={`0%;${maskWidth}`}
                 dur="3s"
                 begin="indefinite"
                 calcMode="spline"
@@ -225,7 +239,7 @@ export default function Home() {
               />
               <animate
                 attributeName="height"
-                values="0%;92%"
+                values="0%;95%"
                 dur="3s"
                 begin="indefinite"
                 calcMode="spline"
@@ -242,7 +256,7 @@ export default function Home() {
         </foreignObject>
       </svg>
 
-      <div className="name-container absolute z-[62] top-[38%] sm:top-[45%] left-1/2 sm:left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center will-change-transform">
+      <div className="name-container absolute z-[62] top-[38%] sm:top-[45%] left-1/2 sm:left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center will-change-transform opacity-0">
         <div className="flex flex-wrap sm:flex-nowrap gap-x-4 items-center sm:items-center justify-center -ml-12 sm:ml-0">
           <div className="flex gap-4 items-center justify-center">
             <div className={`text-8xl sm:text-9xl tracking-tighter text-stroke-white ${weddingDay.className}`}>
