@@ -9,6 +9,7 @@ import { createInteractiveButtons, VIDEO_CONFIG, PHOTO_IMAGES, InteractiveButton
 import { useMobile } from "@/hooks/use-mobile";
 import { useBodyOverflow } from "@/hooks/use-body-overflow";
 import { usePerformanceMode } from "@/contexts/performance-mode-context";
+import { LoadingScreen } from "@/components/ui/loading-screen";
 
 const weddingDay = localFont({
   src: "../../public/shared/fonts/weddingday-font/ancient-wedding-font/AncientWeddingDemoRegular-MAm1n.ttf",
@@ -166,14 +167,7 @@ export default function Resume() {
 
   return (
     <>
-      {!isLoaded && (
-        <div className="fixed inset-0 z-[1000] bg-black flex items-center justify-center">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin" />
-            <p className={`text-2xl text-white ${weddingDay.className}`}>Loading...</p>
-          </div>
-        </div>
-      )}
+      {!isLoaded && <LoadingScreen />}
 
       <div
         ref={containerRef}

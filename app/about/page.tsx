@@ -2,16 +2,17 @@
 
 import { useState } from 'react';
 import localFont from 'next/font/local';
-// Import Fredrick font for list
-const fredrick = localFont({
-  src: '../../public/fonts/FrederickatheGreat-Regular.ttf',
-});
-import Image from 'next/image';
 import { TechStack } from "@/components/about/tech-stack";
 import { BackgroundLayers } from "@/components/about/background-layers";
 import { MobileBackground } from "@/components/about/mobile-background";
 import { SocialLinksImages } from "@/components/about/social-links-images";
 import { useBodyOverflow } from "@/hooks/use-body-overflow";
+import { LoadingScreen } from "@/components/ui/loading-screen";
+import Image from 'next/image';
+
+const mochi = localFont({
+  src: '../../public/fonts/MochibopBold-Demo.ttf',
+});
 
 const katieRoze = localFont({
   src: '../../public/shared/fonts/Katie Roze Watercolour Font - By Lef/KatieRoze.otf',
@@ -31,14 +32,7 @@ export default function About() {
 
   return (
     <>
-      {!isLoaded && (
-        <div className="fixed inset-0 z-[1000] bg-black flex items-center justify-center">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin" />
-            <p className={`text-2xl text-white ${katieRoze.className}`}>Loading...</p>
-          </div>
-        </div>
-      )}
+      {!isLoaded && <LoadingScreen />}
 
       <div className={`relative w-full min-h-screen max-h-screen md:max-h-none overflow-y-auto md:overflow-visible ${!isLoaded ? 'opacity-0' : 'opacity-100'}`}>
         <BackgroundLayers onLoaded={() => setIsLoaded(true)} />
@@ -58,7 +52,7 @@ export default function About() {
 
               <div className="pl-3 md:pl-2 text-black text-xl md:text-3xl drop-shadow-[0_1px_2px_rgba(0,0,0,0.2)] max-w-sm md:max-w-none mt-2">
                 {INFO_ITEMS.map((info, index) => (
-                  <p key={index} className={`text-2xl md:text-3xl md:max-w-lg text-stroke-white-xs ${fredrick.className}`}>
+                  <p key={index} className={`text-2xl md:text-3xl md:max-w-lg text-stroke-white-xs ${mochi.className}`}>
                     {info}
                   </p>
                 ))}
@@ -67,14 +61,13 @@ export default function About() {
               <TechStack />
             </div>
             
-            <div className="flex flex-col mt-20 -ml-50 md:-ml-50">
-              <Image 
-                src="/about/images/cat3.png" 
-                alt="Cat" 
-                width={700} 
-                height={150} 
-                className="object-contain"
-                style={{ minWidth: '700px' }}
+            <div className="flex flex-col mt-5 -ml-50 md:-ml-50">
+              <Image
+                src="/about/images/cat3.png"
+                alt="Cat"
+                width={650}
+                height={150}
+                className="object-contain min-w-[650px]"
               />
             </div>
           </div>

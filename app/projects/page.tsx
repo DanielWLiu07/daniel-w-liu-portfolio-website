@@ -11,6 +11,7 @@ import { projects } from '@/components/projects/project-data'
 import { SocialLinks } from '@/components/ui/social-links'
 import { useBodyOverflow } from '@/hooks/use-body-overflow'
 import { useTransitionState } from '@/components/ui/page-transition'
+import { LoadingScreen } from '@/components/ui/loading-screen'
 
 export default function ProjectsPage() {
   const [isLoaded, setIsLoaded] = useState(false)
@@ -84,14 +85,7 @@ export default function ProjectsPage() {
 
   return (
     <>
-      {!isLoaded && (
-        <div className="fixed inset-0 z-[1000] bg-black flex items-center justify-center">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin" />
-            <p className="text-2xl text-white">Loading...</p>
-          </div>
-        </div>
-      )}
+      {!isLoaded && <LoadingScreen />}
 
       <div ref={mainRef} className={`relative w-full h-screen overflow-hidden bg-black ${!isLoaded ? 'opacity-0' : 'opacity-100'}`}>
         <BackgroundVideos visible={introFinished} />

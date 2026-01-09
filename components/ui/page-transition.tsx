@@ -1,14 +1,14 @@
 'use client'
 
-// Page transition component with SVG mask animations
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import Image from 'next/image'
 import localFont from 'next/font/local'
 import { useMobile } from '@/hooks/use-mobile'
+import { LoadingScreen } from './loading-screen'
 
-const weddingDay = localFont({
-  src: '../../public/shared/fonts/weddingday-font/ancient-wedding-font/AncientWeddingDemoRegular-MAm1n.ttf',
+const fredrick = localFont({
+  src: '../../public/fonts/FrederickatheGreat-Regular.ttf',
 })
 
 type TransitionStage = 'idle' | 'fade-out' | 'loading' | 'fade-in'
@@ -114,7 +114,21 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
       {/* Fade-Out Transition (reveal paper bg) */}
       {(transitionStage === 'fade-out' || transitionStage === 'loading') && (
         <div className="fixed inset-0 z-[9999] pointer-events-none">
-          {/* SVG Mask Animation - Fade Out (hide current page content, reveal paper) */}
+          <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+            <div className="flex flex-col items-center gap-4">
+              <Image
+                src="/images/cat_spin.png"
+                alt="Loading"
+                width={256}
+                height={256}
+                className="animate-spin"
+              />
+              <p className={`text-5xl md:text-7xl text-center tracking-wider text-stroke-white ${fredrick.className}`} style={{ color: '#2c1810' }}>
+                Loading<span className="loading-dot-1">.</span><span className="loading-dot-2">.</span><span className="loading-dot-3">.</span>
+              </p>
+            </div>
+          </div>
+
           <svg
             width="100%"
             height="100%"
@@ -209,18 +223,6 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
               </div>
             </foreignObject>
           </svg>
-
-          {/* Loading text - only show during loading stage */}
-          {transitionStage === 'loading' && (
-            <div className="absolute inset-0 flex items-center justify-center z-10">
-              <div className="relative z-10 flex flex-col items-center gap-4">
-                <div className="w-16 h-16 border-4 border-gray-800 border-t-transparent rounded-full animate-spin" />
-                <p className={`text-2xl text-gray-800 ${weddingDay.className}`}>
-                  Loading...
-                </p>
-              </div>
-            </div>
-          )}
         </div>
       )}
 

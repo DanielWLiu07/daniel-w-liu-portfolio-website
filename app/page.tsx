@@ -9,6 +9,7 @@ import { useBodyOverflow } from "@/hooks/use-body-overflow"
 import { usePerformanceMode } from "@/contexts/performance-mode-context"
 import { ModeSelector } from "@/components/ui/mode-selector"
 import { useMobile } from "@/hooks/use-mobile"
+import { LoadingScreen } from "@/components/ui/loading-screen"
 
 const weddingDay = localFont({
   src: '../public/shared/fonts/weddingday-font/ancient-wedding-font/AncientWeddingDemoRegular-MAm1n.ttf',
@@ -166,15 +167,7 @@ export default function Home() {
     <>
       <ModeSelector />
 
-      {!isLoaded && mode !== null && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center">
-          <Image src="/landing/images/white_paper.png" alt="loading background" fill className="object-cover" priority />
-          <div className="relative z-10 flex flex-col items-center gap-4">
-            <div className="w-16 h-16 border-4 border-gray-800 border-t-transparent rounded-full animate-spin" />
-            <p className={`text-2xl text-gray-800 ${weddingDay.className}`}>Loading...</p>
-          </div>
-        </div>
-      )}
+      {!isLoaded && mode !== null && <LoadingScreen />}
 
       <div className="absolute inset-0 w-full h-full overflow-hidden">
         <Image src="/landing/images/white_paper.png" alt="white paper background" fill className="object-cover" priority />
