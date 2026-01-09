@@ -128,7 +128,7 @@ export default function Home() {
       // Trigger mask animation partway through the name animation
       timeline.call(() => {
         setStartMaskAnimation(true);
-      }, null, 0.55);
+      }, undefined, 0.55);
 
       gsap.from(".tree-right", { xPercent: 100, duration: 1.5, ease: "power3.out", delay: 1.5 });
       gsap.from(".tree-left", { xPercent: -100, duration: 1.5, ease: "power3.out", delay: 1.5 });
