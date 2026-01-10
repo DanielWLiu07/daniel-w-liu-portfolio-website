@@ -188,6 +188,11 @@ export default function Home() {
       </div>
 
       <div ref={rootRef} className={`relative w-full h-screen overflow-hidden ${!isLoaded || !animationsReady || mode === null ? 'opacity-0' : 'opacity-100'}`}>
+        {/* White paper cover - always on top until animation reveals content */}
+        <div className={`absolute inset-0 w-full h-full z-[50] pointer-events-none transition-opacity duration-500 ${startMaskAnimation ? 'opacity-0' : 'opacity-100'}`}>
+          <Image src="/landing/images/white_paper.png" alt="white paper cover" fill className="object-cover" priority />
+        </div>
+
         <div className="absolute inset-0 w-full h-full overflow-hidden">
           <Image src="/landing/images/painted_bg.png" alt="painted background" fill className="object-cover" priority />
           {isLowPerformance ? (
@@ -197,7 +202,7 @@ export default function Home() {
           )}
       </div>
 
-      <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" className="absolute inset-0 w-full h-full z-0">
+      <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" className="absolute inset-0 w-full h-full z-[51]">
         <defs>
           <filter id="bgFilter">
             <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="6" result="noise" />
