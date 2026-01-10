@@ -4,7 +4,7 @@ import { usePerformanceMode } from '@/contexts/performance-mode-context';
 import { usePathname, useRouter } from 'next/navigation';
 
 export default function Navbar(){
-    const { mode, setMode } = usePerformanceMode();
+    const { mode, resetMode } = usePerformanceMode();
     const pathname = usePathname();
     const router = useRouter();
 
@@ -13,7 +13,7 @@ export default function Navbar(){
 
     const handleHomeClick = (e: React.MouseEvent) => {
         e.preventDefault();
-        setMode(null);
+        resetMode();
         router.push('/');
     };
 
