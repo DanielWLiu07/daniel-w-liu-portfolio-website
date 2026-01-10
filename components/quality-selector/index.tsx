@@ -9,6 +9,7 @@ import { BackgroundImage } from './background-image'
 import { WaterlooLogo } from './waterloo-logo'
 import { SelectorTitle } from './selector-title'
 import { SelectorSocials } from './selector-socials'
+import { DraggableDecorations } from './draggable-decorations'
 import { useEntranceAnimation } from './use-entrance-animation'
 import { useDraggable } from './use-draggable'
 import { createExitAnimation } from './use-exit-animation'
@@ -92,6 +93,7 @@ export function ModeSelector() {
       <BackgroundImage ref={selfieRef} {...BACKGROUND_IMAGES.selfie} />
       <WaterlooLogo ref={waterlooRef} />
       <BackgroundImage ref={catRef} {...BACKGROUND_IMAGES.cat} />
+      <DraggableDecorations />
 
       <div className="relative flex flex-col items-center justify-center gap-8 md:gap-16 w-full max-w-6xl mx-auto z-10">
         <SelectorTitle ref={titleRef} subtitleRef={subtitleRef} />
