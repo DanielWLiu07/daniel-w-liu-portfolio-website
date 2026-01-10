@@ -13,7 +13,7 @@ export default function Navbar(){
 
     const handleHomeClick = (e: React.MouseEvent) => {
         e.preventDefault();
-        resetMode();
+        resetMode(); // Reset mode to null and clear localStorage
         router.push('/');
     };
 
