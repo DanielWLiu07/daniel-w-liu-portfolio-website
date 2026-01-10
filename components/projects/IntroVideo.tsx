@@ -7,7 +7,7 @@ import { usePerformanceMode } from '@/contexts/performance-mode-context'
 interface IntroVideoProps {
   onEnded: () => void
   onFlashStart: () => void
-  onLoaded: () => void
+  onLoaded?: () => void
 }
 
 export default function IntroVideo({ onEnded, onFlashStart, onLoaded }: IntroVideoProps) {
@@ -18,7 +18,7 @@ export default function IntroVideo({ onEnded, onFlashStart, onLoaded }: IntroVid
   const handleLoaded = useCallback(() => {
     if (loadedCalledRef.current) return
     loadedCalledRef.current = true
-    onLoaded()
+    onLoaded?.()
   }, [onLoaded])
 
   useEffect(() => {
