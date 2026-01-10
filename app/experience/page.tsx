@@ -9,16 +9,16 @@ export default function ExperiencePage() {
 
   useEffect(() => {
     const ctx = gsap.context(() => {
-      // Header animation - slide down and fade in
+      // Header animation - slide down and fade in (delayed for intro video)
       gsap.from('.experience-header', {
         y: -100,
         opacity: 0,
         duration: 3.2,
         ease: 'elastic.out(1, 0.5)',
-        delay: 0.5
+        delay: 2.0
       })
 
-      // Cards animation - stagger from bottom with slight rotation
+      // Cards animation - stagger from bottom with slight rotation (delayed for intro video)
       gsap.from('.experience-card', {
         y: 100,
         opacity: 0,
@@ -26,16 +26,16 @@ export default function ExperiencePage() {
         duration: 3,
         stagger: 0.15,
         ease: 'elastic.out(1, 0.6)',
-        delay: 0.8
+        delay: 2.3
       })
 
-      // Social links animation - slide up from bottom
+      // Social links animation - slide up from bottom (delayed for intro video)
       gsap.from('.experience-social-links', {
         y: 100,
         opacity: 0,
         duration: 2.7,
         ease: 'elastic.out(1, 0.6)',
-        delay: 0.5
+        delay: 2.0
       })
     }, mainRef)
 
