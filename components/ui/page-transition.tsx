@@ -118,8 +118,8 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
               <Image
                 src="/images/cat_spin.png"
                 alt="Loading"
-                width={128}
-                height={128}
+                width={256}
+                height={256}
                 className="animate-spin"
               />
               <p className={`text-5xl md:text-7xl text-center tracking-wider text-stroke-white ${fredrick.className}`} style={{ color: '#2c1810' }}>

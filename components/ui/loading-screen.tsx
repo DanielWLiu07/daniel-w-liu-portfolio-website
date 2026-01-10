@@ -19,8 +19,8 @@ export function LoadingScreen() {
         <Image
           src="/images/cat_spin.png"
           alt="Loading"
-          width={128}
-          height={128}
+          width={256}
+          height={256}
           className="animate-spin"
         />
         <p
