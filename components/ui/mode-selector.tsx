@@ -3,36 +3,16 @@
 import localFont from 'next/font/local'
 import { usePerformanceMode } from '@/contexts/performance-mode-context'
 import Image from 'next/image'
-import { useState, useEffect, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import gsap from 'gsap'
-
-const SOCIAL_LINKS = [
-  { href: "https://github.com/DanielWLiu07", label: "GitHub", image: "/about/images/github.png" },
-  { href: "https://www.linkedin.com/in/danielliu2007/", label: "LinkedIn", image: "/about/images/linkedln.png" },
-  { href: "https://docs.google.com/forms/d/e/1FAIpQLSdsaj2nXuReGTo1Fu9PaW7jsxUZPpPAiCMuf0gBvmZBYFe1nw/viewform?usp=dialog", label: "Email", image: "/about/images/gmail.png" },
-]
+import { SocialLinks, HelperText } from './mode-selector'
 
 const fredrick = localFont({
   src: '../../public/fonts/FrederickatheGreat-Regular.ttf',
 })
 
-const DECORATIONS = {
-  pin1: { x: 0, y: 0, rotation: 0, scale: 1.8 },
-  pin2: { x: 0, y: 0, rotation: -40, scale: 1.8 },
-  pin3: { x: 375, y: 151, rotation: 45, scale: 1.6 },
-  paperClip1: { x: 140, y: -400, rotation: 15, scale: 2.5 },
-  paperClip2: { x: -140, y: -370, rotation: -15, scale: 2.5 },
-  paperClip3: { x: 0, y: -340, rotation: 180, scale: 2.5 },
-  clip1: { x: 20, y: 60, rotation: 35, scale: 2.2 },
-} as const
-
 export function ModeSelector() {
   const { mode, setMode } = usePerformanceMode()
-  const [isMobile, setIsMobile] = useState(false)
-
-  useEffect(() => {
-    setIsMobile(window.innerWidth < 768)
-  }, [])
 
   const titleRef = useRef<HTMLDivElement>(null)
   const subtitleRef = useRef<HTMLParagraphElement>(null)
@@ -43,6 +23,9 @@ export function ModeSelector() {
   const sticky4Ref = useRef<HTMLDivElement>(null)
   const waterlooRef = useRef<HTMLDivElement>(null)
   const socialsRef = useRef<HTMLDivElement>(null)
+  const paperClip1Ref = useRef<HTMLDivElement>(null)
+  const paperClip2Ref = useRef<HTMLDivElement>(null)
+  const paperClip3Ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (mode !== null) return
@@ -50,13 +33,14 @@ export function ModeSelector() {
     const ctx = gsap.context(() => {
       gsap.set(titleRef.current, { y: -30, opacity: 0 })
       gsap.set(subtitleRef.current, { y: -20, opacity: 0 })
+      gsap.set([paperClip1Ref.current, paperClip2Ref.current, paperClip3Ref.current], { opacity: 0 })
       gsap.set(highQualityRef.current, { x: -50, y: 50, rotation: -25, opacity: 0 })
       gsap.set(lowQualityRef.current, { x: 50, y: 50, rotation: 25, opacity: 0 })
       gsap.set(sticky3Ref.current, { x: -150, y: 100, rotation: -45, opacity: 0 })
       gsap.set(sticky4Ref.current, { x: 150, y: 100, rotation: 45, opacity: 0 })
       gsap.set(waterlooRef.current, { x: -300, y: 300, rotation: -70, opacity: 0 })
       gsap.set(helperTextRef.current, { y: 20, opacity: 0 })
-      gsap.set(socialsRef.current, { x: 100, y: 50, rotation: 25, opacity: 0 })
+      gsap.set(socialsRef.current, { x: -50, opacity: 0 })
 
       const tl = gsap.timeline({ defaults: { ease: 'back.out(1.2)' } })
 
@@ -65,6 +49,11 @@ export function ModeSelector() {
         opacity: 1,
         duration: 0.8,
       })
+      .to([paperClip1Ref.current, paperClip2Ref.current, paperClip3Ref.current], {
+        opacity: 1,
+        duration: 0.6,
+        stagger: 0.1,
+      }, '-=0.6')
       .to(subtitleRef.current, {
         y: 0,
         opacity: 1,
@@ -98,31 +87,27 @@ export function ModeSelector() {
         opacity: 1,
         duration: 0.8,
       }, '-=0.7')
+      .to(helperTextRef.current, {
+        y: 0,
+        opacity: 0.8,
+        duration: 0.6,
+      }, '-=0.7')
       .to(sticky4Ref.current, {
         x: -10,
         y: 30,
         rotation: 15,
         opacity: 1,
         duration: 0.8,
-      }, '-=0.7')
-      .to(helperTextRef.current, {
-        y: 0,
-        opacity: 0.8,
-        duration: 0.6,
-      }, '-=0.4')
+      }, '-=0.6')
       .to(socialsRef.current, {
         x: 0,
-        y: 0,
-        rotation: 0,
         opacity: 1,
         duration: 0.8,
-        ease: 'back.out(1.2)'
-      }, '-=0.6')
+      }, '-=0.8')
     })
 
     return () => ctx.revert()
   }, [mode])
-
 
   const handleModeSelect = (selectedMode: 'high' | 'low') => {
     const exitTl = gsap.timeline({
@@ -131,114 +116,55 @@ export function ModeSelector() {
       }
     })
 
-    if (selectedMode === 'high') {
-      exitTl.to(highQualityRef.current, {
-        x: 0,
-        rotation: 0,
-        scale: 1.15,
-        duration: 0.6,
-        ease: 'power2.out'
-      })
-      .to(lowQualityRef.current, {
-        x: window.innerWidth < 768 ? 0 : 400,
-        rotation: 90,
-        opacity: 0,
-        duration: 0.6,
-        ease: 'power2.in'
-      }, '-=0.6')
-      .to(sticky4Ref.current, {
-        x: window.innerWidth < 768 ? 0 : 500,
-        rotation: 120,
-        opacity: 0,
-        duration: 0.7,
-        ease: 'power2.in'
-      }, '-=0.6')
-      .to(sticky3Ref.current, {
-        x: window.innerWidth < 768 ? 0 : -500,
-        rotation: -120,
-        opacity: 0,
-        duration: 0.7,
-        ease: 'power2.in'
-      }, '-=0.7')
-      .to(waterlooRef.current, {
-        x: -300,
-        y: 300,
-        rotation: -90,
-        opacity: 0,
-        duration: 0.7,
-        ease: 'power2.in'
-      }, '-=0.7')
-      .to(highQualityRef.current, {
-        scale: 1.8,
-        opacity: 0,
-        duration: 0.5,
-        ease: 'power2.in'
-      })
-    } else {
-      exitTl.to(lowQualityRef.current, {
-        x: 0,
-        rotation: 0,
-        scale: 1.15,
-        duration: 0.6,
-        ease: 'power2.out'
-      })
-      .to(highQualityRef.current, {
-        x: window.innerWidth < 768 ? 0 : -400,
-        rotation: -90,
-        opacity: 0,
-        duration: 0.6,
-        ease: 'power2.in'
-      }, '-=0.6')
-      .to(sticky3Ref.current, {
-        x: window.innerWidth < 768 ? 0 : -500,
-        rotation: -120,
-        opacity: 0,
-        duration: 0.7,
-        ease: 'power2.in'
-      }, '-=0.6')
-      .to(waterlooRef.current, {
-        x: -300,
-        y: 300,
-        rotation: -90,
-        opacity: 0,
-        duration: 0.7,
-        ease: 'power2.in'
-      }, '-=0.7')
-      .to(sticky4Ref.current, {
-        x: window.innerWidth < 768 ? 0 : 500,
-        rotation: 120,
-        opacity: 0,
-        duration: 0.7,
-        ease: 'power2.in'
-      }, '-=0.7')
-      .to(lowQualityRef.current, {
-        scale: 1.8,
-        opacity: 0,
-        duration: 0.5,
-        ease: 'power2.in'
-      })
-    }
-
+    // All elements exit at once
     exitTl.to([titleRef.current, subtitleRef.current], {
       y: -30,
       opacity: 0,
-      duration: 0.4,
+      duration: 0.5,
       ease: 'power2.in'
-    }, '-=0.5')
-    .to(socialsRef.current, {
-      x: 100,
-      y: 50,
-      rotation: 25,
+    }, 0)
+    .to([paperClip1Ref.current, paperClip2Ref.current, paperClip3Ref.current], {
+      yPercent: -50,
       opacity: 0,
       duration: 0.5,
       ease: 'power2.in'
-    }, '-=0.5')
+    }, 0)
+    .to(socialsRef.current, {
+      x: -50,
+      opacity: 0,
+      duration: 0.5,
+      ease: 'power2.in'
+    }, 0)
     .to(helperTextRef.current, {
       y: 30,
       opacity: 0,
-      duration: 0.4,
+      duration: 0.5,
       ease: 'power2.in'
-    }, '-=0.4')
+    }, 0)
+    .to([highQualityRef.current, lowQualityRef.current], {
+      scale: 0.8,
+      opacity: 0,
+      duration: 0.5,
+      ease: 'power2.in'
+    }, 0)
+    .to(sticky3Ref.current, {
+      x: window.innerWidth < 768 ? 0 : -200,
+      opacity: 0,
+      duration: 0.5,
+      ease: 'power2.in'
+    }, 0)
+    .to(sticky4Ref.current, {
+      x: window.innerWidth < 768 ? 0 : 200,
+      opacity: 0,
+      duration: 0.5,
+      ease: 'power2.in'
+    }, 0)
+    .to(waterlooRef.current, {
+      y: 100,
+      opacity: 0,
+      duration: 0.5,
+      ease: 'power2.in'
+    }, 0)
   }
 
   if (mode !== null) return null
@@ -256,10 +182,8 @@ export function ModeSelector() {
       </div>
 
       <div
-        className="fixed left-1/2 top-1/2 w-16 h-16 z-[203] pointer-events-none"
-        style={{
-          transform: `translate(-50%, -50%) translate(${DECORATIONS.paperClip1.x + (!isMobile ? 60 : 0)}px, ${DECORATIONS.paperClip1.y + (isMobile ? -20 : 0)}px) rotate(${DECORATIONS.paperClip1.rotation}deg) scale(${DECORATIONS.paperClip1.scale})`
-        }}
+        ref={paperClip1Ref}
+        className="fixed left-1/2 top-1/2 w-16 h-16 z-[203] pointer-events-none opacity-0 [transform:translate(-50%,-50%)_translateX(120px)_translateY(-440px)_rotate(15deg)_scale(2.5)] md:[transform:translate(-50%,-50%)_translateX(200px)_translateY(-415px)_rotate(15deg)_scale(2.5)]"
       >
         <Image
           src="/quality/images/paper_clip_outline_1.png"
@@ -271,10 +195,8 @@ export function ModeSelector() {
       </div>
 
       <div
-        className="fixed left-1/2 top-1/2 w-16 h-16 z-[204] pointer-events-none"
-        style={{
-          transform: `translate(-50%, -50%) translate(${DECORATIONS.paperClip2.x + (!isMobile ? -60 : 0)}px, ${DECORATIONS.paperClip2.y + (isMobile ? -50 : 0)}px) rotate(${DECORATIONS.paperClip2.rotation}deg) scale(${DECORATIONS.paperClip2.scale})`
-        }}
+        ref={paperClip2Ref}
+        className="fixed left-1/2 top-1/2 w-16 h-16 z-[204] pointer-events-none opacity-0 [transform:translate(-50%,-50%)_translateX(-120px)_translateY(-430px)_rotate(-15deg)_scale(2.5)] md:[transform:translate(-50%,-50%)_translateX(-190px)_translateY(-390px)_rotate(-15deg)_scale(2.5)]"
       >
         <Image
           src="/quality/images/paper_clip_outline_2.png"
@@ -286,10 +208,8 @@ export function ModeSelector() {
       </div>
 
       <div
-        className="fixed left-1/2 top-1/2 w-16 h-16 z-[205] pointer-events-none"
-        style={{
-          transform: `translate(-50%, -50%) translate(${DECORATIONS.paperClip3.x}px, ${DECORATIONS.paperClip3.y + (isMobile ? -50 : 0)}px) rotate(${DECORATIONS.paperClip3.rotation}deg) scale(${DECORATIONS.paperClip3.scale}) scaleX(-1)`
-        }}
+        ref={paperClip3Ref}
+        className="fixed left-1/2 top-1/2 w-16 h-16 z-[205] pointer-events-none opacity-0 [transform:translate(-50%,-50%)_translateY(-420px)_rotate(180deg)_scale(2.5)_scaleX(-1)] md:[transform:translate(-50%,-50%)_translateX(0px)_translateY(-360px)_rotate(180deg)_scale(2.5)_scaleX(-1)]"
       >
         <Image
           src="/quality/images/paper_clip_outline_3.png"
@@ -312,13 +232,21 @@ export function ModeSelector() {
           className="h-full w-auto object-contain -scale-x-110 scale-y-110 rotate-[20deg] brightness-[1.05] saturate-[1.15] contrast-[1.05]"
         />
         <div
-          className="absolute top-[20%] left-[50%] w-20 h-20 z-[200] pointer-events-none"
-          style={{
-            transform: `translate(${DECORATIONS.pin1.x}px, ${DECORATIONS.pin1.y}px) rotate(${DECORATIONS.pin1.rotation}deg) scale(${DECORATIONS.pin1.scale})`
-          }}
+          className="absolute top-[20%] left-[50%] w-20 h-20 z-[200] pointer-events-none [transform:translate(-220px,150px)_rotate(0deg)_scale(1.4)] md:[transform:translate(-220px,150px)_rotate(0deg)_scale(1.8)]"
         >
           <Image
             src="/quality/images/pin_outline_1.png"
+            alt=""
+            width={80}
+            height={80}
+            className="w-full h-full object-contain"
+          />
+        </div>
+        <div
+          className="absolute top-[0%] left-[15%] w-20 h-20 z-[200] pointer-events-none [transform:translate(50px,0px)_rotate(45deg)_scale(1.4)] md:[transform:translate(100px,0px)_rotate(-55deg)_scale(2.0)]"
+        >
+          <Image
+            src="/quality/images/clip_3_outline.png"
             alt=""
             width={80}
             height={80}
@@ -338,7 +266,7 @@ export function ModeSelector() {
           className="block h-full w-full group cursor-pointer"
           aria-label="University of Waterloo"
         >
-          <div className="h-full w-full transition-transform duration-300 ease-out group-hover:scale-110 -rotate-[35deg]">
+          <div className="relative h-full w-full transition-transform duration-300 ease-out group-hover:scale-110 -rotate-[35deg]">
             <Image
               src="/quality/images/waterloo_outline.png"
               alt="Waterloo"
@@ -346,6 +274,17 @@ export function ModeSelector() {
               height={1200}
               className="h-full w-auto object-contain brightness-105 saturate-[1.15] contrast-105"
             />
+            <div
+              className="absolute top-[10%] left-[80%] w-20 h-20 z-[200] pointer-events-none [transform:translate(-20px,-30px)_rotate(85deg)_scale(0.8)] md:[transform:translate(-20px,-30px)_rotate(85deg)_scale(1)]"
+            >
+              <Image
+                src="/quality/images/pin_outline_3.png"
+                alt=""
+                width={80}
+                height={80}
+                className="w-full h-full object-contain"
+              />
+            </div>
           </div>
         </a>
       </div>
@@ -362,10 +301,7 @@ export function ModeSelector() {
           className="h-full w-auto object-contain -scale-x-110 scale-y-110 rotate-[-20deg] brightness-[1.05] saturate-[1.15] contrast-[1.05]"
         />
         <div
-          className="absolute top-[20%] right-[50%] w-20 h-20 z-[201] pointer-events-none"
-          style={{
-            transform: `translate(${DECORATIONS.pin2.x}px, ${DECORATIONS.pin2.y}px) rotate(${DECORATIONS.pin2.rotation}deg) scale(${DECORATIONS.pin2.scale})`
-          }}
+          className="absolute top-[20%] right-[50%] w-20 h-20 z-[201] pointer-events-none [transform:translate(-50px,-150px)_rotate(-40deg)_scale(1.4)] md:[transform:translate(-50px,-150px)_rotate(-40deg)_scale(1.8)]"
         >
           <Image
             src="/quality/images/pin_outline_2.png"
@@ -375,11 +311,44 @@ export function ModeSelector() {
             className="w-full h-full object-contain"
           />
         </div>
+        <div
+          className="absolute top-[35%] right-[80%] w-16 h-16 z-[201] pointer-events-none [transform:translate(250px,60px)_rotate(-80deg)_scale(2)] md:[transform:translate(500px,130px)_rotate(-80deg)_scale(2.0)]"
+        >
+          <Image
+            src="/quality/images/paper_clip_outline_5.png"
+            alt=""
+            width={64}
+            height={64}
+            className="w-full h-full object-contain"
+          />
+        </div>
+        <div
+          className="absolute top-[35%] right-[80%] w-16 h-16 z-[201] pointer-events-none [transform:translate(270px,140px)_rotate(-80deg)_scale(2.4)] md:[transform:translate(550px,220px)_rotate(-80deg)_scale(2.5)]"
+        >
+          <Image
+            src="/quality/images/paper_clip_outline_7.png"
+            alt=""
+            width={64}
+            height={64}
+            className="w-full h-full object-contain"
+          />
+        </div>
+        <div
+          className="absolute top-[5%] right-[40%] w-20 h-20 z-[201] pointer-events-none [transform:translate(50px,50px)_rotate(60deg)_scale(1.4)] md:[transform:translate(170px,80px)_rotate(-130deg)_scale(2.0)]"
+        >
+          <Image
+            src="/quality/images/clip_4_outline.png"
+            alt=""
+            width={80}
+            height={80}
+            className="w-full h-full object-contain"
+          />
+        </div>
       </div>
 
-      <div className="relative flex flex-col items-center justify-center gap-8 md:gap-16 w-full max-w-6xl mx-auto z-10 will-change-auto">
+      <div className="relative flex flex-col items-center justify-center gap-16 md:gap-16 w-full max-w-6xl mx-auto z-10 will-change-auto">
 
-        <div ref={titleRef} className="text-center space-y-2 opacity-0 relative mt-4 md:mt-0">
+        <div ref={titleRef} className="text-center space-y-2 opacity-0 relative -mt-15 md:mt-0">
           <h2
             className={`text-4xl md:text-7xl text-center tracking-wider md:text-stroke-white text-stroke-white-sm drop-shadow-lg relative z-10 whitespace-nowrap text-[#2c1810] ${fredrick.className}`}
           >
@@ -396,11 +365,11 @@ export function ModeSelector() {
         <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-start justify-center px-4 md:px-8 overflow-visible">
           <div
             ref={highQualityRef}
-            className="relative group cursor-pointer opacity-0 overflow-visible -mt-5 order-2 md:order-1 will-change-[opacity]"
+            className="relative group cursor-pointer opacity-0 overflow-visible -mt-18 order-2 md:order-1 will-change-[opacity]"
             onClick={() => handleModeSelect('high')}
           >
             <div
-              className="relative w-[280px] h-[280px] md:w-[420px] md:h-[420px] -rotate-[5deg] hover:scale-105 hover:rotate-0 transition-all duration-300 ease-out overflow-visible will-change-transform"
+              className="relative w-[280px] h-[280px] md:w-[420px] md:h-[420px] rotate-[1deg] hover:scale-105 hover:rotate-0 transition-all duration-300 ease-out overflow-visible will-change-transform"
             >
               <Image
                 src="/quality/images/sticky_quality_outline_1.png"
@@ -411,20 +380,17 @@ export function ModeSelector() {
                 priority
               />
               <div className={`absolute inset-0 flex flex-col items-center justify-center px-6 md:px-10 py-10 md:py-16 text-gray-800 ${fredrick.className} leading-relaxed pointer-events-none z-10`}>
-                <div className="text-2xl md:text-[2.75rem] font-bold mb-3 md:mb-6 tracking-wide text-stroke-white text-[#1a1410]">
+                <div className="text-2xl md:text-[2.75rem] font-bold mb-3 md:mb-6 tracking-wider md:text-stroke-white text-stroke-white-sm drop-shadow-lg text-[#2c1810]">
                   High Quality
                 </div>
-                <div className="text-sm md:text-lg text-center font-semibold space-y-1 md:space-y-2 text-stroke-white-sm">
+                <div className="text-sm md:text-lg text-center space-y-1 md:space-y-2 tracking-wider text-stroke-white-xs drop-shadow-lg text-[#2c1810]">
                   <div>Smooth Animations</div>
                   <div>Full Effects</div>
                   <div>Best Experience</div>
                 </div>
               </div>
               <div
-                className="absolute -bottom-4 -left-4 w-20 h-20 z-[206] pointer-events-none"
-                style={{
-                  transform: `translate(${DECORATIONS.clip1.x}px, ${DECORATIONS.clip1.y}px) rotate(${DECORATIONS.clip1.rotation}deg) scale(${DECORATIONS.clip1.scale})`
-                }}
+                className="absolute -bottom-4 -left-4 w-20 h-20 z-[206] pointer-events-none [transform:translate(10px,40px)_rotate(35deg)_scale(1.6)] md:[transform:translate(10px,40px)_rotate(35deg)_scale(2.2)]"
               >
                 <Image
                   src="/quality/images/clip_1_outline.png"
@@ -434,16 +400,27 @@ export function ModeSelector() {
                   className="w-full h-full object-contain"
                 />
               </div>
+              <div
+                className="absolute -top-10 md:-top-4 -right-8 md:-right-4 w-16 h-16 z-[206] pointer-events-none [transform:translate(-30px,60px)_rotate(-140deg)_scale(1.5)] md:[transform:translate(-30px,60px)_rotate(-140deg)_scale(2.0)]"
+              >
+                <Image
+                  src="/quality/images/paper_clip_outline_4.png"
+                  alt=""
+                  width={64}
+                  height={64}
+                  className="w-full h-full object-contain"
+                />
+              </div>
             </div>
           </div>
 
           <div
             ref={lowQualityRef}
-            className="relative group cursor-pointer opacity-0 overflow-visible -mt-5 order-1 md:order-2 will-change-[opacity]"
+            className="relative group cursor-pointer opacity-0 overflow-visible -mt-12 order-1 md:order-2 will-change-[opacity]"
             onClick={() => handleModeSelect('low')}
           >
             <div
-              className="relative w-[280px] h-[280px] md:w-[420px] md:h-[420px] rotate-[4deg] hover:scale-105 hover:rotate-0 transition-all duration-300 ease-out overflow-visible will-change-transform"
+              className="relative w-[280px] h-[280px] md:w-[420px] md:h-[420px] -rotate-[1deg] hover:scale-105 hover:rotate-0 transition-all duration-300 ease-out overflow-visible will-change-transform"
             >
               <Image
                 src="/quality/images/sticky_quality_outline_2.png"
@@ -454,26 +431,34 @@ export function ModeSelector() {
                 priority
               />
               <div className={`absolute inset-0 flex flex-col items-center justify-center px-6 md:px-10 py-10 md:py-16 text-gray-800 ${fredrick.className} leading-relaxed pointer-events-none z-10`}>
-                <div className="text-2xl md:text-[2.75rem] font-bold mb-3 md:mb-6 tracking-wide text-stroke-white text-[#1a1410]">
+                <div className="text-2xl md:text-[2.75rem] font-bold mb-3 md:mb-6 tracking-wider md:text-stroke-white text-stroke-white-sm drop-shadow-lg text-[#2c1810]">
                   Low Quality
                 </div>
-                <div className="text-sm md:text-lg text-center font-semibold space-y-1 md:space-y-2 text-stroke-white-sm">
+                <div className="text-sm md:text-lg text-center space-y-1 md:space-y-2 tracking-wider text-stroke-white-xs drop-shadow-lg text-[#2c1810]">
                   <div>Static Images</div>
                   <div>Reduced Effects</div>
                   <div>Optimized Performance</div>
                 </div>
               </div>
               <div
-                className="absolute -bottom-4 -right-4 w-20 h-20 z-[202] pointer-events-none"
-                style={{
-                  transform: `translate(${DECORATIONS.pin3.x}px, ${DECORATIONS.pin3.y}px) rotate(${DECORATIONS.pin3.rotation}deg) scale(${DECORATIONS.pin3.scale})`
-                }}
+                className="absolute -bottom-4 -left-4 w-20 h-20 z-[202] pointer-events-none [transform:translate(220px,-30px)_rotate(130deg)_scale(1.3)] md:[transform:translate(350px,-40px)_rotate(130deg)_scale(2.0)]"
               >
                 <Image
-                  src="/quality/images/pin_outline_3.png"
+                  src="/quality/images/clip_2_outline.png"
                   alt=""
                   width={80}
                   height={80}
+                  className="w-full h-full object-contain"
+                />
+              </div>
+              <div
+                className="absolute -top-4 -left-4 w-16 h-16 z-[202] pointer-events-none [transform:translate(30px,30px)_rotate(35deg)_scale(1.8)] md:[transform:translate(60px,50px)_rotate(35deg)_scale(2.4)]"
+              >
+                <Image
+                  src="/quality/images/paper_clip_outline_6.png"
+                  alt=""
+                  width={64}
+                  height={64}
                   className="w-full h-full object-contain"
                 />
               </div>
@@ -482,41 +467,8 @@ export function ModeSelector() {
         </div>
       </div>
 
-      <div
-        ref={helperTextRef}
-        className="fixed bottom-8 left-0 right-0 z-[100] flex items-center justify-center px-4 opacity-0"
-      >
-        <p
-          className={`text-xs md:text-base text-center max-w-[90%] md:max-w-2xl font-bold text-stroke-white-sm text-[#2c1810] ${fredrick.className}`}
-        >
-          Don&apos;t worry, you can always change this later by returning to the landing page
-        </p>
-      </div>
-
-      <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" className="fixed inset-0 z-[80] pointer-events-none">
-        <foreignObject width="100%" height="100%">
-          <div ref={socialsRef} className="fixed bottom-20 md:bottom-4 right-4 flex flex-col md:flex-row gap-4 pointer-events-auto opacity-0 origin-center">
-            {SOCIAL_LINKS.map((link) => (
-              <a
-                key={link.label}
-                href={link.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="relative w-14 h-14 transition-all hover:scale-110 duration-200 bg-white/80 rounded-lg p-2 border-2 border-gray-800"
-                aria-label={link.label}
-              >
-                <Image
-                  src={link.image}
-                  alt={link.label}
-                  fill
-                  className="object-contain p-1"
-                />
-              </a>
-            ))}
-          </div>
-        </foreignObject>
-      </svg>
-
+      <HelperText ref={helperTextRef} />
+      <SocialLinks ref={socialsRef} />
     </div>
   )
 }
