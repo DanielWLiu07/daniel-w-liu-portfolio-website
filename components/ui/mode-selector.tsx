@@ -16,11 +16,23 @@ const fredrick = localFont({
   src: '../../public/fonts/FrederickatheGreat-Regular.ttf',
 })
 
+const DECORATIONS = {
+  pin1: { x: 0, y: 0, rotation: 0, scale: 1.8 },
+  pin2: { x: 0, y: 0, rotation: -40, scale: 1.8 },
+  pin3: { x: 375, y: 151, rotation: 45, scale: 1.6 },
+  paperClip1: { x: 140, y: -400, rotation: 15, scale: 2.5 },
+  paperClip2: { x: -140, y: -370, rotation: -15, scale: 2.5 },
+  paperClip3: { x: 0, y: -340, rotation: 180, scale: 2.5 },
+  clip1: { x: 20, y: 60, rotation: 35, scale: 2.2 },
+} as const
+
 export function ModeSelector() {
   const { mode, setMode } = usePerformanceMode()
-  const [isExiting, setIsExiting] = useState(false)
-  const [selected, setSelected] = useState<'high' | 'low' | null>(null)
-  const [isDragging, setIsDragging] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    setIsMobile(window.innerWidth < 768)
+  }, [])
 
   const titleRef = useRef<HTMLDivElement>(null)
   const subtitleRef = useRef<HTMLParagraphElement>(null)
@@ -31,16 +43,6 @@ export function ModeSelector() {
   const sticky4Ref = useRef<HTMLDivElement>(null)
   const waterlooRef = useRef<HTMLDivElement>(null)
   const socialsRef = useRef<HTMLDivElement>(null)
-
-  // Draggable decoration refs
-  const pin1Ref = useRef<HTMLDivElement>(null)
-  const pin2Ref = useRef<HTMLDivElement>(null)
-  const pin3Ref = useRef<HTMLDivElement>(null)
-  const paperClip1Ref = useRef<HTMLDivElement>(null)
-  const paperClip2Ref = useRef<HTMLDivElement>(null)
-  const paperClip3Ref = useRef<HTMLDivElement>(null)
-  const clip1Ref = useRef<HTMLDivElement>(null)
-  const stationaryRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (mode !== null) return
@@ -97,9 +99,9 @@ export function ModeSelector() {
         duration: 0.8,
       }, '-=0.7')
       .to(sticky4Ref.current, {
-        x: 0,
-        y: 0,
-        rotation: 18,
+        x: -10,
+        y: 30,
+        rotation: 15,
         opacity: 1,
         duration: 0.8,
       }, '-=0.7')
@@ -121,65 +123,8 @@ export function ModeSelector() {
     return () => ctx.revert()
   }, [mode])
 
-  useEffect(() => {
-    if (mode !== null) return
-
-    const draggableElements = document.querySelectorAll('.draggable-graphic')
-
-    const makeDraggable = (element: Element) => {
-      const el = element as HTMLElement
-      let startX = 0, startY = 0, initialX = 0, initialY = 0
-
-      const onMouseDown = (e: MouseEvent) => {
-        e.preventDefault()
-        setIsDragging(true)
-        startX = e.clientX
-        startY = e.clientY
-        const transform = window.getComputedStyle(el).transform
-        if (transform !== 'none') {
-          const matrix = new DOMMatrix(transform)
-          initialX = matrix.m41
-          initialY = matrix.m42
-        } else {
-          initialX = 0
-          initialY = 0
-        }
-        document.addEventListener('mousemove', onMouseMove)
-        document.addEventListener('mouseup', onMouseUp)
-      }
-
-      const onMouseMove = (e: MouseEvent) => {
-        const deltaX = e.clientX - startX
-        const deltaY = e.clientY - startY
-        gsap.set(el, { x: initialX + deltaX, y: initialY + deltaY })
-      }
-
-      const onMouseUp = () => {
-        setIsDragging(false)
-        document.removeEventListener('mousemove', onMouseMove)
-        document.removeEventListener('mouseup', onMouseUp)
-      }
-
-      el.addEventListener('mousedown', onMouseDown)
-      return () => {
-        el.removeEventListener('mousedown', onMouseDown)
-        document.removeEventListener('mousemove', onMouseMove)
-        document.removeEventListener('mouseup', onMouseUp)
-      }
-    }
-
-    const cleanupFunctions = Array.from(draggableElements).map(makeDraggable)
-
-    return () => {
-      cleanupFunctions.forEach(cleanup => cleanup())
-    }
-  }, [mode])
 
   const handleModeSelect = (selectedMode: 'high' | 'low') => {
-    if (isDragging) return
-    setSelected(selectedMode)
-    setIsExiting(true)
-
     const exitTl = gsap.timeline({
       onComplete: () => {
         setTimeout(() => setMode(selectedMode), 300)
@@ -310,54 +255,15 @@ export function ModeSelector() {
         />
       </div>
 
-      {/* Draggable Pins */}
       <div
-        ref={pin1Ref}
-        className="draggable-graphic fixed left-[10%] top-[10%] w-20 h-20 z-[200] cursor-move"
-      >
-        <Image
-          src="/quality/images/pin_outline_1.png"
-          alt="pin 1"
-          width={80}
-          height={80}
-          className="w-full h-full object-contain"
-        />
-      </div>
-
-      <div
-        ref={pin2Ref}
-        className="draggable-graphic fixed left-[20%] top-[15%] w-20 h-20 z-[201] cursor-move"
-      >
-        <Image
-          src="/quality/images/pin_outline_2.png"
-          alt="pin 2"
-          width={80}
-          height={80}
-          className="w-full h-full object-contain"
-        />
-      </div>
-
-      <div
-        ref={pin3Ref}
-        className="draggable-graphic fixed left-[30%] top-[10%] w-20 h-20 z-[202] cursor-move"
-      >
-        <Image
-          src="/quality/images/pin_outline_3.png"
-          alt="pin 3"
-          width={80}
-          height={80}
-          className="w-full h-full object-contain"
-        />
-      </div>
-
-      {/* Draggable Paper Clips */}
-      <div
-        ref={paperClip1Ref}
-        className="draggable-graphic fixed right-[10%] top-[10%] w-16 h-16 z-[203] cursor-move"
+        className="fixed left-1/2 top-1/2 w-16 h-16 z-[203] pointer-events-none"
+        style={{
+          transform: `translate(-50%, -50%) translate(${DECORATIONS.paperClip1.x + (!isMobile ? 60 : 0)}px, ${DECORATIONS.paperClip1.y + (isMobile ? -20 : 0)}px) rotate(${DECORATIONS.paperClip1.rotation}deg) scale(${DECORATIONS.paperClip1.scale})`
+        }}
       >
         <Image
           src="/quality/images/paper_clip_outline_1.png"
-          alt="paper clip 1"
+          alt=""
           width={64}
           height={64}
           className="w-full h-full object-contain"
@@ -365,12 +271,14 @@ export function ModeSelector() {
       </div>
 
       <div
-        ref={paperClip2Ref}
-        className="draggable-graphic fixed right-[20%] top-[15%] w-16 h-16 z-[204] cursor-move"
+        className="fixed left-1/2 top-1/2 w-16 h-16 z-[204] pointer-events-none"
+        style={{
+          transform: `translate(-50%, -50%) translate(${DECORATIONS.paperClip2.x + (!isMobile ? -60 : 0)}px, ${DECORATIONS.paperClip2.y + (isMobile ? -50 : 0)}px) rotate(${DECORATIONS.paperClip2.rotation}deg) scale(${DECORATIONS.paperClip2.scale})`
+        }}
       >
         <Image
           src="/quality/images/paper_clip_outline_2.png"
-          alt="paper clip 2"
+          alt=""
           width={64}
           height={64}
           className="w-full h-full object-contain"
@@ -378,61 +286,45 @@ export function ModeSelector() {
       </div>
 
       <div
-        ref={paperClip3Ref}
-        className="draggable-graphic fixed right-[30%] top-[10%] w-16 h-16 z-[205] cursor-move"
+        className="fixed left-1/2 top-1/2 w-16 h-16 z-[205] pointer-events-none"
+        style={{
+          transform: `translate(-50%, -50%) translate(${DECORATIONS.paperClip3.x}px, ${DECORATIONS.paperClip3.y + (isMobile ? -50 : 0)}px) rotate(${DECORATIONS.paperClip3.rotation}deg) scale(${DECORATIONS.paperClip3.scale}) scaleX(-1)`
+        }}
       >
         <Image
           src="/quality/images/paper_clip_outline_3.png"
-          alt="paper clip 3"
+          alt=""
           width={64}
           height={64}
-          className="w-full h-full object-contain"
-        />
-      </div>
-
-      {/* Draggable Clip */}
-      <div
-        ref={clip1Ref}
-        className="draggable-graphic fixed left-[15%] bottom-[10%] w-20 h-20 z-[206] cursor-move"
-      >
-        <Image
-          src="/quality/images/clip_1_outline.png"
-          alt="clip"
-          width={80}
-          height={80}
-          className="w-full h-full object-contain"
-        />
-      </div>
-
-      {/* Draggable Stationary */}
-      <div
-        ref={stationaryRef}
-        className="draggable-graphic fixed right-[15%] bottom-[10%] w-24 h-24 z-[207] cursor-move"
-      >
-        <Image
-          src="/quality/images/stationary_outline.png"
-          alt="stationary"
-          width={96}
-          height={96}
           className="w-full h-full object-contain"
         />
       </div>
 
       <div
         ref={sticky3Ref}
-        className="fixed left-0 top-0 h-screen opacity-0 overflow-visible pointer-events-none z-[1] -ml-80 md:-ml-20 -mt-5"
-        style={{ willChange: 'opacity' }}
+        className="fixed left-0 top-0 h-screen opacity-0 overflow-visible pointer-events-none z-[1] -ml-80 md:-ml-20 -mt-5 will-change-[opacity]"
       >
         <Image
           src="/quality/images/selfie_outline.png"
           alt="Daniel W Liu"
           width={500}
           height={1750}
-          className="h-full w-auto object-contain -scale-x-110 scale-y-110 rotate-[20deg]"
-          style={{
-            filter: `brightness(1.05) saturate(1.15) contrast(1.05)`
-          }}
+          className="h-full w-auto object-contain -scale-x-110 scale-y-110 rotate-[20deg] brightness-[1.05] saturate-[1.15] contrast-[1.05]"
         />
+        <div
+          className="absolute top-[20%] left-[50%] w-20 h-20 z-[200] pointer-events-none"
+          style={{
+            transform: `translate(${DECORATIONS.pin1.x}px, ${DECORATIONS.pin1.y}px) rotate(${DECORATIONS.pin1.rotation}deg) scale(${DECORATIONS.pin1.scale})`
+          }}
+        >
+          <Image
+            src="/quality/images/pin_outline_1.png"
+            alt=""
+            width={80}
+            height={80}
+            className="w-full h-full object-contain"
+          />
+        </div>
       </div>
 
       <div
@@ -460,33 +352,42 @@ export function ModeSelector() {
 
       <div
         ref={sticky4Ref}
-        className="fixed right-[10%] top-[5%] w-[400px] h-[600px] z-[1] pointer-events-none opacity-0"
-        style={{ willChange: 'opacity' }}
+        className="fixed right-0 top-0 h-screen opacity-0 overflow-visible pointer-events-none z-[1] -mr-80 md:-mr-20 -mt-5 will-change-[opacity]"
       >
         <Image
           src="/quality/images/cat_tongue_outline.png"
           alt="Bongo"
-          fill
-          className="object-contain"
-          style={{
-            filter: `brightness(1.05) saturate(1.15) contrast(1.05)`
-          }}
+          width={500}
+          height={1750}
+          className="h-full w-auto object-contain -scale-x-110 scale-y-110 rotate-[-20deg] brightness-[1.05] saturate-[1.15] contrast-[1.05]"
         />
+        <div
+          className="absolute top-[20%] right-[50%] w-20 h-20 z-[201] pointer-events-none"
+          style={{
+            transform: `translate(${DECORATIONS.pin2.x}px, ${DECORATIONS.pin2.y}px) rotate(${DECORATIONS.pin2.rotation}deg) scale(${DECORATIONS.pin2.scale})`
+          }}
+        >
+          <Image
+            src="/quality/images/pin_outline_2.png"
+            alt=""
+            width={80}
+            height={80}
+            className="w-full h-full object-contain"
+          />
+        </div>
       </div>
 
-      <div className="relative flex flex-col items-center justify-center gap-8 md:gap-16 w-full max-w-6xl mx-auto z-10" style={{ willChange: 'auto' }}>
+      <div className="relative flex flex-col items-center justify-center gap-8 md:gap-16 w-full max-w-6xl mx-auto z-10 will-change-auto">
 
         <div ref={titleRef} className="text-center space-y-2 opacity-0 relative mt-4 md:mt-0">
           <h2
-            className={`text-4xl md:text-7xl text-center tracking-wider md:text-stroke-white text-stroke-white-sm drop-shadow-lg relative z-10 whitespace-nowrap ${fredrick.className}`}
-            style={{ color: '#2c1810' }}
+            className={`text-4xl md:text-7xl text-center tracking-wider md:text-stroke-white text-stroke-white-sm drop-shadow-lg relative z-10 whitespace-nowrap text-[#2c1810] ${fredrick.className}`}
           >
             Choose Your Journey
           </h2>
           <p
             ref={subtitleRef}
-            className={`text-lg md:text-xl text-center tracking-wider text-stroke-white-xs drop-shadow-lg relative z-10 opacity-0 ${fredrick.className}`}
-            style={{ color: '#2c1810' }}
+            className={`text-lg md:text-xl text-center tracking-wider text-stroke-white-xs drop-shadow-lg relative z-10 opacity-0 text-[#2c1810] ${fredrick.className}`}
           >
             Every Page a New World
           </p>
@@ -495,18 +396,9 @@ export function ModeSelector() {
         <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-start justify-center px-4 md:px-8 overflow-visible">
           <div
             ref={highQualityRef}
-            className="relative group cursor-pointer opacity-0 overflow-visible -mt-5 order-2 md:order-1"
-            style={{ willChange: 'opacity' }}
+            className="relative group cursor-pointer opacity-0 overflow-visible -mt-5 order-2 md:order-1 will-change-[opacity]"
             onClick={() => handleModeSelect('high')}
           >
-            <Image
-              src="/quality/images/pin_outline_1.png"
-              alt="pin"
-              width={80}
-              height={80}
-              className="absolute -top-8 left-1/2 -translate-x-1/2 z-20 pointer-events-none"
-              priority
-            />
             <div
               className="relative w-[280px] h-[280px] md:w-[420px] md:h-[420px] -rotate-[5deg] hover:scale-105 hover:rotate-0 transition-all duration-300 ease-out overflow-visible will-change-transform"
             >
@@ -515,39 +407,41 @@ export function ModeSelector() {
                 alt="High Quality"
                 width={420}
                 height={420}
-                className="overflow-visible absolute inset-0 w-full h-full object-cover"
-                style={{
-                  filter: `brightness(1.05) saturate(1.2) contrast(1.05)`
-                }}
+                className="overflow-visible absolute inset-0 w-full h-full object-cover brightness-[1.05] saturate-[1.2] contrast-[1.05]"
                 priority
               />
               <div className={`absolute inset-0 flex flex-col items-center justify-center px-6 md:px-10 py-10 md:py-16 text-gray-800 ${fredrick.className} leading-relaxed pointer-events-none z-10`}>
-                <div className="text-2xl md:text-[2.75rem] font-bold mb-3 md:mb-6 tracking-wide text-stroke-white" style={{ color: '#1a1410' }}>
+                <div className="text-2xl md:text-[2.75rem] font-bold mb-3 md:mb-6 tracking-wide text-stroke-white text-[#1a1410]">
                   High Quality
                 </div>
                 <div className="text-sm md:text-lg text-center font-semibold space-y-1 md:space-y-2 text-stroke-white-sm">
-                  <div>✨ Smooth Animations</div>
-                  <div>🎨 Full Effects</div>
-                  <div>⭐ Best Experience</div>
+                  <div>Smooth Animations</div>
+                  <div>Full Effects</div>
+                  <div>Best Experience</div>
                 </div>
+              </div>
+              <div
+                className="absolute -bottom-4 -left-4 w-20 h-20 z-[206] pointer-events-none"
+                style={{
+                  transform: `translate(${DECORATIONS.clip1.x}px, ${DECORATIONS.clip1.y}px) rotate(${DECORATIONS.clip1.rotation}deg) scale(${DECORATIONS.clip1.scale})`
+                }}
+              >
+                <Image
+                  src="/quality/images/clip_1_outline.png"
+                  alt=""
+                  width={80}
+                  height={80}
+                  className="w-full h-full object-contain"
+                />
               </div>
             </div>
           </div>
 
           <div
             ref={lowQualityRef}
-            className="relative group cursor-pointer opacity-0 overflow-visible -mt-5 order-1 md:order-2"
-            style={{ willChange: 'opacity' }}
+            className="relative group cursor-pointer opacity-0 overflow-visible -mt-5 order-1 md:order-2 will-change-[opacity]"
             onClick={() => handleModeSelect('low')}
           >
-            <Image
-              src="/quality/images/pin_outline_1.png"
-              alt="pin"
-              width={80}
-              height={80}
-              className="absolute -top-8 left-1/2 -translate-x-1/2 z-20 pointer-events-none"
-              priority
-            />
             <div
               className="relative w-[280px] h-[280px] md:w-[420px] md:h-[420px] rotate-[4deg] hover:scale-105 hover:rotate-0 transition-all duration-300 ease-out overflow-visible will-change-transform"
             >
@@ -556,21 +450,32 @@ export function ModeSelector() {
                 alt="Low Quality"
                 width={420}
                 height={420}
-                className="overflow-visible absolute inset-0 w-full h-full object-cover"
-                style={{
-                  filter: `brightness(1.05) saturate(1.2) contrast(1.05)`
-                }}
+                className="overflow-visible absolute inset-0 w-full h-full object-cover brightness-[1.05] saturate-[1.2] contrast-[1.05]"
                 priority
               />
               <div className={`absolute inset-0 flex flex-col items-center justify-center px-6 md:px-10 py-10 md:py-16 text-gray-800 ${fredrick.className} leading-relaxed pointer-events-none z-10`}>
-                <div className="text-2xl md:text-[2.75rem] font-bold mb-3 md:mb-6 tracking-wide text-stroke-white" style={{ color: '#1a1410' }}>
+                <div className="text-2xl md:text-[2.75rem] font-bold mb-3 md:mb-6 tracking-wide text-stroke-white text-[#1a1410]">
                   Low Quality
                 </div>
                 <div className="text-sm md:text-lg text-center font-semibold space-y-1 md:space-y-2 text-stroke-white-sm">
-                  <div>🖼️ Static Images</div>
-                  <div>⚡ Reduced Effects</div>
-                  <div>🚀 Optimized Performance</div>
+                  <div>Static Images</div>
+                  <div>Reduced Effects</div>
+                  <div>Optimized Performance</div>
                 </div>
+              </div>
+              <div
+                className="absolute -bottom-4 -right-4 w-20 h-20 z-[202] pointer-events-none"
+                style={{
+                  transform: `translate(${DECORATIONS.pin3.x}px, ${DECORATIONS.pin3.y}px) rotate(${DECORATIONS.pin3.rotation}deg) scale(${DECORATIONS.pin3.scale})`
+                }}
+              >
+                <Image
+                  src="/quality/images/pin_outline_3.png"
+                  alt=""
+                  width={80}
+                  height={80}
+                  className="w-full h-full object-contain"
+                />
               </div>
             </div>
           </div>
@@ -582,8 +487,7 @@ export function ModeSelector() {
         className="fixed bottom-8 left-0 right-0 z-[100] flex items-center justify-center px-4 opacity-0"
       >
         <p
-          className={`text-xs md:text-base text-center max-w-[90%] md:max-w-2xl font-bold text-stroke-white-sm ${fredrick.className}`}
-          style={{ color: '#2c1810' }}
+          className={`text-xs md:text-base text-center max-w-[90%] md:max-w-2xl font-bold text-stroke-white-sm text-[#2c1810] ${fredrick.className}`}
         >
           Don&apos;t worry, you can always change this later by returning to the landing page
         </p>
@@ -612,6 +516,7 @@ export function ModeSelector() {
           </div>
         </foreignObject>
       </svg>
+
     </div>
   )
 }
