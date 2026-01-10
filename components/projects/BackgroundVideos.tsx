@@ -45,20 +45,20 @@ export default function BackgroundVideos({ visible }: BackgroundVideosProps) {
       </div>
 
       {isLowPerformance ? (
-        <div className={`absolute inset-0 w-full h-full z-20 pointer-events-none transition-opacity ${!visible ? 'opacity-0' : 'opacity-100'}`}>
+        <div className={`absolute inset-0 w-full h-full max-[600px]:w-[1600px] max-[600px]:h-[700px] max-[600px]:mt-20 max-[600px]:left-1/2 max-[600px]:-translate-x-1/2 max-[600px]:-translate-y-[5%] z-20 pointer-events-none transition-opacity ${!visible ? 'opacity-0' : 'opacity-100'}`}>
           <Image
             src='/animation_frames/manga/manga_man/0200.png'
             alt='manga man'
-            className='absolute inset-0 w-full h-full object-cover'
+            className='absolute inset-0 w-full h-full object-cover max-[600px]:object-contain'
             fill
           />
         </div>
       ) : (
-        <div className={`absolute inset-0 w-full h-full z-20 pointer-events-none transition-opacity ${!visible ? 'opacity-0' : 'opacity-100'}`}>
+        <div className={`absolute inset-0 w-full h-full max-[600px]:w-[1600px] max-[600px]:h-[700px] max-[600px]:mt-5 max-[600px]:left-1/2 max-[600px]:-translate-x-1/2 max-[600px]:-translate-y-[5%] z-20 pointer-events-none transition-opacity ${!visible ? 'opacity-0' : 'opacity-100'}`}>
           <video
             ref={manVideoRef}
             src='/projects/videos/manga_man.webm?v=2'
-            className='absolute inset-0 w-full h-full object-cover'
+            className='absolute inset-0 w-full h-full object-cover max-[600px]:object-contain'
             muted
             loop
             playsInline
