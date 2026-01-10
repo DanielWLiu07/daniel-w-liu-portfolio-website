@@ -18,6 +18,7 @@ const weddingDay = localFont({
 export default function Home() {
   const [isLoaded, setIsLoaded] = useState(false)
   const [startMaskAnimation, setStartMaskAnimation] = useState(false)
+  const [animationsReady, setAnimationsReady] = useState(false)
   const rootRef = useRef(null)
   const svgMaskRef = useRef<SVGAnimateElement>(null)
   const compositeVideoRef = useRef<HTMLVideoElement>(null)
@@ -33,10 +34,23 @@ export default function Home() {
   const maskWidth = isMobile ? "95%" : "87%"
   const maskX = isMobile ? "2.5%" : "6.5%"
 
+  // Reset animations when mode changes
+  useEffect(() => {
+    setIsLoaded(false)
+    setStartMaskAnimation(false)
+    setAnimationsReady(false)
+    loadedCalledRef.current = false
+    videosReady.current = { composite: false, treeRight: false, treeLeft: false }
+  }, [mode])
+
   const handleAssetLoad = () => {
     if (loadedCalledRef.current) return;
     loadedCalledRef.current = true;
-    setTimeout(() => setIsLoaded(true), 0);
+    // Small delay to ensure SVG is ready to be controlled
+    setTimeout(() => {
+      setAnimationsReady(true)
+      setIsLoaded(true)
+    }, 50);
   };
 
   const checkAllVideosReady = () => {
@@ -99,7 +113,7 @@ export default function Home() {
   }, [mode, isLowPerformance]);
 
   useEffect(() => {
-    if (!isLoaded || mode === null) return;
+    if (!isLoaded || !animationsReady || mode === null) return;
 
     const ctx = gsap.context(() => {
       // Set initial state to prevent flash
@@ -138,7 +152,7 @@ export default function Home() {
       );
 
       // Animate nav inside context for proper cleanup
-      gsap.fromTo("nav", 
+      gsap.fromTo("nav",
         { yPercent: -100 },
         { yPercent: 0, duration: 1, ease: "power3.out", delay: 1.5 }
       );
@@ -149,7 +163,7 @@ export default function Home() {
       // Clear any remaining transforms on nav
       gsap.set("nav", { clearProps: "all" });
     };
-  }, [isLoaded, mode]);
+  }, [isLoaded, animationsReady, mode]);
 
   useEffect(() => {
     if (startMaskAnimation) {
@@ -167,13 +181,13 @@ export default function Home() {
     <>
       <ModeSelector />
 
-      {!isLoaded && mode !== null && <LoadingScreen />}
+      {(!isLoaded || !animationsReady) && mode !== null && <LoadingScreen />}
 
       <div className="absolute inset-0 w-full h-full overflow-hidden">
         <Image src="/landing/images/white_paper.png" alt="white paper background" fill className="object-cover" priority />
       </div>
 
-      <div ref={rootRef} className={`relative w-full h-screen overflow-hidden ${!isLoaded || mode === null ? 'opacity-0' : 'opacity-100'}`}>
+      <div ref={rootRef} className={`relative w-full h-screen overflow-hidden ${!isLoaded || !animationsReady || mode === null ? 'opacity-0' : 'opacity-100'}`}>
         <div className="absolute inset-0 w-full h-full overflow-hidden">
           <Image src="/landing/images/painted_bg.png" alt="painted background" fill className="object-cover" priority />
           {isLowPerformance ? (
