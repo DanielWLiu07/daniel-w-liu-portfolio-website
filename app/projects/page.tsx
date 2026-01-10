@@ -12,6 +12,7 @@ import { SocialLinks } from '@/components/ui/social-links'
 import { useBodyOverflow } from '@/hooks/use-body-overflow'
 import { useTransitionState } from '@/components/ui/page-transition'
 import { LoadingScreen } from '@/components/ui/loading-screen'
+import { usePerformanceMode } from '@/contexts/performance-mode-context'
 
 export default function ProjectsPage() {
   const [isLoaded, setIsLoaded] = useState(false)
@@ -20,8 +21,10 @@ export default function ProjectsPage() {
   const [introFinished, setIntroFinished] = useState(false)
   const [showFlash, setShowFlash] = useState(false)
   const [canStartIntro, setCanStartIntro] = useState(false)
+  const [assetsReady, setAssetsReady] = useState(false)
   const mainRef = useRef(null)
   const { transitionStage } = useTransitionState()
+  const { isLowPerformance } = usePerformanceMode()
 
   useBodyOverflow('hidden')
 
@@ -29,7 +32,6 @@ export default function ProjectsPage() {
   useEffect(() => {
     if (transitionStage === 'idle') {
       setCanStartIntro(true)
-      setIsLoaded(true) // Hide loading screen once transition completes
     }
   }, [transitionStage])
 
@@ -62,6 +64,7 @@ export default function ProjectsPage() {
   }, [introFinished])
 
   const handleIntroLoaded = () => {
+    setAssetsReady(true)
     setIsLoaded(true)
   }
 
@@ -76,6 +79,14 @@ export default function ProjectsPage() {
     }, 100)
   }
 
+  // For low performance mode, skip directly to loaded state
+  useEffect(() => {
+    if (isLowPerformance && canStartIntro) {
+      setAssetsReady(true)
+      setIsLoaded(true)
+    }
+  }, [isLowPerformance, canStartIntro])
+
   const handleCloseExpanded = () => {
     setExpandedProject(null)
     setIsPaused(false)
@@ -87,14 +98,14 @@ export default function ProjectsPage() {
     <>
       {!isLoaded && <LoadingScreen />}
 
-      <div ref={mainRef} className={`relative w-full h-screen overflow-hidden bg-black ${!isLoaded ? 'opacity-0' : 'opacity-100'}`}>
-        <BackgroundVideos visible={introFinished} />
+      <div ref={mainRef} className="relative w-full h-screen overflow-hidden bg-black">
+        <BackgroundVideos visible={introFinished && isLoaded} />
 
         <ProjectSlider
           isPaused={isPaused}
           onProjectClick={setExpandedProject}
           onPauseChange={setIsPaused}
-          visible={introFinished}
+          visible={introFinished && isLoaded}
         />
 
         {!introFinished && canStartIntro && (
