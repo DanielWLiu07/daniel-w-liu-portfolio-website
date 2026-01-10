@@ -177,7 +177,7 @@ export default function Home() {
         <div className="absolute inset-0 w-full h-full overflow-hidden">
           <Image src="/landing/images/painted_bg.png" alt="painted background" fill className="object-cover" priority />
           {isLowPerformance ? (
-            <Image src="/animation_frames/landing/composed_bg/dragon_body0003.png" alt="composite background" fill className="absolute inset-0 w-full h-full object-cover" />
+            <Image src="/animation_frames/landing/composed_bg/composed_bg0300.png" alt="composite background" fill className="absolute inset-0 w-full h-full object-cover" />
           ) : (
             <video ref={compositeVideoRef} src="/landing/videos/landing_composite_24fps.webm" autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" preload="auto" />
           )}
