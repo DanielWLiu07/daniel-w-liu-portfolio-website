@@ -5,7 +5,7 @@ import { usePerformanceMode } from '@/contexts/performance-mode-context'
 import Image from 'next/image'
 import { useEffect, useRef } from 'react'
 import gsap from 'gsap'
-import { SocialLinks, HelperText } from './mode-selector'
+import { SocialLinks, HelperText } from './mode-selector/index'
 
 const fredrick = localFont({
   src: '../../public/fonts/FrederickatheGreat-Regular.ttf',
