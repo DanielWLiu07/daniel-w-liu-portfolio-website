@@ -1,328 +1,299 @@
 'use client'
 
-import { createContext, useContext, useEffect, useRef, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import Image from 'next/image'
 import localFont from 'next/font/local'
-import { useMobile } from '@/hooks/use-mobile'
 
 const fredrick = localFont({
   src: '../../public/fonts/FrederickatheGreat-Regular.ttf',
 })
 
-type TransitionStage = 'idle' | 'fade-out' | 'loading' | 'fade-in'
+type OverlayState = 'hidden' | 'covering' | 'loading' | 'revealing'
 
-const TransitionContext = createContext<{ transitionStage: TransitionStage }>({ transitionStage: 'idle' })
+interface TransitionContextType {
+  transitionStage: OverlayState
+  signalReady: () => void
+  isRevealed: boolean
+}
+
+const TransitionContext = createContext<TransitionContextType>({
+  transitionStage: 'hidden',
+  signalReady: () => {},
+  isRevealed: true
+})
 
 export function useTransitionState() {
   return useContext(TransitionContext)
 }
 
+const MIN_LOADING_TIME = 1000
+const REVEAL_DURATION = 3700
+const NAVIGATION_DELAY = 930
+const ANIMATION_DURATION = '3.5s'
+const ANIMATION_KEYSPLINE = '0.2 0.8 0.3 1'
+
+function LoadingContent() {
+  return (
+    <div className="absolute inset-0 flex items-center justify-center">
+      <div className="flex flex-col items-center gap-4">
+        <Image
+          src="/images/cat_spin.png"
+          alt="Loading"
+          width={256}
+          height={256}
+          className="animate-spin"
+        />
+        <p className={`text-5xl md:text-7xl text-center tracking-wider text-stroke-white text-[#2c1810] ${fredrick.className}`}>
+          Loading
+          <span className="loading-dot-1">.</span>
+          <span className="loading-dot-2">.</span>
+          <span className="loading-dot-3">.</span>
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function InkMaskSvg({
+  svgRef,
+  maskType
+}: {
+  svgRef: React.RefObject<SVGSVGElement | null>
+  maskType: 'cover' | 'reveal'
+}) {
+  const filterId = maskType === 'cover' ? 'inkNoiseCover' : 'inkNoiseReveal'
+  const maskId = maskType === 'cover' ? 'inkMaskCover' : 'inkMaskReveal'
+  const baseFill = maskType === 'cover' ? 'black' : 'white'
+  const animFill = maskType === 'cover' ? 'white' : 'black'
+
+  return (
+    <svg
+      ref={svgRef}
+      width="100%"
+      height="100%"
+      xmlns="http://www.w3.org/2000/svg"
+      className="absolute inset-0 w-full h-full"
+    >
+      <defs>
+        <filter id={filterId} x="-20%" y="-20%" width="140%" height="140%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="6" result="noise" />
+          <feDisplacementMap in="SourceGraphic" in2="noise" scale="200" xChannelSelector="R" yChannelSelector="G">
+            <animate
+              attributeName="scale"
+              values="200;490"
+              dur={ANIMATION_DURATION}
+              begin="indefinite"
+              calcMode="spline"
+              keySplines={ANIMATION_KEYSPLINE}
+              fill="freeze"
+            />
+          </feDisplacementMap>
+        </filter>
+        <mask id={maskId}>
+          <rect x="0" y="0" width="100%" height="100%" fill={baseFill} />
+          <rect x="50%" y="50%" width="0%" height="0%" fill={animFill} filter={`url(#${filterId})`}>
+            <animate attributeName="x" values="50%;-25%" dur={ANIMATION_DURATION} begin="indefinite" calcMode="spline" keySplines={ANIMATION_KEYSPLINE} fill="freeze" />
+            <animate attributeName="y" values="50%;-25%" dur={ANIMATION_DURATION} begin="indefinite" calcMode="spline" keySplines={ANIMATION_KEYSPLINE} fill="freeze" />
+            <animate attributeName="width" values="0%;150%" dur={ANIMATION_DURATION} begin="indefinite" calcMode="spline" keySplines={ANIMATION_KEYSPLINE} fill="freeze" />
+            <animate attributeName="height" values="0%;150%" dur={ANIMATION_DURATION} begin="indefinite" calcMode="spline" keySplines={ANIMATION_KEYSPLINE} fill="freeze" />
+          </rect>
+        </mask>
+      </defs>
+      <foreignObject width="100%" height="100%" mask={`url(#${maskId})`}>
+        <div className="relative w-full h-full overflow-hidden">
+          <Image src="/landing/images/white_paper.png" alt="" fill className="object-cover" priority />
+          <LoadingContent />
+        </div>
+      </foreignObject>
+    </svg>
+  )
+}
+
 export function PageTransition({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
-  const [transitionStage, setTransitionStage] = useState<TransitionStage>('idle')
+  const [overlayState, setOverlayState] = useState<OverlayState>('loading')
+  const [isNavigating, setIsNavigating] = useState(false)
+
   const prevPathname = useRef(pathname)
-  const svgMaskOutRef = useRef<SVGAnimateElement>(null)
-  const svgMaskInRef = useRef<SVGAnimateElement>(null)
-  const isMobile = useMobile(768)
+  const pendingHref = useRef<string | null>(null)
+  const pageReadyRef = useRef(false)
+  const revealTriggeredRef = useRef(false)
+  const revealTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const loadingStartTimeRef = useRef<number>(0)
+  const coverSvgRef = useRef<SVGSVGElement>(null)
+  const revealSvgRef = useRef<SVGSVGElement>(null)
 
-  // Responsive mask dimensions
-  const maskWidth = isMobile ? "95%" : "87%"
-  const maskX = isMobile ? "2.5%" : "6.5%"
+  const triggerSvgAnimations = useCallback((svgElement: SVGSVGElement | null) => {
+    if (!svgElement) return
+    svgElement.querySelectorAll('animate').forEach((anim) => {
+      try {
+        (anim as SVGAnimateElement).beginElement()
+      } catch {
+        // SVG animation not supported
+      }
+    })
+  }, [])
 
-  // Handle when pathname actually changes (after navigation completes)
-  useEffect(() => {
-    if (pathname !== prevPathname.current && transitionStage === 'loading') {
-      // New page has loaded, start fade-in
-      setTransitionStage('fade-in')
+  const doReveal = useCallback(() => {
+    if (revealTriggeredRef.current) return
+    revealTriggeredRef.current = true
 
-      // Trigger fade-in animation
-      setTimeout(() => {
-        svgMaskInRef.current?.beginElement()
-        const inAnimations = document.querySelectorAll('#transitionMaskIn animate')
-        inAnimations.forEach((anim) => {
-          (anim as SVGAnimateElement).beginElement()
-        })
-      }, 50)
-
-      // End transition after fade-in completes
-      setTimeout(() => {
-        setTransitionStage('idle')
-        prevPathname.current = pathname
-      }, 2550) // 2.5s fade-in animation
+    if (revealTimeoutRef.current) {
+      clearTimeout(revealTimeoutRef.current)
     }
-  }, [pathname, transitionStage])
 
-  // Global navigation interceptor
+    setOverlayState('revealing')
+
+    revealTimeoutRef.current = setTimeout(() => {
+      setOverlayState('hidden')
+      setIsNavigating(false)
+      revealTimeoutRef.current = null
+    }, REVEAL_DURATION)
+  }, [])
+
+  const signalReady = useCallback(() => {
+    pageReadyRef.current = true
+  }, [])
+
+  const checkReadyAndReveal = useCallback(() => {
+    if (!pageReadyRef.current) return false
+
+    const elapsed = Date.now() - loadingStartTimeRef.current
+    if (elapsed < MIN_LOADING_TIME) {
+      setTimeout(doReveal, MIN_LOADING_TIME - elapsed)
+      return true
+    }
+
+    doReveal()
+    return true
+  }, [doReveal])
+
+  // Initial page load
+  useEffect(() => {
+    if (overlayState !== 'loading' || isNavigating) return
+
+    loadingStartTimeRef.current = Date.now()
+
+    const interval = setInterval(() => {
+      if (checkReadyAndReveal()) clearInterval(interval)
+    }, 50)
+
+    const timeout = setTimeout(() => {
+      clearInterval(interval)
+      doReveal()
+    }, MIN_LOADING_TIME + 2000)
+
+    return () => {
+      clearInterval(interval)
+      clearTimeout(timeout)
+    }
+  }, [overlayState, isNavigating, doReveal, checkReadyAndReveal])
+
+  // Handle navigation completion
+  useEffect(() => {
+    if (!isNavigating || pathname === prevPathname.current) return
+
+    prevPathname.current = pathname
+    pendingHref.current = null
+    pageReadyRef.current = false
+    loadingStartTimeRef.current = Date.now()
+
+    setOverlayState('loading')
+
+    const interval = setInterval(() => {
+      if (checkReadyAndReveal()) clearInterval(interval)
+    }, 50)
+
+    const timeout = setTimeout(() => {
+      clearInterval(interval)
+      doReveal()
+    }, MIN_LOADING_TIME + 2000)
+
+    return () => {
+      clearInterval(interval)
+      clearTimeout(timeout)
+    }
+  }, [pathname, isNavigating, doReveal, checkReadyAndReveal])
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (revealTimeoutRef.current) clearTimeout(revealTimeoutRef.current)
+    }
+  }, [])
+
+  // Trigger SVG animations
+  useEffect(() => {
+    if (overlayState === 'covering') triggerSvgAnimations(coverSvgRef.current)
+  }, [overlayState, triggerSvgAnimations])
+
+  useEffect(() => {
+    if (overlayState === 'revealing') triggerSvgAnimations(revealSvgRef.current)
+  }, [overlayState, triggerSvgAnimations])
+
+  const startNavigation = useCallback((href: string) => {
+    if (isNavigating || href === pathname) return
+
+    if (revealTimeoutRef.current) {
+      clearTimeout(revealTimeoutRef.current)
+      revealTimeoutRef.current = null
+    }
+
+    setIsNavigating(true)
+    pendingHref.current = href
+    pageReadyRef.current = false
+    revealTriggeredRef.current = false
+    setOverlayState('covering')
+
+    setTimeout(() => router.push(href), NAVIGATION_DELAY)
+  }, [isNavigating, pathname, router])
+
+  // Global link click interceptor
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
-      // Skip if already transitioning
-      if (transitionStage !== 'idle') {
-        e.preventDefault()
-        return
-      }
-
-      const target = e.target as HTMLElement
-      const link = target.closest('a')
-
+      const link = (e.target as HTMLElement).closest('a')
       if (!link) return
 
       const href = link.getAttribute('href')
-
-      // Only intercept internal links
       if (!href || href.startsWith('http') || href.startsWith('#') || href === pathname) {
         return
       }
 
-      // Skip transition for projects page
-      if (href === '/projects') {
-        return
-      }
-
-      // Prevent default navigation
       e.preventDefault()
-
-      // Start fade-out transition
-      setTransitionStage('fade-out')
-
-      // Trigger fade-out animation
-      setTimeout(() => {
-        svgMaskOutRef.current?.beginElement()
-        const outAnimations = document.querySelectorAll('#transitionMaskOut animate')
-        outAnimations.forEach((anim) => {
-          (anim as SVGAnimateElement).beginElement()
-        })
-      }, 0)
-
-      // After fade-out completes, navigate
-      setTimeout(() => {
-        setTransitionStage('loading')
-        router.push(href)
-      }, 2500) // 2.5s fade-out animation
+      e.stopPropagation()
+      startNavigation(href)
     }
 
     document.addEventListener('click', handleClick, true)
     return () => document.removeEventListener('click', handleClick, true)
-  }, [pathname, router, transitionStage])
+  }, [pathname, startNavigation])
+
+  const isRevealed = overlayState === 'hidden'
 
   return (
-    <TransitionContext.Provider value={{ transitionStage }}>
+    <TransitionContext.Provider value={{ transitionStage: overlayState, signalReady, isRevealed }}>
       {children}
 
-      {/* Fade-Out Transition (reveal paper bg) */}
-      {(transitionStage === 'fade-out' || transitionStage === 'loading') && (
+      {overlayState === 'loading' && (
         <div className="fixed inset-0 z-[9999] pointer-events-none">
-          <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
-            <div className="flex flex-col items-center gap-4">
-              <Image
-                src="/images/cat_spin.png"
-                alt="Loading"
-                width={256}
-                height={256}
-                className="animate-spin"
-              />
-              <p className={`text-5xl md:text-7xl text-center tracking-wider text-stroke-white ${fredrick.className}`} style={{ color: '#2c1810' }}>
-                Loading<span className="loading-dot-1">.</span><span className="loading-dot-2">.</span><span className="loading-dot-3">.</span>
-              </p>
-            </div>
+          <div className="relative w-full h-full">
+            <Image src="/landing/images/white_paper.png" alt="" fill className="object-cover" priority />
+            <LoadingContent />
           </div>
-
-          <svg
-            width="100%"
-            height="100%"
-            xmlns="http://www.w3.org/2000/svg"
-            className="absolute inset-0 w-full h-full"
-          >
-            <defs>
-              <filter id="transitionFilterOut" x="-20%" y="-20%" width="140%" height="140%">
-                <feTurbulence
-                  type="fractalNoise"
-                  baseFrequency="0.01"
-                  numOctaves="6"
-                  result="noise"
-                />
-                <feDisplacementMap
-                  in="SourceGraphic"
-                  in2="noise"
-                  scale="200"
-                  xChannelSelector="R"
-                  yChannelSelector="G"
-                >
-                  <animate
-                    ref={svgMaskOutRef}
-                    attributeName="scale"
-                    values="200;490"
-                    dur="2.5s"
-                    begin="indefinite"
-                    calcMode="spline"
-                    keySplines="0.2 0.8 0.3 1"
-                    fill="freeze"
-                  />
-                </feDisplacementMap>
-              </filter>
-              <mask id="transitionMaskOut">
-                <rect x="0" y="0" width="100%" height="100%" fill="black" />
-                <rect
-                  x="50%"
-                  y="50%"
-                  width="0%"
-                  height="0%"
-                  fill="white"
-                  filter="url(#transitionFilterOut)"
-                >
-                  <animate
-                    attributeName="x"
-                    values="50%;-25%"
-                    dur="2.5s"
-                    begin="indefinite"
-                    calcMode="spline"
-                    keySplines="0.2 0.8 0.3 1"
-                    fill="freeze"
-                  />
-                  <animate
-                    attributeName="y"
-                    values="50%;-25%"
-                    dur="2.5s"
-                    begin="indefinite"
-                    calcMode="spline"
-                    keySplines="0.2 0.8 0.3 1"
-                    fill="freeze"
-                  />
-                  <animate
-                    attributeName="width"
-                    values="0%;150%"
-                    dur="2.5s"
-                    begin="indefinite"
-                    calcMode="spline"
-                    keySplines="0.2 0.8 0.3 1"
-                    fill="freeze"
-                  />
-                  <animate
-                    attributeName="height"
-                    values="0%;150%"
-                    dur="2.5s"
-                    begin="indefinite"
-                    calcMode="spline"
-                    keySplines="0.2 0.8 0.3 1"
-                    fill="freeze"
-                  />
-                </rect>
-              </mask>
-            </defs>
-            <foreignObject width="100%" height="100%" mask="url(#transitionMaskOut)">
-              <div className="relative w-full h-full overflow-hidden">
-                <Image
-                  src="/landing/images/white_paper.png"
-                  alt="transition background"
-                  fill
-                  className="object-cover"
-                  priority
-                />
-              </div>
-            </foreignObject>
-          </svg>
         </div>
       )}
 
-      {/* Fade-In Transition (hide paper bg, reveal new page) */}
-      {transitionStage === 'fade-in' && (
+      {overlayState === 'covering' && (
         <div className="fixed inset-0 z-[9999] pointer-events-none">
-          {/* SVG Mask Animation - Fade In (hide paper, reveal new page content) */}
-          <svg
-            width="100%"
-            height="100%"
-            xmlns="http://www.w3.org/2000/svg"
-            className="absolute inset-0 w-full h-full"
-          >
-            <defs>
-              <filter id="transitionFilterIn" x="-20%" y="-20%" width="140%" height="140%">
-                <feTurbulence
-                  type="fractalNoise"
-                  baseFrequency="0.01"
-                  numOctaves="6"
-                  result="noise"
-                />
-                <feDisplacementMap
-                  in="SourceGraphic"
-                  in2="noise"
-                  scale="490"
-                  xChannelSelector="R"
-                  yChannelSelector="G"
-                >
-                  <animate
-                    ref={svgMaskInRef}
-                    attributeName="scale"
-                    values="490;200"
-                    dur="2.5s"
-                    begin="indefinite"
-                    calcMode="spline"
-                    keySplines="0.2 0.8 0.3 1"
-                    fill="freeze"
-                  />
-                </feDisplacementMap>
-              </filter>
-              <mask id="transitionMaskIn">
-                <rect x="0" y="0" width="100%" height="100%" fill="white" />
-                <rect
-                  x="50%"
-                  y="50%"
-                  width="0%"
-                  height="0%"
-                  fill="black"
-                  filter="url(#transitionFilterIn)"
-                >
-                  <animate
-                    attributeName="x"
-                    values="50%;-25%"
-                    dur="2.5s"
-                    begin="indefinite"
-                    calcMode="spline"
-                    keySplines="0.2 0.8 0.3 1"
-                    fill="freeze"
-                  />
-                  <animate
-                    attributeName="y"
-                    values="50%;-25%"
-                    dur="2.5s"
-                    begin="indefinite"
-                    calcMode="spline"
-                    keySplines="0.2 0.8 0.3 1"
-                    fill="freeze"
-                  />
-                  <animate
-                    attributeName="width"
-                    values="0%;150%"
-                    dur="2.5s"
-                    begin="indefinite"
-                    calcMode="spline"
-                    keySplines="0.2 0.8 0.3 1"
-                    fill="freeze"
-                  />
-                  <animate
-                    attributeName="height"
-                    values="0%;150%"
-                    dur="2.5s"
-                    begin="indefinite"
-                    calcMode="spline"
-                    keySplines="0.2 0.8 0.3 1"
-                    fill="freeze"
-                  />
-                </rect>
-              </mask>
-            </defs>
-            <foreignObject width="100%" height="100%" mask="url(#transitionMaskIn)">
-              <div className="relative w-full h-full overflow-hidden">
-                <Image
-                  src="/landing/images/white_paper.png"
-                  alt="transition background"
-                  fill
-                  className="object-cover"
-                  priority
-                />
-              </div>
-            </foreignObject>
-          </svg>
+          <InkMaskSvg svgRef={coverSvgRef} maskType="cover" />
+        </div>
+      )}
+
+      {overlayState === 'revealing' && (
+        <div className="fixed inset-0 z-[9999] pointer-events-none">
+          <InkMaskSvg svgRef={revealSvgRef} maskType="reveal" />
         </div>
       )}
     </TransitionContext.Provider>

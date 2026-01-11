@@ -11,8 +11,10 @@ import { projects } from '@/components/projects/project-data'
 import { SocialLinks } from '@/components/ui/social-links'
 import { useBodyOverflow } from '@/hooks/use-body-overflow'
 import { useTransitionState } from '@/components/ui/page-transition'
+import { LoadingScreen } from '@/components/ui/loading-screen'
 
 export default function ProjectsPage() {
+  const [isLoaded, setIsLoaded] = useState(false)
   const [expandedProject, setExpandedProject] = useState<number | null>(null)
   const [isPaused, setIsPaused] = useState(false)
   const [introFinished, setIntroFinished] = useState(false)
@@ -27,6 +29,7 @@ export default function ProjectsPage() {
   useEffect(() => {
     if (transitionStage === 'idle') {
       setCanStartIntro(true)
+      setIsLoaded(true) // Hide loading screen once transition completes
     }
   }, [transitionStage])
 
@@ -58,6 +61,10 @@ export default function ProjectsPage() {
     return () => ctx.revert()
   }, [introFinished])
 
+  const handleIntroLoaded = () => {
+    setIsLoaded(true)
+  }
+
   const handleFlashStart = () => {
     setShowFlash(true)
   }
@@ -77,19 +84,22 @@ export default function ProjectsPage() {
   const expandedProjectData = projects.find(p => p.id === expandedProject)
 
   return (
-    <div ref={mainRef} className="relative w-full h-screen overflow-hidden bg-black">
-      <BackgroundVideos visible={introFinished} />
+    <>
+      {!isLoaded && <LoadingScreen />}
 
-      <ProjectSlider
-        isPaused={isPaused}
-        onProjectClick={setExpandedProject}
-        onPauseChange={setIsPaused}
-        visible={introFinished}
-      />
+      <div ref={mainRef} className={`relative w-full h-screen overflow-hidden bg-black ${!isLoaded ? 'opacity-0' : 'opacity-100'}`}>
+        <BackgroundVideos visible={introFinished} />
 
-      {!introFinished && canStartIntro && (
-        <IntroVideo onEnded={handleIntroEnd} onFlashStart={handleFlashStart} />
-      )}
+        <ProjectSlider
+          isPaused={isPaused}
+          onProjectClick={setExpandedProject}
+          onPauseChange={setIsPaused}
+          visible={introFinished}
+        />
+
+        {!introFinished && canStartIntro && (
+          <IntroVideo onEnded={handleIntroEnd} onFlashStart={handleFlashStart} onLoaded={handleIntroLoaded} />
+        )}
 
       <TransitionFlash show={showFlash} />
 
@@ -98,7 +108,8 @@ export default function ProjectsPage() {
       )}
 
       <SocialLinks className="projects-social-links" />
-    </div>
+      </div>
+    </>
   )
 }
   
