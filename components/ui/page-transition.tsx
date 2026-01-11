@@ -37,13 +37,16 @@ const ANIMATION_KEYSPLINE = '0.2 0.8 0.3 1'
 const SPIN_DURATION = 1000
 
 function LoadingContent() {
-  const [rotation, setRotation] = useState(0)
+  const imgRef = useRef<HTMLImageElement>(null)
 
   useEffect(() => {
     let animationId: number
 
     const updateRotation = () => {
-      setRotation((Date.now() % SPIN_DURATION) / SPIN_DURATION * 360)
+      if (imgRef.current) {
+        const rotation = (Date.now() % SPIN_DURATION) / SPIN_DURATION * 360
+        imgRef.current.style.transform = `rotate(${rotation}deg)`
+      }
       animationId = requestAnimationFrame(updateRotation)
     }
 
@@ -55,11 +58,11 @@ function LoadingContent() {
     <div className="absolute inset-0 flex items-center justify-center">
       <div className="flex flex-col items-center gap-4">
         <Image
+          ref={imgRef}
           src="/images/cat_spin.png"
           alt="Loading"
           width={256}
           height={256}
-          style={{ transform: `rotate(${rotation}deg)` }}
         />
         <p className={`text-5xl md:text-7xl text-center tracking-wider text-stroke-white text-[#2c1810] ${fredrick.className}`}>
           Loading
