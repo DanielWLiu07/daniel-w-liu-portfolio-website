@@ -6,6 +6,8 @@ interface Experience {
   period: string
   description: string
   logo?: string
+  logoScale?: number
+  comingSoon?: boolean
 }
 
 interface ExperienceListProps {

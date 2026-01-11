@@ -4,35 +4,39 @@ export interface Experience {
   period: string
   description: string
   logo?: string
+  logoScale?: number
+  comingSoon?: boolean
 }
 
 export const experiences: Experience[] = [
   {
-    title: "Software Engineer",
-    company: "Company Name",
-    period: "Jan 2024 - Present",
-    description: "Building amazing things with cutting-edge technology. Working on scalable systems and innovative solutions.",
-    logo: "/experience/images/company-logo.png"
+    title: "Fullstack and Events Intern",
+    company: "HOSA Canada",
+    period: "Sept 2025 - Dec 2025",
+    description: "Engineered a full-stack resource platform via Next.js and designed a scalable Twilio messaging architecture to coordinate 360+ workshops servicing 9,000+ students.",
+    logo: "/experience/images/hosa_canada_logo.png",
+    logoScale: 1.5
   },
   {
-    title: "Frontend Developer",
-    company: "Another Company",
-    period: "Jun 2023 - Dec 2023",
-    description: "Created beautiful user interfaces and seamless user experiences. Specialized in React and Next.js development.",
-    logo: "/experience/images/company-logo.png"
+    title: "Computer Vision and ML Intern",
+    company: "Holland Bloorview - PEARL Lab",
+    period: "Jul 2025 - Aug 2025",
+    description: "Developed real-time CV object detection algorithms for Bootle Blast, a gamified rehab platform used by clinicians across 3+ hospitals for child rehabilitation.",
+    logo: "/experience/images/hollandbloorview_logo.webp",
+    logoScale:1.1
   },
   {
-    title: "Intern",
-    company: "Tech Startup",
-    period: "Jan 2023 - May 2023",
-    description: "Learned and contributed to full-stack development. Worked with modern web technologies and agile methodologies.",
-    logo: "/experience/images/company-logo.png"
+    title: "Coming Soon",
+    company: "Stay Tuned",
+    period: "2026",
+    description: "More exciting opportunities on the way!",
+    comingSoon: true
   },
   {
-    title: "Junior Developer",
-    company: "Software Company",
-    period: "Jun 2022 - Dec 2022",
-    description: "Developed features and fixed bugs across the stack. Collaborated with team members in an agile environment.",
-    logo: "/experience/images/company-logo.png"
+    title: "Coming Soon",
+    company: "Stay Tuned",
+    period: "2026",
+    description: "More exciting opportunities on the way!",
+    comingSoon: true
   }
 ]
