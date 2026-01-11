@@ -10,9 +10,6 @@ export default function Navbar(){
     const pathname = usePathname();
     const { transitionStage } = useTransitionState();
 
-    // Only hide navbar on landing page when mode is null
-    if (mode === null && pathname === '/') return null;
-
     const handleHomeClick = (e: React.MouseEvent) => {
         e.preventDefault();
         resetMode(); // Reset mode to null and clear localStorage
@@ -21,8 +18,9 @@ export default function Navbar(){
         link.click();
     };
 
-    // Hide navbar during covering and loading, show during revealing and hidden
-    const isHidden = transitionStage === 'covering' || transitionStage === 'loading';
+    // Hide navbar during transitions and on quality selector
+    const isQualitySelector = mode === null && pathname === '/';
+    const isHidden = transitionStage === 'covering' || transitionStage === 'loading' || isQualitySelector;
 
     const baseLinkClass = "text-gray-900 hover:bg-gray-100 block select-none rounded-[4px] px-2 md:px-3 py-2 mx-0.5 text-[13px] md:text-[15px] font-medium leading-none no-underline outline-none transition-colors duration-200";
     const activeClass = "bg-gray-100";
