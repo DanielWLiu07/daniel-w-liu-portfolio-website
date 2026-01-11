@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import gsap from 'gsap'
-import localFont from 'next/font/local'
 import Image from 'next/image'
 import { SocialLinks } from '@/components/ui/social-links'
 import { useBodyOverflow } from '@/hooks/use-body-overflow'
@@ -11,95 +10,9 @@ import { ModeSelector } from '@/components/ui/mode-selector'
 import { useMobile } from '@/hooks/use-mobile'
 import { LoadingScreen } from '@/components/ui/loading-screen'
 import { useTransitionState } from '@/components/ui/page-transition'
-
-const weddingDay = localFont({
-  src: '../public/shared/fonts/weddingday-font/ancient-wedding-font/AncientWeddingDemoRegular-MAm1n.ttf',
-})
+import { InkMaskSvg, TreeOverlays, NameDisplay } from '@/components/landing'
 
 const FALLBACK_TIMEOUT = 1500
-const ANIMATION_KEYSPLINE = '0.2 0.8 0.3 1'
-
-function InkMaskSvg({
-  svgMaskRef,
-  maskX,
-  maskWidth
-}: {
-  svgMaskRef: React.RefObject<SVGAnimateElement | null>
-  maskX: string
-  maskWidth: string
-}) {
-  return (
-    <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" className="absolute inset-0 w-full h-full z-[51]">
-      <defs>
-        <filter id="bgFilter">
-          <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="6" result="noise" />
-          <feDisplacementMap in="SourceGraphic" in2="noise" scale="0" xChannelSelector="R" yChannelSelector="G">
-            <animate
-              ref={svgMaskRef}
-              attributeName="scale"
-              values="200;490"
-              dur="3s"
-              begin="indefinite"
-              calcMode="spline"
-              keySplines={ANIMATION_KEYSPLINE}
-              fill="freeze"
-            />
-          </feDisplacementMap>
-        </filter>
-        <mask id="bgMask">
-          <rect x="0" y="0" width="100%" height="100%" fill="white" />
-          <rect x="50%" y="50%" width="0%" height="0%" fill="black" filter="url(#bgFilter)">
-            <animate attributeName="x" values={`50%;${maskX}`} dur="3s" begin="indefinite" calcMode="spline" keySplines={ANIMATION_KEYSPLINE} fill="freeze" />
-            <animate attributeName="y" values="50%;4%" dur="3s" begin="indefinite" calcMode="spline" keySplines={ANIMATION_KEYSPLINE} fill="freeze" />
-            <animate attributeName="width" values={`0%;${maskWidth}`} dur="3s" begin="indefinite" calcMode="spline" keySplines={ANIMATION_KEYSPLINE} fill="freeze" />
-            <animate attributeName="height" values="0%;95%" dur="3s" begin="indefinite" calcMode="spline" keySplines={ANIMATION_KEYSPLINE} fill="freeze" />
-          </rect>
-        </mask>
-      </defs>
-      <foreignObject width="100%" height="100%" mask="url(#bgMask)">
-        <div className="relative w-full h-full overflow-hidden">
-          <Image src="/landing/images/white_paper.png" alt="" fill className="object-cover" priority />
-        </div>
-      </foreignObject>
-    </svg>
-  )
-}
-
-function TreeOverlays({
-  isLowPerformance,
-  treeRightRef,
-  treeLeftRef
-}: {
-  isLowPerformance: boolean
-  treeRightRef: React.RefObject<HTMLVideoElement | null>
-  treeLeftRef: React.RefObject<HTMLVideoElement | null>
-}) {
-  const baseClasses = 'fixed inset-0 overflow-hidden pointer-events-none will-change-transform'
-
-  if (isLowPerformance) {
-    return (
-      <>
-        <div className={`${baseClasses} z-[65]`}>
-          <Image src="/animation_frames/landing/tree_right0200.png" alt="" width={1920} height={1080} className="tree-right absolute top-0 right-0 h-screen w-auto object-cover object-top will-change-transform" />
-        </div>
-        <div className={`${baseClasses} z-[60]`}>
-          <Image src="/animation_frames/landing/tree_left0200.png" alt="" width={1920} height={1080} className="tree-left absolute top-0 left-0 h-screen w-auto object-cover object-top will-change-transform" />
-        </div>
-      </>
-    )
-  }
-
-  return (
-    <>
-      <div className={`${baseClasses} z-[65]`}>
-        <video ref={treeRightRef} className="tree-right absolute top-0 right-0 h-screen w-auto object-cover object-top will-change-transform" src="/landing/videos/tree_right.webm" autoPlay loop muted playsInline preload="auto" />
-      </div>
-      <div className={`${baseClasses} z-[60]`}>
-        <video ref={treeLeftRef} className="tree-left absolute top-0 left-0 h-screen w-auto object-cover object-top will-change-transform" src="/landing/videos/tree_left.webm" autoPlay loop muted playsInline preload="auto" />
-      </div>
-    </>
-  )
-}
 
 export default function Home() {
   const [isLoaded, setIsLoaded] = useState(false)
@@ -112,6 +25,8 @@ export default function Home() {
   const treeRightRef = useRef<HTMLVideoElement>(null)
   const treeLeftRef = useRef<HTMLVideoElement>(null)
   const loadedCalledRef = useRef(false)
+  const introAnimationsTriggeredRef = useRef(false)
+  const introGsapContextRef = useRef<gsap.Context | null>(null)
 
   const { mode, isLowPerformance } = usePerformanceMode()
   const isMobile = useMobile(768)
@@ -132,7 +47,6 @@ export default function Home() {
     }, 50)
   }, [signalReady])
 
-  // For low performance mode, show content immediately
   const showImmediately = isLowPerformance && mode !== null
 
   // Reset state when mode changes
@@ -141,13 +55,18 @@ export default function Home() {
     setStartMaskAnimation(false)
     setAnimationsReady(false)
     loadedCalledRef.current = false
+    introAnimationsTriggeredRef.current = false
+
+    if (introGsapContextRef.current) {
+      introGsapContextRef.current.revert()
+      introGsapContextRef.current = null
+    }
   }, [mode])
 
-  // Reset ready state and signal when entering loading (new navigation to this page)
+  // Reset ready state and signal when entering loading
   useEffect(() => {
     if (transitionStage === 'loading' && mode !== null) {
       loadedCalledRef.current = false
-      // For low performance, signal ready immediately
       if (isLowPerformance) {
         signalReady()
       }
@@ -196,15 +115,18 @@ export default function Home() {
   useEffect(() => {
     if (mode === null) return
 
-    // For low performance, show everything immediately without animations
     if (isLowPerformance) {
       setStartMaskAnimation(true)
       return
     }
 
     if (!isLoaded || !animationsReady) return
+    if (transitionStage !== 'revealing' && transitionStage !== 'hidden') return
+    if (introAnimationsTriggeredRef.current) return
 
-    const ctx = gsap.context(() => {
+    introAnimationsTriggeredRef.current = true
+
+    introGsapContextRef.current = gsap.context(() => {
       gsap.set('.name-container', { y: '-100vh', scale: 1.8, opacity: 0 })
 
       const timeline = gsap.timeline()
@@ -216,9 +138,17 @@ export default function Home() {
       gsap.from('.tree-left', { xPercent: -100, duration: 1.5, ease: 'power3.out', delay: 1.5 })
       gsap.fromTo('.social-links', { yPercent: 100, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 1, ease: 'power3.out', delay: 1.5 })
     }, rootRef)
+  }, [isLoaded, animationsReady, mode, isLowPerformance, transitionStage])
 
-    return () => ctx.revert()
-  }, [isLoaded, animationsReady, mode, isLowPerformance])
+  // Cleanup GSAP context on unmount
+  useEffect(() => {
+    return () => {
+      if (introGsapContextRef.current) {
+        introGsapContextRef.current.revert()
+        introGsapContextRef.current = null
+      }
+    }
+  }, [])
 
   // Trigger SVG mask animation
   useEffect(() => {
@@ -232,50 +162,41 @@ export default function Home() {
   }, [startMaskAnimation])
 
   const showContent = showImmediately || (isLoaded && animationsReady && mode !== null)
+  const shouldRenderLandingContent = mode !== null
 
   return (
     <>
       <ModeSelector />
 
-      {!showContent && mode !== null && <LoadingScreen />}
+      {shouldRenderLandingContent && (
+        <>
+          {!showContent && <LoadingScreen />}
 
-      <div className="absolute inset-0 w-full h-full overflow-hidden">
-        <Image src="/landing/images/white_paper.png" alt="" fill className="object-cover" priority />
-      </div>
+          <div className="absolute inset-0 w-full h-full overflow-hidden">
+            <Image src="/landing/images/white_paper.png" alt="" fill className="object-cover" priority />
+          </div>
 
-      <div ref={rootRef} className={`relative w-full h-screen overflow-hidden ${showContent ? 'opacity-100' : 'opacity-0'}`}>
-        <div className={`absolute inset-0 z-[50] pointer-events-none transition-opacity duration-500 ${startMaskAnimation ? 'opacity-0' : 'opacity-100'}`}>
-          <Image src="/landing/images/white_paper.png" alt="" fill className="object-cover" priority />
-        </div>
-
-        <div className="absolute inset-0 w-full h-full overflow-hidden">
-          <Image src="/landing/images/painted_bg.png" alt="" fill className="object-cover" priority />
-          {isLowPerformance ? (
-            <Image src="/animation_frames/landing/composed_bg/composed_bg0300.png" alt="" fill className="absolute inset-0 object-cover" />
-          ) : (
-            <video ref={compositeVideoRef} src="/landing/videos/landing_composite_24fps.webm" autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" preload="auto" />
-          )}
-        </div>
-
-        <InkMaskSvg svgMaskRef={svgMaskRef} maskX={maskX} maskWidth={maskWidth} />
-
-        <div className={`name-container absolute z-[62] top-[38%] sm:top-[45%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center will-change-transform ${showImmediately ? 'opacity-100' : 'opacity-0'}`}>
-          <div className="flex flex-wrap sm:flex-nowrap gap-x-4 items-center justify-center -ml-12 sm:ml-0">
-            <div className="flex gap-4 items-center justify-center">
-              <div className={`text-8xl sm:text-9xl tracking-tighter text-stroke-white ${weddingDay.className}`}>Daniel</div>
-              <div className={`text-[11rem] sm:text-[12rem] tracking-tighter text-stroke-white mt-50 sm:mt-15 -mr-5 ${weddingDay.className}`}>W</div>
+          <div ref={rootRef} className={`relative w-full h-screen overflow-hidden ${showContent ? 'opacity-100' : 'opacity-0'}`}>
+            <div className={`absolute inset-0 z-[50] pointer-events-none transition-opacity duration-500 ${startMaskAnimation ? 'opacity-0' : 'opacity-100'}`}>
+              <Image src="/landing/images/white_paper.png" alt="" fill className="object-cover" priority />
             </div>
-            <div className={`text-8xl sm:text-9xl tracking-tighter text-stroke-white -mt-60 sm:mt-0 ${weddingDay.className}`}>Liu</div>
-          </div>
-          <div className={`text-2xl sm:text-3xl tracking-wide text-stroke-white-sm -mt-20 sm:-mt-25 text-center font-bold whitespace-nowrap ${weddingDay.className}`}>
-            Waterloo CS and Finance Double Major
-          </div>
-        </div>
 
-        <TreeOverlays isLowPerformance={isLowPerformance} treeRightRef={treeRightRef} treeLeftRef={treeLeftRef} />
+            <div className="absolute inset-0 w-full h-full overflow-hidden">
+              <Image src="/landing/images/painted_bg.png" alt="" fill className="object-cover" priority />
+              {isLowPerformance ? (
+                <Image src="/animation_frames/landing/composed_bg/composed_bg0300.png" alt="" fill className="absolute inset-0 object-cover" />
+              ) : (
+                <video ref={compositeVideoRef} src="/landing/videos/landing_composite_24fps.webm" autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" preload="auto" />
+              )}
+            </div>
 
-        <SocialLinks variant="black" className="social-links" />
-      </div>
+            <InkMaskSvg svgMaskRef={svgMaskRef} maskX={maskX} maskWidth={maskWidth} />
+            <NameDisplay showImmediately={showImmediately} />
+            <TreeOverlays isLowPerformance={isLowPerformance} treeRightRef={treeRightRef} treeLeftRef={treeLeftRef} />
+            <SocialLinks variant="black" className="social-links" />
+          </div>
+        </>
+      )}
     </>
   )
 }
