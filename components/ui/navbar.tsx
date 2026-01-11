@@ -8,14 +8,10 @@ import Link from 'next/link';
 export default function Navbar(){
     const { mode, resetMode } = usePerformanceMode();
     const pathname = usePathname();
-    const { transitionStage } = useTransitionState();
+    const { transitionStage, navigateWithTransition } = useTransitionState();
 
-    const handleHomeClick = (e: React.MouseEvent) => {
-        e.preventDefault();
-        resetMode(); // Reset mode to null and clear localStorage
-        // Let the global click handler in page-transition handle the navigation
-        const link = e.currentTarget as HTMLAnchorElement;
-        link.click();
+    const handleHomeClick = () => {
+        navigateWithTransition('/', resetMode);
     };
 
     // Hide navbar during transitions and on quality selector
@@ -35,15 +31,12 @@ export default function Navbar(){
             <NavigationMenu.Root className="relative z-[1] flex justify-start pointer-events-auto">
                 <NavigationMenu.List className="center shadow-blackA4 m-0 flex list-none rounded-[6px] bg-white p-1 shadow-[0_2px_10px]">
                     <NavigationMenu.Item>
-                        <Link
+                        <button
                             className={`${getLinkClass('/')} whitespace-nowrap cursor-pointer`}
-                            href="/"
-                            onClick={(e) => {
-                                resetMode();
-                            }}
+                            onClick={handleHomeClick}
                         >
                             Daniel W Liu
-                        </Link>
+                        </button>
                     </NavigationMenu.Item>
 
                     <NavigationMenu.Item>

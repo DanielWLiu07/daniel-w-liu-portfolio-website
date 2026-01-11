@@ -91,6 +91,18 @@ export default function Resume() {
     setVideoEnded(true)
   }, [isLowPerformance, signalReady])
 
+  // Reset ready state and signal when entering loading (new navigation to this page)
+  useEffect(() => {
+    if (transitionStage === 'loading') {
+      readyCalledRef.current = false
+      videoStartedRef.current = false
+      if (isLowPerformance) {
+        signalReady()
+        setVideoEnded(true)
+      }
+    }
+  }, [transitionStage, isLowPerformance, signalReady])
+
   // Wait for video ready
   useEffect(() => {
     if (isLowPerformance) return
@@ -194,7 +206,7 @@ export default function Resume() {
       >
         {isLowPerformance ? (
           <Image
-            src="/animation_frames/resume/loading_anim/sliding_img0028.png"
+            src="/resume/images/resume_last_frame.png"
             alt=""
             width={1920}
             height={1080}

@@ -10,11 +10,16 @@ const ANIMATION_DELAY = 0.5
 
 export default function ExperiencePage() {
   const mainRef = useRef<HTMLElement>(null)
-  const { transitionStage } = useTransitionState()
+  const { transitionStage, signalReady } = useTransitionState()
   const animationsStartedRef = useRef(false)
   const gsapContextRef = useRef<gsap.Context | null>(null)
 
   useBodyOverflow('hidden')
+
+  // Signal ready immediately - this page has no heavy assets to load
+  useEffect(() => {
+    signalReady()
+  }, [signalReady])
 
   // Set initial hidden state
   useEffect(() => {

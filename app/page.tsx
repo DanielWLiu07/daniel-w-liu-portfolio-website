@@ -132,6 +132,9 @@ export default function Home() {
     }, 50)
   }, [signalReady])
 
+  // For low performance mode, show content immediately
+  const showImmediately = isLowPerformance && mode !== null
+
   // Reset state when mode changes
   useEffect(() => {
     setIsLoaded(false)
@@ -139,6 +142,17 @@ export default function Home() {
     setAnimationsReady(false)
     loadedCalledRef.current = false
   }, [mode])
+
+  // Reset ready state and signal when entering loading (new navigation to this page)
+  useEffect(() => {
+    if (transitionStage === 'loading' && mode !== null) {
+      loadedCalledRef.current = false
+      // For low performance, signal ready immediately
+      if (isLowPerformance) {
+        signalReady()
+      }
+    }
+  }, [transitionStage, mode, isLowPerformance, signalReady])
 
   // Signal ready for quality selector with minimum delay
   useEffect(() => {
@@ -178,9 +192,17 @@ export default function Home() {
     }
   }, [mode, isLowPerformance, handleAssetLoad])
 
-  // Run intro animations
+  // Run intro animations (skip for low performance)
   useEffect(() => {
-    if (!isLoaded || !animationsReady || mode === null) return
+    if (mode === null) return
+
+    // For low performance, show everything immediately without animations
+    if (isLowPerformance) {
+      setStartMaskAnimation(true)
+      return
+    }
+
+    if (!isLoaded || !animationsReady) return
 
     const ctx = gsap.context(() => {
       gsap.set('.name-container', { y: '-100vh', scale: 1.8, opacity: 0 })
@@ -196,7 +218,7 @@ export default function Home() {
     }, rootRef)
 
     return () => ctx.revert()
-  }, [isLoaded, animationsReady, mode])
+  }, [isLoaded, animationsReady, mode, isLowPerformance])
 
   // Trigger SVG mask animation
   useEffect(() => {
@@ -209,7 +231,7 @@ export default function Home() {
     }, 0)
   }, [startMaskAnimation])
 
-  const showContent = isLoaded && animationsReady && mode !== null
+  const showContent = showImmediately || (isLoaded && animationsReady && mode !== null)
 
   return (
     <>
@@ -237,7 +259,7 @@ export default function Home() {
 
         <InkMaskSvg svgMaskRef={svgMaskRef} maskX={maskX} maskWidth={maskWidth} />
 
-        <div className="name-container absolute z-[62] top-[38%] sm:top-[45%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center will-change-transform opacity-0">
+        <div className={`name-container absolute z-[62] top-[38%] sm:top-[45%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center will-change-transform ${showImmediately ? 'opacity-100' : 'opacity-0'}`}>
           <div className="flex flex-wrap sm:flex-nowrap gap-x-4 items-center justify-center -ml-12 sm:ml-0">
             <div className="flex gap-4 items-center justify-center">
               <div className={`text-8xl sm:text-9xl tracking-tighter text-stroke-white ${weddingDay.className}`}>Daniel</div>

@@ -2,6 +2,7 @@
 
 import localFont from 'next/font/local'
 import { usePerformanceMode } from '@/contexts/performance-mode-context'
+import { useTransitionState } from '@/components/ui/page-transition'
 import Image from 'next/image'
 import { useEffect, useRef } from 'react'
 import gsap from 'gsap'
@@ -13,6 +14,7 @@ const fredrick = localFont({
 
 export function ModeSelector() {
   const { mode, setMode } = usePerformanceMode()
+  const { navigateWithTransition } = useTransitionState()
 
   const titleRef = useRef<HTMLDivElement>(null)
   const subtitleRef = useRef<HTMLParagraphElement>(null)
@@ -112,7 +114,10 @@ export function ModeSelector() {
   const handleModeSelect = (selectedMode: 'high' | 'low') => {
     const exitTl = gsap.timeline({
       onComplete: () => {
-        setTimeout(() => setMode(selectedMode), 300)
+        // Set mode immediately so landing page knows to use low/high quality during loading
+        setMode(selectedMode)
+        // Use page transition for visual effect
+        navigateWithTransition('/')
       }
     })
 

@@ -16,12 +16,16 @@ interface TransitionContextType {
   transitionStage: OverlayState
   signalReady: () => void
   isRevealed: boolean
+  triggerCover: () => void
+  navigateWithTransition: (href: string, onBeforeReveal?: () => void) => void
 }
 
 const TransitionContext = createContext<TransitionContextType>({
   transitionStage: 'hidden',
   signalReady: () => {},
-  isRevealed: true
+  isRevealed: true,
+  triggerCover: () => {},
+  navigateWithTransition: () => {}
 })
 
 export function useTransitionState() {
@@ -144,6 +148,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   const loadingStartTimeRef = useRef<number>(0)
   const coverSvgRef = useRef<SVGSVGElement>(null)
   const revealSvgRef = useRef<SVGSVGElement>(null)
+  const onBeforeRevealRef = useRef<(() => void) | null>(null)
 
   const doReveal = useCallback(() => {
     if (revealTriggeredRef.current) return
@@ -151,6 +156,12 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
 
     if (revealTimeoutRef.current) {
       clearTimeout(revealTimeoutRef.current)
+    }
+
+    // Call the before reveal callback if set
+    if (onBeforeRevealRef.current) {
+      onBeforeRevealRef.current()
+      onBeforeRevealRef.current = null
     }
 
     setOverlayState('revealing')
@@ -165,6 +176,51 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   const signalReady = useCallback(() => {
     pageReadyRef.current = true
   }, [])
+
+  const triggerCover = useCallback(() => {
+    if (revealTimeoutRef.current) {
+      clearTimeout(revealTimeoutRef.current)
+      revealTimeoutRef.current = null
+    }
+    setIsNavigating(true)
+    pageReadyRef.current = false
+    revealTriggeredRef.current = false
+    setOverlayState('covering')
+  }, [])
+
+  const navigateWithTransition = useCallback((href: string, onBeforeReveal?: () => void) => {
+    if (revealTimeoutRef.current) {
+      clearTimeout(revealTimeoutRef.current)
+      revealTimeoutRef.current = null
+    }
+
+    // Store the callback to be called before reveal
+    onBeforeRevealRef.current = onBeforeReveal || null
+
+    setIsNavigating(true)
+    pageReadyRef.current = false
+    revealTriggeredRef.current = false
+    setOverlayState('covering')
+
+    const isSamePage = href === pathname
+
+    setTimeout(() => {
+      if (isSamePage) {
+        // Same page - manually trigger loading → revealing flow
+        loadingStartTimeRef.current = Date.now()
+        setOverlayState('loading')
+
+        // Signal ready after a brief moment and reveal
+        setTimeout(() => {
+          pageReadyRef.current = true
+          doReveal()
+        }, MIN_LOADING_TIME)
+      } else {
+        // Different page - let the pathname change trigger the flow
+        router.push(href)
+      }
+    }, NAVIGATION_DELAY)
+  }, [pathname, router, doReveal])
 
   const checkReadyAndReveal = useCallback(() => {
     if (!pageReadyRef.current) return false
@@ -282,7 +338,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   const isRevealed = overlayState === 'hidden'
 
   return (
-    <TransitionContext.Provider value={{ transitionStage: overlayState, signalReady, isRevealed }}>
+    <TransitionContext.Provider value={{ transitionStage: overlayState, signalReady, isRevealed, triggerCover, navigateWithTransition }}>
       {children}
 
       {overlayState === 'loading' && (
