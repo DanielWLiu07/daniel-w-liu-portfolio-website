@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { projects, sceneOptions } from './project-data'
 import { getPlaneWidth, createCardGeometry, createCardMaterial } from './carousel-helpers'
@@ -27,17 +27,55 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
   const autoScrollDirectionRef = useRef(-1)
   const hoveredPlaneRef = useRef<THREE.Mesh | null>(null)
   const isPausedRef = useRef(false)
+  const initializedRef = useRef(false)
+  const [containerReady, setContainerReady] = useState(false)
+
+  // Store callbacks in refs to prevent useEffect re-runs
+  const onProjectClickRef = useRef(onProjectClick)
+  const onPauseChangeRef = useRef(onPauseChange)
+
+  useEffect(() => {
+    onProjectClickRef.current = onProjectClick
+  }, [onProjectClick])
+
+  useEffect(() => {
+    onPauseChangeRef.current = onPauseChange
+  }, [onPauseChange])
 
   useEffect(() => {
     isPausedRef.current = isPaused
   }, [isPaused])
 
+  // Watch for container to have valid dimensions
   useEffect(() => {
-    if (!containerRef.current) {
+    if (!containerRef.current || initializedRef.current) return
+
+    const container = containerRef.current
+
+    const checkDimensions = () => {
+      if (container.clientWidth > 0 && container.clientHeight > 0) {
+        setContainerReady(true)
+      }
+    }
+
+    // Check immediately
+    checkDimensions()
+
+    // Also observe for changes
+    const resizeObserver = new ResizeObserver(checkDimensions)
+    resizeObserver.observe(container)
+
+    return () => resizeObserver.disconnect()
+  }, [])
+
+  useEffect(() => {
+    if (!containerRef.current || !containerReady || initializedRef.current) {
       return
     }
 
     const container = containerRef.current
+    initializedRef.current = true
+
     const scene = new THREE.Scene()
     sceneRef.current = scene
 
@@ -91,9 +129,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
     const lastMousePosition = new THREE.Vector2(-999, -999)
 
     const onCanvasClick = (event: MouseEvent) => {
-      if (!containerRef.current) return
-
-      const rect = containerRef.current.getBoundingClientRect()
+      const rect = container.getBoundingClientRect()
       mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
       mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
 
@@ -108,10 +144,10 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         velocityRef.current = 0
         targetTimeRef.current = timeRef.current
 
-        onPauseChange(true)
+        onPauseChangeRef.current(true)
 
         setTimeout(() => {
-          onProjectClick(projectId)
+          onProjectClickRef.current(projectId)
         }, 800)
       }
     }
@@ -119,9 +155,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
     renderer.domElement.addEventListener('click', onCanvasClick)
 
     const onMouseMove = (event: MouseEvent) => {
-      if (!containerRef.current) return
-
-      const rect = containerRef.current.getBoundingClientRect()
+      const rect = container.getBoundingClientRect()
       mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
       mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
       lastMousePosition.copy(mouse)
@@ -140,12 +174,12 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           velocityRef.current = 0
           isManualScrollingRef.current = false
           targetTimeRef.current = timeRef.current
-          onPauseChange(true)
+          onPauseChangeRef.current(true)
         }
       } else {
         hoveredPlaneRef.current = null
         if (isPausedRef.current) {
-          onPauseChange(false)
+          onPauseChangeRef.current(false)
         }
       }
     }
@@ -154,7 +188,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
 
     const onWheel = (event: WheelEvent) => {
       if (isPausedRef.current) {
-        onPauseChange(false)
+        onPauseChangeRef.current(false)
       }
 
       hoveredPlaneRef.current = null
@@ -162,6 +196,56 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
     }
 
     renderer.domElement.addEventListener('wheel', onWheel, { passive: false })
+
+    // Touch support for mobile
+    let touchStartX = 0
+    let touchStartY = 0
+    let isTouchScrolling = false
+
+    const onTouchStart = (event: TouchEvent) => {
+      if (event.touches.length === 1) {
+        touchStartX = event.touches[0].clientX
+        touchStartY = event.touches[0].clientY
+        isTouchScrolling = false
+
+        if (isPausedRef.current) {
+          onPauseChangeRef.current(false)
+        }
+        hoveredPlaneRef.current = null
+      }
+    }
+
+    const onTouchMove = (event: TouchEvent) => {
+      if (event.touches.length === 1) {
+        const touchX = event.touches[0].clientX
+        const touchY = event.touches[0].clientY
+        const deltaX = touchStartX - touchX
+        const deltaY = touchStartY - touchY
+
+        // Only scroll horizontally if horizontal movement is greater
+        if (Math.abs(deltaX) > Math.abs(deltaY)) {
+          event.preventDefault()
+          isTouchScrolling = true
+
+          // Convert touch delta to velocity (similar to wheel)
+          velocityRef.current = deltaX * 0.05
+          isManualScrollingRef.current = true
+
+          touchStartX = touchX
+        }
+      }
+    }
+
+    const onTouchEnd = () => {
+      // Let momentum continue naturally via updateScrollVelocity
+      if (isTouchScrolling) {
+        isManualScrollingRef.current = true
+      }
+    }
+
+    renderer.domElement.addEventListener('touchstart', onTouchStart, { passive: true })
+    renderer.domElement.addEventListener('touchmove', onTouchMove, { passive: false })
+    renderer.domElement.addEventListener('touchend', onTouchEnd, { passive: true })
 
     let previousTime = 0
 
@@ -205,41 +289,44 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
 
     animationFrameRef.current = requestAnimationFrame(animate)
 
-    const handleResize = () => {
-      if (!containerRef.current || !cameraRef.current || !rendererRef.current) return
+    // Use ResizeObserver for robust size handling
+    const resizeObserver = new ResizeObserver(() => {
+      if (!cameraRef.current || !rendererRef.current) return
 
-      const width = containerRef.current.clientWidth
-      const height = containerRef.current.clientHeight
+      const width = container.clientWidth
+      const height = container.clientHeight
+      if (width === 0 || height === 0) return
 
       cameraRef.current.aspect = width / height
       cameraRef.current.updateProjectionMatrix()
       rendererRef.current.setSize(width, height)
-    }
+    })
 
-    window.addEventListener('resize', handleResize)
+    resizeObserver.observe(container)
 
     return () => {
-      window.removeEventListener('resize', handleResize)
+      resizeObserver.disconnect()
       renderer.domElement.removeEventListener('click', onCanvasClick)
       renderer.domElement.removeEventListener('mousemove', onMouseMove)
       renderer.domElement.removeEventListener('wheel', onWheel)
+      renderer.domElement.removeEventListener('touchstart', onTouchStart)
+      renderer.domElement.removeEventListener('touchmove', onTouchMove)
+      renderer.domElement.removeEventListener('touchend', onTouchEnd)
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current)
       }
-      if (rendererRef.current && containerRef.current) {
-        const rendererElement = rendererRef.current.domElement
-        if (containerRef.current.contains(rendererElement)) {
-          containerRef.current.removeChild(rendererElement)
-        }
+      if (renderer.domElement.parentNode === container) {
+        container.removeChild(renderer.domElement)
       }
-      planesRef.current.forEach(plane => {
+      planes.forEach(plane => {
         plane.geometry.dispose()
         if (plane.material instanceof THREE.Material) {
           plane.material.dispose()
         }
       })
+      renderer.dispose()
     }
-  }, [onProjectClick, onPauseChange])
+  }, [containerReady])
 
   return (
     <>
