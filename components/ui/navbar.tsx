@@ -25,7 +25,7 @@ export default function Navbar(){
     const isHidden = transitionStage === 'covering' || transitionStage === 'loading';
 
     const baseLinkClass = "text-gray-900 hover:bg-gray-100 focus:shadow-violet7 block select-none rounded-[4px] px-2 md:px-3 py-2 mx-0.5 text-[13px] md:text-[15px] font-medium leading-none no-underline outline-none focus:shadow-[0_0_0_2px] transition-colors duration-200";
-    const activeClass = "ring-2 ring-black";
+    const activeClass = "bg-gray-100";
 
     const getLinkClass = (href: string) => {
         const isActive = pathname === href;
