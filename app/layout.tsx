@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Navbar from "@/components/info/Navbar";
+import Navbar from "@/components/ui/navbar";
 import { PerformanceModeProvider } from "@/contexts/performance-mode-context";
 import { PageTransition } from "@/components/ui/page-transition";
 
