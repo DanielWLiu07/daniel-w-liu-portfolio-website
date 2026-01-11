@@ -180,8 +180,6 @@ export default function Resume() {
     }
   }
 
-  const hoveredButtonData = INTERACTIVE_BUTTONS.find((b) => b.id === hoveredButton)
-
   return (
     <div
       ref={containerRef}
@@ -214,15 +212,17 @@ export default function Resume() {
           />
         )}
 
-        {hoveredButtonData && videoEnded && (
+        {videoEnded && INTERACTIVE_BUTTONS.map((button) => (
           <Image
-            src={`${VIDEO_CONFIG.BUTTON_IMAGE_PATH}/${hoveredButtonData.imageName}`}
+            key={button.id}
+            src={`${VIDEO_CONFIG.BUTTON_IMAGE_PATH}/${button.imageName}`}
             alt=""
             width={1920}
             height={1080}
-            className="absolute top-0 left-0 w-full h-full object-cover object-center pointer-events-none z-10"
+            className={`absolute top-0 left-0 w-full h-full object-cover object-center pointer-events-none z-10 transition-opacity duration-150 ${hoveredButton === button.id ? 'opacity-100' : 'opacity-0'}`}
+            priority
           />
-        )}
+        ))}
 
         {videoEnded && INTERACTIVE_BUTTONS.map((button) => (
           <div
