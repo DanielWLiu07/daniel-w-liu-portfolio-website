@@ -40,8 +40,8 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <PerformanceModeProvider>
-          <Navbar />
           <PageTransition>
+            <Navbar />
             {children}
           </PageTransition>
         </PerformanceModeProvider>

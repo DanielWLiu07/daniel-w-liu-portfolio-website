@@ -1,12 +1,14 @@
 'use client';
 import * as NavigationMenu from '@radix-ui/react-navigation-menu';
 import { usePerformanceMode } from '@/contexts/performance-mode-context';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
+import { useTransitionState } from '@/components/ui/page-transition';
+import Link from 'next/link';
 
 export default function Navbar(){
     const { mode, resetMode } = usePerformanceMode();
     const pathname = usePathname();
-    const router = useRouter();
+    const { transitionStage } = useTransitionState();
 
     // Only hide navbar on landing page when mode is null
     if (mode === null && pathname === '/') return null;
@@ -14,60 +16,55 @@ export default function Navbar(){
     const handleHomeClick = (e: React.MouseEvent) => {
         e.preventDefault();
         resetMode(); // Reset mode to null and clear localStorage
-        router.push('/');
+        // Let the global click handler in page-transition handle the navigation
+        const link = e.currentTarget as HTMLAnchorElement;
+        link.click();
     };
 
+    // Only hide navbar during covering animation (page transition)
+    const isHidden = transitionStage === 'covering';
+
+    const linkClass = "text-gray-900 hover:bg-gray-100 focus:shadow-violet7 block select-none rounded-[4px] px-2 md:px-3 py-2 text-[13px] md:text-[15px] font-medium leading-none no-underline outline-none focus:shadow-[0_0_0_2px] transition-colors duration-200";
+
     return (
-        <nav className="fixed top-5 left-1/2 -translate-x-1/2 md:left-5 md:translate-x-0 z-[150] pointer-events-none">
+        <nav className={`fixed top-5 left-1/2 -translate-x-1/2 md:left-5 md:translate-x-0 z-[10000] pointer-events-none transition-transform duration-700 ease-out ${isHidden ? '-translate-y-20' : 'translate-y-0'}`}>
             <NavigationMenu.Root className="relative z-[1] flex justify-start pointer-events-auto">
                 <NavigationMenu.List className="center shadow-blackA4 m-0 flex list-none rounded-[6px] bg-white p-1 shadow-[0_2px_10px]">
                     <NavigationMenu.Item>
-                        <NavigationMenu.Link
-                            className="text-gray-900 hover:bg-gray-100 focus:shadow-violet7 block select-none rounded-[4px] px-2 md:px-3 py-2 text-[13px] md:text-[15px] font-medium leading-none no-underline outline-none focus:shadow-[0_0_0_2px] transition-colors duration-200 whitespace-nowrap cursor-pointer"
+                        <Link
+                            className={`${linkClass} whitespace-nowrap cursor-pointer`}
                             href="/"
-                            onClick={handleHomeClick}
+                            onClick={(e) => {
+                                resetMode();
+                                // Don't prevent default - let page-transition handle it
+                            }}
                         >
                             Daniel W Liu
-                        </NavigationMenu.Link>
+                        </Link>
                     </NavigationMenu.Item>
 
-                     <NavigationMenu.Item>
-                        <NavigationMenu.Link 
-                            className="text-gray-900 hover:bg-gray-100 focus:shadow-violet7 block select-none rounded-[4px] px-2 md:px-3 py-2 text-[13px] md:text-[15px] font-medium leading-none no-underline outline-none focus:shadow-[0_0_0_2px] transition-colors duration-200" 
-                            href="/about"
-                        >
+                    <NavigationMenu.Item>
+                        <Link className={linkClass} href="/about">
                             About
-                        </NavigationMenu.Link>
+                        </Link>
                     </NavigationMenu.Item>
 
-
                     <NavigationMenu.Item>
-                        <NavigationMenu.Link 
-                            className="text-gray-900 hover:bg-gray-100 focus:shadow-violet7 block select-none rounded-[4px] px-2 md:px-3 py-2 text-[13px] md:text-[15px] font-medium leading-none no-underline outline-none focus:shadow-[0_0_0_2px] transition-colors duration-200" 
-                            href="/experience"
-                        >
+                        <Link className={linkClass} href="/experience">
                             Experience
-                        </NavigationMenu.Link>
+                        </Link>
                     </NavigationMenu.Item>
 
-                    
                     <NavigationMenu.Item>
-                        <NavigationMenu.Link 
-                            className="text-gray-900 hover:bg-gray-100 focus:shadow-violet7 block select-none rounded-[4px] px-2 md:px-3 py-2 text-[13px] md:text-[15px] font-medium leading-none no-underline outline-none focus:shadow-[0_0_0_2px] transition-colors duration-200" 
-                            href="/projects"
-                        >
+                        <Link className={linkClass} href="/projects">
                             Projects
-                        </NavigationMenu.Link>
+                        </Link>
                     </NavigationMenu.Item>
-                
-                    
+
                     <NavigationMenu.Item>
-                        <NavigationMenu.Link
-                            className="text-gray-900 hover:bg-gray-100 focus:shadow-violet7 block select-none rounded-[4px] px-2 md:px-3 py-2 text-[13px] md:text-[15px] font-medium leading-none no-underline outline-none focus:shadow-[0_0_0_2px] transition-colors duration-200"
-                            href="/resume"
-                        >
+                        <Link className={linkClass} href="/resume">
                             Resume
-                        </NavigationMenu.Link>
+                        </Link>
                     </NavigationMenu.Item>
 
                     <NavigationMenu.Indicator className="data-[state=visible]:animate-fadeIn data-[state=hidden]:animate-fadeOut top-full z-[1] flex h-[10px] items-end justify-center overflow-hidden transition-[width,transform_250ms_ease]">

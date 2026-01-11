@@ -145,10 +145,10 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     }
 
     setOverlayState('revealing')
+    setIsNavigating(false) // Allow navigation during reveal/intro animations
 
     revealTimeoutRef.current = setTimeout(() => {
       setOverlayState('hidden')
-      setIsNavigating(false)
       revealTimeoutRef.current = null
     }, REVEAL_DURATION)
   }, [])
