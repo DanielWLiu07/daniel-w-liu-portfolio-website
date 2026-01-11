@@ -3,90 +3,109 @@
 import { useEffect, useRef, useCallback } from 'react'
 import Image from 'next/image'
 import { usePerformanceMode } from '@/contexts/performance-mode-context'
+import { useTransitionState } from '@/components/ui/page-transition'
+
+const FALLBACK_TIMEOUT = 3000
+const FLASH_TRIGGER_TIME = 0.5
 
 interface IntroVideoProps {
   onEnded: () => void
   onFlashStart: () => void
-  onLoaded?: () => void
 }
 
-export default function IntroVideo({ onEnded, onFlashStart, onLoaded }: IntroVideoProps) {
+export default function IntroVideo({ onEnded, onFlashStart }: IntroVideoProps) {
   const { isLowPerformance } = usePerformanceMode()
+  const { signalReady, transitionStage } = useTransitionState()
   const videoRef = useRef<HTMLVideoElement>(null)
-  const loadedCalledRef = useRef(false)
+  const readyCalledRef = useRef(false)
+  const videoStartedRef = useRef(false)
 
   const handleLoaded = useCallback(() => {
-    if (loadedCalledRef.current) return
-    loadedCalledRef.current = true
-    onLoaded?.()
-  }, [onLoaded])
+    if (readyCalledRef.current) return
+    readyCalledRef.current = true
+    signalReady()
+  }, [signalReady])
 
+  // Start video when reveal begins
   useEffect(() => {
+    if (isLowPerformance || transitionStage !== 'revealing' || videoStartedRef.current) return
+    videoStartedRef.current = true
+    videoRef.current?.play()
+  }, [isLowPerformance, transitionStage])
+
+  // Low performance: signal ready and skip
+  useEffect(() => {
+    if (!isLowPerformance || readyCalledRef.current) return
+    readyCalledRef.current = true
+    signalReady()
+    const timeout = setTimeout(() => {
+      onFlashStart()
+      onEnded()
+    }, 100)
+    return () => clearTimeout(timeout)
+  }, [isLowPerformance, signalReady, onFlashStart, onEnded])
+
+  // Normal mode: wait for video ready
+  useEffect(() => {
+    if (isLowPerformance) return
+
     const video = videoRef.current
     if (!video) return
 
     if (video.readyState >= 3) {
-      setTimeout(handleLoaded, 0)
+      handleLoaded()
+      return
     }
 
-    const timeout = setTimeout(handleLoaded, 1000)
+    const onReady = () => handleLoaded()
+    video.addEventListener('canplay', onReady)
+    video.addEventListener('loadeddata', onReady)
+
+    const timeout = setTimeout(handleLoaded, FALLBACK_TIMEOUT)
 
     return () => {
+      video.removeEventListener('canplay', onReady)
+      video.removeEventListener('loadeddata', onReady)
       clearTimeout(timeout)
     }
-  }, [handleLoaded])
+  }, [isLowPerformance, handleLoaded])
 
   const handleTimeUpdate = (e: React.SyntheticEvent<HTMLVideoElement>) => {
     const video = e.currentTarget
-    const timeRemaining = video.duration - video.currentTime
-    if (timeRemaining <= 0.5) {
+    if (video.duration - video.currentTime <= FLASH_TRIGGER_TIME) {
       onFlashStart()
     }
   }
 
-  const handleEnded = () => {
-    onEnded()
-  }
-
   const handleError = () => {
+    if (!readyCalledRef.current) {
+      readyCalledRef.current = true
+      signalReady()
+    }
     onEnded()
   }
 
-  useEffect(() => {
-    if (isLowPerformance) {
-      handleLoaded()
-      setTimeout(() => {
-        onFlashStart()
-        onEnded()
-      }, 100)
-    }
-  }, [isLowPerformance, handleLoaded, onFlashStart, onEnded])
+  if (isLowPerformance) {
+    return (
+      <div className="absolute inset-0 z-0 pointer-events-none">
+        <Image src="/animation_frames/manga/manga_intro/0075.png" alt="" fill className="object-cover" />
+      </div>
+    )
+  }
 
   return (
-    <div className="absolute inset-0 w-full h-full z-0 pointer-events-none">
-      {isLowPerformance ? (
-        <Image
-          src='/animation_frames/manga/manga_intro/0075.png'
-          alt='manga intro'
-          className='absolute inset-0 w-full h-full object-cover pointer-events-none'
-          fill
-        />
-      ) : (
-        <video
-          ref={videoRef}
-          src='/projects/videos/manga_intro.webm'
-          className='absolute inset-0 w-full h-full object-cover pointer-events-none'
-          muted
-          autoPlay
-          playsInline
-          preload="auto"
-          onTimeUpdate={handleTimeUpdate}
-          onEnded={handleEnded}
-          onError={handleError}
-          onCanPlay={handleLoaded}
-          onLoadedData={handleLoaded}
-        />
-      )}
+    <div className="absolute inset-0 z-0 pointer-events-none">
+      <video
+        ref={videoRef}
+        src="/projects/videos/manga_intro.webm"
+        className="absolute inset-0 w-full h-full object-cover"
+        muted
+        playsInline
+        preload="auto"
+        onTimeUpdate={handleTimeUpdate}
+        onEnded={onEnded}
+        onError={handleError}
+      />
     </div>
   )
 }

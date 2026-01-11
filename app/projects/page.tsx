@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import gsap from 'gsap'
 import ProjectModal from '@/components/projects/ProjectModal'
 import IntroVideo from '@/components/projects/IntroVideo'
@@ -11,105 +11,92 @@ import { projects } from '@/components/projects/project-data'
 import { SocialLinks } from '@/components/ui/social-links'
 import { useBodyOverflow } from '@/hooks/use-body-overflow'
 import { useTransitionState } from '@/components/ui/page-transition'
-import { LoadingScreen } from '@/components/ui/loading-screen'
+import { usePerformanceMode } from '@/contexts/performance-mode-context'
+
+const SOCIAL_LINKS_SELECTOR = '.projects-social-links'
 
 export default function ProjectsPage() {
-  const [isLoaded, setIsLoaded] = useState(false)
   const [expandedProject, setExpandedProject] = useState<number | null>(null)
   const [isPaused, setIsPaused] = useState(false)
   const [introFinished, setIntroFinished] = useState(false)
   const [showFlash, setShowFlash] = useState(false)
-  const [canStartIntro, setCanStartIntro] = useState(false)
-  const mainRef = useRef(null)
-  const { transitionStage } = useTransitionState()
+
+  const mainRef = useRef<HTMLDivElement>(null)
+  const gsapContextRef = useRef<gsap.Context | null>(null)
+  const readyCalledRef = useRef(false)
+
+  const { transitionStage, signalReady } = useTransitionState()
+  const { isLowPerformance } = usePerformanceMode()
+
+  const showContent = transitionStage !== 'loading'
 
   useBodyOverflow('hidden')
 
-  // Wait for page transition to complete before starting intro
+  // Low quality mode: skip intro
   useEffect(() => {
-    if (transitionStage === 'idle') {
-      setCanStartIntro(true)
-      setIsLoaded(true) // Hide loading screen once transition completes
-    }
-  }, [transitionStage])
+    if (!isLowPerformance || readyCalledRef.current) return
+    readyCalledRef.current = true
+    signalReady()
+    setIntroFinished(true)
+  }, [isLowPerformance, signalReady])
 
+  // Initialize social links animation state
   useEffect(() => {
-    const ctx = gsap.context(() => {
-      // Set initial state
-      gsap.set('.projects-social-links', {
-        y: 100,
-        opacity: 0
-      })
+    gsapContextRef.current = gsap.context(() => {
+      gsap.set(SOCIAL_LINKS_SELECTOR, { y: 100, opacity: 0 })
     }, mainRef)
 
-    return () => ctx.revert()
+    return () => gsapContextRef.current?.revert()
   }, [])
 
+  // Animate social links after intro
   useEffect(() => {
     if (!introFinished) return
-
-    const ctx = gsap.context(() => {
-      gsap.to('.projects-social-links', {
-        y: 0,
-        opacity: 1,
-        duration: 1.5,
-        ease: 'power3.out',
-        delay: 0.5
-      })
+    gsap.context(() => {
+      gsap.to(SOCIAL_LINKS_SELECTOR, { y: 0, opacity: 1, duration: 1, ease: 'power3.out', delay: 0.1 })
     }, mainRef)
-
-    return () => ctx.revert()
   }, [introFinished])
 
-  const handleIntroLoaded = () => {
-    setIsLoaded(true)
-  }
+  const handleFlashStart = useCallback(() => setShowFlash(true), [])
 
-  const handleFlashStart = () => {
-    setShowFlash(true)
-  }
-
-  const handleIntroEnd = () => {
+  const handleIntroEnd = useCallback(() => {
     setTimeout(() => {
       setIntroFinished(true)
       setShowFlash(false)
     }, 100)
-  }
+  }, [])
 
-  const handleCloseExpanded = () => {
+  const handleCloseModal = useCallback(() => {
     setExpandedProject(null)
     setIsPaused(false)
-  }
+  }, [])
 
   const expandedProjectData = projects.find(p => p.id === expandedProject)
 
   return (
-    <>
-      {!isLoaded && <LoadingScreen />}
+    <div ref={mainRef} className="relative w-full h-screen overflow-hidden bg-black">
+      <BackgroundVideos visible={introFinished} />
 
-      <div ref={mainRef} className={`relative w-full h-screen overflow-hidden bg-black ${!isLoaded ? 'opacity-0' : 'opacity-100'}`}>
-        <BackgroundVideos visible={introFinished} />
+      {!introFinished && !isLowPerformance && (
+        <IntroVideo onEnded={handleIntroEnd} onFlashStart={handleFlashStart} />
+      )}
 
+      {showContent && (
         <ProjectSlider
           isPaused={isPaused}
           onProjectClick={setExpandedProject}
           onPauseChange={setIsPaused}
           visible={introFinished}
         />
-
-        {!introFinished && canStartIntro && (
-          <IntroVideo onEnded={handleIntroEnd} onFlashStart={handleFlashStart} onLoaded={handleIntroLoaded} />
-        )}
+      )}
 
       <TransitionFlash show={showFlash} />
 
       {expandedProjectData && (
-        <ProjectModal project={expandedProjectData} onClose={handleCloseExpanded} />
+        <ProjectModal project={expandedProjectData} onClose={handleCloseModal} />
       )}
 
       <SocialLinks className="projects-social-links" />
-      </div>
-    </>
+    </div>
   )
 }
-  
