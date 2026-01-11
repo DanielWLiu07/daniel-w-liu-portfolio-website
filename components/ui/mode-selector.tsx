@@ -1,16 +1,12 @@
 'use client'
 
-import localFont from 'next/font/local'
 import { usePerformanceMode } from '@/contexts/performance-mode-context'
 import { useTransitionState } from '@/components/ui/page-transition'
 import Image from 'next/image'
 import { useEffect, useRef } from 'react'
 import gsap from 'gsap'
+import { frederickaFont } from '@/lib/fonts'
 import { SocialLinks, HelperText } from './mode-selector/index'
-
-const fredrick = localFont({
-  src: '../../public/fonts/FrederickatheGreat-Regular.ttf',
-})
 
 export function ModeSelector() {
   const { mode, setMode } = usePerformanceMode()
@@ -114,10 +110,11 @@ export function ModeSelector() {
   const handleModeSelect = (selectedMode: 'high' | 'low') => {
     const exitTl = gsap.timeline({
       onComplete: () => {
-        // Set mode immediately so landing page knows to use low/high quality during loading
-        setMode(selectedMode)
-        // Use page transition for visual effect
-        navigateWithTransition('/')
+        // Start transition, set mode just before reveal so landing content
+        // doesn't render until the reveal animation is about to show it
+        navigateWithTransition('/', () => {
+          setMode(selectedMode)
+        })
       }
     })
 
@@ -355,13 +352,13 @@ export function ModeSelector() {
 
         <div ref={titleRef} className="text-center space-y-2 opacity-0 relative -mt-15 md:mt-0">
           <h2
-            className={`text-4xl md:text-7xl text-center tracking-wider md:text-stroke-white text-stroke-white-sm drop-shadow-lg relative z-10 whitespace-nowrap text-[#2c1810] ${fredrick.className}`}
+            className={`text-4xl md:text-7xl text-center tracking-wider md:text-stroke-white text-stroke-white-sm drop-shadow-lg relative z-10 whitespace-nowrap text-[#2c1810] ${frederickaFont.className}`}
           >
             Choose Your Journey
           </h2>
           <p
             ref={subtitleRef}
-            className={`text-lg md:text-xl text-center tracking-wider text-stroke-white-xs drop-shadow-lg relative z-10 opacity-0 text-[#2c1810] ${fredrick.className}`}
+            className={`text-lg md:text-xl text-center tracking-wider text-stroke-white-xs drop-shadow-lg relative z-10 opacity-0 text-[#2c1810] ${frederickaFont.className}`}
           >
             Every Page a New World
           </p>
@@ -384,7 +381,7 @@ export function ModeSelector() {
                 className="overflow-visible absolute inset-0 w-full h-full object-cover brightness-[1.05] saturate-[1.2] contrast-[1.05]"
                 priority
               />
-              <div className={`absolute inset-0 flex flex-col items-center justify-center px-6 md:px-10 py-10 md:py-16 text-gray-800 ${fredrick.className} leading-relaxed pointer-events-none z-10`}>
+              <div className={`absolute inset-0 flex flex-col items-center justify-center px-6 md:px-10 py-10 md:py-16 text-gray-800 ${frederickaFont.className} leading-relaxed pointer-events-none z-10`}>
                 <div className="text-2xl md:text-[2.75rem] font-bold mb-3 md:mb-6 tracking-wider md:text-stroke-white text-stroke-white-sm drop-shadow-lg text-[#2c1810]">
                   High Quality
                 </div>
@@ -435,7 +432,7 @@ export function ModeSelector() {
                 className="overflow-visible absolute inset-0 w-full h-full object-cover brightness-[1.05] saturate-[1.2] contrast-[1.05]"
                 priority
               />
-              <div className={`absolute inset-0 flex flex-col items-center justify-center px-6 md:px-10 py-10 md:py-16 text-gray-800 ${fredrick.className} leading-relaxed pointer-events-none z-10`}>
+              <div className={`absolute inset-0 flex flex-col items-center justify-center px-6 md:px-10 py-10 md:py-16 text-gray-800 ${frederickaFont.className} leading-relaxed pointer-events-none z-10`}>
                 <div className="text-2xl md:text-[2.75rem] font-bold mb-3 md:mb-6 tracking-wider md:text-stroke-white text-stroke-white-sm drop-shadow-lg text-[#2c1810]">
                   Low Quality
                 </div>

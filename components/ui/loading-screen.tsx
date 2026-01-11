@@ -1,9 +1,5 @@
 import Image from 'next/image'
-import localFont from 'next/font/local'
-
-const fredrick = localFont({
-  src: '../../public/fonts/FrederickatheGreat-Regular.ttf',
-})
+import { frederickaFont } from '@/lib/fonts'
 
 export function LoadingScreen() {
   return (
@@ -24,7 +20,7 @@ export function LoadingScreen() {
           className="animate-spin"
         />
         <p
-          className={`text-5xl md:text-7xl text-center tracking-wider text-stroke-white ${fredrick.className}`}
+          className={`text-5xl md:text-7xl text-center tracking-wider text-stroke-white ${frederickaFont.className}`}
           style={{ color: '#2c1810' }}
         >
           Loading
