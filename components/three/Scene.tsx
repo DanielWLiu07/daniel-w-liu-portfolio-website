@@ -3,7 +3,7 @@
 import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { Suspense } from 'react';
-import ButterflyModel from './ButterflyModel';
+import ButterflyModel from './butterfly-model';
 
 function ResponsiveButterflies() {
   const { viewport } = useThree();

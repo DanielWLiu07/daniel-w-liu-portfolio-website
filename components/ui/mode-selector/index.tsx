@@ -1,2 +1,2 @@
-export { SocialLinks } from './SocialLinks'
-export { HelperText } from './HelperText'
+export { SocialLinks } from './social-links'
+export { HelperText } from './helper-text'

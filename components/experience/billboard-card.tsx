@@ -1,5 +1,5 @@
 import Image from 'next/image'
-import { CardCorners } from './CardCorners'
+import { CardCorners } from './card-corners'
 
 interface Experience {
   title: string

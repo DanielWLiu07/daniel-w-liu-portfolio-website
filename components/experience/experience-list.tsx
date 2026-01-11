@@ -1,4 +1,4 @@
-import { BillboardCard } from './BillboardCard'
+import { BillboardCard } from './billboard-card'
 
 interface Experience {
   title: string
