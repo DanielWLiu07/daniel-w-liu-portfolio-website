@@ -149,12 +149,14 @@ export default function Home() {
     loadedCalledRef.current = false
   }, [mode])
 
+  // Signal ready immediately for quality selector
+  useEffect(() => {
+    if (mode === null) signalReady()
+  }, [mode, signalReady])
+
   // Wait for video ready
   useEffect(() => {
-    if (mode === null) {
-      signalReady()
-      return
-    }
+    if (mode === null) return
 
     if (isLowPerformance) {
       handleAssetLoad()
@@ -180,7 +182,7 @@ export default function Home() {
       composite.removeEventListener('loadeddata', onReady)
       clearTimeout(timeout)
     }
-  }, [mode, isLowPerformance, handleAssetLoad, signalReady])
+  }, [mode, isLowPerformance, handleAssetLoad])
 
   // Run intro animations
   useEffect(() => {
