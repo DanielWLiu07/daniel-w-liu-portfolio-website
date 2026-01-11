@@ -1,13 +1,11 @@
 "use client";
 
-import { useState } from 'react';
 import localFont from 'next/font/local';
 import { TechStack } from "@/components/about/tech-stack";
 import { BackgroundLayers } from "@/components/about/background-layers";
 import { MobileBackground } from "@/components/about/mobile-background";
 import { SocialLinksImages } from "@/components/about/social-links-images";
 import { useBodyOverflow } from "@/hooks/use-body-overflow";
-import { LoadingScreen } from "@/components/ui/loading-screen";
 import Image from 'next/image';
 
 const mochi = localFont({
@@ -27,54 +25,49 @@ const INFO_ITEMS = [
 ];
 
 export default function About() {
-  const [isLoaded, setIsLoaded] = useState(false);
   useBodyOverflow('auto');
 
   return (
-    <>
-      {!isLoaded && <LoadingScreen />}
+    <div className="relative w-full min-h-screen max-h-screen md:max-h-none overflow-y-auto md:overflow-visible">
+      <BackgroundLayers />
+      <MobileBackground />
 
-      <div className={`relative w-full min-h-screen max-h-screen md:max-h-none overflow-y-auto md:overflow-visible ${!isLoaded ? 'opacity-0' : 'opacity-100'}`}>
-        <BackgroundLayers onLoaded={() => setIsLoaded(true)} />
-        <MobileBackground />
+      <div className="relative z-10 flex flex-col md:flex-row md:justify-end min-h-screen -mt-[300vh] md:mt-0">
+        <div className={`w-[95%] mx-auto md:mx-0 md:w-1/2 px-2 md:pl-4 pb-5 flex flex-col justify-start md:min-h-0 pt-8 overflow-visible ${katieRoze.className}`}>
+          <div className="bg-white/60 xl:bg-transparent p-3 xl:p-0 rounded-lg xl:rounded-none">
+            <div className="overflow-visible -space-y-6 md:-space-y-8 max-w-sm md:max-w-none">
+              <h1 className="text-8xl lg:text-9xl font-black bg-gradient-to-r from-purple-700 via-pink-700 to-blue-700 bg-clip-text text-transparent drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)] leading-32 py-2 whitespace-nowrap">
+                Daniel W Liu
+              </h1>
+              <p className="text-3xl bg-gradient-to-r from-blue-800 to-purple-800 bg-clip-text text-transparent drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]">
+                Software Engineer & ML Developer
+              </p>
+            </div>
 
-        <div className="relative z-10 flex flex-col md:flex-row md:justify-end min-h-screen -mt-[300vh] md:mt-0">
-          <div className={`w-[95%] mx-auto md:mx-0 md:w-1/2 px-2 md:pl-4 pb-5 flex flex-col justify-start md:min-h-0 pt-8 overflow-visible ${katieRoze.className}`}>
-            <div className="bg-white/60 xl:bg-transparent p-3 xl:p-0 rounded-lg xl:rounded-none">
-              <div className="overflow-visible -space-y-6 md:-space-y-8 max-w-sm md:max-w-none">
-                <h1 className="text-8xl lg:text-9xl font-black bg-gradient-to-r from-purple-700 via-pink-700 to-blue-700 bg-clip-text text-transparent drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)] leading-32 py-2 whitespace-nowrap">
-                  Daniel W Liu
-                </h1>
-                <p className="text-3xl bg-gradient-to-r from-blue-800 to-purple-800 bg-clip-text text-transparent drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]">
-                  Software Engineer & ML Developer
+            <div className="pl-3 md:pl-2 text-black text-xl md:text-3xl drop-shadow-[0_1px_2px_rgba(0,0,0,0.2)] max-w-sm md:max-w-none mt-2">
+              {INFO_ITEMS.map((info, index) => (
+                <p key={index} className={`text-2xl md:text-3xl md:max-w-lg text-stroke-white-xs ${mochi.className}`}>
+                  {info}
                 </p>
-              </div>
-
-              <div className="pl-3 md:pl-2 text-black text-xl md:text-3xl drop-shadow-[0_1px_2px_rgba(0,0,0,0.2)] max-w-sm md:max-w-none mt-2">
-                {INFO_ITEMS.map((info, index) => (
-                  <p key={index} className={`text-2xl md:text-3xl md:max-w-lg text-stroke-white-xs ${mochi.className}`}>
-                    {info}
-                  </p>
-                ))}
-              </div>
-
-              <TechStack />
+              ))}
             </div>
-            
-            <div className="flex flex-col mt-5 -ml-50 md:-ml-50">
-              <Image
-                src="/about/images/cat3.png"
-                alt="Cat"
-                width={650}
-                height={150}
-                className="object-contain min-w-[650px]"
-              />
-            </div>
+
+            <TechStack />
+          </div>
+
+          <div className="flex flex-col mt-5 -ml-50 md:-ml-50">
+            <Image
+              src="/about/images/cat3.png"
+              alt="Cat"
+              width={650}
+              height={150}
+              className="object-contain min-w-[650px]"
+            />
           </div>
         </div>
-
-        <SocialLinksImages />
       </div>
-    </>
+
+      <SocialLinksImages />
+    </div>
   );
 }
