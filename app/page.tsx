@@ -149,9 +149,12 @@ export default function Home() {
     loadedCalledRef.current = false
   }, [mode])
 
-  // Signal ready immediately for quality selector
+  // Signal ready for quality selector with minimum delay
   useEffect(() => {
-    if (mode === null) signalReady()
+    if (mode === null) {
+      const timeout = setTimeout(signalReady, 250)
+      return () => clearTimeout(timeout)
+    }
   }, [mode, signalReady])
 
   // Wait for video ready
