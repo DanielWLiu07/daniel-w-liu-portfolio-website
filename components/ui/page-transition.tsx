@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useRef, useState, useCallback } f
 import { usePathname, useRouter } from 'next/navigation'
 import Image from 'next/image'
 import localFont from 'next/font/local'
+import { triggerSvgAnimations } from '@/lib/svg-utils'
 
 const fredrick = localFont({
   src: '../../public/fonts/FrederickatheGreat-Regular.ttf',
@@ -141,17 +142,6 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   const coverSvgRef = useRef<SVGSVGElement>(null)
   const revealSvgRef = useRef<SVGSVGElement>(null)
 
-  const triggerSvgAnimations = useCallback((svgElement: SVGSVGElement | null) => {
-    if (!svgElement) return
-    svgElement.querySelectorAll('animate').forEach((anim) => {
-      try {
-        (anim as SVGAnimateElement).beginElement()
-      } catch {
-        // SVG animation not supported
-      }
-    })
-  }, [])
-
   const doReveal = useCallback(() => {
     if (revealTriggeredRef.current) return
     revealTriggeredRef.current = true
@@ -243,11 +233,11 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   // Trigger SVG animations
   useEffect(() => {
     if (overlayState === 'covering') triggerSvgAnimations(coverSvgRef.current)
-  }, [overlayState, triggerSvgAnimations])
+  }, [overlayState])
 
   useEffect(() => {
     if (overlayState === 'revealing') triggerSvgAnimations(revealSvgRef.current)
-  }, [overlayState, triggerSvgAnimations])
+  }, [overlayState])
 
   const startNavigation = useCallback((href: string) => {
     if (isNavigating || href === pathname) return

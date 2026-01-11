@@ -4,6 +4,7 @@ import { useState, memo, useEffect, useRef, useCallback } from 'react'
 import Image from 'next/image'
 import { usePerformanceMode } from '@/contexts/performance-mode-context'
 import { useTransitionState } from '@/components/ui/page-transition'
+import { triggerSvgAnimations } from '@/lib/svg-utils'
 
 const FALLBACK_TIMEOUT = 1500
 
@@ -171,17 +172,6 @@ export const BackgroundLayers = memo(function BackgroundLayers() {
   const readyCalledRef = useRef(false)
   const animationsStartedRef = useRef(false)
 
-  const triggerSvgAnimations = useCallback((svg: SVGSVGElement | null) => {
-    if (!svg) return
-    svg.querySelectorAll('animate').forEach((anim) => {
-      try {
-        (anim as SVGAnimateElement).beginElement()
-      } catch {
-        // SVG animation not supported
-      }
-    })
-  }, [])
-
   const handleLoaded = useCallback(() => {
     if (readyCalledRef.current) return
     readyCalledRef.current = true
@@ -198,7 +188,7 @@ export const BackgroundLayers = memo(function BackgroundLayers() {
     sparkleRef.current?.play()
     triggerSvgAnimations(waterColourSvgRef.current)
     triggerSvgAnimations(aboutBgSvgRef.current)
-  }, [isLowPerformance, transitionStage, triggerSvgAnimations])
+  }, [isLowPerformance, transitionStage])
 
   // Low performance mode: signal ready immediately
   useEffect(() => {
