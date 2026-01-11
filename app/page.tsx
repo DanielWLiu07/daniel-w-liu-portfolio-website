@@ -112,9 +112,8 @@ export default function Home() {
   const treeRightRef = useRef<HTMLVideoElement>(null)
   const treeLeftRef = useRef<HTMLVideoElement>(null)
   const loadedCalledRef = useRef(false)
-  const hasResetRef = useRef(false)
 
-  const { mode, isLowPerformance, resetMode } = usePerformanceMode()
+  const { mode, isLowPerformance } = usePerformanceMode()
   const isMobile = useMobile(768)
   const { signalReady, transitionStage } = useTransitionState()
 
@@ -132,14 +131,6 @@ export default function Home() {
       setIsLoaded(true)
     }, 50)
   }, [signalReady])
-
-  // Reset mode on navigation back to home
-  useEffect(() => {
-    if (!hasResetRef.current && (transitionStage === 'loading' || transitionStage === 'revealing') && mode !== null) {
-      hasResetRef.current = true
-      resetMode()
-    }
-  }, [transitionStage, mode, resetMode])
 
   // Reset state when mode changes
   useEffect(() => {
