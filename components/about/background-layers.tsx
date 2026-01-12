@@ -178,6 +178,14 @@ export const BackgroundLayers = memo(function BackgroundLayers() {
     signalReady()
   }, [signalReady])
 
+  // Reset ready state when entering loading (new navigation to this page)
+  useEffect(() => {
+    if (transitionStage === 'loading') {
+      readyCalledRef.current = false
+      animationsStartedRef.current = false
+    }
+  }, [transitionStage])
+
   // Start animations when reveal begins or on direct load (hidden)
   useEffect(() => {
     if (isLowPerformance || (transitionStage !== 'revealing' && transitionStage !== 'hidden') || animationsStartedRef.current) return

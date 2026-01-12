@@ -214,6 +214,11 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     prevPathname.current = pathname
     pendingHref.current = null
 
+    // CRITICAL: Reset ready state before showing loading
+    // The new page will set this to true when it's ready
+    pageReadyRef.current = false
+    revealTriggeredRef.current = false
+
     setOverlayState('loading')
     startWaitingForReady()
 

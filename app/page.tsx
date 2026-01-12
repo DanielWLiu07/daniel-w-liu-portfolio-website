@@ -53,6 +53,14 @@ export default function Home() {
     }
   }, [mode])
 
+  // Reset ready state when entering loading (new navigation to this page)
+  useEffect(() => {
+    if (transitionStage === 'loading') {
+      signalledReadyRef.current = false
+      setIntroAnimationsStarted(false)
+    }
+  }, [transitionStage])
+
   // For quality selector (mode === null), signal ready after brief delay
   useEffect(() => {
     if (mode === null) {

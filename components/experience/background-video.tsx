@@ -28,6 +28,14 @@ export function BackgroundVideo({ onReady }: BackgroundVideoProps) {
     onReady?.()
   }, [signalReady, onReady])
 
+  // Reset ready state when entering loading (new navigation to this page)
+  useEffect(() => {
+    if (transitionStage === 'loading') {
+      readyCalledRef.current = false
+      videoStartedRef.current = false
+    }
+  }, [transitionStage])
+
   // Start video on reveal or on direct load (hidden)
   useEffect(() => {
     if (isLowPerformance || (transitionStage !== 'revealing' && transitionStage !== 'hidden') || videoStartedRef.current) return

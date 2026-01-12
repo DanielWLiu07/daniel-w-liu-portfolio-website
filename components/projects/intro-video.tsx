@@ -26,6 +26,14 @@ export default function IntroVideo({ onEnded, onFlashStart }: IntroVideoProps) {
     signalReady()
   }, [signalReady])
 
+  // Reset ready state when entering loading (new navigation to this page)
+  useEffect(() => {
+    if (transitionStage === 'loading') {
+      readyCalledRef.current = false
+      videoStartedRef.current = false
+    }
+  }, [transitionStage])
+
   // Start video when reveal begins or on direct load (hidden)
   useEffect(() => {
     if (isLowPerformance || (transitionStage !== 'revealing' && transitionStage !== 'hidden') || videoStartedRef.current) return
