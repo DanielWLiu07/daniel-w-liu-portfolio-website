@@ -8,24 +8,21 @@ import { useBodyOverflow } from '@/hooks/use-body-overflow'
 import { usePerformanceMode } from '@/contexts/performance-mode-context'
 import { ModeSelector } from '@/components/ui/mode-selector'
 import { useMobile } from '@/hooks/use-mobile'
-import { LoadingScreen } from '@/components/ui/loading-screen'
 import { useTransitionState } from '@/components/ui/page-transition'
 import { InkMaskSvg, TreeOverlays, NameDisplay } from '@/components/landing'
 
-const FALLBACK_TIMEOUT = 1500
+const FALLBACK_TIMEOUT = 2000
 
 export default function Home() {
-  const [isLoaded, setIsLoaded] = useState(false)
   const [startMaskAnimation, setStartMaskAnimation] = useState(false)
-  const [animationsReady, setAnimationsReady] = useState(false)
+  const [introAnimationsStarted, setIntroAnimationsStarted] = useState(false)
 
   const rootRef = useRef<HTMLDivElement>(null)
   const svgMaskRef = useRef<SVGAnimateElement>(null)
   const compositeVideoRef = useRef<HTMLVideoElement>(null)
   const treeRightRef = useRef<HTMLVideoElement>(null)
   const treeLeftRef = useRef<HTMLVideoElement>(null)
-  const loadedCalledRef = useRef(false)
-  const introAnimationsTriggeredRef = useRef(false)
+  const signalledReadyRef = useRef(false)
   const introGsapContextRef = useRef<gsap.Context | null>(null)
 
   const { mode, isLowPerformance } = usePerformanceMode()
@@ -37,24 +34,18 @@ export default function Home() {
   const maskWidth = isMobile ? '95%' : '87%'
   const maskX = isMobile ? '2.5%' : '6.5%'
 
-  const handleAssetLoad = useCallback(() => {
-    if (loadedCalledRef.current) return
-    loadedCalledRef.current = true
-    // Set states BEFORE signaling ready so content is visible when PageTransition reveals
-    setAnimationsReady(true)
-    setIsLoaded(true)
+  // Signal ready to PageTransition
+  const doSignalReady = useCallback(() => {
+    if (signalledReadyRef.current) return
+    signalledReadyRef.current = true
     signalReady()
   }, [signalReady])
 
-  const showImmediately = isLowPerformance && mode !== null
-
-  // Reset state when mode changes
+  // Reset all state when mode changes (e.g., when quality is selected)
   useEffect(() => {
-    setIsLoaded(false)
+    signalledReadyRef.current = false
     setStartMaskAnimation(false)
-    setAnimationsReady(false)
-    loadedCalledRef.current = false
-    introAnimationsTriggeredRef.current = false
+    setIntroAnimationsStarted(false)
 
     if (introGsapContextRef.current) {
       introGsapContextRef.current.revert()
@@ -62,69 +53,67 @@ export default function Home() {
     }
   }, [mode])
 
-  // Reset ready state and signal when entering loading
-  useEffect(() => {
-    if (transitionStage === 'loading' && mode !== null) {
-      loadedCalledRef.current = false
-      if (isLowPerformance) {
-        signalReady()
-      }
-    }
-  }, [transitionStage, mode, isLowPerformance, signalReady])
-
-  // Signal ready for quality selector with minimum delay
+  // For quality selector (mode === null), signal ready after brief delay
   useEffect(() => {
     if (mode === null) {
-      const timeout = setTimeout(signalReady, 250)
+      const timeout = setTimeout(doSignalReady, 100)
       return () => clearTimeout(timeout)
     }
-  }, [mode, signalReady])
+  }, [mode, doSignalReady])
 
-  // Wait for video ready
+  // For landing content (mode !== null), wait for video to load
   useEffect(() => {
     if (mode === null) return
 
+    // Low performance: signal ready immediately
     if (isLowPerformance) {
-      handleAssetLoad()
+      doSignalReady()
       return
     }
 
-    const composite = compositeVideoRef.current
-    if (!composite) return
+    const video = compositeVideoRef.current
+    if (!video) {
+      // Video element not in DOM yet - use fallback
+      const timeout = setTimeout(doSignalReady, FALLBACK_TIMEOUT)
+      return () => clearTimeout(timeout)
+    }
 
-    if (composite.readyState >= 3) {
-      handleAssetLoad()
+    // Video already loaded
+    if (video.readyState >= 3) {
+      doSignalReady()
       return
     }
 
-    const onReady = () => handleAssetLoad()
-    composite.addEventListener('canplay', onReady)
-    composite.addEventListener('loadeddata', onReady)
+    // Wait for video to be playable
+    const handleReady = () => doSignalReady()
+    video.addEventListener('canplay', handleReady)
+    video.addEventListener('loadeddata', handleReady)
 
-    const timeout = setTimeout(handleAssetLoad, FALLBACK_TIMEOUT)
+    // Fallback timeout
+    const timeout = setTimeout(doSignalReady, FALLBACK_TIMEOUT)
 
     return () => {
-      composite.removeEventListener('canplay', onReady)
-      composite.removeEventListener('loadeddata', onReady)
+      video.removeEventListener('canplay', handleReady)
+      video.removeEventListener('loadeddata', handleReady)
       clearTimeout(timeout)
     }
-  }, [mode, isLowPerformance, handleAssetLoad])
+  }, [mode, isLowPerformance, doSignalReady])
 
-  // Run intro animations (skip for low performance)
+  // Run intro animations when reveal starts
   useEffect(() => {
     if (mode === null) return
+    if (introAnimationsStarted) return
+    if (transitionStage !== 'revealing') return
 
+    setIntroAnimationsStarted(true)
+
+    // For low performance, just show content immediately
     if (isLowPerformance) {
       setStartMaskAnimation(true)
       return
     }
 
-    if (!isLoaded || !animationsReady) return
-    if (transitionStage !== 'revealing' && transitionStage !== 'hidden') return
-    if (introAnimationsTriggeredRef.current) return
-
-    introAnimationsTriggeredRef.current = true
-
+    // Run GSAP intro animations
     introGsapContextRef.current = gsap.context(() => {
       gsap.set('.name-container', { y: '-100vh', scale: 1.8, opacity: 0 })
 
@@ -137,7 +126,7 @@ export default function Home() {
       gsap.from('.tree-left', { xPercent: -100, duration: 1.5, ease: 'power3.out', delay: 1.5 })
       gsap.fromTo('.social-links', { yPercent: 100, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 1, ease: 'power3.out', delay: 1.5 })
     }, rootRef)
-  }, [isLoaded, animationsReady, mode, isLowPerformance, transitionStage])
+  }, [mode, isLowPerformance, transitionStage, introAnimationsStarted])
 
   // Cleanup GSAP context on unmount
   useEffect(() => {
@@ -160,7 +149,7 @@ export default function Home() {
     }, 0)
   }, [startMaskAnimation])
 
-  const showContent = showImmediately || (isLoaded && animationsReady && mode !== null)
+  const showImmediately = isLowPerformance && mode !== null
   const shouldRenderLandingContent = mode !== null
 
   return (
@@ -169,17 +158,19 @@ export default function Home() {
 
       {shouldRenderLandingContent && (
         <>
-          {!showContent && <LoadingScreen />}
-
+          {/* Background layer */}
           <div className="absolute inset-0 w-full h-full overflow-hidden">
             <Image src="/landing/images/white_paper.png" alt="" fill className="object-cover" priority />
           </div>
 
-          <div ref={rootRef} className={`relative w-full h-screen overflow-hidden ${showContent ? 'opacity-100' : 'opacity-0'}`}>
+          {/* Main content - PageTransition overlay hides this until reveal */}
+          <div ref={rootRef} className="relative w-full h-screen overflow-hidden">
+            {/* White overlay that fades when mask animation starts */}
             <div className={`absolute inset-0 z-[50] pointer-events-none transition-opacity duration-500 ${startMaskAnimation ? 'opacity-0' : 'opacity-100'}`}>
               <Image src="/landing/images/white_paper.png" alt="" fill className="object-cover" priority />
             </div>
 
+            {/* Background with video/image */}
             <div className="absolute inset-0 w-full h-full overflow-hidden">
               <Image src="/landing/images/painted_bg.png" alt="" fill className="object-cover" priority />
               {isLowPerformance ? (

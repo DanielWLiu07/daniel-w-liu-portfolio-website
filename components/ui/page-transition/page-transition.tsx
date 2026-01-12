@@ -17,7 +17,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   const { mode } = usePerformanceMode()
 
   // Start hidden if quality selector should show (mode === null)
-  // Start with loading if mode is already selected
+  // Start with loading if mode is already selected (direct page load)
   const [overlayState, setOverlayState] = useState<OverlayState>(() =>
     mode === null ? 'hidden' : 'loading'
   )
@@ -32,16 +32,32 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   const coverSvgRef = useRef<SVGSVGElement>(null)
   const revealSvgRef = useRef<SVGSVGElement>(null)
   const onBeforeRevealRef = useRef<(() => void) | null>(null)
+  const readyCheckIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const fallbackTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Cleanup helper
+  const cleanupTimers = useCallback(() => {
+    if (readyCheckIntervalRef.current) {
+      clearInterval(readyCheckIntervalRef.current)
+      readyCheckIntervalRef.current = null
+    }
+    if (fallbackTimeoutRef.current) {
+      clearTimeout(fallbackTimeoutRef.current)
+      fallbackTimeoutRef.current = null
+    }
+  }, [])
 
   const doReveal = useCallback(() => {
     if (revealTriggeredRef.current) return
     revealTriggeredRef.current = true
 
+    cleanupTimers()
+
     if (revealTimeoutRef.current) {
       clearTimeout(revealTimeoutRef.current)
     }
 
-    // Call the before reveal callback if set
+    // Call the before reveal callback if set (for same-page navigation)
     if (onBeforeRevealRef.current) {
       onBeforeRevealRef.current()
       onBeforeRevealRef.current = null
@@ -54,13 +70,14 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
       setOverlayState('hidden')
       revealTimeoutRef.current = null
     }, REVEAL_DURATION)
-  }, [])
+  }, [cleanupTimers])
 
   const signalReady = useCallback(() => {
     pageReadyRef.current = true
   }, [])
 
   const triggerCover = useCallback(() => {
+    cleanupTimers()
     if (revealTimeoutRef.current) {
       clearTimeout(revealTimeoutRef.current)
       revealTimeoutRef.current = null
@@ -69,13 +86,14 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     pageReadyRef.current = false
     revealTriggeredRef.current = false
     setOverlayState('covering')
-  }, [])
+  }, [cleanupTimers])
 
   const checkReadyAndReveal = useCallback(() => {
     if (!pageReadyRef.current) return false
 
     const elapsed = Date.now() - loadingStartTimeRef.current
     if (elapsed < MIN_LOADING_TIME) {
+      // Schedule reveal after minimum time
       setTimeout(doReveal, MIN_LOADING_TIME - elapsed)
       return true
     }
@@ -84,7 +102,44 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     return true
   }, [doReveal])
 
+  // Start waiting for page to be ready
+  const startWaitingForReady = useCallback(() => {
+    cleanupTimers()
+    loadingStartTimeRef.current = Date.now()
+    revealTriggeredRef.current = false
+
+    // Note: We don't reset pageReadyRef here because child effects run before
+    // parent effects in React, so the page may have already signaled ready.
+    // pageReadyRef is reset in navigateWithTransition and startNavigation instead.
+
+    // If page already signaled ready (child effect ran first), handle immediately
+    if (pageReadyRef.current) {
+      const elapsed = Date.now() - loadingStartTimeRef.current
+      if (elapsed >= MIN_LOADING_TIME) {
+        doReveal()
+        return
+      }
+      // Wait for minimum loading time
+      fallbackTimeoutRef.current = setTimeout(doReveal, MIN_LOADING_TIME - elapsed)
+      return
+    }
+
+    // Check every 50ms if page is ready
+    readyCheckIntervalRef.current = setInterval(() => {
+      if (checkReadyAndReveal()) {
+        cleanupTimers()
+      }
+    }, 50)
+
+    // Fallback: reveal after max wait time
+    fallbackTimeoutRef.current = setTimeout(() => {
+      cleanupTimers()
+      doReveal()
+    }, MIN_LOADING_TIME + 3000)
+  }, [checkReadyAndReveal, doReveal, cleanupTimers])
+
   const navigateWithTransition = useCallback((href: string, onBeforeReveal?: () => void) => {
+    cleanupTimers()
     if (revealTimeoutRef.current) {
       clearTimeout(revealTimeoutRef.current)
       revealTimeoutRef.current = null
@@ -101,87 +156,50 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
 
     setTimeout(() => {
       if (isSamePage) {
-        // For same-page navigation with callback (like quality selector),
-        // call the callback first to trigger content change, then wait for ready
+        // For same-page navigation (like quality selector -> landing),
+        // call the callback first to trigger the content change
         if (onBeforeRevealRef.current) {
           onBeforeRevealRef.current()
           onBeforeRevealRef.current = null
         }
 
-        loadingStartTimeRef.current = Date.now()
-        pageReadyRef.current = false // Reset since content changed
         setOverlayState('loading')
-
-        // Wait for page to signal ready, same as other navigations
-        const interval = setInterval(() => {
-          if (checkReadyAndReveal()) clearInterval(interval)
-        }, 50)
-
-        // Fallback timeout
-        setTimeout(() => {
-          clearInterval(interval)
-          doReveal()
-        }, MIN_LOADING_TIME + 2000)
+        startWaitingForReady()
       } else {
         router.push(href)
       }
     }, NAVIGATION_DELAY)
-  }, [pathname, router, doReveal, checkReadyAndReveal])
+  }, [pathname, router, startWaitingForReady, cleanupTimers])
 
   // Initial page load - skip if mode is null (quality selector showing)
   useEffect(() => {
     if (mode === null || overlayState !== 'loading' || isNavigating) return
 
-    loadingStartTimeRef.current = Date.now()
+    startWaitingForReady()
 
-    const interval = setInterval(() => {
-      if (checkReadyAndReveal()) clearInterval(interval)
-    }, 50)
+    return () => cleanupTimers()
+  }, [mode, overlayState, isNavigating, startWaitingForReady, cleanupTimers])
 
-    const timeout = setTimeout(() => {
-      clearInterval(interval)
-      doReveal()
-    }, MIN_LOADING_TIME + 2000)
-
-    return () => {
-      clearInterval(interval)
-      clearTimeout(timeout)
-    }
-  }, [mode, overlayState, isNavigating, doReveal, checkReadyAndReveal])
-
-  // Handle navigation completion
+  // Handle navigation completion (when pathname changes after router.push)
   useEffect(() => {
     if (!isNavigating || pathname === prevPathname.current) return
 
     prevPathname.current = pathname
     pendingHref.current = null
-    pageReadyRef.current = false
-    loadingStartTimeRef.current = Date.now()
 
-    const stateTimer = setTimeout(() => setOverlayState('loading'), 0)
+    setOverlayState('loading')
+    startWaitingForReady()
 
-    const interval = setInterval(() => {
-      if (checkReadyAndReveal()) clearInterval(interval)
-    }, 50)
-
-    const timeout = setTimeout(() => {
-      clearInterval(interval)
-      doReveal()
-    }, MIN_LOADING_TIME + 2000)
-
-    return () => {
-      clearTimeout(stateTimer)
-      clearInterval(interval)
-      clearTimeout(timeout)
-    }
-  }, [pathname, isNavigating, doReveal, checkReadyAndReveal])
+    return () => cleanupTimers()
+  }, [pathname, isNavigating, startWaitingForReady, cleanupTimers])
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      cleanupTimers()
       if (revealTimeoutRef.current) clearTimeout(revealTimeoutRef.current)
     }
-  }, [])
+  }, [cleanupTimers])
 
   // Trigger SVG animations
   useEffect(() => {
@@ -195,6 +213,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   const startNavigation = useCallback((href: string) => {
     if (isNavigating || href === pathname) return
 
+    cleanupTimers()
     if (revealTimeoutRef.current) {
       clearTimeout(revealTimeoutRef.current)
       revealTimeoutRef.current = null
@@ -207,7 +226,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     setOverlayState('covering')
 
     setTimeout(() => router.push(href), NAVIGATION_DELAY)
-  }, [isNavigating, pathname, router])
+  }, [isNavigating, pathname, router, cleanupTimers])
 
   // Global link click interceptor
   useEffect(() => {
@@ -235,6 +254,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     <TransitionContext.Provider value={{ transitionStage: overlayState, signalReady, isRevealed, triggerCover, navigateWithTransition }}>
       {children}
 
+      {/* Loading overlay - solid white with loading animation */}
       {overlayState === 'loading' && (
         <div className="fixed inset-0 z-[9999] pointer-events-none">
           <div className="relative w-full h-full">
@@ -244,12 +264,14 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
+      {/* Cover animation overlay */}
       {overlayState === 'covering' && (
         <div className="fixed inset-0 z-[9999] pointer-events-none">
           <InkMaskSvg svgRef={coverSvgRef} maskType="cover" />
         </div>
       )}
 
+      {/* Reveal animation overlay */}
       {overlayState === 'revealing' && (
         <div className="fixed inset-0 z-[9999] pointer-events-none">
           <InkMaskSvg svgRef={revealSvgRef} maskType="reveal" />
