@@ -24,6 +24,19 @@ export function ModeSelector() {
   const paperClip1Ref = useRef<HTMLDivElement>(null)
   const paperClip2Ref = useRef<HTMLDivElement>(null)
   const paperClip3Ref = useRef<HTMLDivElement>(null)
+  const isSelectingRef = useRef(false)
+  const exitTimelineRef = useRef<gsap.core.Timeline | null>(null)
+
+  // Reset selection state when mode becomes null (user can select again)
+  useEffect(() => {
+    if (mode === null) {
+      isSelectingRef.current = false
+      if (exitTimelineRef.current) {
+        exitTimelineRef.current.kill()
+        exitTimelineRef.current = null
+      }
+    }
+  }, [mode])
 
   useEffect(() => {
     if (mode !== null) return
@@ -108,6 +121,15 @@ export function ModeSelector() {
   }, [mode])
 
   const handleModeSelect = (selectedMode: 'high' | 'low') => {
+    // Prevent multiple clicks from triggering multiple transitions
+    if (isSelectingRef.current) return
+    isSelectingRef.current = true
+
+    // Kill any existing timeline
+    if (exitTimelineRef.current) {
+      exitTimelineRef.current.kill()
+    }
+
     const exitTl = gsap.timeline({
       onComplete: () => {
         // Start transition, set mode just before reveal so landing content
@@ -117,6 +139,8 @@ export function ModeSelector() {
         })
       }
     })
+
+    exitTimelineRef.current = exitTl
 
     // All elements exit at once
     exitTl.to([titleRef.current, subtitleRef.current], {
