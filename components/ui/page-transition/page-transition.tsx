@@ -71,6 +71,19 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     setOverlayState('covering')
   }, [])
 
+  const checkReadyAndReveal = useCallback(() => {
+    if (!pageReadyRef.current) return false
+
+    const elapsed = Date.now() - loadingStartTimeRef.current
+    if (elapsed < MIN_LOADING_TIME) {
+      setTimeout(doReveal, MIN_LOADING_TIME - elapsed)
+      return true
+    }
+
+    doReveal()
+    return true
+  }, [doReveal])
+
   const navigateWithTransition = useCallback((href: string, onBeforeReveal?: () => void) => {
     if (revealTimeoutRef.current) {
       clearTimeout(revealTimeoutRef.current)
@@ -88,31 +101,32 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
 
     setTimeout(() => {
       if (isSamePage) {
+        // For same-page navigation with callback (like quality selector),
+        // call the callback first to trigger content change, then wait for ready
+        if (onBeforeRevealRef.current) {
+          onBeforeRevealRef.current()
+          onBeforeRevealRef.current = null
+        }
+
         loadingStartTimeRef.current = Date.now()
+        pageReadyRef.current = false // Reset since content changed
         setOverlayState('loading')
 
+        // Wait for page to signal ready, same as other navigations
+        const interval = setInterval(() => {
+          if (checkReadyAndReveal()) clearInterval(interval)
+        }, 50)
+
+        // Fallback timeout
         setTimeout(() => {
-          pageReadyRef.current = true
+          clearInterval(interval)
           doReveal()
-        }, MIN_LOADING_TIME)
+        }, MIN_LOADING_TIME + 2000)
       } else {
         router.push(href)
       }
     }, NAVIGATION_DELAY)
-  }, [pathname, router, doReveal])
-
-  const checkReadyAndReveal = useCallback(() => {
-    if (!pageReadyRef.current) return false
-
-    const elapsed = Date.now() - loadingStartTimeRef.current
-    if (elapsed < MIN_LOADING_TIME) {
-      setTimeout(doReveal, MIN_LOADING_TIME - elapsed)
-      return true
-    }
-
-    doReveal()
-    return true
-  }, [doReveal])
+  }, [pathname, router, doReveal, checkReadyAndReveal])
 
   // Initial page load - skip if mode is null (quality selector showing)
   useEffect(() => {
