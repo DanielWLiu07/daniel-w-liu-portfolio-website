@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { triggerSvgAnimations } from '@/lib/svg-utils'
@@ -201,14 +201,31 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     }
   }, [cleanupTimers])
 
-  // Trigger SVG animations
-  useEffect(() => {
-    if (overlayState === 'covering') triggerSvgAnimations(coverSvgRef.current)
-  }, [overlayState])
+  // Trigger SVG animations with retry to ensure they always play
+  // useLayoutEffect runs synchronously after DOM mutations, before paint
+  const triggerAnimationWithRetry = useCallback((svgRef: React.RefObject<SVGSVGElement | null>) => {
+    const tryTrigger = (attempts: number) => {
+      if (svgRef.current) {
+        triggerSvgAnimations(svgRef.current)
+      } else if (attempts < 5) {
+        // Retry with requestAnimationFrame if ref not ready
+        requestAnimationFrame(() => tryTrigger(attempts + 1))
+      }
+    }
+    tryTrigger(0)
+  }, [])
 
-  useEffect(() => {
-    if (overlayState === 'revealing') triggerSvgAnimations(revealSvgRef.current)
-  }, [overlayState])
+  useLayoutEffect(() => {
+    if (overlayState === 'covering') {
+      triggerAnimationWithRetry(coverSvgRef)
+    }
+  }, [overlayState, triggerAnimationWithRetry])
+
+  useLayoutEffect(() => {
+    if (overlayState === 'revealing') {
+      triggerAnimationWithRetry(revealSvgRef)
+    }
+  }, [overlayState, triggerAnimationWithRetry])
 
   const startNavigation = useCallback((href: string) => {
     if (isNavigating || href === pathname) return
