@@ -1,5 +1,5 @@
 import { memo } from 'react'
-import { socialLinksData } from './social-links-data'
+import { socialLinksData } from '@/data/social-links'
 
 interface SocialLinksProps {
   variant?: 'white' | 'black'

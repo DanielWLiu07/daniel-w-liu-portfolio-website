@@ -1,5 +1,5 @@
 import { memo } from 'react'
-import { socialLinksData } from '@/components/ui/social-links-data'
+import { socialLinksData } from '@/data/social-links'
 
 export const SocialLinks = memo(function SocialLinks() {
   return (

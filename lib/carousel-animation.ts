@@ -1,4 +1,4 @@
-import { animationConstants } from './project-data'
+import { animationConstants } from '@/data/projects'
 
 const { WHEEL_ACCEL, FRICTION, MAX_VELOCITY, AUTO_SCROLL_VELOCITY, MIN_SCROLL_THRESHOLD } = animationConstants
 

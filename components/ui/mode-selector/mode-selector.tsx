@@ -6,7 +6,7 @@ import Image from 'next/image'
 import { useEffect, useRef } from 'react'
 import gsap from 'gsap'
 import { frederickaFont } from '@/lib/fonts'
-import { SocialLinks, HelperText } from './mode-selector/index'
+import { SocialLinks, HelperText } from './index'
 
 export function ModeSelector() {
   const { mode, setMode } = usePerformanceMode()

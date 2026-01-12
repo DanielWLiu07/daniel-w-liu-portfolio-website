@@ -1,7 +1,7 @@
 import { ModalCloseButton } from './modal-close-button'
 import { ModalTechBadge } from './modal-tech-badge'
 import { ModalActionLinks } from './modal-action-links'
-import { MODAL_ANIMATIONS } from './project-modal-styles'
+import { MODAL_ANIMATIONS } from '@/lib/project-modal-styles'
 
 interface ProjectModalProps {
   project: {

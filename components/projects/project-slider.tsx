@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
-import { projects, sceneOptions } from './project-data'
-import { getPlaneWidth, createCardGeometry, createCardMaterial } from './carousel-helpers'
-import { handleWheelScroll, updateScrollVelocity } from './carousel-animation'
+import { projects, sceneOptions } from '@/data/projects'
+import { getPlaneWidth, createCardGeometry, createCardMaterial } from '@/lib/carousel-helpers'
+import { handleWheelScroll, updateScrollVelocity } from '@/lib/carousel-animation'
 
 interface ProjectSliderProps {
   isPaused: boolean
