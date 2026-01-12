@@ -76,9 +76,9 @@ export default function Resume() {
     signalReady()
   }, [signalReady])
 
-  // Start video on reveal
+  // Start video on reveal or on direct load (hidden)
   useEffect(() => {
-    if (isLowPerformance || transitionStage !== 'revealing' || videoStartedRef.current) return
+    if (isLowPerformance || (transitionStage !== 'revealing' && transitionStage !== 'hidden') || videoStartedRef.current) return
     videoStartedRef.current = true
     videoRef.current?.play()
   }, [isLowPerformance, transitionStage])
