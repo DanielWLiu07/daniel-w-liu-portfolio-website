@@ -40,11 +40,10 @@ export default function Home() {
   const handleAssetLoad = useCallback(() => {
     if (loadedCalledRef.current) return
     loadedCalledRef.current = true
+    // Set states BEFORE signaling ready so content is visible when PageTransition reveals
+    setAnimationsReady(true)
+    setIsLoaded(true)
     signalReady()
-    setTimeout(() => {
-      setAnimationsReady(true)
-      setIsLoaded(true)
-    }, 50)
   }, [signalReady])
 
   const showImmediately = isLowPerformance && mode !== null
