@@ -34,8 +34,10 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   const onBeforeRevealRef = useRef<(() => void) | null>(null)
   const readyCheckIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const fallbackTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const navigationTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const transitionIdRef = useRef(0) // Unique ID for each transition to prevent stale callbacks
 
-  // Cleanup helper
+  // Cleanup helper - clears ALL pending timers
   const cleanupTimers = useCallback(() => {
     if (readyCheckIntervalRef.current) {
       clearInterval(readyCheckIntervalRef.current)
@@ -45,27 +47,38 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
       clearTimeout(fallbackTimeoutRef.current)
       fallbackTimeoutRef.current = null
     }
+    if (navigationTimeoutRef.current) {
+      clearTimeout(navigationTimeoutRef.current)
+      navigationTimeoutRef.current = null
+    }
   }, [])
 
   const doReveal = useCallback(() => {
+    // Guard against multiple reveals in the same transition
     if (revealTriggeredRef.current) return
     revealTriggeredRef.current = true
 
+    // Clean up any pending timers
     cleanupTimers()
 
     if (revealTimeoutRef.current) {
       clearTimeout(revealTimeoutRef.current)
+      revealTimeoutRef.current = null
     }
 
     // Call the before reveal callback if set (for same-page navigation)
+    // NOTE: This should have already been called in navigateWithTransition
+    // but we keep it here as a fallback
     if (onBeforeRevealRef.current) {
       onBeforeRevealRef.current()
       onBeforeRevealRef.current = null
     }
 
+    // CRITICAL: Set to 'revealing' state - this MUST show the reveal animation
     setOverlayState('revealing')
     setIsNavigating(false)
 
+    // After the reveal animation duration, hide the overlay
     revealTimeoutRef.current = setTimeout(() => {
       setOverlayState('hidden')
       revealTimeoutRef.current = null
@@ -139,11 +152,15 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   }, [checkReadyAndReveal, doReveal, cleanupTimers])
 
   const navigateWithTransition = useCallback((href: string, onBeforeReveal?: () => void) => {
+    // Cancel any pending navigation/timers from previous calls
     cleanupTimers()
     if (revealTimeoutRef.current) {
       clearTimeout(revealTimeoutRef.current)
       revealTimeoutRef.current = null
     }
+
+    // Increment transition ID to invalidate any stale callbacks
+    const currentTransitionId = ++transitionIdRef.current
 
     onBeforeRevealRef.current = onBeforeReveal || null
 
@@ -154,16 +171,26 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
 
     const isSamePage = href === pathname
 
-    setTimeout(() => {
+    navigationTimeoutRef.current = setTimeout(() => {
+      // Check if this is still the current transition (not cancelled by another)
+      if (transitionIdRef.current !== currentTransitionId) return
+
       if (isSamePage) {
-        // For same-page navigation (like quality selector -> landing),
-        // call the callback first to trigger the content change
+        // IMPORTANT: Set overlay to loading FIRST, then call callback
+        // This ensures we're ready to receive signalReady() from the page
+        setOverlayState('loading')
+
+        // Reset ready state before calling callback
+        pageReadyRef.current = false
+        revealTriggeredRef.current = false
+
+        // Now call the callback to trigger content change (e.g., setMode)
         if (onBeforeRevealRef.current) {
           onBeforeRevealRef.current()
           onBeforeRevealRef.current = null
         }
 
-        setOverlayState('loading')
+        // Start waiting for the page to signal ready
         startWaitingForReady()
       } else {
         router.push(href)
@@ -197,21 +224,36 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     return () => {
       cleanupTimers()
-      if (revealTimeoutRef.current) clearTimeout(revealTimeoutRef.current)
+      if (revealTimeoutRef.current) {
+        clearTimeout(revealTimeoutRef.current)
+        revealTimeoutRef.current = null
+      }
     }
   }, [cleanupTimers])
 
-  // Trigger SVG animations with retry to ensure they always play
+  // Trigger SVG animations with aggressive retry to ensure they ALWAYS play
   // useLayoutEffect runs synchronously after DOM mutations, before paint
   const triggerAnimationWithRetry = useCallback((svgRef: React.RefObject<SVGSVGElement | null>) => {
     const tryTrigger = (attempts: number) => {
       if (svgRef.current) {
         triggerSvgAnimations(svgRef.current)
-      } else if (attempts < 5) {
+        return
+      }
+
+      if (attempts < 10) {
         // Retry with requestAnimationFrame if ref not ready
         requestAnimationFrame(() => tryTrigger(attempts + 1))
+      } else {
+        // Last resort: try with setTimeout
+        setTimeout(() => {
+          if (svgRef.current) {
+            triggerSvgAnimations(svgRef.current)
+          }
+        }, 50)
       }
     }
+
+    // Start trying immediately
     tryTrigger(0)
   }, [])
 
@@ -230,11 +272,15 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   const startNavigation = useCallback((href: string) => {
     if (isNavigating || href === pathname) return
 
+    // Cancel any pending navigation/timers
     cleanupTimers()
     if (revealTimeoutRef.current) {
       clearTimeout(revealTimeoutRef.current)
       revealTimeoutRef.current = null
     }
+
+    // Increment transition ID
+    const currentTransitionId = ++transitionIdRef.current
 
     setIsNavigating(true)
     pendingHref.current = href
@@ -242,7 +288,11 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     revealTriggeredRef.current = false
     setOverlayState('covering')
 
-    setTimeout(() => router.push(href), NAVIGATION_DELAY)
+    navigationTimeoutRef.current = setTimeout(() => {
+      // Check if this is still the current transition
+      if (transitionIdRef.current !== currentTransitionId) return
+      router.push(href)
+    }, NAVIGATION_DELAY)
   }, [isNavigating, pathname, router, cleanupTimers])
 
   // Global link click interceptor
