@@ -28,9 +28,9 @@ export function BackgroundVideo({ onReady }: BackgroundVideoProps) {
     onReady?.()
   }, [signalReady, onReady])
 
-  // Start video on reveal
+  // Start video on reveal or on direct load (hidden)
   useEffect(() => {
-    if (isLowPerformance || transitionStage !== 'revealing' || videoStartedRef.current) return
+    if (isLowPerformance || (transitionStage !== 'revealing' && transitionStage !== 'hidden') || videoStartedRef.current) return
     videoStartedRef.current = true
     introRef.current?.play()
   }, [isLowPerformance, transitionStage])

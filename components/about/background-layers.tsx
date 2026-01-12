@@ -178,9 +178,9 @@ export const BackgroundLayers = memo(function BackgroundLayers() {
     signalReady()
   }, [signalReady])
 
-  // Start animations when reveal begins
+  // Start animations when reveal begins or on direct load (hidden)
   useEffect(() => {
-    if (isLowPerformance || transitionStage !== 'revealing' || animationsStartedRef.current) return
+    if (isLowPerformance || (transitionStage !== 'revealing' && transitionStage !== 'hidden') || animationsStartedRef.current) return
     animationsStartedRef.current = true
 
     rightColourRef.current?.play()

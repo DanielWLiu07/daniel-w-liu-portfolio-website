@@ -26,9 +26,9 @@ export default function IntroVideo({ onEnded, onFlashStart }: IntroVideoProps) {
     signalReady()
   }, [signalReady])
 
-  // Start video when reveal begins
+  // Start video when reveal begins or on direct load (hidden)
   useEffect(() => {
-    if (isLowPerformance || transitionStage !== 'revealing' || videoStartedRef.current) return
+    if (isLowPerformance || (transitionStage !== 'revealing' && transitionStage !== 'hidden') || videoStartedRef.current) return
     videoStartedRef.current = true
     videoRef.current?.play()
   }, [isLowPerformance, transitionStage])

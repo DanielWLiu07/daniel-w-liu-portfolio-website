@@ -1,13 +1,11 @@
 "use client";
 
-import { useEffect } from 'react';
 import localFont from 'next/font/local';
 import { TechStack } from "@/components/about/tech-stack";
 import { BackgroundLayers } from "@/components/about/background-layers";
 import { MobileBackground } from "@/components/about/mobile-background";
 import { SocialLinksImages } from "@/components/about/social-links-images";
 import { useBodyOverflow } from "@/hooks/use-body-overflow";
-import { useTransitionState } from "@/components/ui/page-transition";
 import Image from 'next/image';
 
 const mochi = localFont({
@@ -27,14 +25,9 @@ const INFO_ITEMS = [
 ];
 
 export default function About() {
-  const { signalReady } = useTransitionState();
-
   useBodyOverflow('auto');
 
-  // Signal ready immediately - this page has no heavy assets to load
-  useEffect(() => {
-    signalReady();
-  }, [signalReady]);
+  // BackgroundLayers signals ready when videos are loaded
 
   return (
     <div className="relative w-full min-h-screen max-h-screen md:max-h-none overflow-y-auto md:overflow-visible">

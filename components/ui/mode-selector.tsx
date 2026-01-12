@@ -10,7 +10,7 @@ import { SocialLinks, HelperText } from './mode-selector/index'
 
 export function ModeSelector() {
   const { mode, setMode } = usePerformanceMode()
-  const { navigateWithTransition } = useTransitionState()
+  const { navigateWithTransition, transitionStage } = useTransitionState()
 
   const titleRef = useRef<HTMLDivElement>(null)
   const subtitleRef = useRef<HTMLParagraphElement>(null)
