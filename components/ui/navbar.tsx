@@ -39,7 +39,7 @@ export default function Navbar(){
     const isQualitySelector = mode === null && pathname === '/';
     const isHidden = transitionStage === 'covering' || transitionStage === 'loading' || isQualitySelector;
 
-    const baseLinkClass = "text-gray-900 hover:bg-gray-100 block select-none rounded-[4px] px-2 md:px-3 py-2 mx-0.5 text-[13px] md:text-[15px] font-medium leading-none no-underline outline-none transition-colors duration-200";
+    const baseLinkClass = "text-gray-900 hover:bg-gray-100 block select-none rounded-[4px] px-2 md:px-3 py-2 mx-0.5 text-[11px] min-[431px]:text-[13px] md:text-[15px] font-medium leading-none no-underline outline-none transition-colors duration-200";
     const activeClass = "bg-gray-100";
 
     const getLinkClass = (href: string) => {
