@@ -7,6 +7,7 @@ import { MobileBackground } from "@/components/about/mobile-background";
 import { SocialLinksImages } from "@/components/about/social-links-images";
 import { useBodyOverflow } from "@/hooks/use-body-overflow";
 import Image from 'next/image';
+import { useRef, useState, useEffect } from 'react';
 
 const mochi = localFont({
   src: '../../public/fonts/MochibopBold-Demo.ttf',
@@ -27,17 +28,49 @@ const INFO_ITEMS = [
 export default function About() {
   useBodyOverflow('auto');
 
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [scrollHeight, setScrollHeight] = useState(300);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const updateHeight = () => {
+      const mobile = window.innerWidth < 1038;
+      setIsMobile(mobile);
+
+      if (contentRef.current && mobile) {
+        const contentHeight = contentRef.current.scrollHeight;
+        const viewportHeight = window.innerHeight;
+        // Calculate how many viewport heights we need (minimum 200vh)
+        const neededVh = Math.max(200, Math.ceil((contentHeight / viewportHeight) * 100));
+        setScrollHeight(neededVh);
+      } else {
+        setScrollHeight(300); // Default for desktop
+      }
+    };
+
+    updateHeight();
+    window.addEventListener('resize', updateHeight);
+    // Also update after fonts load
+    setTimeout(updateHeight, 100);
+
+    return () => window.removeEventListener('resize', updateHeight);
+  }, []);
+
   // BackgroundLayers signals ready when videos are loaded
 
   return (
-    <div className="relative w-full min-h-screen max-h-screen md:max-h-none overflow-y-auto md:overflow-visible">
+    <div className="relative w-full max-h-screen min-[1038px]:max-h-none overflow-y-auto overflow-x-hidden min-[1038px]:overflow-visible overscroll-y-none overscroll-x-none">
       <BackgroundLayers />
-      <MobileBackground />
+      <MobileBackground scrollHeight={scrollHeight} />
 
-      <div className="relative z-10 flex flex-col md:flex-row md:justify-end min-h-screen -mt-[300vh] md:mt-0">
-        <div className={`w-[95%] mx-auto md:mx-0 md:w-1/2 px-2 md:pl-4 pb-5 flex flex-col justify-start md:min-h-0 pt-8 overflow-visible ${katieRoze.className}`}>
+      <div
+        ref={contentRef}
+        className="relative z-[20] flex flex-col min-[1038px]:flex-row min-[1038px]:justify-end min-[1038px]:min-h-screen min-[1038px]:mt-0"
+        style={{ marginTop: isMobile ? `calc(-${scrollHeight}vh - 4rem)` : '0' }}
+      >
+        <div className={`w-[95%] mx-auto min-[1038px]:mx-0 min-[1038px]:w-1/2 px-2 min-[1038px]:pl-4 pb-0 flex flex-col justify-start min-[1038px]:min-h-0 pt-8 overflow-visible ${katieRoze.className}`}>
           <div className="bg-white/60 xl:bg-transparent p-3 xl:p-0 rounded-lg xl:rounded-none">
-            <div className="overflow-visible -space-y-6 md:-space-y-8 max-w-sm md:max-w-none">
+            <div className="overflow-visible -space-y-6 min-[1038px]:-space-y-8 max-w-sm min-[1038px]:max-w-none">
               <h1 className="text-8xl lg:text-9xl font-black bg-gradient-to-r from-purple-700 via-pink-700 to-blue-700 bg-clip-text text-transparent drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)] leading-32 py-2 whitespace-nowrap">
                 Daniel W Liu
               </h1>
@@ -46,9 +79,9 @@ export default function About() {
               </p>
             </div>
 
-            <div className="pl-3 md:pl-2 text-black text-xl md:text-3xl drop-shadow-[0_1px_2px_rgba(0,0,0,0.2)] max-w-sm md:max-w-none mt-2">
+            <div className="pl-3 min-[1038px]:pl-2 text-black text-xl min-[1038px]:text-3xl drop-shadow-[0_1px_2px_rgba(0,0,0,0.2)] max-w-sm min-[1038px]:max-w-none mt-2">
               {INFO_ITEMS.map((info, index) => (
-                <p key={index} className={`text-2xl md:text-3xl md:max-w-lg text-stroke-white-xs ${mochi.className}`}>
+                <p key={index} className={`text-2xl min-[1038px]:text-3xl min-[1038px]:max-w-lg text-stroke-white-xs ${mochi.className}`}>
                   {info}
                 </p>
               ))}
@@ -57,13 +90,13 @@ export default function About() {
             <TechStack />
           </div>
 
-          <div className="flex flex-col mt-5 -ml-50 md:-ml-50">
+          <div className="flex flex-col mt-5 mb-0 items-center min-[1038px]:items-start -ml-0 min-[1038px]:-ml-50 overflow-visible">
             <Image
               src="/about/images/cat3.png"
               alt="Cat"
               width={650}
               height={150}
-              className="object-contain min-w-[650px]"
+              className="w-[600px] min-w-[600px] max-w-[600px] flex-shrink-0 min-[1038px]:w-auto min-[1038px]:min-w-[650px] min-[1038px]:max-w-none mb-0"
             />
           </div>
         </div>

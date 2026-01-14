@@ -21,7 +21,7 @@ function WaterColourMaskSvg({
       width="100%"
       height="100%"
       xmlns="http://www.w3.org/2000/svg"
-      className="hidden md:block fixed inset-0 z-0 about-svg-mask"
+      className="hidden min-[1038px]:block fixed inset-0 z-0 about-svg-mask"
     >
       <defs>
         <filter id="waterColourFilter">
@@ -66,7 +66,7 @@ function RightGraphicsMaskSvg({
       width="100%"
       height="100%"
       xmlns="http://www.w3.org/2000/svg"
-      className="hidden md:block fixed inset-0 z-[5] about-svg-mask"
+      className="hidden min-[1038px]:block fixed inset-0 z-[5] about-svg-mask"
     >
       <defs>
         <filter id="aboutBgFilter">
@@ -99,7 +99,7 @@ function SafariWaterColourMask({
   safariAnimating: boolean
 }) {
   return (
-    <div className={`hidden md:block fixed inset-0 z-0 about-safari-fallback about-safari-reveal ${safariAnimating ? 'animating' : ''}`}>
+    <div className={`hidden min-[1038px]:block fixed inset-0 z-0 about-safari-fallback about-safari-reveal ${safariAnimating ? 'animating' : ''}`}>
       <video
         ref={waterColourRef}
         muted
@@ -120,7 +120,7 @@ function SafariRightGraphicsMask({
   safariAnimating: boolean
 }) {
   return (
-    <div className={`hidden md:block fixed inset-0 z-[5] about-safari-fallback about-safari-reveal ${safariAnimating ? 'animating' : ''}`}>
+    <div className={`hidden min-[1038px]:block fixed inset-0 z-[5] about-safari-fallback about-safari-reveal ${safariAnimating ? 'animating' : ''}`}>
       <Image src="/about/images/right_graphics.png" alt="" fill className="object-cover object-right-top" priority />
     </div>
   )
@@ -138,7 +138,7 @@ function SparkleVideo({
   onSparkleEnd: () => void
 }) {
   return (
-    <div className="hidden md:block fixed inset-0 z-10">
+    <div className="hidden min-[1038px]:block fixed inset-0 z-10">
       <video
         ref={sparkleRef}
         muted
@@ -168,7 +168,7 @@ function SparkleVideo({
 function LowPerformanceBackgrounds() {
   return (
     <>
-      <div className="hidden md:block fixed inset-0 z-[3]">
+      <div className="hidden min-[1038px]:block fixed inset-0 z-[3]">
         <Image
           src="/animation_frames/watercolour_sequences/colour_vid/render_compositing_080.png"
           alt=""
@@ -176,7 +176,7 @@ function LowPerformanceBackgrounds() {
           className="object-cover"
         />
       </div>
-      <div className="hidden md:block fixed inset-0 z-0">
+      <div className="hidden min-[1038px]:block fixed inset-0 z-0">
         <Image
           src="/animation_frames/watercolour_sequences/portrait_vid/render_compositing_080.png"
           alt=""
@@ -184,10 +184,10 @@ function LowPerformanceBackgrounds() {
           className="object-cover object-bottom"
         />
       </div>
-      <div className="hidden md:block fixed inset-0 z-[5]">
+      <div className="hidden min-[1038px]:block fixed inset-0 z-[5]">
         <Image src="/about/images/right_graphics.png" alt="" fill className="object-cover object-right-top" />
       </div>
-      <div className="hidden md:block fixed inset-0 z-10">
+      <div className="hidden min-[1038px]:block fixed inset-0 z-10">
         <Image
           src="/animation_frames/watercolour_sequences/sparkle_loop_vid/render_compositing_250.png"
           alt=""
@@ -294,7 +294,7 @@ export const BackgroundLayers = memo(function BackgroundLayers() {
 
   return (
     <>
-      <div className="hidden md:block fixed inset-0 z-0">
+      <div className="hidden min-[1038px]:block fixed inset-0 z-0">
         <Image src="/about/images/bg.png" alt="" fill className="object-cover" priority />
       </div>
 
@@ -309,7 +309,7 @@ export const BackgroundLayers = memo(function BackgroundLayers() {
           <SafariWaterColourMask waterColourRef={waterColourSafariRef} safariAnimating={safariAnimating} />
 
           {/* Right colour video (always visible, no mask) at z-[3] */}
-          <div className="hidden md:block fixed inset-0 z-[3]">
+          <div className="hidden min-[1038px]:block fixed inset-0 z-[3]">
             <video
               ref={rightColourRef}
               muted
