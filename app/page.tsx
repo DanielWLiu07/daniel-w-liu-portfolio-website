@@ -18,18 +18,52 @@ export default function Home() {
   const [introAnimationsStarted, setIntroAnimationsStarted] = useState(false)
 
   const rootRef = useRef<HTMLDivElement>(null)
-  const svgMaskRef = useRef<SVGAnimateElement>(null)
   const compositeVideoRef = useRef<HTMLVideoElement>(null)
   const treeRightRef = useRef<HTMLVideoElement>(null)
   const treeLeftRef = useRef<HTMLVideoElement>(null)
+  const bgPanContainerRef = useRef<HTMLDivElement>(null)
   const signalledReadyRef = useRef(false)
   const introGsapContextRef = useRef<gsap.Context | null>(null)
 
   const { mode, isLowPerformance } = usePerformanceMode()
   const isMobile = useMobile(768)
+  const isSmallMobile = useMobile(431)
   const { signalReady, transitionStage } = useTransitionState()
 
   useBodyOverflow('hidden')
+
+  // Auto-pan background on small mobile screens
+  useEffect(() => {
+    if (!isSmallMobile || !bgPanContainerRef.current || mode === null) return
+
+    const timeline = gsap.timeline({ repeat: -1 })
+    // Start from center (offset by -14% to center the 150% wide container)
+    timeline.set(bgPanContainerRef.current, { x: '-14%' })
+    timeline.to(bgPanContainerRef.current, {
+      x: '-24%',
+      duration: 4,
+      ease: 'power1.inOut'
+    })
+    timeline.to(bgPanContainerRef.current, {
+      x: '-14%',
+      duration: 4,
+      ease: 'power1.inOut'
+    })
+    timeline.to(bgPanContainerRef.current, {
+      x: '-4%',
+      duration: 4,
+      ease: 'power1.inOut'
+    })
+    timeline.to(bgPanContainerRef.current, {
+      x: '-14%',
+      duration: 4,
+      ease: 'power1.inOut'
+    })
+
+    return () => {
+      timeline.kill()
+    }
+  }, [isSmallMobile, mode])
 
   const maskWidth = isMobile ? '95%' : '87%'
   const maskX = isMobile ? '2.5%' : '6.5%'
@@ -107,11 +141,11 @@ export default function Home() {
     }
   }, [mode, isLowPerformance, doSignalReady])
 
-  // Run intro animations when reveal starts
+  // Run intro animations when reveal starts or on direct load (hidden)
   useEffect(() => {
     if (mode === null) return
     if (introAnimationsStarted) return
-    if (transitionStage !== 'revealing') return
+    if (transitionStage !== 'revealing' && transitionStage !== 'hidden') return
 
     setIntroAnimationsStarted(true)
 
@@ -146,16 +180,7 @@ export default function Home() {
     }
   }, [])
 
-  // Trigger SVG mask animation
-  useEffect(() => {
-    if (!startMaskAnimation) return
-    setTimeout(() => {
-      svgMaskRef.current?.beginElement()
-      document.querySelectorAll('#bgMask animate').forEach((anim) => {
-        (anim as SVGAnimateElement).beginElement()
-      })
-    }, 0)
-  }, [startMaskAnimation])
+  // SVG mask animation now handled by requestAnimationFrame in InkMaskSvg component
 
   const showImmediately = isLowPerformance && mode !== null
   const shouldRenderLandingContent = mode !== null
@@ -179,16 +204,25 @@ export default function Home() {
             </div>
 
             {/* Background with video/image */}
-            <div className="absolute inset-0 w-full h-full overflow-hidden">
-              <Image src="/landing/images/painted_bg.png" alt="" fill className="object-cover" priority />
-              {isLowPerformance ? (
-                <Image src="/animation_frames/landing/composed_bg/composed_bg0300.png" alt="" fill className="absolute inset-0 object-cover" />
-              ) : (
-                <video ref={compositeVideoRef} src="/landing/videos/landing_composite_24fps.webm" autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" preload="auto" />
-              )}
+            <div className="absolute inset-0 w-full h-full overflow-visible">
+              <div
+                ref={bgPanContainerRef}
+                className="relative h-full"
+                style={{ width: isSmallMobile ? '150%' : '100%' }}
+              >
+                <Image src="/landing/images/painted_bg.png" alt="" fill className="object-cover" priority />
+                {isLowPerformance ? (
+                  <Image src="/animation_frames/landing/composed_bg/composed_bg0300.png" alt="" fill className="absolute inset-0 object-cover" />
+                ) : (
+                  <video ref={compositeVideoRef} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" preload="auto">
+                    <source src="/landing/videos/landing_composite_24fps.mov" type='video/mp4; codecs="hvc1"' />
+                    <source src="/landing/videos/landing_composite_24fps.webm" type="video/webm" />
+                  </video>
+                )}
+              </div>
             </div>
 
-            <InkMaskSvg svgMaskRef={svgMaskRef} maskX={maskX} maskWidth={maskWidth} />
+            <InkMaskSvg maskX={maskX} maskWidth={maskWidth} startMaskAnimation={startMaskAnimation} />
             <NameDisplay showImmediately={showImmediately} />
             <TreeOverlays isLowPerformance={isLowPerformance} treeRightRef={treeRightRef} treeLeftRef={treeLeftRef} />
             <SocialLinks variant="black" className="social-links" />
