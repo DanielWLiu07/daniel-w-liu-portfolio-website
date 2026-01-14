@@ -26,7 +26,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link
           rel="preload"
@@ -34,6 +34,17 @@ export default function RootLayout({
           as="font"
           type="font/otf"
           crossOrigin="anonymous"
+        />
+        {/* Safari detection script - runs before render to prevent flash */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                var isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+                document.documentElement.classList.add(isSafari ? 'is-safari' : 'is-not-safari');
+              })();
+            `,
+          }}
         />
       </head>
       <body

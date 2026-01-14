@@ -21,7 +21,7 @@ function WaterColourMaskSvg({
       width="100%"
       height="100%"
       xmlns="http://www.w3.org/2000/svg"
-      className="hidden md:block fixed inset-0 z-0"
+      className="hidden md:block fixed inset-0 z-0 about-svg-mask"
     >
       <defs>
         <filter id="waterColourFilter">
@@ -41,12 +41,14 @@ function WaterColourMaskSvg({
         <div className="relative w-full h-full">
           <video
             ref={videoRef}
-            src="/about/videos/water_colour.webm"
             muted
             playsInline
             className="absolute inset-0 w-full h-full object-cover object-bottom"
             preload="auto"
-          />
+          >
+            <source src="/about/videos/water_colour.mov" type='video/mp4; codecs="hvc1"' />
+            <source src="/about/videos/water_colour.webm" type="video/webm" />
+          </video>
         </div>
       </foreignObject>
     </svg>
@@ -64,7 +66,7 @@ function RightGraphicsMaskSvg({
       width="100%"
       height="100%"
       xmlns="http://www.w3.org/2000/svg"
-      className="hidden md:block fixed inset-0 z-[5]"
+      className="hidden md:block fixed inset-0 z-[5] about-svg-mask"
     >
       <defs>
         <filter id="aboutBgFilter">
@@ -89,38 +91,76 @@ function RightGraphicsMaskSvg({
   )
 }
 
+function SafariWaterColourMask({
+  waterColourRef,
+  safariAnimating
+}: {
+  waterColourRef: React.RefObject<HTMLVideoElement | null>
+  safariAnimating: boolean
+}) {
+  return (
+    <div className={`hidden md:block fixed inset-0 z-0 about-safari-fallback about-safari-reveal ${safariAnimating ? 'animating' : ''}`}>
+      <video
+        ref={waterColourRef}
+        muted
+        playsInline
+        className="absolute inset-0 w-full h-full object-cover object-bottom"
+        preload="auto"
+      >
+        <source src="/about/videos/water_colour.mov" type='video/mp4; codecs="hvc1"' />
+        <source src="/about/videos/water_colour.webm" type="video/webm" />
+      </video>
+    </div>
+  )
+}
+
+function SafariRightGraphicsMask({
+  safariAnimating
+}: {
+  safariAnimating: boolean
+}) {
+  return (
+    <div className={`hidden md:block fixed inset-0 z-[5] about-safari-fallback about-safari-reveal ${safariAnimating ? 'animating' : ''}`}>
+      <Image src="/about/images/right_graphics.png" alt="" fill className="object-cover object-right-top" priority />
+    </div>
+  )
+}
+
 function SparkleVideo({
   sparkleRef,
-  sparkleDone,
+  loopRef,
+  showLoop,
   onSparkleEnd
 }: {
   sparkleRef: React.RefObject<HTMLVideoElement | null>
-  sparkleDone: boolean
+  loopRef: React.RefObject<HTMLVideoElement | null>
+  showLoop: boolean
   onSparkleEnd: () => void
 }) {
   return (
     <div className="hidden md:block fixed inset-0 z-10">
-      {!sparkleDone ? (
-        <video
-          ref={sparkleRef}
-          src="/about/videos/sparkle_being.webm"
-          muted
-          playsInline
-          onEnded={onSparkleEnd}
-          className="absolute inset-0 w-full h-full object-cover"
-          preload="auto"
-        />
-      ) : (
-        <video
-          src="/about/videos/sparkle_loop.webm?v=2"
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="absolute inset-0 w-full h-full object-cover"
-          preload="auto"
-        />
-      )}
+      <video
+        ref={sparkleRef}
+        muted
+        playsInline
+        onEnded={onSparkleEnd}
+        className={`absolute inset-0 w-full h-full object-cover ${showLoop ? 'hidden' : ''}`}
+        preload="auto"
+      >
+        <source src="/about/videos/sparkle_being.mov" type='video/mp4; codecs="hvc1"' />
+        <source src="/about/videos/sparkle_being.webm" type="video/webm" />
+      </video>
+      <video
+        ref={loopRef}
+        loop
+        muted
+        playsInline
+        className={`absolute inset-0 w-full h-full object-cover ${showLoop ? '' : 'hidden'}`}
+        preload="auto"
+      >
+        <source src="/about/videos/sparkle_loop.mov" type='video/mp4; codecs="hvc1"' />
+        <source src="/about/videos/sparkle_loop.webm?v=2" type="video/webm" />
+      </video>
     </div>
   )
 }
@@ -160,13 +200,16 @@ function LowPerformanceBackgrounds() {
 }
 
 export const BackgroundLayers = memo(function BackgroundLayers() {
-  const [sparkleDone, setSparkleDone] = useState(false)
+  const [showSparkleLoop, setShowSparkleLoop] = useState(false)
+  const [safariAnimating, setSafariAnimating] = useState(false)
   const { isLowPerformance } = usePerformanceMode()
   const { signalReady, transitionStage } = useTransitionState()
 
   const rightColourRef = useRef<HTMLVideoElement>(null)
   const waterColourRef = useRef<HTMLVideoElement>(null)
+  const waterColourSafariRef = useRef<HTMLVideoElement>(null)
   const sparkleRef = useRef<HTMLVideoElement>(null)
+  const sparkleLoopRef = useRef<HTMLVideoElement>(null)
   const waterColourSvgRef = useRef<SVGSVGElement>(null)
   const aboutBgSvgRef = useRef<SVGSVGElement>(null)
   const readyCalledRef = useRef(false)
@@ -183,6 +226,8 @@ export const BackgroundLayers = memo(function BackgroundLayers() {
     if (transitionStage === 'loading') {
       readyCalledRef.current = false
       animationsStartedRef.current = false
+      setSafariAnimating(false)
+      setShowSparkleLoop(false)
     }
   }, [transitionStage])
 
@@ -191,12 +236,24 @@ export const BackgroundLayers = memo(function BackgroundLayers() {
     if (isLowPerformance || (transitionStage !== 'revealing' && transitionStage !== 'hidden') || animationsStartedRef.current) return
     animationsStartedRef.current = true
 
+    // Play all videos (both Chrome SVG and Safari versions)
     rightColourRef.current?.play()
     waterColourRef.current?.play()
+    waterColourSafariRef.current?.play()
     sparkleRef.current?.play()
+
+    // Trigger SVG animations (Chrome/Firefox)
     triggerSvgAnimations(waterColourSvgRef.current)
     triggerSvgAnimations(aboutBgSvgRef.current)
+
+    // Trigger Safari CSS mask animation
+    setSafariAnimating(true)
   }, [isLowPerformance, transitionStage])
+
+  const handleSparkleIntroEnded = useCallback(() => {
+    setShowSparkleLoop(true)
+    sparkleLoopRef.current?.play()
+  }, [])
 
   // Low performance mode: signal ready immediately
   useEffect(() => {
@@ -245,21 +302,34 @@ export const BackgroundLayers = memo(function BackgroundLayers() {
         <LowPerformanceBackgrounds />
       ) : (
         <>
+          {/* Chrome/Firefox: SVG mask animations */}
           <WaterColourMaskSvg svgRef={waterColourSvgRef} videoRef={waterColourRef} />
 
+          {/* Safari: Watercolour with CSS mask at z-0 */}
+          <SafariWaterColourMask waterColourRef={waterColourSafariRef} safariAnimating={safariAnimating} />
+
+          {/* Right colour video (always visible, no mask) at z-[3] */}
           <div className="hidden md:block fixed inset-0 z-[3]">
             <video
               ref={rightColourRef}
-              src="/about/videos/right_colour.webm"
               muted
               playsInline
               className="absolute inset-0 w-full h-full object-cover"
               preload="auto"
-            />
+            >
+              <source src="/about/videos/right_colour.mov" type='video/mp4; codecs="hvc1"' />
+              <source src="/about/videos/right_colour.webm" type="video/webm" />
+            </video>
           </div>
 
+          {/* Chrome/Firefox: Right graphics SVG mask at z-[5] */}
           <RightGraphicsMaskSvg svgRef={aboutBgSvgRef} />
-          <SparkleVideo sparkleRef={sparkleRef} sparkleDone={sparkleDone} onSparkleEnd={() => setSparkleDone(true)} />
+
+          {/* Safari: Right graphics with CSS mask at z-[5] */}
+          <SafariRightGraphicsMask safariAnimating={safariAnimating} />
+
+          {/* Sparkles video (intro → loop) at z-10 */}
+          <SparkleVideo sparkleRef={sparkleRef} loopRef={sparkleLoopRef} showLoop={showSparkleLoop} onSparkleEnd={handleSparkleIntroEnded} />
         </>
       )}
     </>

@@ -42,25 +42,29 @@ export function TreeOverlays({ isLowPerformance, treeRightRef, treeLeftRef }: Tr
         <video
           ref={treeRightRef}
           className="tree-right absolute top-0 right-0 h-screen w-auto object-cover object-top will-change-transform"
-          src="/landing/videos/tree_right.webm"
           autoPlay
           loop
           muted
           playsInline
           preload="auto"
-        />
+        >
+          <source src="/landing/videos/tree_right.mov" type='video/mp4; codecs="hvc1"' />
+          <source src="/landing/videos/tree_right.webm" type="video/webm" />
+        </video>
       </div>
       <div className={`${baseClasses} z-[60]`}>
         <video
           ref={treeLeftRef}
           className="tree-left absolute top-0 left-0 h-screen w-auto object-cover object-top will-change-transform"
-          src="/landing/videos/tree_left.webm"
           autoPlay
           loop
           muted
           playsInline
           preload="auto"
-        />
+        >
+          <source src="/landing/videos/tree_left.mov" type='video/mp4; codecs="hvc1"' />
+          <source src="/landing/videos/tree_left.webm" type="video/webm" />
+        </video>
       </div>
     </>
   )

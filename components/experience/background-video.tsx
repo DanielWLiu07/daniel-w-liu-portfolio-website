@@ -97,22 +97,26 @@ export function BackgroundVideo({ onReady }: BackgroundVideoProps) {
     <>
       <video
         ref={introRef}
-        src="/experience/videos/anime_intro.webm?v=3"
         muted
         playsInline
         onEnded={handleIntroEnded}
         className={`absolute inset-0 w-full h-full object-cover ${showLoop ? 'hidden' : ''}`}
         preload="auto"
-      />
+      >
+        <source src="/experience/videos/anime_intro.mov" type='video/mp4; codecs="hvc1"' />
+        <source src="/experience/videos/anime_intro.webm?v=3" type="video/webm" />
+      </video>
       <video
         ref={loopRef}
-        src="/experience/videos/anime_style_bg.webm?v=5"
         loop
         muted
         playsInline
         className={`absolute inset-0 w-full h-full object-cover ${showLoop ? '' : 'hidden'}`}
         preload="auto"
-      />
+      >
+        <source src="/experience/videos/anime_style_bg.mov" type='video/mp4; codecs="hvc1"' />
+        <source src="/experience/videos/anime_style_bg.webm?v=5" type="video/webm" />
+      </video>
     </>
   )
 }

@@ -53,16 +53,28 @@ function HighPerformanceMobile() {
   return (
     <>
       <section className="md:hidden relative h-screen">
-        <video src="/about/videos/water_colour.webm" autoPlay muted playsInline className="absolute inset-0 w-full h-full object-cover object-[10%_100%] z-0" preload="none" />
+        <video autoPlay muted playsInline className="absolute inset-0 w-full h-full object-cover object-[10%_100%] z-0" preload="none">
+          <source src="/about/videos/water_colour.mov" type='video/mp4; codecs="hvc1"' />
+          <source src="/about/videos/water_colour.webm" type="video/webm" />
+        </video>
         {!sparkleDone ? (
-          <video src="/about/videos/sparkle_being.webm" autoPlay muted playsInline onEnded={() => setSparkleDone(true)} className="absolute inset-0 w-full h-full object-cover object-[10%_100%] z-10" preload="none" />
+          <video autoPlay muted playsInline onEnded={() => setSparkleDone(true)} className="absolute inset-0 w-full h-full object-cover object-[10%_100%] z-10" preload="none">
+            <source src="/about/videos/sparkle_being.mov" type='video/mp4; codecs="hvc1"' />
+            <source src="/about/videos/sparkle_being.webm" type="video/webm" />
+          </video>
         ) : (
-          <video src="/about/videos/sparkle_loop.webm?v=2" autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover object-[10%_100%] z-10" preload="none" />
+          <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover object-[10%_100%] z-10" preload="none">
+            <source src="/about/videos/sparkle_loop.mov" type='video/mp4; codecs="hvc1"' />
+            <source src="/about/videos/sparkle_loop.webm?v=2" type="video/webm" />
+          </video>
         )}
       </section>
       <section className="md:hidden relative h-[300vh]">
         <div className="sticky top-0 h-screen">
-          <video src="/about/videos/right_colour_phone.webm" autoPlay muted playsInline className="absolute inset-0 w-full h-full object-cover object-right" preload="none" />
+          <video autoPlay muted playsInline className="absolute inset-0 w-full h-full object-cover object-right" preload="none">
+            <source src="/about/videos/right_colour_phone.mov" type='video/mp4; codecs="hvc1"' />
+            <source src="/about/videos/right_colour_phone.webm" type="video/webm" />
+          </video>
           <MobileSvgMask />
         </div>
       </section>

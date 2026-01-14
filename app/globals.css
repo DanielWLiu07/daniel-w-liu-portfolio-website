@@ -207,3 +207,51 @@ div[data-nextjs-dialog-overlay],
 div[data-nextjs-toast] {
   display: none !important;
 }
+
+
+/* ============================================
+   About Page Safari Fallbacks - Additional
+   ============================================ */
+
+/* Shared expanding circle reveal for about page Safari fallbacks */
+.about-safari-reveal {
+  -webkit-mask-image: radial-gradient(circle at center, white 0%, white 50%, transparent 50%);
+  mask-image: radial-gradient(circle at center, white 0%, white 50%, transparent 50%);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center center;
+  mask-position: center center;
+  -webkit-mask-size: 0% 0%;
+  mask-size: 0% 0%;
+  will-change: -webkit-mask-size, mask-size;
+}
+
+.about-safari-reveal.animating {
+  animation: about-safari-circle-reveal 2s ease-out forwards;
+}
+
+@keyframes about-safari-circle-reveal {
+  0% {
+    -webkit-mask-size: 0% 0%;
+    mask-size: 0% 0%;
+  }
+  100% {
+    -webkit-mask-size: 300% 300%;
+    mask-size: 300% 300%;
+  }
+}
+
+/* Default: hide about page Safari fallbacks */
+.about-safari-fallback {
+  display: none !important;
+}
+
+/* In Safari: show fallbacks and hide SVG versions */
+.is-safari .about-safari-fallback {
+  display: block !important;
+}
+
+.is-safari .about-svg-mask {
+  display: none !important;
+}
+

@@ -215,13 +215,15 @@ export default function Resume() {
         ) : (
           <video
             ref={videoRef}
-            src={VIDEO_CONFIG.SRC}
             muted
             playsInline
             preload="auto"
             onEnded={() => setVideoEnded(true)}
             className="w-full h-full block object-cover object-center"
-          />
+          >
+            <source src="/resume/videos/resume_loading_anim_24fps.mov" type='video/mp4; codecs="hvc1"' />
+            <source src={VIDEO_CONFIG.SRC} type="video/webm" />
+          </video>
         )}
 
         {videoEnded && INTERACTIVE_BUTTONS.map((button) => (

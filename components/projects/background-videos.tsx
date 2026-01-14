@@ -32,13 +32,15 @@ export default function BackgroundVideos({ visible }: BackgroundVideosProps) {
         ) : (
           <video
             ref={bgVideoRef}
-            src="/projects/videos/manga_bg_slowed.webm?v=4"
             className="absolute inset-0 w-full h-full object-cover"
             muted
             loop
             playsInline
             preload="auto"
-          />
+          >
+            <source src="/projects/videos/manga_bg_slowed.mov" type='video/mp4; codecs="hvc1"' />
+            <source src="/projects/videos/manga_bg_slowed.webm" type="video/webm" />
+          </video>
         )}
       </div>
 
@@ -48,13 +50,15 @@ export default function BackgroundVideos({ visible }: BackgroundVideosProps) {
         ) : (
           <video
             ref={manVideoRef}
-            src="/projects/videos/manga_man.webm?v=2"
             className="absolute inset-0 w-full h-full object-cover max-[600px]:object-contain"
             muted
             loop
             playsInline
             preload="auto"
-          />
+          >
+            <source src="/projects/videos/manga_man.mov" type='video/mp4; codecs="hvc1"' />
+            <source src="/projects/videos/manga_man.webm" type="video/webm" />
+          </video>
         )}
       </div>
     </>
