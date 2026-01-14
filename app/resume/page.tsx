@@ -14,6 +14,10 @@ const weddingDay = localFont({
   src: '../../public/shared/fonts/weddingday-font/ancient-wedding-font/AncientWeddingDemoRegular-MAm1n.ttf',
 })
 
+const mochi = localFont({
+  src: '../../public/fonts/MochibopBold-Demo.ttf',
+})
+
 const FALLBACK_TIMEOUT = 1500
 const SCROLL_TEXT_BREAKPOINT = 1440
 
@@ -60,8 +64,12 @@ export default function Resume() {
   const containerRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const scrollTextRef = useRef<HTMLDivElement>(null)
+  const leftArrowRef = useRef<HTMLSpanElement>(null)
+  const rightArrowRef = useRef<HTMLSpanElement>(null)
   const readyCalledRef = useRef(false)
   const videoStartedRef = useRef(false)
+  const scrollTextAnimatedRef = useRef(false)
+  const arrowAnimsRef = useRef<{ left?: gsap.core.Tween; right?: gsap.core.Tween }>({})
 
   const { isLowPerformance } = usePerformanceMode()
   const { signalReady, transitionStage } = useTransitionState()
@@ -96,6 +104,7 @@ export default function Resume() {
     if (transitionStage === 'loading') {
       readyCalledRef.current = false
       videoStartedRef.current = false
+      scrollTextAnimatedRef.current = false
       if (isLowPerformance) {
         signalReady()
         setVideoEnded(true)
@@ -176,10 +185,44 @@ export default function Resume() {
     return () => window.removeEventListener('resize', check)
   }, [])
 
-  // Animate scroll text
+  // Animate scroll text once when both conditions are met
   useEffect(() => {
-    if (!videoEnded || !showScrollText || !scrollTextRef.current) return
-    gsap.fromTo(scrollTextRef.current, { y: 50, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: 'power3.out' })
+    // Early exit if already animated
+    if (scrollTextAnimatedRef.current) return
+
+    // Check all required conditions
+    if (!videoEnded || !showScrollText) return
+    if (!scrollTextRef.current || !leftArrowRef.current || !rightArrowRef.current) return
+
+    // Mark as animated immediately to prevent double trigger
+    scrollTextAnimatedRef.current = true
+
+    // Animate scroll text up
+    gsap.fromTo(scrollTextRef.current,
+      { y: 50, opacity: 0 },
+      { y: 0, opacity: 1, duration: 0.8, ease: 'power2.out' }
+    )
+
+    // Clean up any existing arrow animations
+    arrowAnimsRef.current.left?.kill()
+    arrowAnimsRef.current.right?.kill()
+
+    // Animate arrows continuously
+    arrowAnimsRef.current.left = gsap.to(leftArrowRef.current, {
+      x: -10,
+      duration: 0.8,
+      ease: 'power1.inOut',
+      repeat: -1,
+      yoyo: true
+    })
+
+    arrowAnimsRef.current.right = gsap.to(rightArrowRef.current, {
+      x: 10,
+      duration: 0.8,
+      ease: 'power1.inOut',
+      repeat: -1,
+      yoyo: true
+    })
   }, [videoEnded, showScrollText])
 
   const handleButtonClick = (button: InteractiveButton) => {
@@ -258,8 +301,10 @@ export default function Resume() {
 
       {videoEnded && showScrollText && (
         <div ref={scrollTextRef} className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[102] pointer-events-none">
-          <p className={`text-4xl font-bold text-stroke-white-sm ${weddingDay.className}`}>
-            Scroll Around
+          <p className={`text-4xl font-bold text-stroke-white-sm ${mochi.className} flex items-center gap-4 whitespace-nowrap`}>
+            <span ref={leftArrowRef}>&lt;</span>
+            <span>Scroll Around</span>
+            <span ref={rightArrowRef}>&gt;</span>
           </p>
         </div>
       )}
