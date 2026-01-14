@@ -60,7 +60,7 @@ export function InkMaskSvg({ maskX, maskWidth, startMaskAnimation }: InkMaskSvgP
               <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="6" result="noise" />
               <feDisplacementMap in="SourceGraphic" in2="noise" scale="200" xChannelSelector="R" yChannelSelector="G">
                 <animate
-                  ref={(el) => el && (animRefs.current[4] = el)}
+                  ref={(el) => { if (el) animRefs.current[4] = el }}
                   attributeName="scale"
                   values="200;490"
                   dur="3s"
@@ -75,7 +75,7 @@ export function InkMaskSvg({ maskX, maskWidth, startMaskAnimation }: InkMaskSvgP
               <rect x="0" y="0" width="100%" height="100%" fill="white" />
               <rect x="50%" y="50%" width="0%" height="0%" fill="black" filter="url(#bgFilter)">
                 <animate
-                  ref={(el) => el && (animRefs.current[0] = el)}
+                  ref={(el) => { if (el) animRefs.current[0] = el }}
                   attributeName="x"
                   values={`50%;${maskX}`}
                   dur="3s"
@@ -85,7 +85,7 @@ export function InkMaskSvg({ maskX, maskWidth, startMaskAnimation }: InkMaskSvgP
                   fill="freeze"
                 />
                 <animate
-                  ref={(el) => el && (animRefs.current[1] = el)}
+                  ref={(el) => { if (el) animRefs.current[1] = el }}
                   attributeName="y"
                   values="50%;4%"
                   dur="3s"
@@ -95,7 +95,7 @@ export function InkMaskSvg({ maskX, maskWidth, startMaskAnimation }: InkMaskSvgP
                   fill="freeze"
                 />
                 <animate
-                  ref={(el) => el && (animRefs.current[2] = el)}
+                  ref={(el) => { if (el) animRefs.current[2] = el }}
                   attributeName="width"
                   values={`0%;${maskWidth}`}
                   dur="3s"
@@ -105,7 +105,7 @@ export function InkMaskSvg({ maskX, maskWidth, startMaskAnimation }: InkMaskSvgP
                   fill="freeze"
                 />
                 <animate
-                  ref={(el) => el && (animRefs.current[3] = el)}
+                  ref={(el) => { if (el) animRefs.current[3] = el }}
                   attributeName="height"
                   values="0%;95%"
                   dur="3s"
