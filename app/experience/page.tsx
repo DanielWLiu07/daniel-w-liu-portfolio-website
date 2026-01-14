@@ -6,7 +6,7 @@ import { BackgroundVideo, ExperienceHeader, ExperienceList, SocialLinks, experie
 import { useBodyOverflow } from '@/hooks/use-body-overflow'
 import { useTransitionState } from '@/components/ui/page-transition'
 
-const ANIMATION_DELAY = 0.5
+const ANIMATION_DELAY = 1.5
 
 export default function ExperiencePage() {
   const mainRef = useRef<HTMLElement>(null)
@@ -67,7 +67,7 @@ export default function ExperiencePage() {
     <main ref={mainRef} className="flex h-screen relative overflow-hidden">
       <BackgroundVideo />
 
-      <div className="absolute top-20 left-1/2 -translate-x-1/2 md:-left-8 md:translate-x-0 z-10 w-full md:w-auto [perspective:1000px] [transform-style:preserve-3d] overflow-visible">
+      <div className="absolute top-20 left-1/2 -translate-x-1/2 lg:-left-8 lg:translate-x-0 z-10 w-full lg:w-auto [perspective:1000px] [transform-style:preserve-3d] overflow-visible">
         <ExperienceHeader />
         <ExperienceList experiences={experiences} />
       </div>

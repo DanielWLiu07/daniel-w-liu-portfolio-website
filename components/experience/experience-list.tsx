@@ -18,9 +18,9 @@ const SCROLL_MASK = 'linear-gradient(to bottom, transparent 0px, transparent 40p
 
 export function ExperienceList({ experiences }: ExperienceListProps) {
   return (
-    <div className="md:-ml-29.5 -mt-15 md:-mt-16 w-full" style={{ overflow: 'visible' }}>
+    <div className="-mt-15 lg:-mt-16 lg:-ml-29.5 w-full" style={{ overflow: 'visible' }}>
       <div
-        className="overflow-y-auto overflow-x-visible max-h-[calc(100vh-100px)] px-4 md:px-32 relative hide-scrollbar w-full"
+        className="overflow-y-auto overflow-x-visible max-h-[calc(100vh-100px)] px-4 lg:px-32 relative hide-scrollbar w-full"
         style={{
           maskImage: SCROLL_MASK,
           WebkitMaskImage: SCROLL_MASK,
@@ -28,7 +28,7 @@ export function ExperienceList({ experiences }: ExperienceListProps) {
           msOverflowStyle: 'none',
         }}
       >
-        <div className="grid grid-cols-1 gap-4 md:gap-8 max-w-3xl md:max-w-none pb-20 pt-24 overflow-visible mx-auto md:pl-24 md:-ml-8 md:mx-0">
+        <div className="grid grid-cols-1 gap-4 lg:gap-8 max-w-3xl lg:max-w-none pb-20 pt-24 overflow-visible mx-auto lg:pl-24 lg:-ml-8 lg:mx-0">
           {experiences.map((exp, index) => (
             <BillboardCard key={index} experience={exp} />
           ))}

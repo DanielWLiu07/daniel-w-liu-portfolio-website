@@ -17,6 +17,8 @@ export function BackgroundVideo({ onReady }: BackgroundVideoProps) {
   const loopRef = useRef<HTMLVideoElement>(null)
   const readyCalledRef = useRef(false)
   const videoStartedRef = useRef(false)
+  const [objectPosition, setObjectPosition] = useState('50% 50%')
+  const animationFrameRef = useRef<number | null>(null)
 
   const { isLowPerformance } = usePerformanceMode()
   const { signalReady, transitionStage } = useTransitionState()
@@ -81,6 +83,44 @@ export function BackgroundVideo({ onReady }: BackgroundVideoProps) {
     loopRef.current?.play()
   }
 
+  // Panning animation for screens below lg breakpoint
+  useEffect(() => {
+    const width = window.innerWidth
+
+    // Animate on all mobile/tablet sizes (below 1024px)
+    if (width < 1024) {
+      // Calculate duration: smaller screens = longer duration
+      // Base duration of 60 seconds, add up to 30 more seconds for smaller screens
+      const baseDuration = 60000
+      const additionalDuration = ((1024 - width) / 1024) * 30000
+      const duration = baseDuration + additionalDuration
+
+      console.log('Starting experience pan animation at width:', width, 'duration:', duration + 'ms')
+      let startTime: number | null = null
+      const minPos = 0
+      const maxPos = 100
+      const centerPos = 50
+
+      const animate = (timestamp: number) => {
+        if (!startTime) startTime = timestamp
+        const elapsed = timestamp - startTime
+        const progress = (elapsed % duration) / duration
+        // Start from center, using cosine to begin at center point
+        const position = centerPos + (maxPos - centerPos) * Math.sin(progress * Math.PI * 2)
+        setObjectPosition(`${position}% 50%`)
+        animationFrameRef.current = requestAnimationFrame(animate)
+      }
+
+      animationFrameRef.current = requestAnimationFrame(animate)
+    }
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+      }
+    }
+  }, [])
+
   if (isLowPerformance) {
     return (
       <Image
@@ -88,6 +128,7 @@ export function BackgroundVideo({ onReady }: BackgroundVideoProps) {
         alt=""
         fill
         className="object-cover"
+        style={{ objectPosition }}
         priority
       />
     )
@@ -101,10 +142,11 @@ export function BackgroundVideo({ onReady }: BackgroundVideoProps) {
         playsInline
         onEnded={handleIntroEnded}
         className={`absolute inset-0 w-full h-full object-cover ${showLoop ? 'hidden' : ''}`}
+        style={{ objectPosition }}
         preload="auto"
       >
-        <source src="/experience/videos/anime_intro.mov" type='video/mp4; codecs="hvc1"' />
-        <source src="/experience/videos/anime_intro.webm?v=3" type="video/webm" />
+        <source src="/experience/videos/anime_intro.mov?v=6" type='video/mp4; codecs="hvc1"' />
+        <source src="/experience/videos/anime_intro.webm?v=6" type="video/webm" />
       </video>
       <video
         ref={loopRef}
@@ -112,10 +154,11 @@ export function BackgroundVideo({ onReady }: BackgroundVideoProps) {
         muted
         playsInline
         className={`absolute inset-0 w-full h-full object-cover ${showLoop ? '' : 'hidden'}`}
+        style={{ objectPosition }}
         preload="auto"
       >
-        <source src="/experience/videos/anime_style_bg.mov" type='video/mp4; codecs="hvc1"' />
-        <source src="/experience/videos/anime_style_bg.webm?v=5" type="video/webm" />
+        <source src="/experience/videos/anime_style_bg.mov?v=7" type='video/mp4; codecs="hvc1"' />
+        <source src="/experience/videos/anime_style_bg.webm?v=7" type="video/webm" />
       </video>
     </>
   )

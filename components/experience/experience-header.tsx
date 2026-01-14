@@ -5,13 +5,13 @@ const SHADOW_FILTER = 'brightness(0.5)'
 
 export function ExperienceHeader() {
   return (
-    <div className="experience-header relative ml-0 mt-5 flex flex-col items-center md:ml-21 md:mt-5 md:block [transform:rotateZ(0deg)] md:[transform:rotateZ(1deg)]">
+    <div className="experience-header relative ml-0 mt-5 flex flex-col items-center lg:ml-21 lg:mt-5 lg:block [transform:rotateZ(0deg)] lg:[transform:rotateZ(1deg)]">
       <Image
         src="/experience/images/experience_text.png"
         alt=""
         width={600}
         height={200}
-        className="w-auto h-auto max-w-[450px] md:max-w-full absolute top-2 left-1/2 -translate-x-1/2 md:left-auto md:translate-x-0 md:-left-2"
+        className="w-auto h-auto max-w-[300px] min-[431px]:max-w-[450px] lg:max-w-full absolute top-2 left-1/2 -translate-x-1/2 lg:left-auto lg:translate-x-0 lg:-left-2"
         style={{ filter: SHADOW_FILTER }}
         aria-hidden="true"
       />
@@ -20,7 +20,7 @@ export function ExperienceHeader() {
         alt="Experience"
         width={600}
         height={200}
-        className="w-auto h-auto max-w-[450px] md:max-w-full relative z-20 mx-auto md:mx-0"
+        className="w-auto h-auto max-w-[300px] min-[431px]:max-w-[450px] lg:max-w-full relative z-20 mx-auto lg:mx-0"
         style={{ filter: GLOW_FILTER }}
         priority
       />
