@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import { LoadingContent } from './loading-content'
 import { ANIMATION_DURATION, ANIMATION_KEYSPLINE } from './constants'
 
@@ -54,10 +55,12 @@ export function InkMaskSvg({ svgRef, maskType }: InkMaskSvgProps) {
         }}
       >
         <div className="relative w-full h-full">
-          <img
+          <Image
             src="/landing/images/white_paper.png"
             alt=""
-            className="absolute inset-0 w-full h-full object-cover"
+            fill
+            className="object-cover"
+            priority
           />
           <LoadingContent />
         </div>
@@ -109,7 +112,6 @@ export function InkMaskSvg({ svgRef, maskType }: InkMaskSvgProps) {
       />
       <foreignObject x="0" y="0" width="100%" height="100%" mask={`url(#${maskId})`}>
         <div
-          xmlns="http://www.w3.org/1999/xhtml"
           style={{
             width: '100%',
             height: '100%',
