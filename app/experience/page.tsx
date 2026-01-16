@@ -6,35 +6,57 @@ import { BackgroundVideo, ExperienceHeader, ExperienceList, SocialLinks, experie
 import { useBodyOverflow } from '@/hooks/use-body-overflow'
 import { useTransitionState } from '@/components/ui/page-transition'
 
-const ANIMATION_DELAY = 0.8
+const ANIMATION_DELAY = 1.2
 
 export default function ExperiencePage() {
   const mainRef = useRef<HTMLElement>(null)
   const { transitionStage } = useTransitionState()
   const animationsStartedRef = useRef(false)
   const gsapContextRef = useRef<gsap.Context | null>(null)
+  const timelineRef = useRef<gsap.core.Timeline | null>(null)
 
   useBodyOverflow('hidden')
+
+  const setInitialStates = () => {
+    if (!mainRef.current) return
+    gsap.set('.experience-header', {
+      y: -80,
+      opacity: 0,
+      force3D: true,
+      willChange: 'transform, opacity'
+    })
+    gsap.set('.experience-card', {
+      y: 100,
+      opacity: 0,
+      force3D: true,
+      willChange: 'transform, opacity'
+    })
+    gsap.set('.experience-social-links', {
+      y: 60,
+      opacity: 0,
+      force3D: true,
+      willChange: 'transform, opacity'
+    })
+  }
 
   useLayoutEffect(() => {
     if (!mainRef.current) return
     gsapContextRef.current = gsap.context(() => {
-      gsap.set('.experience-header', { y: -100, opacity: 0 })
-      gsap.set('.experience-card', { y: 100, opacity: 0, rotationX: -15 })
-      gsap.set('.experience-social-links', { y: 100, opacity: 0 })
+      setInitialStates()
     }, mainRef)
 
-    return () => gsapContextRef.current?.revert()
+    return () => {
+      timelineRef.current?.kill()
+      gsapContextRef.current?.revert()
+    }
   }, [])
 
   useEffect(() => {
     if (transitionStage === 'loading') {
       animationsStartedRef.current = false
-      if (mainRef.current) {
-        gsap.set('.experience-header', { y: -100, opacity: 0 })
-        gsap.set('.experience-card', { y: 100, opacity: 0, rotationX: -15 })
-        gsap.set('.experience-social-links', { y: 100, opacity: 0 })
-      }
+      timelineRef.current?.kill()
+      timelineRef.current = null
+      setInitialStates()
     }
   }, [transitionStage])
 
@@ -43,31 +65,42 @@ export default function ExperiencePage() {
     animationsStartedRef.current = true
 
     gsap.context(() => {
-      gsap.to('.experience-header', {
-        y: 0,
-        opacity: 1,
-        duration: 0.8,
-        ease: 'power3.out',
-        delay: ANIMATION_DELAY
-      })
+      const tl = gsap.timeline({ delay: ANIMATION_DELAY })
+      timelineRef.current = tl
 
-      gsap.to('.experience-card', {
+      tl.to('.experience-header', {
         y: 0,
-        opacity: 1,
-        rotationX: 0,
-        duration: 0.8,
-        stagger: 0.12,
-        ease: 'power3.out',
-        delay: ANIMATION_DELAY
+        duration: 2.5,
+        ease: 'elastic.out(0.7, 0.7)'
       })
+      tl.to('.experience-header', {
+        opacity: 1,
+        duration: 2.2,
+        ease: 'power1.out',
+        clearProps: 'willChange'
+      }, 0)
 
-      gsap.to('.experience-social-links', {
+      tl.to('.experience-card', {
+        y: 0,
+        duration: 2.2,
+        stagger: 0.18,
+        ease: 'elastic.out(0.7, 0.7)'
+      }, 0)
+      tl.to('.experience-card', {
+        opacity: 1,
+        duration: 2,
+        stagger: 0.18,
+        ease: 'power1.out',
+        clearProps: 'willChange'
+      }, 0)
+
+      tl.to('.experience-social-links', {
         y: 0,
         opacity: 1,
-        duration: 0.6,
-        ease: 'power3.out',
-        delay: ANIMATION_DELAY
-      })
+        duration: 1.8,
+        ease: 'elastic.out(0.7, 0.7)',
+        clearProps: 'willChange'
+      }, '-=1.2')
     }, mainRef)
   }, [transitionStage])
 

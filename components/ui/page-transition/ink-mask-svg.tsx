@@ -8,11 +8,10 @@ import { ANIMATION_DURATION, ANIMATION_KEYSPLINE } from './constants'
 interface InkMaskSvgProps {
   svgRef: React.RefObject<SVGSVGElement | null>
   maskType: 'cover' | 'reveal'
-  onReady?: () => void  // Called when SVG is in DOM and ready to animate
-  triggerAnimation?: boolean  // When true, triggers the animation
+  onReady?: () => void
+  triggerAnimation?: boolean
 }
 
-// Trigger all SVG SMIL animations
 function triggerAnimations(svg: SVGSVGElement | null) {
   if (!svg) return false
   const animations = svg.querySelectorAll('animate')
@@ -23,9 +22,7 @@ function triggerAnimations(svg: SVGSVGElement | null) {
     try {
       (anim as SVGAnimateElement).beginElement()
       triggered = true
-    } catch {
-      // Animation not supported or not ready
-    }
+    } catch {}
   })
   return triggered
 }
@@ -37,30 +34,24 @@ export function InkMaskSvg({ svgRef, maskType, onReady, triggerAnimation }: InkM
     return /^((?!chrome|android).)*safari/i.test(ua)
   })
 
-  // Internal ref for triggering animations (used if parent ref isn't working)
   const internalSvgRef = useRef<SVGSVGElement>(null)
   const animationTriggeredRef = useRef(false)
   const onReadyCalledRef = useRef(false)
 
-  // CSS fallback opacity - starts at correct initial value
   const [cssOpacity, setCssOpacity] = useState(() => maskType === 'cover' ? 0 : 1)
 
-  // Signal ready (only once)
   const signalReady = () => {
     if (onReadyCalledRef.current) return
     onReadyCalledRef.current = true
     onReady?.()
   }
 
-  // Signal ready when SVG is mounted (separate from animation trigger)
   useLayoutEffect(() => {
-    // Safari uses CSS fallback, signal ready immediately
     if (isSafari) {
       signalReady()
       return
     }
 
-    // Check if SVG is in DOM and has animate elements
     const checkSvgReady = () => {
       const svg = svgRef?.current || internalSvgRef.current
       if (!svg) return false
@@ -68,13 +59,11 @@ export function InkMaskSvg({ svgRef, maskType, onReady, triggerAnimation }: InkM
       return animations.length > 0
     }
 
-    // Try immediately
     if (checkSvgReady()) {
       signalReady()
       return
     }
 
-    // Retry with delays until SVG is ready
     const delays = [0, 16, 32, 50, 100, 150, 200, 300]
     const timeouts: NodeJS.Timeout[] = []
 
@@ -89,7 +78,6 @@ export function InkMaskSvg({ svgRef, maskType, onReady, triggerAnimation }: InkM
       timeouts.push(timeout)
     })
 
-    // Fallback: signal ready after max delay even if check fails
     const fallbackTimeout = setTimeout(() => {
       if (!onReadyCalledRef.current) {
         signalReady()
@@ -102,19 +90,16 @@ export function InkMaskSvg({ svgRef, maskType, onReady, triggerAnimation }: InkM
     }
   }, [isSafari, svgRef])
 
-  // Trigger animation when triggerAnimation prop becomes true
   useLayoutEffect(() => {
     if (!triggerAnimation || isSafari || animationTriggeredRef.current) return
 
     const svg = svgRef?.current || internalSvgRef.current
 
-    // Try to trigger immediately
     if (triggerAnimations(svg)) {
       animationTriggeredRef.current = true
       return
     }
 
-    // Retry with delays if immediate trigger fails
     const delays = [0, 16, 32, 50, 100, 150, 200, 300]
     const timeouts: NodeJS.Timeout[] = []
 
@@ -135,7 +120,6 @@ export function InkMaskSvg({ svgRef, maskType, onReady, triggerAnimation }: InkM
     }
   }, [triggerAnimation, isSafari, svgRef])
 
-  // Handle CSS fallback opacity animation (Safari only)
   useEffect(() => {
     if (!isSafari) return
     if (maskType === 'cover') {
@@ -154,7 +138,6 @@ export function InkMaskSvg({ svgRef, maskType, onReady, triggerAnimation }: InkM
 
   const transitionDuration = maskType === 'cover' ? '0.9s' : '1.5s'
 
-  // Safari: Simple fade in/out with paper + loading content (no SVG SMIL support)
   if (isSafari) {
     return (
       <div
@@ -179,11 +162,9 @@ export function InkMaskSvg({ svgRef, maskType, onReady, triggerAnimation }: InkM
     )
   }
 
-  // Chrome/Firefox: SVG mask animation only (no CSS fallback)
   return (
     <svg
         ref={(el) => {
-          // Assign to both refs
           if (svgRef && 'current' in svgRef) {
             (svgRef as React.MutableRefObject<SVGSVGElement | null>).current = el
           }

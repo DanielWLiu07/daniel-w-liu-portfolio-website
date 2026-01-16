@@ -76,14 +76,12 @@ export default function Resume() {
     signalReady()
   }, [signalReady])
 
-  // Start video on reveal or on direct load (hidden)
   useEffect(() => {
     if (isLowPerformance || (transitionStage !== 'revealing' && transitionStage !== 'hidden') || videoStartedRef.current) return
     videoStartedRef.current = true
     videoRef.current?.play()
   }, [isLowPerformance, transitionStage])
 
-  // Low performance: skip video
   useEffect(() => {
     if (!isLowPerformance || readyCalledRef.current) return
     readyCalledRef.current = true
@@ -91,13 +89,12 @@ export default function Resume() {
     setVideoEnded(true)
   }, [isLowPerformance, signalReady])
 
-  // Reset ready state and signal when entering loading (new navigation to this page)
   useEffect(() => {
     if (transitionStage === 'loading') {
       readyCalledRef.current = false
       videoStartedRef.current = false
       scrollTextAnimatedRef.current = false
-      setVideoEnded(false) // Reset video ended state to hide interactive elements
+      setVideoEnded(false)
       if (isLowPerformance) {
         signalReady()
         setVideoEnded(true)
@@ -105,7 +102,6 @@ export default function Resume() {
     }
   }, [transitionStage, isLowPerformance, signalReady])
 
-  // Wait for video ready
   useEffect(() => {
     if (isLowPerformance) return
 
@@ -130,7 +126,6 @@ export default function Resume() {
     }
   }, [isLowPerformance, handleLoaded])
 
-  // Center viewport and prevent bottom scroll
   useEffect(() => {
     const container = containerRef.current
     const video = videoRef.current
@@ -170,7 +165,6 @@ export default function Resume() {
     }
   }, [])
 
-  // Show scroll text on smaller screens
   useEffect(() => {
     const check = () => setShowScrollText(window.innerWidth <= SCROLL_TEXT_BREAKPOINT)
     check()
@@ -178,29 +172,21 @@ export default function Resume() {
     return () => window.removeEventListener('resize', check)
   }, [])
 
-  // Animate scroll text once when both conditions are met
   useEffect(() => {
-    // Early exit if already animated
     if (scrollTextAnimatedRef.current) return
-
-    // Check all required conditions
     if (!videoEnded || !showScrollText) return
     if (!scrollTextRef.current || !leftArrowRef.current || !rightArrowRef.current) return
 
-    // Mark as animated immediately to prevent double trigger
     scrollTextAnimatedRef.current = true
 
-    // Animate scroll text up
     gsap.fromTo(scrollTextRef.current,
       { y: 50, opacity: 0 },
       { y: 0, opacity: 1, duration: 0.8, ease: 'power2.out' }
     )
 
-    // Clean up any existing arrow animations
     arrowAnimsRef.current.left?.kill()
     arrowAnimsRef.current.right?.kill()
 
-    // Animate arrows continuously
     arrowAnimsRef.current.left = gsap.to(leftArrowRef.current, {
       x: -10,
       duration: 0.8,

@@ -10,7 +10,6 @@ interface InkMaskSvgProps {
 
 const ANIMATION_KEYSPLINE = '0.2 0.8 0.3 1'
 
-// Trigger all SVG SMIL animations
 function triggerAnimations(animRefs: React.MutableRefObject<SVGAnimateElement[]>) {
   let triggered = false
   animRefs.current.forEach((anim) => {
@@ -18,9 +17,7 @@ function triggerAnimations(animRefs: React.MutableRefObject<SVGAnimateElement[]>
       try {
         anim.beginElement()
         triggered = true
-      } catch {
-        // Animation not supported or not ready
-      }
+      } catch {}
     }
   })
   return triggered
@@ -36,25 +33,21 @@ export function InkMaskSvg({ maskX, maskWidth, startMaskAnimation }: InkMaskSvgP
   const animationTriggeredRef = useRef(false)
   const [safariOverlayOpacity, setSafariOverlayOpacity] = useState(1)
 
-  // Use useLayoutEffect to sync with page transition reveal animation
   useLayoutEffect(() => {
     if (!startMaskAnimation) return
 
     if (isSafari) {
-      // Safari: fade out immediately
       setSafariOverlayOpacity(0)
       return
     }
 
     if (animationTriggeredRef.current) return
 
-    // Try to trigger immediately
     if (triggerAnimations(animRefs)) {
       animationTriggeredRef.current = true
       return
     }
 
-    // Retry with delays if immediate trigger fails (SVG elements may not be ready yet)
     const delays = [0, 16, 32, 50, 100]
     const timeouts: NodeJS.Timeout[] = []
 
@@ -74,7 +67,6 @@ export function InkMaskSvg({ maskX, maskWidth, startMaskAnimation }: InkMaskSvgP
     }
   }, [startMaskAnimation, isSafari])
 
-  // Reset animation triggered ref when startMaskAnimation becomes false
   useLayoutEffect(() => {
     if (!startMaskAnimation) {
       animationTriggeredRef.current = false

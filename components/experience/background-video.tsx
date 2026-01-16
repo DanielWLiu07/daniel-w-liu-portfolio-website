@@ -30,7 +30,6 @@ export function BackgroundVideo({ onReady }: BackgroundVideoProps) {
     onReady?.()
   }, [signalReady, onReady])
 
-  // Reset ready state when entering loading (new navigation to this page)
   useEffect(() => {
     if (transitionStage === 'loading') {
       readyCalledRef.current = false
@@ -38,14 +37,12 @@ export function BackgroundVideo({ onReady }: BackgroundVideoProps) {
     }
   }, [transitionStage])
 
-  // Start video on reveal or on direct load (hidden)
   useEffect(() => {
     if (isLowPerformance || (transitionStage !== 'revealing' && transitionStage !== 'hidden') || videoStartedRef.current) return
     videoStartedRef.current = true
     introRef.current?.play()
   }, [isLowPerformance, transitionStage])
 
-  // Low performance: signal ready immediately
   useEffect(() => {
     if (!isLowPerformance || readyCalledRef.current) return
     readyCalledRef.current = true
@@ -53,7 +50,6 @@ export function BackgroundVideo({ onReady }: BackgroundVideoProps) {
     onReady?.()
   }, [isLowPerformance, signalReady, onReady])
 
-  // Wait for video ready
   useEffect(() => {
     if (isLowPerformance) return
 
@@ -83,20 +79,15 @@ export function BackgroundVideo({ onReady }: BackgroundVideoProps) {
     loopRef.current?.play()
   }
 
-  // Panning animation for screens below lg breakpoint
   useEffect(() => {
     const width = window.innerWidth
 
-    // Animate on all mobile/tablet sizes (below 1024px)
     if (width < 1024) {
-      // Calculate duration: smaller screens = longer duration
-      // Base duration of 60 seconds, add up to 30 more seconds for smaller screens
       const baseDuration = 60000
       const additionalDuration = ((1024 - width) / 1024) * 30000
       const duration = baseDuration + additionalDuration
 
       let startTime: number | null = null
-      const minPos = 0
       const maxPos = 100
       const centerPos = 50
 
@@ -104,7 +95,6 @@ export function BackgroundVideo({ onReady }: BackgroundVideoProps) {
         if (!startTime) startTime = timestamp
         const elapsed = timestamp - startTime
         const progress = (elapsed % duration) / duration
-        // Start from center, using cosine to begin at center point
         const position = centerPos + (maxPos - centerPos) * Math.sin(progress * Math.PI * 2)
         setObjectPosition(`${position}% 50%`)
         animationFrameRef.current = requestAnimationFrame(animate)

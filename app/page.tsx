@@ -102,7 +102,6 @@ export default function Home() {
     signalReady()
   }, [signalReady])
 
-  // Reset animation state when mode changes
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     signalledReadyRef.current = false
@@ -115,7 +114,6 @@ export default function Home() {
   }, [mode])
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  // Reset state when entering loading transition
   useEffect(() => {
     if (transitionStage === 'loading') {
       signalledReadyRef.current = false
@@ -178,7 +176,6 @@ export default function Home() {
     }
   }, [mode, isLowPerformance, doSignalReady])
 
-  // Start intro animations when page reveals - use useLayoutEffect to sync with page transition
   /* eslint-disable react-hooks/set-state-in-effect */
   useLayoutEffect(() => {
     if (mode === null || introAnimationsStartedRef.current) return
@@ -197,7 +194,6 @@ export default function Home() {
       const timeline = gsap.timeline()
       timeline.to('.name-container', { y: 0, scale: 0.92, opacity: 1, duration: 0.6, ease: 'power2.in' })
       timeline.to('.name-container', { scale: 1, duration: 0.4, ease: 'elastic.out(1.2, 0.4)' })
-      // Trigger mask reveal when name hits the screen (at 0.6s)
       timeline.call(() => setStartMaskAnimation(true), undefined, 0.6)
 
       gsap.to('.tree-right', { xPercent: 0, duration: 1.5, ease: 'power3.out', delay: 1.5 })
