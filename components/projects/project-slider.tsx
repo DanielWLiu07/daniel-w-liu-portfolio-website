@@ -30,7 +30,6 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
   const initializedRef = useRef(false)
   const [containerReady, setContainerReady] = useState(false)
 
-  // Store callbacks in refs to prevent useEffect re-runs
   const onProjectClickRef = useRef(onProjectClick)
   const onPauseChangeRef = useRef(onPauseChange)
 
@@ -46,7 +45,6 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
     isPausedRef.current = isPaused
   }, [isPaused])
 
-  // Watch for container to have valid dimensions
   useEffect(() => {
     if (!containerRef.current || initializedRef.current) return
 
@@ -58,10 +56,8 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       }
     }
 
-    // Check immediately
     checkDimensions()
 
-    // Also observe for changes
     const resizeObserver = new ResizeObserver(checkDimensions)
     resizeObserver.observe(container)
 
@@ -197,7 +193,6 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
 
     renderer.domElement.addEventListener('wheel', onWheel, { passive: false })
 
-    // Touch support for mobile
     let touchStartX = 0
     let touchStartY = 0
     let isTouchScrolling = false
@@ -222,12 +217,9 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         const deltaX = touchStartX - touchX
         const deltaY = touchStartY - touchY
 
-        // Only scroll horizontally if horizontal movement is greater
         if (Math.abs(deltaX) > Math.abs(deltaY)) {
           event.preventDefault()
           isTouchScrolling = true
-
-          // Convert touch delta to velocity (similar to wheel)
           velocityRef.current = deltaX * 0.05
           isManualScrollingRef.current = true
 
@@ -237,7 +229,6 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
     }
 
     const onTouchEnd = () => {
-      // Let momentum continue naturally via updateScrollVelocity
       if (isTouchScrolling) {
         isManualScrollingRef.current = true
       }
@@ -289,7 +280,6 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
 
     animationFrameRef.current = requestAnimationFrame(animate)
 
-    // Use ResizeObserver for robust size handling
     const resizeObserver = new ResizeObserver(() => {
       if (!cameraRef.current || !rendererRef.current) return
 

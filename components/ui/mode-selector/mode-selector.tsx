@@ -31,7 +31,6 @@ export function ModeSelector() {
   const animationsStartedRef = useRef(false)
   const entranceGsapContextRef = useRef<gsap.Context | null>(null)
 
-  // Reset selection state and cleanup GSAP when mode becomes null (user can select again)
   useEffect(() => {
     if (mode === null) {
       isSelectingRef.current = false
@@ -40,7 +39,6 @@ export function ModeSelector() {
         exitTimelineRef.current.kill()
         exitTimelineRef.current = null
       }
-      // Clean up previous entrance animations when returning to quality selector
       if (entranceGsapContextRef.current) {
         entranceGsapContextRef.current.revert()
         entranceGsapContextRef.current = null
@@ -48,22 +46,13 @@ export function ModeSelector() {
     }
   }, [mode])
 
-  // NOTE: We intentionally do NOT revert GSAP on unmount.
-  // When mode changes from null to non-null, the component unmounts while
-  // the page transition cover animation is still in progress. Reverting GSAP
-  // at that point would cause elements to "teleport" back to their original
-  // positions before being hidden by the cover. The elements are being removed
-  // from the DOM anyway, so cleanup is unnecessary.
-
   useEffect(() => {
     if (mode !== null) return
-    // Only start animations when in 'revealing' or 'hidden' state
     if (transitionStage !== 'revealing' && transitionStage !== 'hidden') return
     if (animationsStartedRef.current) return
 
     animationsStartedRef.current = true
 
-    // Store context in ref so it persists across re-renders and isn't reverted on transitionStage changes
     entranceGsapContextRef.current = gsap.context(() => {
       gsap.set(titleRef.current, { y: -30, opacity: 0 })
       gsap.set(subtitleRef.current, { y: -20, opacity: 0 })
@@ -155,24 +144,18 @@ export function ModeSelector() {
         duration: 0.8,
       }, '-=0.8')
     })
-    // NOTE: No cleanup here - we store the context in a ref and only clean up
-    // when mode changes or component unmounts, NOT when transitionStage changes
   }, [mode, transitionStage])
 
   const handleModeSelect = (selectedMode: 'high' | 'low') => {
-    // Prevent multiple clicks from triggering multiple transitions
     if (isSelectingRef.current) return
     isSelectingRef.current = true
 
-    // Kill any existing timeline
     if (exitTimelineRef.current) {
       exitTimelineRef.current.kill()
     }
 
-    // Calculate total exit animation duration
-    const EXIT_DURATION = 500 // All exit animations are 0.5s duration
+    const EXIT_DURATION = 500
 
-    // Kill the entrance animation context to prevent any interference with exit animations
     if (entranceGsapContextRef.current) {
       entranceGsapContextRef.current.kill()
       entranceGsapContextRef.current = null
@@ -182,7 +165,6 @@ export function ModeSelector() {
 
     exitTimelineRef.current = exitTl
 
-    // All elements exit at once - use overwrite to ensure exit animations take full control
     exitTl.to([titleRef.current, subtitleRef.current], {
       y: -30,
       opacity: 0,
@@ -238,13 +220,11 @@ export function ModeSelector() {
       ease: 'power2.in'
     }, 0)
 
-    // Use setTimeout instead of onComplete for more reliability
-    // especially in incognito mode where GSAP callbacks can be unreliable
     setTimeout(() => {
       navigateWithTransition('/', () => {
         setMode(selectedMode)
       })
-    }, EXIT_DURATION + 50) // Add 50ms buffer to ensure animations complete
+    }, EXIT_DURATION + 50)
   }
 
   if (mode !== null) return null
@@ -404,7 +384,6 @@ export function ModeSelector() {
         </div>
       </div>
 
-      {/* Right-side paper clips - fixed to viewport right edge */}
       <div ref={paperClipRight1Ref} className="fixed -right-4 top-[40vh] lg:top-[50vh] w-16 h-16 z-[203] pointer-events-none opacity-0 [transform:rotate(-80deg)_scale(2)] lg:[transform:rotate(-80deg)_scale(2.0)]">
         <Image
           src="/quality/images/paper_clip_outline_5.png"

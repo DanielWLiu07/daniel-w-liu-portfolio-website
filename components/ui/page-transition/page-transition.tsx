@@ -34,9 +34,8 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   const readyCheckIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const fallbackTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const navigationTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const transitionIdRef = useRef(0) // Unique ID for each transition to prevent stale callbacks
+  const transitionIdRef = useRef(0)
 
-  // Cleanup helper - clears ALL pending timers
   const cleanupTimers = useCallback(() => {
     if (readyCheckIntervalRef.current) {
       clearInterval(readyCheckIntervalRef.current)
@@ -52,17 +51,14 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // Called when SVG signals it's ready
   const handleSvgReady = useCallback(() => {
     svgReadyRef.current = true
   }, [])
 
   const doReveal = useCallback(() => {
-    // Guard against multiple reveals in the same transition
     if (revealTriggeredRef.current) return
     revealTriggeredRef.current = true
 
-    // Clean up any pending timers
     cleanupTimers()
 
     if (revealTimeoutRef.current) {
@@ -70,22 +66,17 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
       revealTimeoutRef.current = null
     }
 
-    // Call the before reveal callback if set (for same-page navigation)
-    // NOTE: This should have already been called in navigateWithTransition
-    // but we keep it here as a fallback
     if (onBeforeRevealRef.current) {
       onBeforeRevealRef.current()
       onBeforeRevealRef.current = null
     }
 
-    // CRITICAL: Set to 'revealing' state - this MUST show the reveal animation
     setOverlayState('revealing')
     setIsNavigating(false)
 
-    // After the reveal animation duration, hide the overlay
     revealTimeoutRef.current = setTimeout(() => {
       setOverlayState('hidden')
-      svgReadyRef.current = false // Reset for next transition
+      svgReadyRef.current = false
       revealTimeoutRef.current = null
     }, REVEAL_DURATION)
   }, [cleanupTimers])
@@ -108,12 +99,10 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   }, [cleanupTimers])
 
   const checkReadyAndReveal = useCallback(() => {
-    // Wait for BOTH page content AND SVG to be ready
     if (!pageReadyRef.current || !svgReadyRef.current) return false
 
     const elapsed = Date.now() - loadingStartTimeRef.current
     if (elapsed < MIN_LOADING_TIME) {
-      // Schedule reveal after minimum time
       setTimeout(doReveal, MIN_LOADING_TIME - elapsed)
       return true
     }
@@ -122,36 +111,27 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     return true
   }, [doReveal])
 
-  // Start waiting for page to be ready
   const startWaitingForReady = useCallback(() => {
     cleanupTimers()
     loadingStartTimeRef.current = Date.now()
     revealTriggeredRef.current = false
 
-    // Note: We don't reset pageReadyRef here because child effects run before
-    // parent effects in React, so the page may have already signaled ready.
-    // pageReadyRef is reset in navigateWithTransition and startNavigation instead.
-
-    // If BOTH page and SVG already signaled ready, handle immediately
     if (pageReadyRef.current && svgReadyRef.current) {
       const elapsed = Date.now() - loadingStartTimeRef.current
       if (elapsed >= MIN_LOADING_TIME) {
         doReveal()
         return
       }
-      // Wait for minimum loading time
       fallbackTimeoutRef.current = setTimeout(doReveal, MIN_LOADING_TIME - elapsed)
       return
     }
 
-    // Check every 50ms if both page AND SVG are ready
     readyCheckIntervalRef.current = setInterval(() => {
       if (checkReadyAndReveal()) {
         cleanupTimers()
       }
     }, 50)
 
-    // Fallback: reveal after max wait time (even if SVG not ready, CSS fallback handles it)
     fallbackTimeoutRef.current = setTimeout(() => {
       cleanupTimers()
       doReveal()
@@ -159,14 +139,12 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   }, [checkReadyAndReveal, doReveal, cleanupTimers])
 
   const navigateWithTransition = useCallback((href: string, onBeforeReveal?: () => void) => {
-    // Cancel any pending navigation/timers from previous calls
     cleanupTimers()
     if (revealTimeoutRef.current) {
       clearTimeout(revealTimeoutRef.current)
       revealTimeoutRef.current = null
     }
 
-    // Increment transition ID to invalidate any stale callbacks
     const currentTransitionId = ++transitionIdRef.current
 
     onBeforeRevealRef.current = onBeforeReveal || null
@@ -180,26 +158,20 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     const isSamePage = href === pathname
 
     navigationTimeoutRef.current = setTimeout(() => {
-      // Check if this is still the current transition (not cancelled by another)
       if (transitionIdRef.current !== currentTransitionId) return
 
       if (isSamePage) {
-        // IMPORTANT: Set overlay to loading FIRST, then call callback
-        // This ensures we're ready to receive signalReady() from the page
         setOverlayState('loading')
 
-        // Reset ready state before calling callback
         pageReadyRef.current = false
     svgReadyRef.current = false
         revealTriggeredRef.current = false
 
-        // Now call the callback to trigger content change (e.g., setMode)
         if (onBeforeRevealRef.current) {
           onBeforeRevealRef.current()
           onBeforeRevealRef.current = null
         }
 
-        // Start waiting for the page to signal ready
         startWaitingForReady()
       } else {
         router.push(href)
@@ -207,7 +179,6 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     }, NAVIGATION_DELAY)
   }, [pathname, router, startWaitingForReady, cleanupTimers])
 
-  // Initial page load - skip if mode is null (quality selector showing)
   useEffect(() => {
     if (mode === null || overlayState !== 'loading' || isNavigating) return
 
@@ -216,15 +187,12 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     return () => cleanupTimers()
   }, [mode, overlayState, isNavigating, startWaitingForReady, cleanupTimers])
 
-  // Handle navigation completion (when pathname changes after router.push)
   useEffect(() => {
     if (!isNavigating || pathname === prevPathname.current) return
 
     prevPathname.current = pathname
     pendingHref.current = null
 
-    // CRITICAL: Reset ready state before showing loading
-    // The new page will set this to true when it's ready
     pageReadyRef.current = false
     svgReadyRef.current = false
     revealTriggeredRef.current = false
@@ -235,7 +203,6 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     return () => cleanupTimers()
   }, [pathname, isNavigating, startWaitingForReady, cleanupTimers])
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       cleanupTimers()
@@ -246,8 +213,6 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     }
   }, [cleanupTimers])
 
-  // Trigger SVG animations with aggressive retry to ensure they ALWAYS play
-  // useLayoutEffect runs synchronously after DOM mutations, before paint
   const triggerAnimationWithRetry = useCallback((svgRef: React.RefObject<SVGSVGElement | null>) => {
     const tryTrigger = (attempts: number) => {
       if (svgRef.current) {
@@ -256,10 +221,8 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
       }
 
       if (attempts < 10) {
-        // Retry with requestAnimationFrame if ref not ready
         requestAnimationFrame(() => tryTrigger(attempts + 1))
       } else {
-        // Last resort: try with setTimeout
         setTimeout(() => {
           if (svgRef.current) {
             triggerSvgAnimations(svgRef.current)
@@ -268,7 +231,6 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // Start trying immediately
     tryTrigger(0)
   }, [])
 
@@ -287,14 +249,12 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   const startNavigation = useCallback((href: string) => {
     if (isNavigating || href === pathname) return
 
-    // Cancel any pending navigation/timers
     cleanupTimers()
     if (revealTimeoutRef.current) {
       clearTimeout(revealTimeoutRef.current)
       revealTimeoutRef.current = null
     }
 
-    // Increment transition ID
     const currentTransitionId = ++transitionIdRef.current
 
     setIsNavigating(true)
@@ -305,13 +265,11 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     setOverlayState('covering')
 
     navigationTimeoutRef.current = setTimeout(() => {
-      // Check if this is still the current transition
       if (transitionIdRef.current !== currentTransitionId) return
       router.push(href)
     }, NAVIGATION_DELAY)
   }, [isNavigating, pathname, router, cleanupTimers])
 
-  // Global link click interceptor
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       const link = (e.target as HTMLElement).closest('a')
@@ -337,14 +295,12 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     <TransitionContext.Provider value={{ transitionStage: overlayState, signalReady, isRevealed, triggerCover, navigateWithTransition }}>
       {children}
 
-      {/* Cover animation overlay - stays mounted during covering AND loading to complete animation */}
       {(overlayState === 'covering' || overlayState === 'loading') && (
         <div className="fixed inset-0 z-[9998] pointer-events-none">
           <InkMaskSvg svgRef={coverSvgRef} maskType="cover" triggerAnimation={overlayState === 'covering'} />
         </div>
       )}
 
-      {/* Loading/Reveal overlay - SVG handles everything with mask effect */}
       {(overlayState === 'loading' || overlayState === 'revealing') && (
         <div className="fixed inset-0 z-[9999] pointer-events-none">
           <InkMaskSvg svgRef={revealSvgRef} maskType="reveal" onReady={handleSvgReady} triggerAnimation={overlayState === 'revealing'} />

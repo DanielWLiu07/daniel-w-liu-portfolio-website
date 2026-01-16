@@ -221,7 +221,6 @@ export const BackgroundLayers = memo(function BackgroundLayers() {
     signalReady()
   }, [signalReady])
 
-  // Reset ready state when entering loading (new navigation to this page)
   useEffect(() => {
     if (transitionStage === 'loading') {
       readyCalledRef.current = false
@@ -231,22 +230,18 @@ export const BackgroundLayers = memo(function BackgroundLayers() {
     }
   }, [transitionStage])
 
-  // Start animations when reveal begins or on direct load (hidden)
   useEffect(() => {
     if (isLowPerformance || (transitionStage !== 'revealing' && transitionStage !== 'hidden') || animationsStartedRef.current) return
     animationsStartedRef.current = true
 
-    // Play all videos (both Chrome SVG and Safari versions)
     rightColourRef.current?.play()
     waterColourRef.current?.play()
     waterColourSafariRef.current?.play()
     sparkleRef.current?.play()
 
-    // Trigger SVG animations (Chrome/Firefox)
     triggerSvgAnimations(waterColourSvgRef.current)
     triggerSvgAnimations(aboutBgSvgRef.current)
 
-    // Trigger Safari CSS mask animation
     setSafariAnimating(true)
   }, [isLowPerformance, transitionStage])
 
@@ -255,14 +250,12 @@ export const BackgroundLayers = memo(function BackgroundLayers() {
     sparkleLoopRef.current?.play()
   }, [])
 
-  // Low performance mode: signal ready immediately
   useEffect(() => {
     if (!isLowPerformance || readyCalledRef.current) return
     readyCalledRef.current = true
     signalReady()
   }, [isLowPerformance, signalReady])
 
-  // Normal mode: signal ready when main video loads
   useEffect(() => {
     if (isLowPerformance) return
 
@@ -302,13 +295,9 @@ export const BackgroundLayers = memo(function BackgroundLayers() {
         <LowPerformanceBackgrounds />
       ) : (
         <>
-          {/* Chrome/Firefox: SVG mask animations */}
           <WaterColourMaskSvg svgRef={waterColourSvgRef} videoRef={waterColourRef} />
-
-          {/* Safari: Watercolour with CSS mask at z-0 */}
           <SafariWaterColourMask waterColourRef={waterColourSafariRef} safariAnimating={safariAnimating} />
 
-          {/* Right colour video (always visible, no mask) at z-[3] */}
           <div className="hidden min-[1038px]:block fixed inset-0 z-[3]">
             <video
               ref={rightColourRef}
@@ -322,13 +311,8 @@ export const BackgroundLayers = memo(function BackgroundLayers() {
             </video>
           </div>
 
-          {/* Chrome/Firefox: Right graphics SVG mask at z-[5] */}
           <RightGraphicsMaskSvg svgRef={aboutBgSvgRef} />
-
-          {/* Safari: Right graphics with CSS mask at z-[5] */}
           <SafariRightGraphicsMask safariAnimating={safariAnimating} />
-
-          {/* Sparkles video (intro → loop) at z-10 */}
           <SparkleVideo sparkleRef={sparkleRef} loopRef={sparkleLoopRef} showLoop={showSparkleLoop} onSparkleEnd={handleSparkleIntroEnded} />
         </>
       )}

@@ -12,6 +12,7 @@ import { useTransitionState } from '@/components/ui/page-transition'
 import { InkMaskSvg, TreeOverlays, NameDisplay } from '@/components/landing'
 
 const FALLBACK_TIMEOUT = 2000
+const VIDEO_DURATION = 12.54
 
 export default function Home() {
   const [startMaskAnimation, setStartMaskAnimation] = useState(false)
@@ -25,6 +26,8 @@ export default function Home() {
   const sunGradientRef = useRef<HTMLDivElement>(null)
   const signalledReadyRef = useRef(false)
   const introGsapContextRef = useRef<gsap.Context | null>(null)
+  const panTimelineRef = useRef<gsap.core.Timeline | null>(null)
+  const initialStatesSetRef = useRef(false)
 
   const { mode, isLowPerformance } = usePerformanceMode()
   const isMobile = useMobile(768)
@@ -33,15 +36,9 @@ export default function Home() {
 
   useBodyOverflow('hidden')
 
-  // Auto-pan background on small mobile screens
-  const panTimelineRef = useRef<gsap.core.Timeline | null>(null)
-
-  // Callback ref to start panning when element mounts
   const setupPanAnimation = useCallback((element: HTMLDivElement | null) => {
-    // Also store in regular ref for other uses
     bgPanContainerRef.current = element
 
-    // Kill existing timeline
     if (panTimelineRef.current) {
       panTimelineRef.current.kill()
       panTimelineRef.current = null
@@ -49,32 +46,24 @@ export default function Home() {
 
     if (!element) return
 
-    // Reset transform when not animating (larger screens)
     if (!isSmallMobile || mode === null) {
-      // Remove any inline transform styles GSAP may have added
       element.style.transform = ''
       return
     }
 
     const timeline = gsap.timeline({ repeat: -1 })
     panTimelineRef.current = timeline
-
-    // Start from left position (show right side of image)
     timeline.set(element, { x: '-33%' })
-    // Pan to right (show left side of image)
     timeline.to(element, { x: '0%', duration: 8, ease: 'power1.inOut' })
-    // Pan back to left
     timeline.to(element, { x: '-33%', duration: 8, ease: 'power1.inOut' })
   }, [isSmallMobile, mode])
 
-  // Re-run animation setup when isSmallMobile or mode changes (after initial mount)
   useEffect(() => {
     if (bgPanContainerRef.current) {
       setupPanAnimation(bgPanContainerRef.current)
     }
   }, [isSmallMobile, mode, setupPanAnimation])
 
-  // Cleanup timeline on unmount
   useEffect(() => {
     return () => {
       if (panTimelineRef.current) {
@@ -84,25 +73,18 @@ export default function Home() {
     }
   }, [])
 
-  // Sync sun gradient position directly to video time
   useEffect(() => {
     const video = compositeVideoRef.current
     const gradient = sunGradientRef.current
     if (!video || !gradient || isLowPerformance) return
 
-    const videoDuration = 12.54 // Video duration in seconds
-    const cycleDuration = videoDuration / 2 // Gradient completes 2 cycles per video
+    const cycleDuration = VIDEO_DURATION / 2
     let animationId: number
 
     const updateGradient = () => {
-      const time = video.currentTime
-      // Calculate position in current cycle (0 to 1)
-      const cycleProgress = (time % cycleDuration) / cycleDuration
-      // Sine wave for smooth oscillation: 0->1->0 over one cycle
+      const cycleProgress = (video.currentTime % cycleDuration) / cycleDuration
       const sineValue = Math.sin(cycleProgress * Math.PI)
-      // Map to gradient position (-15% to 5%)
       const gradientY = 2.5 + (sineValue * 20)
-      // Set background directly for reliable updates
       gradient.style.background = `radial-gradient(circle at 50% ${gradientY}%, rgba(255,100,0,0.4) 15%, rgba(255,200,50,0.32) 28%, rgba(255,255,100,0.2) 38%, transparent 50%)`
       animationId = requestAnimationFrame(updateGradient)
     }
@@ -114,26 +96,22 @@ export default function Home() {
   const maskWidth = isMobile ? '95%' : '87%'
   const maskX = isMobile ? '2.5%' : '6.5%'
 
-  // Signal ready to PageTransition
   const doSignalReady = useCallback(() => {
     if (signalledReadyRef.current) return
     signalledReadyRef.current = true
     signalReady()
   }, [signalReady])
 
-  // Reset all state when mode changes (e.g., when quality is selected)
   useEffect(() => {
     signalledReadyRef.current = false
     setStartMaskAnimation(false)
     setIntroAnimationsStarted(false)
-
     if (introGsapContextRef.current) {
       introGsapContextRef.current.revert()
       introGsapContextRef.current = null
     }
   }, [mode])
 
-  // Reset ready state when entering loading (new navigation to this page)
   useEffect(() => {
     if (transitionStage === 'loading') {
       signalledReadyRef.current = false
@@ -141,12 +119,8 @@ export default function Home() {
     }
   }, [transitionStage])
 
-  // Set initial hidden states IMMEDIATELY when landing content mounts (before paint)
-  // This ensures elements are hidden before the reveal animation can expose them
-  const initialStatesSetRef = useRef(false)
   useLayoutEffect(() => {
     if (mode === null || isLowPerformance || !rootRef.current) return
-    // Only set initial states once per mount, or when re-entering from quality selector
     if (initialStatesSetRef.current && introAnimationsStarted) return
 
     initialStatesSetRef.current = true
@@ -156,14 +130,12 @@ export default function Home() {
     gsap.set('.social-links', { yPercent: 100, opacity: 0 })
   }, [mode, isLowPerformance, introAnimationsStarted])
 
-  // Reset initial states flag when mode changes (returning to quality selector and back)
   useEffect(() => {
     if (mode === null) {
       initialStatesSetRef.current = false
     }
   }, [mode])
 
-  // For quality selector (mode === null), signal ready after brief delay
   useEffect(() => {
     if (mode === null) {
       const timeout = setTimeout(doSignalReady, 100)
@@ -171,11 +143,9 @@ export default function Home() {
     }
   }, [mode, doSignalReady])
 
-  // For landing content (mode !== null), wait for video to load
   useEffect(() => {
     if (mode === null) return
 
-    // Low performance: signal ready immediately
     if (isLowPerformance) {
       doSignalReady()
       return
@@ -183,23 +153,18 @@ export default function Home() {
 
     const video = compositeVideoRef.current
     if (!video) {
-      // Video element not in DOM yet - use fallback
       const timeout = setTimeout(doSignalReady, FALLBACK_TIMEOUT)
       return () => clearTimeout(timeout)
     }
 
-    // Video already loaded
     if (video.readyState >= 3) {
       doSignalReady()
       return
     }
 
-    // Wait for video to be playable
     const handleReady = () => doSignalReady()
     video.addEventListener('canplay', handleReady)
     video.addEventListener('loadeddata', handleReady)
-
-    // Fallback timeout
     const timeout = setTimeout(doSignalReady, FALLBACK_TIMEOUT)
 
     return () => {
@@ -209,21 +174,17 @@ export default function Home() {
     }
   }, [mode, isLowPerformance, doSignalReady])
 
-  // Run intro animations when reveal starts or on direct load (hidden)
   useEffect(() => {
-    if (mode === null) return
-    if (introAnimationsStarted) return
+    if (mode === null || introAnimationsStarted) return
     if (transitionStage !== 'revealing' && transitionStage !== 'hidden') return
 
     setIntroAnimationsStarted(true)
 
-    // For low performance, just show content immediately
     if (isLowPerformance) {
       setStartMaskAnimation(true)
       return
     }
 
-    // Run GSAP intro animations
     introGsapContextRef.current = gsap.context(() => {
       gsap.set('.name-container', { y: '-100vh', scale: 1.8, opacity: 0 })
 
@@ -238,7 +199,6 @@ export default function Home() {
     }, rootRef)
   }, [mode, isLowPerformance, transitionStage, introAnimationsStarted])
 
-  // Cleanup GSAP context on unmount
   useEffect(() => {
     return () => {
       if (introGsapContextRef.current) {
@@ -247,8 +207,6 @@ export default function Home() {
       }
     }
   }, [])
-
-  // SVG mask animation now handled by requestAnimationFrame in InkMaskSvg component
 
   const showImmediately = isLowPerformance && mode !== null
   const shouldRenderLandingContent = mode !== null
@@ -259,14 +217,11 @@ export default function Home() {
 
       {shouldRenderLandingContent && (
         <>
-          {/* Main content - PageTransition overlay hides this until reveal */}
           <div ref={rootRef} className="relative w-full h-screen overflow-hidden">
-            {/* White overlay that fades when mask animation starts */}
             <div className={`absolute inset-0 z-[50] pointer-events-none transition-opacity duration-500 ${startMaskAnimation ? 'opacity-0' : 'opacity-100'}`}>
               <Image src="/landing/images/white_paper.png" alt="" fill className="object-cover" priority />
             </div>
 
-            {/* Background with video/image */}
             <div className="absolute inset-0 w-full h-full overflow-visible min-h-screen">
               <div
                 ref={setupPanAnimation}
@@ -278,12 +233,10 @@ export default function Home() {
                 <div className="absolute inset-0 w-full h-full min-h-screen">
                   <Image src="/landing/images/painted_bg.png" alt="" fill className="object-cover z-0" priority />
                 </div>
-                {/* Sun ray gradient overlay - synced to video */}
                 <div
                   ref={sunGradientRef}
                   className="absolute inset-0 pointer-events-none z-[1] animate-float-gradient"
                 />
-                {/* Blue gradient overlays on left and right */}
                 <div className="absolute inset-0 pointer-events-none z-[1] landing-gradient-left" />
                 <div className="absolute inset-0 pointer-events-none z-[1] landing-gradient-right" />
                 <div className="absolute inset-0 w-full h-full min-h-screen z-[2]">

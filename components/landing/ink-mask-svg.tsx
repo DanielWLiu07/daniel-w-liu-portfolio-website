@@ -19,24 +19,20 @@ export function InkMaskSvg({ maskX, maskWidth, startMaskAnimation }: InkMaskSvgP
   const animRefs = useRef<SVGAnimateElement[]>([])
   const [safariOverlayOpacity, setSafariOverlayOpacity] = useState(1)
 
-  // Trigger animations when startMaskAnimation becomes true
   useEffect(() => {
     if (!startMaskAnimation) return
 
     if (isSafari) {
-      // Safari: just fade out the overlay
       setTimeout(() => {
         setSafariOverlayOpacity(0)
       }, 50)
     } else {
-      // Chrome/Firefox: animate the mask
       setTimeout(() => {
         animRefs.current.forEach((anim) => {
           if (anim && typeof anim.beginElement === 'function') {
             try {
               anim.beginElement()
-            } catch (e) {
-              // Silently fail if animation doesn't work
+            } catch {
             }
           }
         })
@@ -46,7 +42,6 @@ export function InkMaskSvg({ maskX, maskWidth, startMaskAnimation }: InkMaskSvgP
 
   return (
     <>
-      {/* Chrome/Firefox: Animated mask reveal */}
       {!isSafari && (
         <svg
           width="100%"
@@ -127,10 +122,8 @@ export function InkMaskSvg({ maskX, maskWidth, startMaskAnimation }: InkMaskSvgP
         </svg>
       )}
 
-      {/* Safari: Static mask at max size (stays visible) + top paper layer that fades out */}
       {isSafari && (
         <>
-          {/* SVG mask - stays visible, reveals content */}
           <svg
             width="100%"
             height="100%"
@@ -156,7 +149,6 @@ export function InkMaskSvg({ maskX, maskWidth, startMaskAnimation }: InkMaskSvgP
             />
           </svg>
 
-          {/* Top paper layer - fades out */}
           <div
             className="absolute inset-0 w-full h-full z-[52] pointer-events-none"
             style={{

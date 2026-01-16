@@ -28,12 +28,10 @@ export default function ProjectsPage() {
   const { transitionStage, signalReady } = useTransitionState()
   const { isLowPerformance } = usePerformanceMode()
 
-  // For low quality, show content immediately; otherwise wait for loading to finish
   const showContent = isLowPerformance || transitionStage !== 'loading'
 
   useBodyOverflow('hidden')
 
-  // Low quality mode: skip intro
   useEffect(() => {
     if (!isLowPerformance || readyCalledRef.current) return
     readyCalledRef.current = true
@@ -41,13 +39,11 @@ export default function ProjectsPage() {
     setIntroFinished(true)
   }, [isLowPerformance, signalReady])
 
-  // Reset ready state and signal when entering loading (new navigation to this page)
   useEffect(() => {
     if (transitionStage === 'loading') {
       readyCalledRef.current = false
       setIntroFinished(false)
       setShowFlash(false)
-      // Reset social links to hidden state before reveal starts
       if (!isLowPerformance && mainRef.current) {
         gsap.set(SOCIAL_LINKS_SELECTOR, { y: 100, opacity: 0 })
       }
@@ -58,8 +54,6 @@ export default function ProjectsPage() {
     }
   }, [transitionStage, isLowPerformance, signalReady])
 
-  // Set initial hidden state IMMEDIATELY before paint using useLayoutEffect
-  // This ensures elements are hidden before the reveal animation can expose them
   useLayoutEffect(() => {
     if (isLowPerformance || !mainRef.current) return
     gsapContextRef.current = gsap.context(() => {
@@ -69,7 +63,6 @@ export default function ProjectsPage() {
     return () => gsapContextRef.current?.revert()
   }, [isLowPerformance])
 
-  // Animate social links after intro (skip for low quality)
   useEffect(() => {
     if (!introFinished || isLowPerformance) return
     gsap.context(() => {

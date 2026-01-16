@@ -16,10 +16,6 @@ export default function ExperiencePage() {
 
   useBodyOverflow('hidden')
 
-  // BackgroundVideo signals ready when video is loaded
-
-  // Set initial hidden state IMMEDIATELY before paint using useLayoutEffect
-  // This ensures elements are hidden before the reveal animation can expose them
   useLayoutEffect(() => {
     if (!mainRef.current) return
     gsapContextRef.current = gsap.context(() => {
@@ -31,11 +27,9 @@ export default function ExperiencePage() {
     return () => gsapContextRef.current?.revert()
   }, [])
 
-  // Reset animation state when entering loading (for navigation back to this page)
   useEffect(() => {
     if (transitionStage === 'loading') {
       animationsStartedRef.current = false
-      // Re-set initial states for re-navigation
       if (mainRef.current) {
         gsap.set('.experience-header', { y: -100, opacity: 0 })
         gsap.set('.experience-card', { y: 100, opacity: 0, rotationX: -15 })
@@ -44,7 +38,6 @@ export default function ExperiencePage() {
     }
   }, [transitionStage])
 
-  // Animate on reveal
   useEffect(() => {
     if ((transitionStage !== 'revealing' && transitionStage !== 'hidden') || animationsStartedRef.current) return
     animationsStartedRef.current = true
