@@ -255,3 +255,41 @@ div[data-nextjs-toast] {
   display: none !important;
 }
 
+/* Slow panning animation for low quality mobile backgrounds */
+@keyframes slow-pan {
+  0% {
+    object-position: 12% 100%;
+  }
+  50% {
+    object-position: 88% 100%;
+  }
+  100% {
+    object-position: 12% 100%;
+  }
+}
+
+.animate-slow-pan {
+  animation: slow-pan 20s ease-in-out infinite;
+}
+
+/* Floating gradient for landing page sun - controlled by JS */
+.animate-float-gradient {
+  --gradient-y: 5%;
+  background: radial-gradient(circle at 50% var(--gradient-y), rgba(255,100,0,0.4) 12%, rgba(255,200,50,0.32) 22%, rgba(255,255,100,0.2) 30%, transparent 40%);
+}
+
+/* Landing page blue gradient overlays */
+.landing-gradient-left {
+  background: radial-gradient(circle at 5% -10%, rgba(0,150,255,0.3) 5%, rgba(100,200,200,0.22) 15%, rgba(200,230,100,0.12) 25%, transparent 40%);
+}
+
+.landing-gradient-right {
+  background: radial-gradient(circle at 95% -10%, rgba(0,150,255,0.3) 5%, rgba(100,200,200,0.22) 15%, rgba(200,230,100,0.12) 25%, transparent 40%);
+}
+
+/* Gradient mask for about page mobile transition */
+.gradient-mask-vertical {
+  mask-image: linear-gradient(to bottom, transparent 0%, black 30%, black 70%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 30%, black 70%, transparent 100%);
+}
+
