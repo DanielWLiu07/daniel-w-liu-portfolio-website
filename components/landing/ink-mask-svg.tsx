@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useEffect, useState } from 'react'
+import { useRef, useLayoutEffect, useState } from 'react'
 
 interface InkMaskSvgProps {
   maskX: string
@@ -10,6 +10,22 @@ interface InkMaskSvgProps {
 
 const ANIMATION_KEYSPLINE = '0.2 0.8 0.3 1'
 
+// Trigger all SVG SMIL animations
+function triggerAnimations(animRefs: React.MutableRefObject<SVGAnimateElement[]>) {
+  let triggered = false
+  animRefs.current.forEach((anim) => {
+    if (anim && typeof anim.beginElement === 'function') {
+      try {
+        anim.beginElement()
+        triggered = true
+      } catch {
+        // Animation not supported or not ready
+      }
+    }
+  })
+  return triggered
+}
+
 export function InkMaskSvg({ maskX, maskWidth, startMaskAnimation }: InkMaskSvgProps) {
   const [isSafari] = useState(() => {
     if (typeof window === 'undefined') return false
@@ -17,28 +33,53 @@ export function InkMaskSvg({ maskX, maskWidth, startMaskAnimation }: InkMaskSvgP
     return /^((?!chrome|android).)*safari/i.test(ua)
   })
   const animRefs = useRef<SVGAnimateElement[]>([])
+  const animationTriggeredRef = useRef(false)
   const [safariOverlayOpacity, setSafariOverlayOpacity] = useState(1)
 
-  useEffect(() => {
+  // Use useLayoutEffect to sync with page transition reveal animation
+  useLayoutEffect(() => {
     if (!startMaskAnimation) return
 
     if (isSafari) {
-      setTimeout(() => {
-        setSafariOverlayOpacity(0)
-      }, 50)
-    } else {
-      setTimeout(() => {
-        animRefs.current.forEach((anim) => {
-          if (anim && typeof anim.beginElement === 'function') {
-            try {
-              anim.beginElement()
-            } catch {
-            }
-          }
-        })
-      }, 50)
+      // Safari: fade out immediately
+      setSafariOverlayOpacity(0)
+      return
+    }
+
+    if (animationTriggeredRef.current) return
+
+    // Try to trigger immediately
+    if (triggerAnimations(animRefs)) {
+      animationTriggeredRef.current = true
+      return
+    }
+
+    // Retry with delays if immediate trigger fails (SVG elements may not be ready yet)
+    const delays = [0, 16, 32, 50, 100]
+    const timeouts: NodeJS.Timeout[] = []
+
+    delays.forEach((delay) => {
+      const timeout = setTimeout(() => {
+        if (animationTriggeredRef.current) return
+        if (triggerAnimations(animRefs)) {
+          animationTriggeredRef.current = true
+          timeouts.forEach(t => clearTimeout(t))
+        }
+      }, delay)
+      timeouts.push(timeout)
+    })
+
+    return () => {
+      timeouts.forEach(t => clearTimeout(t))
     }
   }, [startMaskAnimation, isSafari])
+
+  // Reset animation triggered ref when startMaskAnimation becomes false
+  useLayoutEffect(() => {
+    if (!startMaskAnimation) {
+      animationTriggeredRef.current = false
+    }
+  }, [startMaskAnimation])
 
   return (
     <>

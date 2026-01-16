@@ -197,7 +197,8 @@ export default function Home() {
       const timeline = gsap.timeline()
       timeline.to('.name-container', { y: 0, scale: 0.92, opacity: 1, duration: 0.6, ease: 'power2.in' })
       timeline.to('.name-container', { scale: 1, duration: 0.4, ease: 'elastic.out(1.2, 0.4)' })
-      timeline.call(() => setStartMaskAnimation(true), undefined, 0.55)
+      // Trigger mask reveal when name hits the screen (at 0.6s)
+      timeline.call(() => setStartMaskAnimation(true), undefined, 0.6)
 
       gsap.to('.tree-right', { xPercent: 0, duration: 1.5, ease: 'power3.out', delay: 1.5 })
       gsap.to('.tree-left', { xPercent: 0, duration: 1.5, ease: 'power3.out', delay: 1.5 })
