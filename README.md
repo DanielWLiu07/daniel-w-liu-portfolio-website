@@ -6,6 +6,6 @@ A personal portfolio website where every page has its own unique visual style, a
 
 - **Framework:** Next.js 16 with React
 - **Styling:** Tailwind CSS
-- **Animations:** GSAP
-- **3D Assets:** Rendered with Blender
+- **Animations:** GSAP and Blender
+- **3D & Stylized Assets:** Blender
 - **Deployment:** Vercel

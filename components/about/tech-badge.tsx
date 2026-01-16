@@ -1,11 +1,7 @@
-import Image from "next/image";
+import Image from "next/image"
+import type { TechBadge as TechBadgeType } from "@/data/tech-stack"
 
-interface TechBadgeProps {
-  src: string;
-  alt: string;
-}
-
-export function TechBadge({ src, alt }: TechBadgeProps) {
+export function TechBadge({ src, alt }: TechBadgeType) {
   return (
     <Image
       src={src}
@@ -15,5 +11,5 @@ export function TechBadge({ src, alt }: TechBadgeProps) {
       className="h-6 md:h-auto w-auto"
       unoptimized
     />
-  );
+  )
 }
