@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react'
 import gsap from 'gsap'
 import ProjectModal from '@/components/projects/project-modal'
 import IntroVideo from '@/components/projects/intro-video'
@@ -45,6 +45,12 @@ export default function ProjectsPage() {
   useEffect(() => {
     if (transitionStage === 'loading') {
       readyCalledRef.current = false
+      setIntroFinished(false)
+      setShowFlash(false)
+      // Reset social links to hidden state before reveal starts
+      if (!isLowPerformance && mainRef.current) {
+        gsap.set(SOCIAL_LINKS_SELECTOR, { y: 100, opacity: 0 })
+      }
       if (isLowPerformance) {
         signalReady()
         setIntroFinished(true)
@@ -52,9 +58,10 @@ export default function ProjectsPage() {
     }
   }, [transitionStage, isLowPerformance, signalReady])
 
-  // Initialize social links animation state (skip for low quality)
-  useEffect(() => {
-    if (isLowPerformance) return
+  // Set initial hidden state IMMEDIATELY before paint using useLayoutEffect
+  // This ensures elements are hidden before the reveal animation can expose them
+  useLayoutEffect(() => {
+    if (isLowPerformance || !mainRef.current) return
     gsapContextRef.current = gsap.context(() => {
       gsap.set(SOCIAL_LINKS_SELECTOR, { y: 100, opacity: 0 })
     }, mainRef)
