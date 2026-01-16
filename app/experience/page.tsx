@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import gsap from 'gsap'
 import { BackgroundVideo, ExperienceHeader, ExperienceList, SocialLinks, experiences } from '@/components/experience'
 import { useBodyOverflow } from '@/hooks/use-body-overflow'
@@ -18,8 +18,10 @@ export default function ExperiencePage() {
 
   // BackgroundVideo signals ready when video is loaded
 
-  // Set initial hidden state
-  useEffect(() => {
+  // Set initial hidden state IMMEDIATELY before paint using useLayoutEffect
+  // This ensures elements are hidden before the reveal animation can expose them
+  useLayoutEffect(() => {
+    if (!mainRef.current) return
     gsapContextRef.current = gsap.context(() => {
       gsap.set('.experience-header', { y: -100, opacity: 0 })
       gsap.set('.experience-card', { y: 100, opacity: 0, rotationX: -15 })
@@ -28,6 +30,19 @@ export default function ExperiencePage() {
 
     return () => gsapContextRef.current?.revert()
   }, [])
+
+  // Reset animation state when entering loading (for navigation back to this page)
+  useEffect(() => {
+    if (transitionStage === 'loading') {
+      animationsStartedRef.current = false
+      // Re-set initial states for re-navigation
+      if (mainRef.current) {
+        gsap.set('.experience-header', { y: -100, opacity: 0 })
+        gsap.set('.experience-card', { y: 100, opacity: 0, rotationX: -15 })
+        gsap.set('.experience-social-links', { y: 100, opacity: 0 })
+      }
+    }
+  }, [transitionStage])
 
   // Animate on reveal
   useEffect(() => {
@@ -38,8 +53,8 @@ export default function ExperiencePage() {
       gsap.to('.experience-header', {
         y: 0,
         opacity: 1,
-        duration: 0.8,
-        ease: 'power3.out',
+        duration: 2.2,
+        ease: 'back.out(2)',
         delay: ANIMATION_DELAY
       })
 
@@ -47,9 +62,9 @@ export default function ExperiencePage() {
         y: 0,
         opacity: 1,
         rotationX: 0,
-        duration: 1.4,
-        stagger: 0.15,
-        ease: 'power2.out',
+        duration: 2.2,
+        stagger: 0.2,
+        ease: 'back.out(2)',
         delay: ANIMATION_DELAY
       })
 
