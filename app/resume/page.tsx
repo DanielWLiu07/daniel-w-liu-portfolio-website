@@ -105,6 +105,7 @@ export default function Resume() {
       readyCalledRef.current = false
       videoStartedRef.current = false
       scrollTextAnimatedRef.current = false
+      setVideoEnded(false) // Reset video ended state to hide interactive elements
       if (isLowPerformance) {
         signalReady()
         setVideoEnded(true)
