@@ -2,21 +2,13 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import Image from 'next/image'
-import localFont from 'next/font/local'
 import gsap from 'gsap'
 import * as Dialog from '@radix-ui/react-dialog'
 import { createInteractiveButtons, VIDEO_CONFIG, PHOTO_IMAGES, InteractiveButton } from '@/data/resume-buttons'
 import { useBodyOverflow } from '@/hooks/use-body-overflow'
 import { usePerformanceMode } from '@/contexts/performance-mode-context'
 import { useTransitionState } from '@/components/ui/page-transition'
-
-const weddingDay = localFont({
-  src: '../../public/shared/fonts/weddingday-font/ancient-wedding-font/AncientWeddingDemoRegular-MAm1n.ttf',
-})
-
-const mochi = localFont({
-  src: '../../public/fonts/MochibopBold-Demo.ttf',
-})
+import { weddingDayFont, mochiFont } from '@/lib/fonts'
 
 const FALLBACK_TIMEOUT = 1500
 const SCROLL_TEXT_BREAKPOINT = 1440
@@ -302,7 +294,7 @@ export default function Resume() {
 
       {videoEnded && showScrollText && (
         <div ref={scrollTextRef} className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[102] pointer-events-none">
-          <p className={`text-4xl font-bold text-stroke-white-sm ${mochi.className} flex items-center gap-4 whitespace-nowrap`}>
+          <p className={`text-4xl font-bold text-stroke-white-sm ${mochiFont.className} flex items-center gap-4 whitespace-nowrap`}>
             <span ref={leftArrowRef}>&lt;</span>
             <span>Scroll Around</span>
             <span ref={rightArrowRef}>&gt;</span>

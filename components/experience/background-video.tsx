@@ -95,7 +95,6 @@ export function BackgroundVideo({ onReady }: BackgroundVideoProps) {
       const additionalDuration = ((1024 - width) / 1024) * 30000
       const duration = baseDuration + additionalDuration
 
-      console.log('Starting experience pan animation at width:', width, 'duration:', duration + 'ms')
       let startTime: number | null = null
       const minPos = 0
       const maxPos = 100

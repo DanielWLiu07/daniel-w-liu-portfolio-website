@@ -32,13 +32,18 @@ export default function ProjectsPage() {
 
   useBodyOverflow('hidden')
 
+  // Skip intro in low performance mode
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!isLowPerformance || readyCalledRef.current) return
     readyCalledRef.current = true
     signalReady()
     setIntroFinished(true)
   }, [isLowPerformance, signalReady])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
+  // Reset state when entering loading transition
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (transitionStage === 'loading') {
       readyCalledRef.current = false
@@ -53,6 +58,7 @@ export default function ProjectsPage() {
       }
     }
   }, [transitionStage, isLowPerformance, signalReady])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useLayoutEffect(() => {
     if (isLowPerformance || !mainRef.current) return

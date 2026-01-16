@@ -1,22 +1,13 @@
-"use client";
+"use client"
 
-import localFont from 'next/font/local';
-import { TechStack } from "@/components/about/tech-stack";
-import { BackgroundLayers } from "@/components/about/background-layers";
-import { MobileBackground } from "@/components/about/mobile-background";
-import { SocialLinksImages } from "@/components/about/social-links-images";
-import { useBodyOverflow } from "@/hooks/use-body-overflow";
-import Image from 'next/image';
-import { useRef, useState, useEffect } from 'react';
-
-const mochi = localFont({
-  src: '../../public/fonts/MochibopBold-Demo.ttf',
-});
-
-const katieRoze = localFont({
-  src: '../../public/shared/fonts/Katie Roze Watercolour Font - By Lef/KatieRoze.otf',
-  display: 'swap',
-});
+import { TechStack } from "@/components/about/tech-stack"
+import { BackgroundLayers } from "@/components/about/background-layers"
+import { MobileBackground } from "@/components/about/mobile-background"
+import { SocialLinksImages } from "@/components/about/social-links-images"
+import { useBodyOverflow } from "@/hooks/use-body-overflow"
+import Image from 'next/image'
+import { useRef, useState, useEffect } from 'react'
+import { mochiFont, katieRozeFont } from '@/lib/fonts'
 
 const INFO_ITEMS = [
   "- University of Waterloo - Computer Science and Finance Double Major (2025 - Present)",
@@ -40,23 +31,19 @@ export default function About() {
       if (contentRef.current && mobile) {
         const contentHeight = contentRef.current.scrollHeight;
         const viewportHeight = window.innerHeight;
-        // Calculate how many viewport heights we need (minimum 200vh)
         const neededVh = Math.max(200, Math.ceil((contentHeight / viewportHeight) * 100));
         setScrollHeight(neededVh);
       } else {
-        setScrollHeight(300); // Default for desktop
+        setScrollHeight(300);
       }
     };
 
     updateHeight();
     window.addEventListener('resize', updateHeight);
-    // Also update after fonts load
     setTimeout(updateHeight, 100);
 
     return () => window.removeEventListener('resize', updateHeight);
   }, []);
-
-  // BackgroundLayers signals ready when videos are loaded
 
   return (
     <div className="relative w-full max-h-screen min-[1038px]:max-h-screen xl:max-h-none overflow-y-auto overflow-x-hidden min-[1038px]:overflow-hidden xl:overflow-visible overscroll-y-none overscroll-x-none">
@@ -68,7 +55,7 @@ export default function About() {
         className="relative z-[20] flex flex-col min-[1038px]:flex-row min-[1038px]:justify-end min-[1038px]:min-h-screen min-[1038px]:mt-0"
         style={{ marginTop: isMobile ? `calc(-${scrollHeight}vh - 4rem)` : '0' }}
       >
-        <div className={`w-[95%] mx-auto min-[1038px]:mx-0 min-[1038px]:w-1/2 px-2 min-[1038px]:pl-4 pb-0 flex flex-col justify-start min-[1038px]:min-h-0 pt-8 overflow-visible ${katieRoze.className}`}>
+        <div className={`w-[95%] mx-auto min-[1038px]:mx-0 min-[1038px]:w-1/2 px-2 min-[1038px]:pl-4 pb-0 flex flex-col justify-start min-[1038px]:min-h-0 pt-8 overflow-visible ${katieRozeFont.className}`}>
           <div className="bg-white/60 xl:bg-transparent p-3 xl:p-0 rounded-lg xl:rounded-none overflow-visible">
             <div className="overflow-visible -space-y-6 min-[1038px]:-space-y-8 w-full">
               <h1 className="font-black bg-gradient-to-r from-purple-700 via-pink-700 to-blue-700 bg-clip-text text-transparent drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)] leading-32 py-2 whitespace-nowrap">
@@ -83,7 +70,7 @@ export default function About() {
 
             <div className="pl-3 min-[1038px]:pl-2 text-black text-xl min-[1038px]:text-3xl drop-shadow-[0_1px_2px_rgba(0,0,0,0.2)] w-full mt-2">
               {INFO_ITEMS.map((info, index) => (
-                <p key={index} className={`text-2xl min-[1038px]:text-3xl min-[1038px]:max-w-lg text-stroke-white-xs ${mochi.className}`}>
+                <p key={index} className={`text-2xl min-[1038px]:text-3xl min-[1038px]:max-w-lg text-stroke-white-xs ${mochiFont.className}`}>
                   {info}
                 </p>
               ))}

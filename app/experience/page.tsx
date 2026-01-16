@@ -6,7 +6,7 @@ import { BackgroundVideo, ExperienceHeader, ExperienceList, SocialLinks, experie
 import { useBodyOverflow } from '@/hooks/use-body-overflow'
 import { useTransitionState } from '@/components/ui/page-transition'
 
-const ANIMATION_DELAY = 1.5
+const ANIMATION_DELAY = 0.8
 
 export default function ExperiencePage() {
   const mainRef = useRef<HTMLElement>(null)
@@ -46,8 +46,8 @@ export default function ExperiencePage() {
       gsap.to('.experience-header', {
         y: 0,
         opacity: 1,
-        duration: 2.2,
-        ease: 'back.out(2)',
+        duration: 0.8,
+        ease: 'power3.out',
         delay: ANIMATION_DELAY
       })
 
@@ -55,16 +55,16 @@ export default function ExperiencePage() {
         y: 0,
         opacity: 1,
         rotationX: 0,
-        duration: 2.2,
-        stagger: 0.2,
-        ease: 'back.out(2)',
+        duration: 0.8,
+        stagger: 0.12,
+        ease: 'power3.out',
         delay: ANIMATION_DELAY
       })
 
       gsap.to('.experience-social-links', {
         y: 0,
         opacity: 1,
-        duration: 0.8,
+        duration: 0.6,
         ease: 'power3.out',
         delay: ANIMATION_DELAY
       })

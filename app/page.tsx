@@ -85,7 +85,7 @@ export default function Home() {
       const cycleProgress = (video.currentTime % cycleDuration) / cycleDuration
       const sineValue = Math.sin(cycleProgress * Math.PI)
       const gradientY = 2.5 + (sineValue * 20)
-      gradient.style.background = `radial-gradient(circle at 50% ${gradientY}%, rgba(255,100,0,0.4) 15%, rgba(255,200,50,0.32) 28%, rgba(255,255,100,0.2) 38%, transparent 50%)`
+      gradient.style.background = `radial-gradient(circle at 50% ${gradientY}%, rgba(255,100,0,0.2) 15%, rgba(255,200,50,0.16) 28%, rgba(255,255,100,0.1) 38%, transparent 50%)`
       animationId = requestAnimationFrame(updateGradient)
     }
 
@@ -102,6 +102,8 @@ export default function Home() {
     signalReady()
   }, [signalReady])
 
+  // Reset animation state when mode changes
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     signalledReadyRef.current = false
     setStartMaskAnimation(false)
@@ -111,13 +113,17 @@ export default function Home() {
       introGsapContextRef.current = null
     }
   }, [mode])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
+  // Reset state when entering loading transition
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (transitionStage === 'loading') {
       signalledReadyRef.current = false
       setIntroAnimationsStarted(false)
     }
   }, [transitionStage])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useLayoutEffect(() => {
     if (mode === null || isLowPerformance || !rootRef.current) return
@@ -174,6 +180,8 @@ export default function Home() {
     }
   }, [mode, isLowPerformance, doSignalReady])
 
+  // Start intro animations when page reveals
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (mode === null || introAnimationsStarted) return
     if (transitionStage !== 'revealing' && transitionStage !== 'hidden') return
@@ -198,6 +206,7 @@ export default function Home() {
       gsap.fromTo('.social-links', { yPercent: 100, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 1, ease: 'power3.out', delay: 1.5 })
     }, rootRef)
   }, [mode, isLowPerformance, transitionStage, introAnimationsStarted])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     return () => {

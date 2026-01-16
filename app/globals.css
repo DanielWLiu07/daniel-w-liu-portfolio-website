@@ -280,11 +280,11 @@ div[data-nextjs-toast] {
 
 /* Landing page blue gradient overlays */
 .landing-gradient-left {
-  background: radial-gradient(circle at 5% -10%, rgba(0,150,255,0.3) 5%, rgba(100,200,200,0.22) 15%, rgba(200,230,100,0.12) 25%, transparent 40%);
+  background: radial-gradient(circle at 5% -10%, rgba(0,150,255,0.15) 5%, rgba(100,200,200,0.11) 15%, rgba(200,230,100,0.06) 25%, transparent 40%);
 }
 
 .landing-gradient-right {
-  background: radial-gradient(circle at 95% -10%, rgba(0,150,255,0.3) 5%, rgba(100,200,200,0.22) 15%, rgba(200,230,100,0.12) 25%, transparent 40%);
+  background: radial-gradient(circle at 95% -10%, rgba(0,150,255,0.15) 5%, rgba(100,200,200,0.11) 15%, rgba(200,230,100,0.06) 25%, transparent 40%);
 }
 
 /* Gradient mask for about page mobile transition */

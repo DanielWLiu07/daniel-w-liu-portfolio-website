@@ -6,9 +6,27 @@ export interface SocialLink {
   icon: React.ReactElement
 }
 
+export interface SocialLinkImage {
+  href: string
+  label: string
+  image: string
+}
+
+export const SOCIAL_URLS = {
+  github: "https://github.com/DanielWLiu07",
+  linkedin: "https://www.linkedin.com/in/danielliu2007/",
+  email: "https://docs.google.com/forms/d/e/1FAIpQLSdsaj2nXuReGTo1Fu9PaW7jsxUZPpPAiCMuf0gBvmZBYFe1nw/viewform?usp=dialog",
+}
+
+export const socialLinksImageData: SocialLinkImage[] = [
+  { href: SOCIAL_URLS.github, label: "GitHub", image: "/about/images/github.png" },
+  { href: SOCIAL_URLS.linkedin, label: "LinkedIn", image: "/about/images/linkedln.png" },
+  { href: SOCIAL_URLS.email, label: "Email", image: "/about/images/gmail.png" },
+]
+
 export const socialLinksData: SocialLink[] = [
   {
-    href: "https://github.com/DanielWLiu07",
+    href: SOCIAL_URLS.github,
     label: "GitHub",
     icon: (
       <path
@@ -20,7 +38,7 @@ export const socialLinksData: SocialLink[] = [
     ),
   },
   {
-    href: "https://www.linkedin.com/in/danielliu2007/",
+    href: SOCIAL_URLS.linkedin,
     label: "LinkedIn",
     icon: (
       <>
@@ -35,7 +53,7 @@ export const socialLinksData: SocialLink[] = [
     ),
   },
   {
-    href: "https://docs.google.com/forms/d/e/1FAIpQLSdsaj2nXuReGTo1Fu9PaW7jsxUZPpPAiCMuf0gBvmZBYFe1nw/viewform?usp=dialog",
+    href: SOCIAL_URLS.email,
     label: "Email",
     icon: (
       <path
