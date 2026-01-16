@@ -16,7 +16,6 @@ const VIDEO_DURATION = 12.54
 
 export default function Home() {
   const [startMaskAnimation, setStartMaskAnimation] = useState(false)
-  const [introAnimationsStarted, setIntroAnimationsStarted] = useState(false)
 
   const rootRef = useRef<HTMLDivElement>(null)
   const compositeVideoRef = useRef<HTMLVideoElement>(null)
@@ -28,6 +27,7 @@ export default function Home() {
   const introGsapContextRef = useRef<gsap.Context | null>(null)
   const panTimelineRef = useRef<gsap.core.Timeline | null>(null)
   const initialStatesSetRef = useRef(false)
+  const introAnimationsStartedRef = useRef(false)
 
   const { mode, isLowPerformance } = usePerformanceMode()
   const isMobile = useMobile(768)
@@ -106,8 +106,8 @@ export default function Home() {
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     signalledReadyRef.current = false
+    introAnimationsStartedRef.current = false
     setStartMaskAnimation(false)
-    setIntroAnimationsStarted(false)
     if (introGsapContextRef.current) {
       introGsapContextRef.current.revert()
       introGsapContextRef.current = null
@@ -116,25 +116,23 @@ export default function Home() {
   /* eslint-enable react-hooks/set-state-in-effect */
 
   // Reset state when entering loading transition
-  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (transitionStage === 'loading') {
       signalledReadyRef.current = false
-      setIntroAnimationsStarted(false)
+      introAnimationsStartedRef.current = false
     }
   }, [transitionStage])
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   useLayoutEffect(() => {
     if (mode === null || isLowPerformance || !rootRef.current) return
-    if (initialStatesSetRef.current && introAnimationsStarted) return
+    if (initialStatesSetRef.current && introAnimationsStartedRef.current) return
 
     initialStatesSetRef.current = true
     gsap.set('.name-container', { y: '-100vh', scale: 1.8, opacity: 0 })
     gsap.set('.tree-right', { xPercent: 100 })
     gsap.set('.tree-left', { xPercent: -100 })
     gsap.set('.social-links', { yPercent: 100, opacity: 0 })
-  }, [mode, isLowPerformance, introAnimationsStarted])
+  }, [mode, isLowPerformance])
 
   useEffect(() => {
     if (mode === null) {
@@ -180,13 +178,13 @@ export default function Home() {
     }
   }, [mode, isLowPerformance, doSignalReady])
 
-  // Start intro animations when page reveals
+  // Start intro animations when page reveals - use useLayoutEffect to sync with page transition
   /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
-    if (mode === null || introAnimationsStarted) return
+  useLayoutEffect(() => {
+    if (mode === null || introAnimationsStartedRef.current) return
     if (transitionStage !== 'revealing' && transitionStage !== 'hidden') return
 
-    setIntroAnimationsStarted(true)
+    introAnimationsStartedRef.current = true
 
     if (isLowPerformance) {
       setStartMaskAnimation(true)
@@ -205,7 +203,7 @@ export default function Home() {
       gsap.to('.tree-left', { xPercent: 0, duration: 1.5, ease: 'power3.out', delay: 1.5 })
       gsap.fromTo('.social-links', { yPercent: 100, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 1, ease: 'power3.out', delay: 1.5 })
     }, rootRef)
-  }, [mode, isLowPerformance, transitionStage, introAnimationsStarted])
+  }, [mode, isLowPerformance, transitionStage])
   /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
