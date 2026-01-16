@@ -38,16 +38,7 @@ function LowPerformanceMobile({ scrollHeight }: { scrollHeight: number }) {
         <Image src="/animation_frames/watercolour_sequences/sparkle_loop_vid/render_compositing_250.png" alt="" fill className="object-cover object-[12%_100%] min-[530px]:object-[10%_100%] z-10" />
       </section>
       <section className="min-[1038px]:hidden absolute inset-x-0 top-[100vh] h-20 z-[8] -translate-y-[40%]">
-        <div
-          className="w-full h-full"
-          style={{
-            backgroundImage: 'url(/about/images/bg.png)',
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            maskImage: 'linear-gradient(to bottom, transparent 0%, black 30%, black 70%, transparent 100%)',
-            WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 30%, black 70%, transparent 100%)'
-          }}
-        />
+        <div className="w-full h-full bg-cover bg-center gradient-mask-vertical bg-[url('/about/images/bg.png')]" />
       </section>
       <section className="min-[1038px]:hidden relative" style={{ height: `${scrollHeight}vh` }}>
         <div className="sticky top-0 h-screen">
@@ -105,16 +96,7 @@ function HighPerformanceMobile({ scrollHeight }: { scrollHeight: number }) {
         </video>
       </section>
       <section className="min-[1038px]:hidden absolute inset-x-0 top-[100vh] h-20 z-[8] -translate-y-[40%]">
-        <div
-          className="w-full h-full"
-          style={{
-            backgroundImage: 'url(/about/images/bg.png)',
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            maskImage: 'linear-gradient(to bottom, transparent 0%, black 30%, black 70%, transparent 100%)',
-            WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 30%, black 70%, transparent 100%)'
-          }}
-        />
+        <div className="w-full h-full bg-cover bg-center gradient-mask-vertical bg-[url('/about/images/bg.png')]" />
       </section>
       <section className="min-[1038px]:hidden relative" style={{ height: `${scrollHeight}vh` }}>
         <div className="sticky top-0 h-screen">
