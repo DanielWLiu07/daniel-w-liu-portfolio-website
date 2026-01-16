@@ -10,6 +10,13 @@ export interface Experience {
 
 export const experiences: Experience[] = [
   {
+    title: "Software Engineer Intern",
+    company: "Wedge (YC S25)",
+    period: "Jan 2026 - Present",
+    description: "Building innovative solutions at an early-stage Y Combinator startup.",
+    logo: "/experience/images/wedge_logo.avif",
+  },
+  {
     title: "Fullstack and Events Intern",
     company: "HOSA Canada",
     period: "Sept 2025 - Dec 2025",
