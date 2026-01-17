@@ -220,8 +220,10 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   }, [cleanupTimers])
 
   const triggerAnimationWithRetry = useCallback((svgRef: React.RefObject<SVGSVGElement | null>, onTriggered?: () => void) => {
+    const startTime = performance.now()
     const tryTrigger = (attempts: number) => {
       if (svgRef.current) {
+        console.log(`SVG found after ${attempts} attempts, ${(performance.now() - startTime).toFixed(1)}ms`)
         triggerSvgAnimations(svgRef.current)
         onTriggered?.()
         return
@@ -232,6 +234,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
       } else {
         setTimeout(() => {
           if (svgRef.current) {
+            console.log(`SVG found via fallback after ${(performance.now() - startTime).toFixed(1)}ms`)
             triggerSvgAnimations(svgRef.current)
             onTriggered?.()
           }

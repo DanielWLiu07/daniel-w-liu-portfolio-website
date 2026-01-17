@@ -181,10 +181,11 @@ export default function Home() {
     if (transitionStage !== 'revealing') return
 
     introAnimationsStartedRef.current = true
+    const effectStartTime = performance.now()
     console.log('Intro animations triggered, transitionStage:', transitionStage)
 
     const startIntroAnimations = () => {
-      console.log('startIntroAnimations called')
+      console.log(`startIntroAnimations called, ${(performance.now() - effectStartTime).toFixed(1)}ms after effect`)
       if (isLowPerformance) {
         setStartMaskAnimation(true)
         return
