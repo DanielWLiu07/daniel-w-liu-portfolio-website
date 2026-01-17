@@ -114,7 +114,7 @@ export default function Home() {
   }, [mode])
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (transitionStage === 'loading') {
       signalledReadyRef.current = false
       introAnimationsStartedRef.current = false
