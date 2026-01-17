@@ -220,10 +220,8 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   }, [cleanupTimers])
 
   const triggerAnimationWithRetry = useCallback((svgRef: React.RefObject<SVGSVGElement | null>, onTriggered?: () => void) => {
-    const startTime = performance.now()
     const tryTrigger = (attempts: number) => {
       if (svgRef.current) {
-        console.log(`SVG found after ${attempts} attempts, ${(performance.now() - startTime).toFixed(1)}ms`)
         triggerSvgAnimations(svgRef.current)
         onTriggered?.()
         return
@@ -234,7 +232,6 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
       } else {
         setTimeout(() => {
           if (svgRef.current) {
-            console.log(`SVG found via fallback after ${(performance.now() - startTime).toFixed(1)}ms`)
             triggerSvgAnimations(svgRef.current)
             onTriggered?.()
           }
@@ -254,16 +251,15 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   useLayoutEffect(() => {
     if (overlayState === 'revealing') {
       triggerAnimationWithRetry(revealSvgRef, () => {
-        // Delay callback to allow landing page's useEffect to register first
+        // Delay callback to let reveal animation expand enough to show content
+        // The reveal animation takes 3.5s total; ~800ms should uncover the center
+        const REVEAL_PROGRESS_DELAY = 800
         setTimeout(() => {
           if (revealSvgReadyCallbackRef.current) {
-            console.log('Reveal SVG animation triggered, calling callback')
             revealSvgReadyCallbackRef.current()
             revealSvgReadyCallbackRef.current = null
-          } else {
-            console.log('No callback registered yet')
           }
-        }, 0)
+        }, REVEAL_PROGRESS_DELAY)
       })
     }
   }, [overlayState, triggerAnimationWithRetry])

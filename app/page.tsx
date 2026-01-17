@@ -181,17 +181,12 @@ export default function Home() {
     if (transitionStage !== 'revealing') return
 
     introAnimationsStartedRef.current = true
-    const effectStartTime = performance.now()
-    console.log('Intro animations triggered, transitionStage:', transitionStage)
 
     const startIntroAnimations = () => {
-      console.log(`startIntroAnimations called, ${(performance.now() - effectStartTime).toFixed(1)}ms after effect`)
       if (isLowPerformance) {
         setStartMaskAnimation(true)
         return
       }
-
-      console.log('Starting GSAP intro animations')
 
       introGsapContextRef.current = gsap.context(() => {
         gsap.set('.name-container', { y: '-100vh', scale: 1.8, opacity: 0 })
@@ -208,7 +203,6 @@ export default function Home() {
     }
 
     // Wait for reveal SVG to be ready before starting intro animations
-    console.log('Registering onRevealSvgReady callback')
     onRevealSvgReady(startIntroAnimations)
   }, [mode, isLowPerformance, transitionStage, onRevealSvgReady])
 
