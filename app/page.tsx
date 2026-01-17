@@ -176,32 +176,38 @@ export default function Home() {
     }
   }, [mode, isLowPerformance, doSignalReady])
 
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (mode === null || introAnimationsStartedRef.current) return
-    if (transitionStage !== 'revealing' && transitionStage !== 'hidden') return
+    if (transitionStage !== 'revealing') return
 
     introAnimationsStartedRef.current = true
 
-    if (isLowPerformance) {
-      setStartMaskAnimation(true)
-      return
+    const startIntroAnimations = () => {
+      if (isLowPerformance) {
+        setStartMaskAnimation(true)
+        return
+      }
+
+      introGsapContextRef.current = gsap.context(() => {
+        gsap.set('.name-container', { y: '-100vh', scale: 1.8, opacity: 0 })
+
+        const timeline = gsap.timeline()
+        timeline.to('.name-container', { y: 0, scale: 0.92, opacity: 1, duration: 0.6, ease: 'power2.in' })
+        timeline.to('.name-container', { scale: 1, duration: 0.4, ease: 'elastic.out(1.2, 0.4)' })
+
+        gsap.to('.tree-right', { xPercent: 0, duration: 1.5, ease: 'power3.out', delay: 1.5 })
+        gsap.to('.tree-left', { xPercent: 0, duration: 1.5, ease: 'power3.out', delay: 1.5 })
+        gsap.fromTo('.social-links', { yPercent: 100, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 1, ease: 'power3.out', delay: 1.5 })
+      }, rootRef)
     }
 
-    introGsapContextRef.current = gsap.context(() => {
-      gsap.set('.name-container', { y: '-100vh', scale: 1.8, opacity: 0 })
+    startIntroAnimations()
 
-      const timeline = gsap.timeline()
-      timeline.to('.name-container', { y: 0, scale: 0.92, opacity: 1, duration: 0.6, ease: 'power2.in' })
-      timeline.to('.name-container', { scale: 1, duration: 0.4, ease: 'elastic.out(1.2, 0.4)' })
-      timeline.call(() => setStartMaskAnimation(true), undefined, 0.6)
-
-      gsap.to('.tree-right', { xPercent: 0, duration: 1.5, ease: 'power3.out', delay: 1.5 })
-      gsap.to('.tree-left', { xPercent: 0, duration: 1.5, ease: 'power3.out', delay: 1.5 })
-      gsap.fromTo('.social-links', { yPercent: 100, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 1, ease: 'power3.out', delay: 1.5 })
-    }, rootRef)
+    // Also trigger paper fade when reveal starts
+    if (!isLowPerformance) {
+      setStartMaskAnimation(true)
+    }
   }, [mode, isLowPerformance, transitionStage])
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     return () => {
