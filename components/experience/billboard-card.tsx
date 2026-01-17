@@ -41,7 +41,7 @@ export function BillboardCard({ experience }: BillboardCardProps) {
                 src={experience.logo}
                 alt={`${experience.company} logo`}
                 fill
-                className="object-contain"
+                className="object-contain relative z-10"
                 style={experience.logoScale ? { transform: `scale(${experience.logoScale})` } : undefined}
               />
             )}
