@@ -54,21 +54,12 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
 
   const handleSvgReady = useCallback(() => {
     svgReadyRef.current = true
-    // Call the callback if registered (for landing page to know SVG is ready)
-    if (revealSvgReadyCallbackRef.current) {
-      revealSvgReadyCallbackRef.current()
-      revealSvgReadyCallbackRef.current = null
-    }
   }, [])
 
   const onRevealSvgReady = useCallback((callback: () => void) => {
-    // If SVG is already ready, call immediately
-    if (svgReadyRef.current && overlayState === 'revealing') {
-      callback()
-    } else {
-      revealSvgReadyCallbackRef.current = callback
-    }
-  }, [overlayState])
+    // Register callback to be called when reveal animation is triggered
+    revealSvgReadyCallbackRef.current = callback
+  }, [])
 
   const doReveal = useCallback(() => {
     if (revealTriggeredRef.current) return
@@ -228,10 +219,11 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     }
   }, [cleanupTimers])
 
-  const triggerAnimationWithRetry = useCallback((svgRef: React.RefObject<SVGSVGElement | null>) => {
+  const triggerAnimationWithRetry = useCallback((svgRef: React.RefObject<SVGSVGElement | null>, onTriggered?: () => void) => {
     const tryTrigger = (attempts: number) => {
       if (svgRef.current) {
         triggerSvgAnimations(svgRef.current)
+        onTriggered?.()
         return
       }
 
@@ -241,6 +233,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
         setTimeout(() => {
           if (svgRef.current) {
             triggerSvgAnimations(svgRef.current)
+            onTriggered?.()
           }
         }, 50)
       }
@@ -257,7 +250,18 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
 
   useLayoutEffect(() => {
     if (overlayState === 'revealing') {
-      triggerAnimationWithRetry(revealSvgRef)
+      triggerAnimationWithRetry(revealSvgRef, () => {
+        // Delay callback to allow landing page's useEffect to register first
+        setTimeout(() => {
+          if (revealSvgReadyCallbackRef.current) {
+            console.log('Reveal SVG animation triggered, calling callback')
+            revealSvgReadyCallbackRef.current()
+            revealSvgReadyCallbackRef.current = null
+          } else {
+            console.log('No callback registered yet')
+          }
+        }, 0)
+      })
     }
   }, [overlayState, triggerAnimationWithRetry])
 
