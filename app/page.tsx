@@ -181,13 +181,16 @@ export default function Home() {
     if (transitionStage !== 'revealing') return
 
     introAnimationsStartedRef.current = true
+    console.log('Intro animations triggered, transitionStage:', transitionStage)
 
     const startIntroAnimations = () => {
+      console.log('startIntroAnimations called')
       if (isLowPerformance) {
         setStartMaskAnimation(true)
         return
       }
 
+      console.log('Starting GSAP intro animations')
       introGsapContextRef.current = gsap.context(() => {
         gsap.set('.name-container', { y: '-100vh', scale: 1.8, opacity: 0 })
 
@@ -205,6 +208,7 @@ export default function Home() {
 
     // Also trigger paper fade when reveal starts
     if (!isLowPerformance) {
+      console.log('Setting startMaskAnimation to true')
       setStartMaskAnimation(true)
     }
   }, [mode, isLowPerformance, transitionStage])
