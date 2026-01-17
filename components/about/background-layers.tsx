@@ -144,7 +144,7 @@ function SparkleVideo({
         muted
         playsInline
         onEnded={onSparkleEnd}
-        className={`absolute inset-0 w-full h-full object-cover ${showLoop ? 'hidden' : ''}`}
+        className={`absolute inset-0 w-full h-full object-cover object-bottom ${showLoop ? 'hidden' : ''}`}
         preload="auto"
       >
         <source src="/about/videos/sparkle_being.mov" type='video/mp4; codecs="hvc1"' />
@@ -155,7 +155,7 @@ function SparkleVideo({
         loop
         muted
         playsInline
-        className={`absolute inset-0 w-full h-full object-cover ${showLoop ? '' : 'hidden'}`}
+        className={`absolute inset-0 w-full h-full object-cover object-bottom ${showLoop ? '' : 'hidden'}`}
         preload="auto"
       >
         <source src="/about/videos/sparkle_loop.mov" type='video/mp4; codecs="hvc1"' />
@@ -192,7 +192,7 @@ function LowPerformanceBackgrounds() {
           src="/animation_frames/watercolour_sequences/sparkle_loop_vid/render_compositing_250.png"
           alt=""
           fill
-          className="object-cover"
+          className="object-cover object-bottom"
         />
       </div>
     </>
