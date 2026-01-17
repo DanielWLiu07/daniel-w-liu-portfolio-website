@@ -68,7 +68,7 @@ export default function About() {
               </p>
             </div>
 
-            <div className="pl-3 min-[1038px]:pl-2 text-black text-xl min-[1038px]:text-3xl drop-shadow-[0_1px_2px_rgba(0,0,0,0.2)] w-full mt-2">
+            <div className="pl-3 min-[1038px]:pl-2 text-gray-800 text-xl min-[1038px]:text-3xl drop-shadow-[0_1px_2px_rgba(0,0,0,0.2)] w-full mt-2">
               {INFO_ITEMS.map((info, index) => (
                 <p key={index} className={`text-2xl min-[1038px]:text-3xl min-[1038px]:max-w-lg text-stroke-white-xs ${mochiFont.className}`}>
                   {info}
