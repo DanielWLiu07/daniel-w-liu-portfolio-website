@@ -35,6 +35,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   const fallbackTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const navigationTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const transitionIdRef = useRef(0)
+  const revealSvgReadyCallbackRef = useRef<(() => void) | null>(null)
 
   const cleanupTimers = useCallback(() => {
     if (readyCheckIntervalRef.current) {
@@ -53,7 +54,21 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
 
   const handleSvgReady = useCallback(() => {
     svgReadyRef.current = true
+    // Call the callback if registered (for landing page to know SVG is ready)
+    if (revealSvgReadyCallbackRef.current) {
+      revealSvgReadyCallbackRef.current()
+      revealSvgReadyCallbackRef.current = null
+    }
   }, [])
+
+  const onRevealSvgReady = useCallback((callback: () => void) => {
+    // If SVG is already ready, call immediately
+    if (svgReadyRef.current && overlayState === 'revealing') {
+      callback()
+    } else {
+      revealSvgReadyCallbackRef.current = callback
+    }
+  }, [overlayState])
 
   const doReveal = useCallback(() => {
     if (revealTriggeredRef.current) return
@@ -292,7 +307,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   const isRevealed = overlayState === 'hidden'
 
   return (
-    <TransitionContext.Provider value={{ transitionStage: overlayState, signalReady, isRevealed, triggerCover, navigateWithTransition }}>
+    <TransitionContext.Provider value={{ transitionStage: overlayState, signalReady, isRevealed, triggerCover, navigateWithTransition, onRevealSvgReady }}>
       {children}
 
       {(overlayState === 'covering' || overlayState === 'loading') && (

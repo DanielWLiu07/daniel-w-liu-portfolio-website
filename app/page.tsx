@@ -32,7 +32,7 @@ export default function Home() {
   const { mode, isLowPerformance } = usePerformanceMode()
   const isMobile = useMobile(768)
   const isSmallMobile = useMobile(550)
-  const { signalReady, transitionStage } = useTransitionState()
+  const { signalReady, transitionStage, onRevealSvgReady } = useTransitionState()
 
   useBodyOverflow('hidden')
 
@@ -191,12 +191,14 @@ export default function Home() {
       }
 
       console.log('Starting GSAP intro animations')
+
       introGsapContextRef.current = gsap.context(() => {
         gsap.set('.name-container', { y: '-100vh', scale: 1.8, opacity: 0 })
 
         const timeline = gsap.timeline()
         timeline.to('.name-container', { y: 0, scale: 0.92, opacity: 1, duration: 0.6, ease: 'power2.in' })
         timeline.to('.name-container', { scale: 1, duration: 0.4, ease: 'elastic.out(1.2, 0.4)' })
+        timeline.call(() => setStartMaskAnimation(true), undefined, 0.6)
 
         gsap.to('.tree-right', { xPercent: 0, duration: 1.5, ease: 'power3.out', delay: 1.5 })
         gsap.to('.tree-left', { xPercent: 0, duration: 1.5, ease: 'power3.out', delay: 1.5 })
@@ -204,14 +206,10 @@ export default function Home() {
       }, rootRef)
     }
 
-    startIntroAnimations()
-
-    // Also trigger paper fade when reveal starts
-    if (!isLowPerformance) {
-      console.log('Setting startMaskAnimation to true')
-      setStartMaskAnimation(true)
-    }
-  }, [mode, isLowPerformance, transitionStage])
+    // Wait for reveal SVG to be ready before starting intro animations
+    console.log('Registering onRevealSvgReady callback')
+    onRevealSvgReady(startIntroAnimations)
+  }, [mode, isLowPerformance, transitionStage, onRevealSvgReady])
 
   useEffect(() => {
     return () => {
