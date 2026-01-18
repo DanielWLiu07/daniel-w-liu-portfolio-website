@@ -180,7 +180,9 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (prevModeRef.current === null && mode !== null) {
       if (isInitialLoadRef.current) {
-        // First quality selection - trigger intros immediately (just wait for callback)
+        // First quality selection - mandatory 3s loading to ensure everything is ready
+        const INITIAL_LOAD_DELAY = 3000
+
         const triggerIntros = () => {
           if (onIntroStartRef.current) {
             onIntroStartRef.current()
@@ -190,27 +192,22 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
           return false
         }
 
-        if (triggerIntros()) {
-          prevModeRef.current = mode
-          return
-        }
-
-        // Brief wait for callback to register (usually immediate)
-        const interval = setInterval(() => {
-          if (triggerIntros()) {
-            clearInterval(interval)
-            clearTimeout(timeout)
-          }
-        }, 10)
-
         const timeout = setTimeout(() => {
-          clearInterval(interval)
-          triggerIntros()
-        }, 500)
+          // After 3s, trigger intros (poll briefly for callback if needed)
+          if (triggerIntros()) return
+
+          const interval = setInterval(() => {
+            if (triggerIntros()) {
+              clearInterval(interval)
+            }
+          }, 10)
+
+          // Final fallback
+          setTimeout(() => clearInterval(interval), 500)
+        }, INITIAL_LOAD_DELAY)
 
         prevModeRef.current = mode
         return () => {
-          clearInterval(interval)
           clearTimeout(timeout)
         }
       } else {
