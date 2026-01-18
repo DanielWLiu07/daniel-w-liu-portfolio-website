@@ -221,6 +221,13 @@ export default function Home() {
     <>
       <ModeSelector />
 
+      {/* Preload InkMaskSvg hidden while quality selector is showing */}
+      {!shouldRenderLandingContent && (
+        <div className="fixed inset-0 pointer-events-none opacity-0" aria-hidden="true">
+          <InkMaskSvg maskX={maskX} maskWidth={maskWidth} startMaskAnimation={false} />
+        </div>
+      )}
+
       {shouldRenderLandingContent && (
         <>
           <div ref={rootRef} className="relative w-full h-screen overflow-hidden">
