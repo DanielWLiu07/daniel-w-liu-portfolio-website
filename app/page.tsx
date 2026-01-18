@@ -13,6 +13,7 @@ import { InkMaskSvg, TreeOverlays, NameDisplay } from '@/components/landing'
 
 const FALLBACK_TIMEOUT = 2000
 const VIDEO_DURATION = 12.54
+const ANIMATION_DELAY = 1.2
 
 export default function Home() {
   const [startMaskAnimation, setStartMaskAnimation] = useState(false)
@@ -24,17 +25,25 @@ export default function Home() {
   const bgPanContainerRef = useRef<HTMLDivElement>(null)
   const sunGradientRef = useRef<HTMLDivElement>(null)
   const signalledReadyRef = useRef(false)
-  const introGsapContextRef = useRef<gsap.Context | null>(null)
+  const gsapContextRef = useRef<gsap.Context | null>(null)
   const panTimelineRef = useRef<gsap.core.Timeline | null>(null)
-  const initialStatesSetRef = useRef(false)
-  const introAnimationsStartedRef = useRef(false)
+  const timelineRef = useRef<gsap.core.Timeline | null>(null)
+  const animationsStartedRef = useRef(false)
 
   const { mode, isLowPerformance } = usePerformanceMode()
   const isMobile = useMobile(768)
   const isSmallMobile = useMobile(550)
-  const { signalReady, transitionStage, onIntroStart } = useTransitionState()
+  const { signalReady, transitionStage } = useTransitionState()
 
   useBodyOverflow('hidden')
+
+  const setInitialStates = useCallback(() => {
+    if (!rootRef.current || isLowPerformance) return
+    gsap.set('.name-container', { y: '-100vh', scale: 1.8, opacity: 0 })
+    gsap.set('.tree-right', { xPercent: 100 })
+    gsap.set('.tree-left', { xPercent: -100 })
+    gsap.set('.social-links', { yPercent: 100, opacity: 0 })
+  }, [isLowPerformance])
 
   const setupPanAnimation = useCallback((element: HTMLDivElement | null) => {
     bgPanContainerRef.current = element
@@ -102,42 +111,41 @@ export default function Home() {
     signalReady()
   }, [signalReady])
 
-  /* eslint-disable react-hooks/set-state-in-effect */
+  // Set initial states on mount
+  useLayoutEffect(() => {
+    if (mode === null || !rootRef.current) return
+    gsapContextRef.current = gsap.context(() => {
+      setInitialStates()
+    }, rootRef)
+
+    return () => {
+      timelineRef.current?.kill()
+      gsapContextRef.current?.revert()
+    }
+  }, [mode, setInitialStates])
+
+  // Reset on loading state
   useEffect(() => {
-    signalledReadyRef.current = false
-    introAnimationsStartedRef.current = false
-    setStartMaskAnimation(false)
-    if (introGsapContextRef.current) {
-      introGsapContextRef.current.revert()
-      introGsapContextRef.current = null
-    }
-  }, [mode])
-  /* eslint-enable react-hooks/set-state-in-effect */
-
-  useLayoutEffect(() => {
     if (transitionStage === 'loading') {
+      animationsStartedRef.current = false
       signalledReadyRef.current = false
-      introAnimationsStartedRef.current = false
+      setStartMaskAnimation(false)
+      timelineRef.current?.kill()
+      timelineRef.current = null
+      setInitialStates()
     }
-  }, [transitionStage])
+  }, [transitionStage, setInitialStates])
 
-  useLayoutEffect(() => {
-    if (mode === null || isLowPerformance || !rootRef.current) return
-    if (initialStatesSetRef.current && introAnimationsStartedRef.current) return
-
-    initialStatesSetRef.current = true
-    gsap.set('.name-container', { y: '-100vh', scale: 1.8, opacity: 0 })
-    gsap.set('.tree-right', { xPercent: 100 })
-    gsap.set('.tree-left', { xPercent: -100 })
-    gsap.set('.social-links', { yPercent: 100, opacity: 0 })
-  }, [mode, isLowPerformance])
-
+  // Reset when mode changes
   useEffect(() => {
     if (mode === null) {
-      initialStatesSetRef.current = false
+      animationsStartedRef.current = false
+      signalledReadyRef.current = false
+      setStartMaskAnimation(false)
     }
   }, [mode])
 
+  // Signal ready when mode is null (quality selector showing)
   useEffect(() => {
     if (mode === null) {
       const timeout = setTimeout(doSignalReady, 100)
@@ -145,6 +153,7 @@ export default function Home() {
     }
   }, [mode, doSignalReady])
 
+  // Signal ready when video loads
   useEffect(() => {
     if (mode === null) return
 
@@ -176,41 +185,63 @@ export default function Home() {
     }
   }, [mode, isLowPerformance, doSignalReady])
 
-  const startIntroAnimations = useCallback(() => {
-    if (introAnimationsStartedRef.current) return
-    introAnimationsStartedRef.current = true
+  // Start animations when revealing (same pattern as Experience page)
+  useEffect(() => {
+    if ((transitionStage !== 'revealing' && transitionStage !== 'hidden') || animationsStartedRef.current) return
+    if (mode === null) return
+    animationsStartedRef.current = true
 
     if (isLowPerformance) {
       setStartMaskAnimation(true)
       return
     }
 
-    introGsapContextRef.current = gsap.context(() => {
-      gsap.set('.name-container', { y: '-100vh', scale: 1.8, opacity: 0 })
+    gsap.context(() => {
+      const tl = gsap.timeline({ delay: ANIMATION_DELAY })
+      timelineRef.current = tl
 
-      const timeline = gsap.timeline()
-      timeline.to('.name-container', { y: 0, scale: 0.92, opacity: 1, duration: 0.6, ease: 'power2.in' })
-      timeline.to('.name-container', { scale: 1, duration: 0.4, ease: 'elastic.out(1.2, 0.4)' })
-      timeline.call(() => setStartMaskAnimation(true), undefined, 0.6)
+      // Name drop animation
+      tl.to('.name-container', {
+        y: 0,
+        scale: 0.92,
+        opacity: 1,
+        duration: 0.6,
+        ease: 'power2.in'
+      })
+      tl.to('.name-container', {
+        scale: 1,
+        duration: 0.4,
+        ease: 'elastic.out(1.2, 0.4)'
+      })
 
-      gsap.to('.tree-right', { xPercent: 0, duration: 1.5, ease: 'power3.out', delay: 1.5 })
-      gsap.to('.tree-left', { xPercent: 0, duration: 1.5, ease: 'power3.out', delay: 1.5 })
-      gsap.fromTo('.social-links', { yPercent: 100, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 1, ease: 'power3.out', delay: 1.5 })
+      // Trigger mask animation when name hits the screen (at y=0)
+      tl.call(() => setStartMaskAnimation(true), undefined, 0.6)
+
+      // Trees and social links
+      tl.to('.tree-right', {
+        xPercent: 0,
+        duration: 1.5,
+        ease: 'power3.out'
+      }, 1.5 + ANIMATION_DELAY)
+      tl.to('.tree-left', {
+        xPercent: 0,
+        duration: 1.5,
+        ease: 'power3.out'
+      }, 1.5 + ANIMATION_DELAY)
+      tl.to('.social-links', {
+        yPercent: 0,
+        opacity: 1,
+        duration: 1,
+        ease: 'power3.out'
+      }, 1.5 + ANIMATION_DELAY)
     }, rootRef)
-  }, [isLowPerformance])
+  }, [transitionStage, mode, isLowPerformance])
 
-  // Register intro animation callback with page transition
-  useEffect(() => {
-    if (mode === null) return
-    onIntroStart(startIntroAnimations)
-  }, [mode, onIntroStart, startIntroAnimations])
-
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (introGsapContextRef.current) {
-        introGsapContextRef.current.revert()
-        introGsapContextRef.current = null
-      }
+      timelineRef.current?.kill()
+      gsapContextRef.current?.revert()
     }
   }, [])
 
