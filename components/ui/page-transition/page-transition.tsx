@@ -180,14 +180,12 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (prevModeRef.current === null && mode !== null) {
       if (isInitialLoadRef.current) {
-        // First quality selection - no overlay, just wait for ready then trigger intros
+        // First quality selection - no overlay, just wait for ready AND callback registered
         const checkAndReveal = () => {
-          if (pageReadyRef.current) {
-            // Trigger intros directly without overlay
-            if (onIntroStartRef.current) {
-              onIntroStartRef.current()
-              onIntroStartRef.current = null
-            }
+          // Wait for BOTH page ready AND callback to be registered
+          if (pageReadyRef.current && onIntroStartRef.current) {
+            onIntroStartRef.current()
+            onIntroStartRef.current = null
             return true
           }
           return false
@@ -207,7 +205,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
 
         const timeout = setTimeout(() => {
           clearInterval(interval)
-          // Fallback: trigger intros anyway
+          // Fallback: trigger intros if callback exists
           if (onIntroStartRef.current) {
             onIntroStartRef.current()
             onIntroStartRef.current = null
