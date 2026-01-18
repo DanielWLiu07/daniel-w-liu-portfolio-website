@@ -178,13 +178,55 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
 
   // Handle quality selection (mode changing from null to non-null)
   useEffect(() => {
-    if (prevModeRef.current === null && mode !== null && !isInitialLoadRef.current) {
-      // Subsequent quality selection - show loading overlay and wait for ready
-      pageReadyRef.current = false
-      revealTriggeredRef.current = false
-      revealAnimationFiredRef.current = false
-      setOverlayState('loading')
-      startWaitingForReady()
+    if (prevModeRef.current === null && mode !== null) {
+      if (isInitialLoadRef.current) {
+        // First quality selection - no overlay, just wait for ready then trigger intros
+        const checkAndReveal = () => {
+          if (pageReadyRef.current) {
+            // Trigger intros directly without overlay
+            if (onIntroStartRef.current) {
+              onIntroStartRef.current()
+              onIntroStartRef.current = null
+            }
+            return true
+          }
+          return false
+        }
+
+        if (checkAndReveal()) {
+          prevModeRef.current = mode
+          return
+        }
+
+        const interval = setInterval(() => {
+          if (checkAndReveal()) {
+            clearInterval(interval)
+            clearTimeout(timeout)
+          }
+        }, 50)
+
+        const timeout = setTimeout(() => {
+          clearInterval(interval)
+          // Fallback: trigger intros anyway
+          if (onIntroStartRef.current) {
+            onIntroStartRef.current()
+            onIntroStartRef.current = null
+          }
+        }, 3000)
+
+        prevModeRef.current = mode
+        return () => {
+          clearInterval(interval)
+          clearTimeout(timeout)
+        }
+      } else {
+        // Subsequent quality selection - show loading overlay and wait for ready
+        pageReadyRef.current = false
+        revealTriggeredRef.current = false
+        revealAnimationFiredRef.current = false
+        setOverlayState('loading')
+        startWaitingForReady()
+      }
     }
     prevModeRef.current = mode
   }, [mode, startWaitingForReady])
