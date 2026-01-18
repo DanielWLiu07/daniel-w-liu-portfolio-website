@@ -77,6 +77,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
       onBeforeRevealRef.current = null
     }
 
+    console.log('[PageTransition] Loading disappearing - reveal animation starting')
     setOverlayState('revealing')
     setIsNavigating(false)
 
@@ -251,15 +252,10 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   useLayoutEffect(() => {
     if (overlayState === 'revealing') {
       triggerAnimationWithRetry(revealSvgRef, () => {
-        // Delay callback to let reveal animation expand enough to show content
-        // The reveal animation takes 3.5s total; ~800ms should uncover the center
-        const REVEAL_PROGRESS_DELAY = 800
-        setTimeout(() => {
-          if (revealSvgReadyCallbackRef.current) {
-            revealSvgReadyCallbackRef.current()
-            revealSvgReadyCallbackRef.current = null
-          }
-        }, REVEAL_PROGRESS_DELAY)
+        if (revealSvgReadyCallbackRef.current) {
+          revealSvgReadyCallbackRef.current()
+          revealSvgReadyCallbackRef.current = null
+        }
       })
     }
   }, [overlayState, triggerAnimationWithRetry])
