@@ -31,6 +31,12 @@ export function ModeSelector() {
   const animationsStartedRef = useRef(false)
   const entranceGsapContextRef = useRef<gsap.Context | null>(null)
 
+  // Preload white paper image immediately for SVG mask
+  useEffect(() => {
+    const img = new window.Image()
+    img.src = '/landing/images/white_paper.png'
+  }, [])
+
   useEffect(() => {
     if (mode === null) {
       isSelectingRef.current = false

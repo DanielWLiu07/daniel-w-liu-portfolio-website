@@ -40,6 +40,7 @@ export default function RootLayout({
           rel="preload"
           href="/landing/images/white_paper.png"
           as="image"
+          fetchPriority="high"
         />
         {/* Safari detection script - runs before render to prevent flash */}
         <script
