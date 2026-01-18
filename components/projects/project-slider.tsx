@@ -141,10 +141,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         targetTimeRef.current = timeRef.current
 
         onPauseChangeRef.current(true)
-
-        setTimeout(() => {
-          onProjectClickRef.current(projectId)
-        }, 800)
+        onProjectClickRef.current(projectId)
       }
     }
 
