@@ -340,11 +340,16 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
-      {(overlayState === 'loading' || overlayState === 'revealing') && (
-        <div className="fixed inset-0 z-[9999] pointer-events-none">
-          <InkMaskSvg svgRef={revealSvgRef} maskType="reveal" onReady={handleSvgReady} triggerAnimation={false} />
-        </div>
-      )}
+      {/* Preload reveal SVG - always in DOM but hidden until needed */}
+      <div
+        className="fixed inset-0 z-[9999] pointer-events-none"
+        style={{
+          visibility: (overlayState === 'loading' || overlayState === 'revealing') ? 'visible' : 'hidden',
+          opacity: (overlayState === 'loading' || overlayState === 'revealing') ? 1 : 0
+        }}
+      >
+        <InkMaskSvg svgRef={revealSvgRef} maskType="reveal" onReady={handleSvgReady} triggerAnimation={false} />
+      </div>
     </TransitionContext.Provider>
   )
 }
