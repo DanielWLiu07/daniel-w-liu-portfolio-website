@@ -214,13 +214,13 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       if (event.touches.length === 1) {
         const touchX = event.touches[0].clientX
         const touchY = event.touches[0].clientY
-        const deltaX = touchStartX - touchX
+        const deltaX = touchX - touchStartX
         const deltaY = touchStartY - touchY
 
         if (Math.abs(deltaX) > Math.abs(deltaY)) {
           event.preventDefault()
           isTouchScrolling = true
-          velocityRef.current = deltaX * 0.05
+          velocityRef.current = deltaX * 0.015
           isManualScrollingRef.current = true
 
           touchStartX = touchX
