@@ -201,12 +201,11 @@ export function InkMaskSvg({ svgRef, maskType, onReady, triggerAnimation }: InkM
             </rect>
           </mask>
         </defs>
-        <rect
-          x="0"
-          y="0"
+        <image
+          href="/landing/images/white_paper.png"
           width="100%"
           height="100%"
-          fill={maskType === 'reveal' ? 'red' : 'white'}
+          preserveAspectRatio="xMidYMid slice"
           mask={`url(#${maskId})`}
         />
         <foreignObject x="0" y="0" width="100%" height="100%" mask={`url(#${maskId})`}>

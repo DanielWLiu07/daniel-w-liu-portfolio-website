@@ -256,25 +256,31 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     }
   }, [overlayState, triggerAnimationWithRetry])
 
+  const revealAnimationFiredRef = useRef(false)
+
   useLayoutEffect(() => {
     if (overlayState === 'revealing') {
-      // Call intro start callback immediately so landing page can start name animation
+      // Only fire once per transition
+      if (revealAnimationFiredRef.current) return
+      revealAnimationFiredRef.current = true
+
+      // REVEAL_SVG is the source of truth - trigger it first
+      triggerAnimationWithRetry(revealSvgRef, 'REVEAL_SVG', () => {
+        if (revealSvgReadyCallbackRef.current) {
+          revealSvgReadyCallbackRef.current()
+          revealSvgReadyCallbackRef.current = null
+        }
+      })
+
+      // Then trigger intro animations
       if (onIntroStartRef.current) {
         console.log('[PageTransition] INTRO_START - triggering intro animations')
         onIntroStartRef.current()
         onIntroStartRef.current = null
       }
-
-      // Delay the reveal SVG animation by 0.6s so composed bg shows when name lands
-      const NAME_DROP_DURATION = 600
-      setTimeout(() => {
-        triggerAnimationWithRetry(revealSvgRef, 'REVEAL', () => {
-          if (revealSvgReadyCallbackRef.current) {
-            revealSvgReadyCallbackRef.current()
-            revealSvgReadyCallbackRef.current = null
-          }
-        })
-      }, NAME_DROP_DURATION)
+    } else if (overlayState === 'loading' || overlayState === 'covering') {
+      // Reset for next transition
+      revealAnimationFiredRef.current = false
     }
   }, [overlayState, triggerAnimationWithRetry])
 
@@ -335,7 +341,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
 
       {(overlayState === 'loading' || overlayState === 'revealing') && (
         <div className="fixed inset-0 z-[9999] pointer-events-none">
-          <InkMaskSvg svgRef={revealSvgRef} maskType="reveal" onReady={handleSvgReady} triggerAnimation={overlayState === 'revealing'} />
+          <InkMaskSvg svgRef={revealSvgRef} maskType="reveal" onReady={handleSvgReady} triggerAnimation={false} />
         </div>
       )}
     </TransitionContext.Provider>
