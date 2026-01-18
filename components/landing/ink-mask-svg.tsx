@@ -6,6 +6,7 @@ interface InkMaskSvgProps {
   maskX: string
   maskWidth: string
   startMaskAnimation: boolean
+  useSimpleFade?: boolean
 }
 
 const ANIMATION_KEYSPLINE = '0.2 0.8 0.3 1'
@@ -23,12 +24,15 @@ function triggerAnimations(animRefs: React.MutableRefObject<SVGAnimateElement[]>
   return triggered
 }
 
-export function InkMaskSvg({ maskX, maskWidth, startMaskAnimation }: InkMaskSvgProps) {
+export function InkMaskSvg({ maskX, maskWidth, startMaskAnimation, useSimpleFade = false }: InkMaskSvgProps) {
   const [isSafari] = useState(() => {
     if (typeof window === 'undefined') return false
     const ua = navigator.userAgent
     return /^((?!chrome|android).)*safari/i.test(ua)
   })
+
+  // Use simple fade for Safari OR when explicitly requested (e.g., initial load)
+  const shouldUseSimpleFade = isSafari || useSimpleFade
   const animRefs = useRef<SVGAnimateElement[]>([])
   const animationTriggeredRef = useRef(false)
   const [safariOverlayOpacity, setSafariOverlayOpacity] = useState(1)
@@ -36,7 +40,7 @@ export function InkMaskSvg({ maskX, maskWidth, startMaskAnimation }: InkMaskSvgP
   useLayoutEffect(() => {
     if (!startMaskAnimation) return
 
-    if (isSafari) {
+    if (shouldUseSimpleFade) {
       setSafariOverlayOpacity(0)
       return
     }
@@ -65,7 +69,7 @@ export function InkMaskSvg({ maskX, maskWidth, startMaskAnimation }: InkMaskSvgP
     return () => {
       timeouts.forEach(t => clearTimeout(t))
     }
-  }, [startMaskAnimation, isSafari])
+  }, [startMaskAnimation, shouldUseSimpleFade])
 
   useLayoutEffect(() => {
     if (!startMaskAnimation) {
@@ -75,7 +79,7 @@ export function InkMaskSvg({ maskX, maskWidth, startMaskAnimation }: InkMaskSvgP
 
   return (
     <>
-      {!isSafari && (
+      {!shouldUseSimpleFade && (
         <svg
           width="100%"
           height="100%"
@@ -155,7 +159,7 @@ export function InkMaskSvg({ maskX, maskWidth, startMaskAnimation }: InkMaskSvgP
         </svg>
       )}
 
-      {isSafari && (
+      {shouldUseSimpleFade && (
         <>
           <svg
             width="100%"

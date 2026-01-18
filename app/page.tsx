@@ -32,7 +32,7 @@ export default function Home() {
   const { mode, isLowPerformance } = usePerformanceMode()
   const isMobile = useMobile(768)
   const isSmallMobile = useMobile(550)
-  const { signalReady, transitionStage, onIntroStart } = useTransitionState()
+  const { signalReady, transitionStage, onIntroStart, isInitialLoad } = useTransitionState()
 
   useBodyOverflow('hidden')
 
@@ -258,7 +258,7 @@ export default function Home() {
               </div>
             </div>
 
-            <InkMaskSvg maskX={maskX} maskWidth={maskWidth} startMaskAnimation={startMaskAnimation} />
+            <InkMaskSvg maskX={maskX} maskWidth={maskWidth} startMaskAnimation={startMaskAnimation} useSimpleFade={isInitialLoad} />
             <NameDisplay showImmediately={showImmediately} />
             <TreeOverlays isLowPerformance={isLowPerformance} treeRightRef={treeRightRef} treeLeftRef={treeLeftRef} />
             <SocialLinks variant="black" className="social-links" />
