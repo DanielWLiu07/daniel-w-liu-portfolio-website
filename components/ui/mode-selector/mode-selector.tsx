@@ -2,6 +2,7 @@
 
 import { usePerformanceMode } from '@/contexts/performance-mode-context'
 import { useTransitionState } from '@/components/ui/page-transition'
+import { InkMaskSvg } from '@/components/landing'
 import Image from 'next/image'
 import { useEffect, useRef } from 'react'
 import gsap from 'gsap'
@@ -237,9 +238,15 @@ export function ModeSelector() {
   if (mode !== null) return null
 
   return (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 lg:p-8 overflow-visible">
-      <div className="absolute inset-0 z-0">
-        <Image
+    <>
+      {/* Preload InkMaskSvg immediately for faster reveal animation */}
+      <div className="fixed inset-0 pointer-events-none opacity-0 -z-50" aria-hidden="true">
+        <InkMaskSvg maskX="6.5%" maskWidth="87%" startMaskAnimation={false} />
+      </div>
+
+      <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 lg:p-8 overflow-visible">
+        <div className="absolute inset-0 z-0">
+          <Image
           src="/landing/images/white_paper.png"
           alt="paper background"
           fill
@@ -531,8 +538,9 @@ export function ModeSelector() {
         </div>
       </div>
 
-      <HelperText ref={helperTextRef} />
-      <SocialLinks ref={socialsRef} />
-    </div>
+        <HelperText ref={helperTextRef} />
+        <SocialLinks ref={socialsRef} />
+      </div>
+    </>
   )
 }
