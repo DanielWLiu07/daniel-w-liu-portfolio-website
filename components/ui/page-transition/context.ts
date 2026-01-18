@@ -8,7 +8,9 @@ export const TransitionContext = createContext<TransitionContextType>({
   signalReady: () => {},
   isRevealed: true,
   triggerCover: () => {},
-  navigateWithTransition: () => {}
+  navigateWithTransition: () => {},
+  onRevealSvgReady: () => {},
+  onIntroStart: () => {}
 })
 
 export function useTransitionState() {
