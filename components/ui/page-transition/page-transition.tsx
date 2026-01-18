@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import { triggerSvgAnimations, triggerSvgAnimationsUntilStarted } from '@/lib/svg-utils'
+import { triggerSvgAnimations } from '@/lib/svg-utils'
 import { usePerformanceMode } from '@/contexts/performance-mode-context'
 import { TransitionContext } from './context'
 import { InkMaskSvg } from './ink-mask-svg'
@@ -264,27 +264,26 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
       if (revealAnimationFiredRef.current) return
       revealAnimationFiredRef.current = true
 
-      // REVEAL_SVG is the source of truth - trigger with verification
-      // Only start intro animations AFTER the SVG animation is verified to have started
-      triggerSvgAnimationsUntilStarted(revealSvgRef.current, () => {
-        console.log('[PageTransition] REVEAL_SVG verified - now triggering intro')
+      // First: trigger intro animations so GSAP sets initial states
+      if (onIntroStartRef.current) {
+        onIntroStartRef.current()
+        onIntroStartRef.current = null
+      }
 
-        if (revealSvgReadyCallbackRef.current) {
-          revealSvgReadyCallbackRef.current()
-          revealSvgReadyCallbackRef.current = null
-        }
-
-        // Trigger intro animations only after reveal SVG is confirmed running
-        if (onIntroStartRef.current) {
-          onIntroStartRef.current()
-          onIntroStartRef.current = null
-        }
+      // Then: start SVG reveal animation on next frame (after GSAP states are applied)
+      requestAnimationFrame(() => {
+        triggerAnimationWithRetry(revealSvgRef, 'REVEAL_SVG', () => {
+          if (revealSvgReadyCallbackRef.current) {
+            revealSvgReadyCallbackRef.current()
+            revealSvgReadyCallbackRef.current = null
+          }
+        })
       })
     } else if (overlayState === 'loading' || overlayState === 'covering') {
       // Reset for next transition
       revealAnimationFiredRef.current = false
     }
-  }, [overlayState])
+  }, [overlayState, triggerAnimationWithRetry])
 
   const startNavigation = useCallback((href: string) => {
     if (isNavigating || href === pathname) return
