@@ -344,7 +344,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   const showOverlays = !isInitialLoadRef.current
 
   return (
-    <TransitionContext.Provider value={{ transitionStage: overlayState, signalReady, isRevealed, navigateWithTransition, onIntroStart }}>
+    <TransitionContext.Provider value={{ transitionStage: overlayState, signalReady, isRevealed, isInitialLoad: isInitialLoadRef.current, navigateWithTransition, onIntroStart }}>
       {children}
 
       {/* Cover SVG - only for navigation */}
