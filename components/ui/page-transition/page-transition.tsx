@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import { triggerSvgAnimations } from '@/lib/svg-utils'
+import { triggerSvgAnimations, triggerSvgAnimationsUntilStarted } from '@/lib/svg-utils'
 import { usePerformanceMode } from '@/contexts/performance-mode-context'
 import { TransitionContext } from './context'
 import { InkMaskSvg } from './ink-mask-svg'
@@ -264,25 +264,27 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
       if (revealAnimationFiredRef.current) return
       revealAnimationFiredRef.current = true
 
-      // REVEAL_SVG is the source of truth - trigger it first
-      triggerAnimationWithRetry(revealSvgRef, 'REVEAL_SVG', () => {
+      // REVEAL_SVG is the source of truth - trigger with verification
+      // Only start intro animations AFTER the SVG animation is verified to have started
+      triggerSvgAnimationsUntilStarted(revealSvgRef.current, () => {
+        console.log('[PageTransition] REVEAL_SVG verified - now triggering intro')
+
         if (revealSvgReadyCallbackRef.current) {
           revealSvgReadyCallbackRef.current()
           revealSvgReadyCallbackRef.current = null
         }
-      })
 
-      // Then trigger intro animations
-      if (onIntroStartRef.current) {
-        console.log('[PageTransition] INTRO_START - triggering intro animations')
-        onIntroStartRef.current()
-        onIntroStartRef.current = null
-      }
+        // Trigger intro animations only after reveal SVG is confirmed running
+        if (onIntroStartRef.current) {
+          onIntroStartRef.current()
+          onIntroStartRef.current = null
+        }
+      })
     } else if (overlayState === 'loading' || overlayState === 'covering') {
       // Reset for next transition
       revealAnimationFiredRef.current = false
     }
-  }, [overlayState, triggerAnimationWithRetry])
+  }, [overlayState])
 
   const startNavigation = useCallback((href: string) => {
     if (isNavigating || href === pathname) return
