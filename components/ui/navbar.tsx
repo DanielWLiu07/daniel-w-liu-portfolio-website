@@ -4,32 +4,11 @@ import { usePerformanceMode } from '@/contexts/performance-mode-context';
 import { usePathname } from 'next/navigation';
 import { useTransitionState } from '@/components/ui/page-transition';
 import Link from 'next/link';
-import { useRef, useEffect, useState } from 'react';
 
 export default function Navbar(){
     const { mode, resetMode } = usePerformanceMode();
     const pathname = usePathname();
     const { transitionStage, navigateWithTransition } = useTransitionState();
-    const wasQualitySelectorRef = useRef(mode === null);
-    const [isRevealingFromQuality, setIsRevealingFromQuality] = useState(false);
-
-    // Track when transitioning from quality selector
-    useEffect(() => {
-        if (mode === null) {
-            wasQualitySelectorRef.current = true;
-        }
-
-        // When reveal starts and we came from quality selector, animate navbar in
-        if (transitionStage === 'revealing' && wasQualitySelectorRef.current) {
-            setIsRevealingFromQuality(true);
-        }
-
-        // Reset after reveal completes
-        if (transitionStage === 'hidden' && wasQualitySelectorRef.current && mode !== null) {
-            wasQualitySelectorRef.current = false;
-            setIsRevealingFromQuality(false);
-        }
-    }, [transitionStage, mode]);
 
     const handleHomeClick = () => {
         navigateWithTransition('/', resetMode);

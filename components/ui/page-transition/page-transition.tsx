@@ -36,6 +36,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   const navigationTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const transitionIdRef = useRef(0)
   const revealSvgReadyCallbackRef = useRef<(() => void) | null>(null)
+  const onIntroStartRef = useRef<(() => void) | null>(null)
 
   const cleanupTimers = useCallback(() => {
     if (readyCheckIntervalRef.current) {
@@ -59,6 +60,11 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   const onRevealSvgReady = useCallback((callback: () => void) => {
     // Register callback to be called when reveal animation is triggered
     revealSvgReadyCallbackRef.current = callback
+  }, [])
+
+  const onIntroStart = useCallback((callback: () => void) => {
+    // Register callback to be called when intro animations should start
+    onIntroStartRef.current = callback
   }, [])
 
   const doReveal = useCallback(() => {
@@ -252,12 +258,23 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
 
   useLayoutEffect(() => {
     if (overlayState === 'revealing') {
-      triggerAnimationWithRetry(revealSvgRef, 'REVEAL', () => {
-        if (revealSvgReadyCallbackRef.current) {
-          revealSvgReadyCallbackRef.current()
-          revealSvgReadyCallbackRef.current = null
-        }
-      })
+      // Call intro start callback immediately so landing page can start name animation
+      if (onIntroStartRef.current) {
+        console.log('[PageTransition] INTRO_START - triggering intro animations')
+        onIntroStartRef.current()
+        onIntroStartRef.current = null
+      }
+
+      // Delay the reveal SVG animation by 0.6s so composed bg shows when name lands
+      const NAME_DROP_DURATION = 600
+      setTimeout(() => {
+        triggerAnimationWithRetry(revealSvgRef, 'REVEAL', () => {
+          if (revealSvgReadyCallbackRef.current) {
+            revealSvgReadyCallbackRef.current()
+            revealSvgReadyCallbackRef.current = null
+          }
+        })
+      }, NAME_DROP_DURATION)
     }
   }, [overlayState, triggerAnimationWithRetry])
 
@@ -307,7 +324,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   const isRevealed = overlayState === 'hidden'
 
   return (
-    <TransitionContext.Provider value={{ transitionStage: overlayState, signalReady, isRevealed, triggerCover, navigateWithTransition, onRevealSvgReady }}>
+    <TransitionContext.Provider value={{ transitionStage: overlayState, signalReady, isRevealed, triggerCover, navigateWithTransition, onRevealSvgReady, onIntroStart }}>
       {children}
 
       {(overlayState === 'covering' || overlayState === 'loading') && (

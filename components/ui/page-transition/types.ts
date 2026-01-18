@@ -7,4 +7,5 @@ export interface TransitionContextType {
   triggerCover: () => void
   navigateWithTransition: (href: string, onBeforeReveal?: () => void) => void
   onRevealSvgReady: (callback: () => void) => void
+  onIntroStart: (callback: () => void) => void
 }

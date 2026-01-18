@@ -32,7 +32,7 @@ export default function Home() {
   const { mode, isLowPerformance } = usePerformanceMode()
   const isMobile = useMobile(768)
   const isSmallMobile = useMobile(550)
-  const { signalReady, transitionStage } = useTransitionState()
+  const { signalReady, transitionStage, onIntroStart } = useTransitionState()
 
   useBodyOverflow('hidden')
 
@@ -176,10 +176,8 @@ export default function Home() {
     }
   }, [mode, isLowPerformance, doSignalReady])
 
-  useEffect(() => {
-    if (mode === null || introAnimationsStartedRef.current) return
-    if (transitionStage !== 'revealing') return
-
+  const startIntroAnimations = useCallback(() => {
+    if (introAnimationsStartedRef.current) return
     introAnimationsStartedRef.current = true
 
     if (isLowPerformance) {
@@ -199,7 +197,13 @@ export default function Home() {
       gsap.to('.tree-left', { xPercent: 0, duration: 1.5, ease: 'power3.out', delay: 1.5 })
       gsap.fromTo('.social-links', { yPercent: 100, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 1, ease: 'power3.out', delay: 1.5 })
     }, rootRef)
-  }, [mode, isLowPerformance, transitionStage])
+  }, [isLowPerformance])
+
+  // Register intro animation callback with page transition
+  useEffect(() => {
+    if (mode === null) return
+    onIntroStart(startIntroAnimations)
+  }, [mode, onIntroStart, startIntroAnimations])
 
   useEffect(() => {
     return () => {
