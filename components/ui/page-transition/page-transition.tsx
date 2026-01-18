@@ -100,8 +100,8 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
       return true
     }
 
-    // First quality selection: enforce 3 second minimum
-    const minTime = isFirstQualitySelectionRef.current ? 3000 : MIN_LOADING_TIME
+    // First quality selection: enforce 4 second minimum
+    const minTime = isFirstQualitySelectionRef.current ? 4000 : MIN_LOADING_TIME
 
     if (elapsed < minTime) {
       setTimeout(doReveal, minTime - elapsed)
@@ -117,8 +117,8 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     loadingStartTimeRef.current = Date.now()
     revealTriggeredRef.current = false
 
-    // First quality selection: enforce 3 second minimum
-    const minTime = isFirstQualitySelectionRef.current ? 3000 : MIN_LOADING_TIME
+    // First quality selection: enforce 4 second minimum
+    const minTime = isFirstQualitySelectionRef.current ? 4000 : MIN_LOADING_TIME
 
     if (pageReadyRef.current) {
       if (isInitialLoadRef.current) {
