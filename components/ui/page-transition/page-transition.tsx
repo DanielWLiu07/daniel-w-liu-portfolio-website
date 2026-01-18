@@ -22,6 +22,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   // Use ref for initial load tracking to avoid state timing issues
   const isInitialLoadRef = useRef(true)
   const isFirstQualitySelectionRef = useRef(true)
+  const windowLoadedRef = useRef(typeof document !== 'undefined' && document.readyState === 'complete')
   const prevModeRef = useRef(mode)
   const prevPathname = useRef(pathname)
   const pageReadyRef = useRef(false)
@@ -100,11 +101,23 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
       return true
     }
 
-    // First quality selection: enforce 6 second minimum
-    const minTime = isFirstQualitySelectionRef.current ? 6000 : MIN_LOADING_TIME
+    // First quality selection: wait for browser to finish loading (no more spinning favicon)
+    if (isFirstQualitySelectionRef.current) {
+      if (!windowLoadedRef.current) {
+        return false // Keep polling until browser finishes loading
+      }
+      // Browser loaded, now just ensure minimum time has passed
+      if (elapsed < MIN_LOADING_TIME) {
+        setTimeout(doReveal, MIN_LOADING_TIME - elapsed)
+        return true
+      }
+      doReveal()
+      return true
+    }
 
-    if (elapsed < minTime) {
-      setTimeout(doReveal, minTime - elapsed)
+    // Subsequent navigations: just use MIN_LOADING_TIME
+    if (elapsed < MIN_LOADING_TIME) {
+      setTimeout(doReveal, MIN_LOADING_TIME - elapsed)
       return true
     }
 
@@ -117,30 +130,33 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     loadingStartTimeRef.current = Date.now()
     revealTriggeredRef.current = false
 
-    // First quality selection: enforce 6 second minimum
-    const minTime = isFirstQualitySelectionRef.current ? 6000 : MIN_LOADING_TIME
-
-    if (pageReadyRef.current) {
-      if (isInitialLoadRef.current) {
-        doReveal()
-        return
-      }
-      const elapsed = Date.now() - loadingStartTimeRef.current
-      if (elapsed >= minTime) {
-        doReveal()
-        return
-      }
-      fallbackTimeoutRef.current = setTimeout(doReveal, minTime - elapsed)
+    // For initial load (mode from localStorage), reveal immediately when ready
+    if (isInitialLoadRef.current && pageReadyRef.current) {
+      doReveal()
       return
     }
 
+    // For first quality selection: wait for both page ready AND browser load
+    // For subsequent: just use MIN_LOADING_TIME
+    if (pageReadyRef.current && !isFirstQualitySelectionRef.current) {
+      const elapsed = Date.now() - loadingStartTimeRef.current
+      if (elapsed >= MIN_LOADING_TIME) {
+        doReveal()
+        return
+      }
+      fallbackTimeoutRef.current = setTimeout(doReveal, MIN_LOADING_TIME - elapsed)
+      return
+    }
+
+    // Poll for ready state
     readyCheckIntervalRef.current = setInterval(() => {
       if (checkReadyAndReveal()) {
         cleanupTimers()
       }
     }, 50)
 
-    const fallbackTime = isInitialLoadRef.current ? 3000 : minTime + 3000
+    // Fallback timeout: 3s for initial, 10s for first quality (in case load event never fires), MIN_LOADING_TIME + 3s for others
+    const fallbackTime = isInitialLoadRef.current ? 3000 : (isFirstQualitySelectionRef.current ? 10000 : MIN_LOADING_TIME + 3000)
     fallbackTimeoutRef.current = setTimeout(() => {
       cleanupTimers()
       doReveal()
@@ -190,6 +206,23 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     prevModeRef.current = mode
   }, [mode])
+
+  // Track when browser finishes loading (spinning favicon stops)
+  useEffect(() => {
+    if (windowLoadedRef.current) return
+
+    const handleLoad = () => {
+      windowLoadedRef.current = true
+    }
+
+    if (document.readyState === 'complete') {
+      windowLoadedRef.current = true
+      return
+    }
+
+    window.addEventListener('load', handleLoad)
+    return () => window.removeEventListener('load', handleLoad)
+  }, [])
 
   // Initial page load only: when mode is already set from localStorage
   useEffect(() => {
