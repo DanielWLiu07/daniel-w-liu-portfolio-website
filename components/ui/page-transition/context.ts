@@ -7,9 +7,7 @@ export const TransitionContext = createContext<TransitionContextType>({
   transitionStage: 'hidden',
   signalReady: () => {},
   isRevealed: true,
-  triggerCover: () => {},
   navigateWithTransition: () => {},
-  onRevealSvgReady: () => {},
   onIntroStart: () => {}
 })
 

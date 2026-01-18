@@ -21,8 +21,8 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
 
   // Use ref for initial load tracking to avoid state timing issues
   const isInitialLoadRef = useRef(true)
+  const prevModeRef = useRef(mode)
   const prevPathname = useRef(pathname)
-  const pendingHref = useRef<string | null>(null)
   const pageReadyRef = useRef(false)
   const revealTriggeredRef = useRef(false)
   const revealTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -34,7 +34,6 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   const fallbackTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const navigationTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const transitionIdRef = useRef(0)
-  const revealSvgReadyCallbackRef = useRef<(() => void) | null>(null)
   const onIntroStartRef = useRef<(() => void) | null>(null)
   const revealAnimationFiredRef = useRef(false)
 
@@ -51,10 +50,6 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
       clearTimeout(navigationTimeoutRef.current)
       navigationTimeoutRef.current = null
     }
-  }, [])
-
-  const onRevealSvgReady = useCallback((callback: () => void) => {
-    revealSvgReadyCallbackRef.current = callback
   }, [])
 
   const onIntroStart = useCallback((callback: () => void) => {
@@ -89,19 +84,6 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   const signalReady = useCallback(() => {
     pageReadyRef.current = true
   }, [])
-
-  const triggerCover = useCallback(() => {
-    cleanupTimers()
-    if (revealTimeoutRef.current) {
-      clearTimeout(revealTimeoutRef.current)
-      revealTimeoutRef.current = null
-    }
-    setIsNavigating(true)
-    isInitialLoadRef.current = false
-    pageReadyRef.current = false
-    revealTriggeredRef.current = false
-    setOverlayState('covering')
-  }, [cleanupTimers])
 
   const checkReadyAndReveal = useCallback(() => {
     if (!pageReadyRef.current) return false
@@ -194,8 +176,22 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     }, NAVIGATION_DELAY)
   }, [pathname, router, startWaitingForReady, cleanupTimers])
 
-  // Initial load: wait for page ready then reveal
+  // Handle quality selection (mode changing from null to non-null)
   useEffect(() => {
+    if (prevModeRef.current === null && mode !== null && !isInitialLoadRef.current) {
+      // Subsequent quality selection - show loading overlay and wait for ready
+      pageReadyRef.current = false
+      revealTriggeredRef.current = false
+      revealAnimationFiredRef.current = false
+      setOverlayState('loading')
+      startWaitingForReady()
+    }
+    prevModeRef.current = mode
+  }, [mode, startWaitingForReady])
+
+  // Initial page load only: when mode is already set from localStorage
+  useEffect(() => {
+    if (!isInitialLoadRef.current) return
     if (mode === null || overlayState !== 'loading' || isNavigating) return
 
     startWaitingForReady()
@@ -207,7 +203,6 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     if (!isNavigating || pathname === prevPathname.current) return
 
     prevPathname.current = pathname
-    pendingHref.current = null
     pageReadyRef.current = false
     revealTriggeredRef.current = false
 
@@ -252,10 +247,6 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
         if (revealSvgRef.current) {
           triggerSvgAnimations(revealSvgRef.current)
         }
-        if (revealSvgReadyCallbackRef.current) {
-          revealSvgReadyCallbackRef.current()
-          revealSvgReadyCallbackRef.current = null
-        }
         if (onIntroStartRef.current) {
           onIntroStartRef.current()
           onIntroStartRef.current = null
@@ -280,7 +271,6 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
 
     setIsNavigating(true)
     isInitialLoadRef.current = false
-    pendingHref.current = href
     pageReadyRef.current = false
     revealTriggeredRef.current = false
     setOverlayState('covering')
@@ -314,7 +304,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   const showOverlays = !isInitialLoadRef.current
 
   return (
-    <TransitionContext.Provider value={{ transitionStage: overlayState, signalReady, isRevealed, triggerCover, navigateWithTransition, onRevealSvgReady, onIntroStart }}>
+    <TransitionContext.Provider value={{ transitionStage: overlayState, signalReady, isRevealed, navigateWithTransition, onIntroStart }}>
       {children}
 
       {/* Cover SVG - only for navigation */}
