@@ -10,7 +10,7 @@ import { SocialLinks, HelperText } from './index'
 
 export function ModeSelector() {
   const { mode, setMode } = usePerformanceMode()
-  const { navigateWithTransition, transitionStage, isInitialLoad } = useTransitionState()
+  const { navigateWithTransition, transitionStage } = useTransitionState()
 
   const titleRef = useRef<HTMLDivElement>(null)
   const subtitleRef = useRef<HTMLParagraphElement>(null)
@@ -227,15 +227,10 @@ export function ModeSelector() {
     }, 0)
 
     setTimeout(() => {
-      if (isInitialLoad) {
-        // First quality selection - no transition, just set mode directly
+      // Always use transition with loading overlay
+      navigateWithTransition('/', () => {
         setMode(selectedMode)
-      } else {
-        // Subsequent selection - use full transition
-        navigateWithTransition('/', () => {
-          setMode(selectedMode)
-        })
-      }
+      })
     }, EXIT_DURATION + 50)
   }
 

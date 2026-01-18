@@ -21,6 +21,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
 
   // Use ref for initial load tracking to avoid state timing issues
   const isInitialLoadRef = useRef(true)
+  const isFirstQualitySelectionRef = useRef(true)
   const prevModeRef = useRef(mode)
   const prevPathname = useRef(pathname)
   const pageReadyRef = useRef(false)
@@ -60,6 +61,9 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     if (revealTriggeredRef.current) return
     revealTriggeredRef.current = true
 
+    // Mark first quality selection as done
+    isFirstQualitySelectionRef.current = false
+
     cleanupTimers()
 
     if (revealTimeoutRef.current) {
@@ -90,14 +94,17 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
 
     const elapsed = Date.now() - loadingStartTimeRef.current
 
-    // Skip min time for initial load
+    // Skip min time for initial load (mode already set from localStorage)
     if (isInitialLoadRef.current) {
       doReveal()
       return true
     }
 
-    if (elapsed < MIN_LOADING_TIME) {
-      setTimeout(doReveal, MIN_LOADING_TIME - elapsed)
+    // First quality selection: enforce 3 second minimum
+    const minTime = isFirstQualitySelectionRef.current ? 3000 : MIN_LOADING_TIME
+
+    if (elapsed < minTime) {
+      setTimeout(doReveal, minTime - elapsed)
       return true
     }
 
@@ -110,17 +117,20 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     loadingStartTimeRef.current = Date.now()
     revealTriggeredRef.current = false
 
+    // First quality selection: enforce 3 second minimum
+    const minTime = isFirstQualitySelectionRef.current ? 3000 : MIN_LOADING_TIME
+
     if (pageReadyRef.current) {
       if (isInitialLoadRef.current) {
         doReveal()
         return
       }
       const elapsed = Date.now() - loadingStartTimeRef.current
-      if (elapsed >= MIN_LOADING_TIME) {
+      if (elapsed >= minTime) {
         doReveal()
         return
       }
-      fallbackTimeoutRef.current = setTimeout(doReveal, MIN_LOADING_TIME - elapsed)
+      fallbackTimeoutRef.current = setTimeout(doReveal, minTime - elapsed)
       return
     }
 
@@ -130,7 +140,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
       }
     }, 50)
 
-    const fallbackTime = isInitialLoadRef.current ? 3000 : MIN_LOADING_TIME + 3000
+    const fallbackTime = isInitialLoadRef.current ? 3000 : minTime + 3000
     fallbackTimeoutRef.current = setTimeout(() => {
       cleanupTimers()
       doReveal()
@@ -176,51 +186,10 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     }, NAVIGATION_DELAY)
   }, [pathname, router, startWaitingForReady, cleanupTimers])
 
-  // Handle quality selection (mode changing from null to non-null)
+  // Track mode changes
   useEffect(() => {
-    if (prevModeRef.current === null && mode !== null) {
-      if (isInitialLoadRef.current) {
-        // First quality selection - mandatory 3s loading to ensure everything is ready
-        const INITIAL_LOAD_DELAY = 3000
-
-        const triggerIntros = () => {
-          if (onIntroStartRef.current) {
-            onIntroStartRef.current()
-            onIntroStartRef.current = null
-            return true
-          }
-          return false
-        }
-
-        const timeout = setTimeout(() => {
-          // After 3s, trigger intros (poll briefly for callback if needed)
-          if (triggerIntros()) return
-
-          const interval = setInterval(() => {
-            if (triggerIntros()) {
-              clearInterval(interval)
-            }
-          }, 10)
-
-          // Final fallback
-          setTimeout(() => clearInterval(interval), 500)
-        }, INITIAL_LOAD_DELAY)
-
-        prevModeRef.current = mode
-        return () => {
-          clearTimeout(timeout)
-        }
-      } else {
-        // Subsequent quality selection - show loading overlay and wait for ready
-        pageReadyRef.current = false
-        revealTriggeredRef.current = false
-        revealAnimationFiredRef.current = false
-        setOverlayState('loading')
-        startWaitingForReady()
-      }
-    }
     prevModeRef.current = mode
-  }, [mode, startWaitingForReady])
+  }, [mode])
 
   // Initial page load only: when mode is already set from localStorage
   useEffect(() => {
