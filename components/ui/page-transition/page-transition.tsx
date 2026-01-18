@@ -180,10 +180,9 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (prevModeRef.current === null && mode !== null) {
       if (isInitialLoadRef.current) {
-        // First quality selection - no overlay, just wait for ready AND callback registered
-        const checkAndReveal = () => {
-          // Wait for BOTH page ready AND callback to be registered
-          if (pageReadyRef.current && onIntroStartRef.current) {
+        // First quality selection - trigger intros immediately (just wait for callback)
+        const triggerIntros = () => {
+          if (onIntroStartRef.current) {
             onIntroStartRef.current()
             onIntroStartRef.current = null
             return true
@@ -191,26 +190,23 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
           return false
         }
 
-        if (checkAndReveal()) {
+        if (triggerIntros()) {
           prevModeRef.current = mode
           return
         }
 
+        // Brief wait for callback to register (usually immediate)
         const interval = setInterval(() => {
-          if (checkAndReveal()) {
+          if (triggerIntros()) {
             clearInterval(interval)
             clearTimeout(timeout)
           }
-        }, 50)
+        }, 10)
 
         const timeout = setTimeout(() => {
           clearInterval(interval)
-          // Fallback: trigger intros if callback exists
-          if (onIntroStartRef.current) {
-            onIntroStartRef.current()
-            onIntroStartRef.current = null
-          }
-        }, 3000)
+          triggerIntros()
+        }, 500)
 
         prevModeRef.current = mode
         return () => {
