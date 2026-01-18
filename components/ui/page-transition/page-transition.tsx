@@ -77,7 +77,6 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
       onBeforeRevealRef.current = null
     }
 
-    console.log('[PageTransition] Loading disappearing - reveal animation starting')
     setOverlayState('revealing')
     setIsNavigating(false)
 
@@ -220,9 +219,10 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     }
   }, [cleanupTimers])
 
-  const triggerAnimationWithRetry = useCallback((svgRef: React.RefObject<SVGSVGElement | null>, onTriggered?: () => void) => {
+  const triggerAnimationWithRetry = useCallback((svgRef: React.RefObject<SVGSVGElement | null>, label: string, onTriggered?: () => void) => {
     const tryTrigger = (attempts: number) => {
       if (svgRef.current) {
+        console.log(`[PageTransition] ${label} - SVG animation triggered (attempt ${attempts})`)
         triggerSvgAnimations(svgRef.current)
         onTriggered?.()
         return
@@ -233,6 +233,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
       } else {
         setTimeout(() => {
           if (svgRef.current) {
+            console.log(`[PageTransition] ${label} - SVG animation triggered (fallback)`)
             triggerSvgAnimations(svgRef.current)
             onTriggered?.()
           }
@@ -245,13 +246,13 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
 
   useLayoutEffect(() => {
     if (overlayState === 'covering') {
-      triggerAnimationWithRetry(coverSvgRef)
+      triggerAnimationWithRetry(coverSvgRef, 'COVER')
     }
   }, [overlayState, triggerAnimationWithRetry])
 
   useLayoutEffect(() => {
     if (overlayState === 'revealing') {
-      triggerAnimationWithRetry(revealSvgRef, () => {
+      triggerAnimationWithRetry(revealSvgRef, 'REVEAL', () => {
         if (revealSvgReadyCallbackRef.current) {
           revealSvgReadyCallbackRef.current()
           revealSvgReadyCallbackRef.current = null
