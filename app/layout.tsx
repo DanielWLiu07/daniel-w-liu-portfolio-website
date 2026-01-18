@@ -35,6 +35,12 @@ export default function RootLayout({
           type="font/otf"
           crossOrigin="anonymous"
         />
+        {/* Preload white paper image for landing page SVG mask */}
+        <link
+          rel="preload"
+          href="/landing/images/white_paper.png"
+          as="image"
+        />
         {/* Safari detection script - runs before render to prevent flash */}
         <script
           dangerouslySetInnerHTML={{
