@@ -71,7 +71,7 @@ export const sceneOptions = {
 };
 
 export const animationConstants = {
-  WHEEL_ACCEL: 0.002,
+  WHEEL_ACCEL: 0.006,
   FRICTION: 0.92,
   MAX_VELOCITY: 1.5,
   AUTO_SCROLL_VELOCITY: 0.02,
