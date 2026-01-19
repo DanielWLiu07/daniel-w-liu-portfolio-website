@@ -1,8 +1,5 @@
 'use client'
 
-import { ModalTechBadge } from './modal-tech-badge'
-import { ModalActionLinks } from './modal-action-links'
-
 interface ProjectInfoPanelProps {
   project: {
     id: number
@@ -20,36 +17,36 @@ interface ProjectInfoPanelProps {
 export function ProjectInfoPanel({ project, onClose, visible }: ProjectInfoPanelProps) {
   return (
     <div
-      className={`fixed right-0 top-0 bottom-0 w-full md:w-1/2 lg:w-[45%] bg-black/90 backdrop-blur-md z-40
-        transform transition-transform duration-500 ease-out
-        ${visible ? 'translate-x-0' : 'translate-x-full'}`}
+      className={`fixed right-8 top-1/2 -translate-y-1/2 w-[90%] max-w-md z-40
+        transform transition-all duration-500 ease-out
+        ${visible ? 'translate-x-0 opacity-100' : 'translate-x-[120%] opacity-0'}`}
     >
-      <div className="h-full flex flex-col p-8 md:p-12 overflow-y-auto">
-        <button
-          onClick={onClose}
-          className="absolute top-6 right-6 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors"
-        >
-          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
+      <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+        <div className="p-8">
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+          >
+            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
 
-        <div className="mt-16 md:mt-8">
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+          <h2 className="text-3xl font-bold text-gray-800 mb-4 pr-8">
             {project.title}
           </h2>
 
-          <p className="text-gray-300 text-lg leading-relaxed mb-8">
+          <p className="text-gray-600 text-base leading-relaxed mb-6">
             {project.detailedDescription}
           </p>
 
-          <div className="mb-8">
-            <h3 className="text-sm uppercase tracking-wider text-gray-500 mb-3">Technologies</h3>
+          <div className="mb-6">
+            <h3 className="text-xs uppercase tracking-wider text-gray-400 mb-2">Technologies</h3>
             <div className="flex flex-wrap gap-2">
               {project.technologies.map((tech, index) => (
                 <span
                   key={index}
-                  className="px-3 py-1 bg-white/10 text-white text-sm rounded-full"
+                  className="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full"
                 >
                   {tech}
                 </span>
@@ -57,13 +54,13 @@ export function ProjectInfoPanel({ project, onClose, visible }: ProjectInfoPanel
             </div>
           </div>
 
-          <div className="flex gap-4">
+          <div className="flex gap-3">
             {project.link && (
               <a
                 href={project.link}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-6 py-3 bg-white text-black font-medium rounded-lg hover:bg-gray-200 transition-colors"
+                className="flex-1 px-4 py-2.5 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors text-center"
               >
                 View Project
               </a>
@@ -73,7 +70,7 @@ export function ProjectInfoPanel({ project, onClose, visible }: ProjectInfoPanel
                 href={project.github}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-6 py-3 bg-white/10 text-white font-medium rounded-lg hover:bg-white/20 transition-colors"
+                className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors text-center"
               >
                 GitHub
               </a>

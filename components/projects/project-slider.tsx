@@ -278,14 +278,24 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
     renderer.domElement.addEventListener('touchend', onTouchEnd, { passive: true })
 
     let previousTime = 0
+    let floatTime = 0
+    const mousePosition = { x: 0, y: 0 }
+    const smoothMousePosition = { x: 0, y: 0 }
+
+    // Track mouse for expanded card effect
+    const onMouseMoveGlobal = (event: MouseEvent) => {
+      mousePosition.x = (event.clientX / container.clientWidth) * 2 - 1
+      mousePosition.y = -(event.clientY / container.clientHeight) * 2 + 1
+    }
+    window.addEventListener('mousemove', onMouseMoveGlobal)
 
     // Calculate target position for expanded card (left side of screen)
     const getExpandedTargetPosition = () => {
       const aspect = container.clientWidth / container.clientHeight
-      // Position card on the left quarter of the screen
-      const targetX = -aspect * 0.5
-      const targetY = 0.1 // Slightly above center
-      const targetZ = 0.5 // Bring forward
+      // Position card on the left third of the screen
+      const targetX = -aspect * 0.45
+      const targetY = 0.05
+      const targetZ = 0.6 // Bring forward
       return new THREE.Vector3(targetX, targetY, targetZ)
     }
 
@@ -293,6 +303,13 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       const timePassed = currentTime - previousTime
       const expandedPlane = expandedPlaneRef.current
       const isExpanded = expandedProjectRef.current !== null
+
+      // Update float time for hovering animation
+      floatTime += timePassed * 0.001
+
+      // Smooth mouse position
+      smoothMousePosition.x += (mousePosition.x - smoothMousePosition.x) * 0.05
+      smoothMousePosition.y += (mousePosition.y - smoothMousePosition.y) * 0.05
 
       if (!isPausedRef.current && !isExpanded) {
         const loopWidth = cardWidth * projects.length
@@ -326,12 +343,16 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         const mat = plane.material as THREE.ShaderMaterial
 
         if (isExpandedPlane) {
-          // Animate to expanded position (left side, no rotation)
+          // Animate to expanded position (left side)
           const target = getExpandedTargetPosition()
 
+          // Add floating animation
+          const floatOffsetY = Math.sin(floatTime * 1.5) * 0.03
+          const floatOffsetX = Math.sin(floatTime * 1.2) * 0.01
+
           // Get current local position and animate towards target (accounting for scene offset)
-          const targetLocalX = target.x - scene.position.x
-          const targetLocalY = target.y
+          const targetLocalX = target.x - scene.position.x + floatOffsetX
+          const targetLocalY = target.y + floatOffsetY
           const targetLocalZ = target.z
 
           plane.position.x += (targetLocalX - plane.position.x) * 0.08
@@ -339,13 +360,16 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           plane.position.z += (targetLocalZ - plane.position.z) * 0.08
 
           // Scale up
-          const targetScale = 1.3
+          const targetScale = 1.4
           const scaleDiff = targetScale - plane.scale.x
           const newScale = plane.scale.x + scaleDiff * 0.08
           plane.scale.set(newScale, newScale, newScale)
 
-          // Flatten rotation
-          plane.rotation.y += (0 - plane.rotation.y) * 0.08
+          // React to mouse position with subtle rotation
+          const targetRotationY = smoothMousePosition.x * 0.15
+          const targetRotationX = -smoothMousePosition.y * 0.1
+          plane.rotation.y += (targetRotationY - plane.rotation.y) * 0.08
+          plane.rotation.x += (targetRotationX - plane.rotation.x) * 0.08
 
           // Flatten the curve using isExpanded uniform
           if (mat.uniforms.isExpanded) {
@@ -373,6 +397,10 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           plane.position.x += (plane.userData.initialX - plane.position.x) * 0.08
           plane.position.y += (0 - plane.position.y) * 0.08
           plane.position.z += (0 - plane.position.z) * 0.08
+
+          // Reset rotation
+          plane.rotation.x += (0 - plane.rotation.x) * 0.08
+          plane.rotation.y += (0 - plane.rotation.y) * 0.08
 
           const targetScale = 1
           const scaleDiff = targetScale - plane.scale.x
@@ -442,6 +470,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
 
     return () => {
       resizeObserver.disconnect()
+      window.removeEventListener('mousemove', onMouseMoveGlobal)
       renderer.domElement.removeEventListener('click', onCanvasClick)
       renderer.domElement.removeEventListener('mousemove', onMouseMove)
       renderer.domElement.removeEventListener('wheel', onWheel)
