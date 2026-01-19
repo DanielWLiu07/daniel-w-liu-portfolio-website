@@ -383,13 +383,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
             mat.uniforms.opacity.value = 1
           }
         } else if (isExpanded && expandedPlane) {
-          // Fade out other cards
-          const targetScale = 0.8
-          const currentScale = plane.scale.x
-          const scaleDiff = targetScale - currentScale
-          const newScale = currentScale + scaleDiff * 0.1
-          plane.scale.set(newScale, newScale, newScale)
-
+          // Fade out other cards (keep same scale)
           if (mat.uniforms.opacity) {
             const currentOpacity = mat.uniforms.opacity.value
             mat.uniforms.opacity.value = currentOpacity + (0.2 - currentOpacity) * 0.1
