@@ -95,7 +95,7 @@ export function ProjectInfoPanel({ project, onClose, visible }: ProjectInfoPanel
             {project.title}
           </h2>
 
-          <p className="text-gray-600 text-base leading-relaxed mb-6">
+          <p className="text-gray-600 text-lg leading-relaxed mb-6">
             {project.detailedDescription}
           </p>
 
