@@ -126,13 +126,13 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
 
       const plane = new THREE.Mesh(geometry, material)
       plane.position.x = -(i - initialOffset) * cardWidth
-      plane.position.y = -0.5 // Offset down so carousel appears lower on screen
+      plane.position.y = -0.8 // Offset down so carousel appears lower on screen
 
       plane.userData = {
         projectId: project.id,
         projectIndex: i % projects.length,
         initialX: plane.position.x,
-        initialY: -0.5,
+        initialY: -0.8,
         index: i,
         originalWorldX: 0
       }
@@ -396,7 +396,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           }
         } else if (!isExpanded && animatingRef.current && expandedPlane) {
           // Animate back to original position
-          const targetY = plane.userData.initialY ?? -0.5
+          const targetY = plane.userData.initialY ?? -0.8
           plane.position.x += (plane.userData.initialX - plane.position.x) * 0.08
           plane.position.y += (targetY - plane.position.y) * 0.08
           plane.position.z += (0 - plane.position.z) * 0.08
@@ -438,7 +438,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       if (animatingRef.current && !isExpanded) {
         const allSettled = planes.every(plane => {
           const scaleDiff = Math.abs(1 - plane.scale.x)
-          const targetY = plane.userData.initialY ?? -0.5
+          const targetY = plane.userData.initialY ?? -0.8
           const posDiff = Math.abs(plane.position.y - targetY) + Math.abs(plane.position.z)
           return scaleDiff < 0.01 && posDiff < 0.01
         })
