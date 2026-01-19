@@ -1,5 +1,7 @@
 'use client'
 
+import { useEffect, useRef, useState } from 'react'
+
 interface ProjectInfoPanelProps {
   project: {
     id: number
@@ -15,13 +17,70 @@ interface ProjectInfoPanelProps {
 }
 
 export function ProjectInfoPanel({ project, onClose, visible }: ProjectInfoPanelProps) {
+  const cardRef = useRef<HTMLDivElement>(null)
+  const [transform, setTransform] = useState({ rotateX: 0, rotateY: 0, translateY: 0 })
+  const animationRef = useRef<number | null>(null)
+  const timeRef = useRef(0)
+  const mouseRef = useRef({ x: 0, y: 0 })
+  const smoothMouseRef = useRef({ x: 0, y: 0 })
+
+  useEffect(() => {
+    if (!visible) return
+
+    const handleMouseMove = (e: MouseEvent) => {
+      mouseRef.current = {
+        x: (e.clientX / window.innerWidth) * 2 - 1,
+        y: (e.clientY / window.innerHeight) * 2 - 1
+      }
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+
+    const animate = () => {
+      timeRef.current += 0.016
+
+      // Smooth mouse following
+      smoothMouseRef.current.x += (mouseRef.current.x - smoothMouseRef.current.x) * 0.05
+      smoothMouseRef.current.y += (mouseRef.current.y - smoothMouseRef.current.y) * 0.05
+
+      // Floating animation
+      const floatY = Math.sin(timeRef.current * 1.5) * 8
+
+      // Mouse-based rotation (pointing towards mouse)
+      const rotateY = smoothMouseRef.current.x * 8
+      const rotateX = -smoothMouseRef.current.y * 5
+
+      setTransform({ rotateX, rotateY, translateY: floatY })
+      animationRef.current = requestAnimationFrame(animate)
+    }
+
+    animationRef.current = requestAnimationFrame(animate)
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      if (animationRef.current) cancelAnimationFrame(animationRef.current)
+    }
+  }, [visible])
+
   return (
     <div
-      className={`fixed right-8 top-1/2 -translate-y-1/2 w-[90%] max-w-md z-40
-        transform transition-all duration-500 ease-out
+      className={`fixed right-8 top-1/2 w-[90%] max-w-sm z-40
+        transition-all duration-500 ease-out
         ${visible ? 'translate-x-0 opacity-100' : 'translate-x-[120%] opacity-0'}`}
+      style={{
+        transform: `translateY(-50%)`,
+        perspective: '1000px'
+      }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+      <div
+        ref={cardRef}
+        className="bg-white rounded-2xl shadow-2xl overflow-hidden"
+        style={{
+          transform: `translateY(${transform.translateY}px) rotateX(${transform.rotateX}deg) rotateY(${transform.rotateY}deg)`,
+          transformStyle: 'preserve-3d',
+          minHeight: '500px'
+        }}
+      >
         <div className="p-8">
           <button
             onClick={onClose}
