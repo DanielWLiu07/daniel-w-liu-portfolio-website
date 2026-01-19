@@ -126,11 +126,13 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
 
       const plane = new THREE.Mesh(geometry, material)
       plane.position.x = -(i - initialOffset) * cardWidth
+      plane.position.y = -0.5 // Offset down so carousel appears lower on screen
 
       plane.userData = {
         projectId: project.id,
         projectIndex: i % projects.length,
         initialX: plane.position.x,
+        initialY: -0.5,
         index: i,
         originalWorldX: 0
       }
@@ -394,8 +396,9 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           }
         } else if (!isExpanded && animatingRef.current && expandedPlane) {
           // Animate back to original position
+          const targetY = plane.userData.initialY ?? -0.5
           plane.position.x += (plane.userData.initialX - plane.position.x) * 0.08
-          plane.position.y += (0 - plane.position.y) * 0.08
+          plane.position.y += (targetY - plane.position.y) * 0.08
           plane.position.z += (0 - plane.position.z) * 0.08
 
           // Reset rotation
@@ -435,7 +438,8 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       if (animatingRef.current && !isExpanded) {
         const allSettled = planes.every(plane => {
           const scaleDiff = Math.abs(1 - plane.scale.x)
-          const posDiff = Math.abs(plane.position.y) + Math.abs(plane.position.z)
+          const targetY = plane.userData.initialY ?? -0.5
+          const posDiff = Math.abs(plane.position.y - targetY) + Math.abs(plane.position.z)
           return scaleDiff < 0.01 && posDiff < 0.01
         })
 
@@ -495,7 +499,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
 
   return (
     <>
-      <div ref={containerRef} className={`absolute inset-x-0 top-32 bottom-0 curved-slider z-[38] overflow-visible transition-opacity ${!visible ? 'opacity-0 pointer-events-none' : 'opacity-100'}`} />
+      <div ref={containerRef} className={`absolute inset-0 curved-slider z-[38] overflow-visible transition-opacity ${!visible ? 'opacity-0 pointer-events-none' : 'opacity-100'}`} />
       <style jsx>{`
         .curved-slider {
           overflow: visible !important;
