@@ -126,7 +126,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
 
       const plane = new THREE.Mesh(geometry, material)
       plane.position.x = -(i - initialOffset) * cardWidth
-      plane.position.y = -0.8 // Offset down so carousel appears lower on screen
+      plane.position.y = -0.35 // Offset down so carousel appears lower on screen
 
       plane.userData = {
         projectId: project.id,
@@ -362,7 +362,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           plane.position.z += (targetLocalZ - plane.position.z) * 0.08
 
           // Scale up
-          const targetScale = 1.4
+          const targetScale = 1.1
           const scaleDiff = targetScale - plane.scale.x
           const newScale = plane.scale.x + scaleDiff * 0.08
           plane.scale.set(newScale, newScale, newScale)
