@@ -289,13 +289,13 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
     }
     window.addEventListener('mousemove', onMouseMoveGlobal)
 
-    // Calculate target position for expanded card (left side of screen)
+    // Calculate target position for expanded card (left of center, mirroring info panel)
     const getExpandedTargetPosition = () => {
       const aspect = container.clientWidth / container.clientHeight
-      // Position card on the left third of the screen
-      const targetX = -aspect * 0.45
+      // Position card on the left, closer to center
+      const targetX = -aspect * 0.32
       const targetY = 0.05
-      const targetZ = 0.6 // Bring forward
+      const targetZ = 0.8 // Bring forward more
       return new THREE.Vector3(targetX, targetY, targetZ)
     }
 
@@ -495,14 +495,18 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
 
   return (
     <>
-      <div ref={containerRef} className={`absolute inset-x-0 top-32 bottom-0 curved-slider z-[38] transition-opacity ${!visible ? 'opacity-0 pointer-events-none' : 'opacity-100'}`} />
+      <div ref={containerRef} className={`absolute inset-x-0 top-0 bottom-0 curved-slider z-[38] overflow-visible transition-opacity ${!visible ? 'opacity-0 pointer-events-none' : 'opacity-100'}`} />
       <style jsx>{`
+        .curved-slider {
+          overflow: visible !important;
+        }
         .curved-slider canvas {
           position: absolute;
           top: 0;
           left: 0;
           width: 100%;
           height: 100%;
+          overflow: visible;
         }
       `}</style>
     </>

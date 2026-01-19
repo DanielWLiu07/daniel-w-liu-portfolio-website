@@ -91,7 +91,7 @@ export default function ProjectsPage() {
   const expandedProjectData = projects.find(p => p.id === expandedProject)
 
   return (
-    <div ref={mainRef} className="relative w-full h-screen overflow-hidden bg-black">
+    <div ref={mainRef} className="relative w-full h-screen overflow-visible bg-black">
       <BackgroundVideos visible={introFinished} isExpanded={expandedProject !== null} />
 
       {!introFinished && !isLowPerformance && (

@@ -64,9 +64,9 @@ export function ProjectInfoPanel({ project, onClose, visible }: ProjectInfoPanel
 
   return (
     <div
-      className={`fixed right-8 top-1/2 w-[90%] max-w-sm z-40
+      className={`fixed right-[15%] top-1/2 w-[90%] max-w-sm z-40
         transition-all duration-500 ease-out
-        ${visible ? 'translate-x-0 opacity-100' : 'translate-x-[120%] opacity-0'}`}
+        ${visible ? 'translate-x-0 opacity-100' : 'translate-x-[150%] opacity-0'}`}
       style={{
         transform: `translateY(-50%)`,
         perspective: '1000px'
