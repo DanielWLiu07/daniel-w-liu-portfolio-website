@@ -11,9 +11,10 @@ interface ProjectSliderProps {
   onProjectClick: (projectId: number) => void
   onPauseChange: (paused: boolean) => void
   visible: boolean
+  expandedProject: number | null
 }
 
-export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange, visible }: ProjectSliderProps) {
+export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange, visible, expandedProject }: ProjectSliderProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const sceneRef = useRef<THREE.Scene | null>(null)
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null)
@@ -30,6 +31,12 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
   const initializedRef = useRef(false)
   const [containerReady, setContainerReady] = useState(false)
 
+  const expandedPlaneRef = useRef<THREE.Mesh | null>(null)
+  const expandedProjectRef = useRef<number | null>(null)
+  const originalPositionRef = useRef<THREE.Vector3 | null>(null)
+  const originalScaleRef = useRef<number>(1)
+  const animatingRef = useRef(false)
+
   const onProjectClickRef = useRef(onProjectClick)
   const onPauseChangeRef = useRef(onPauseChange)
 
@@ -44,6 +51,16 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
   useEffect(() => {
     isPausedRef.current = isPaused
   }, [isPaused])
+
+  // Handle expanded project changes
+  useEffect(() => {
+    expandedProjectRef.current = expandedProject
+
+    if (expandedProject === null && expandedPlaneRef.current) {
+      // Animate back to original position
+      animatingRef.current = true
+    }
+  }, [expandedProject])
 
   useEffect(() => {
     if (!containerRef.current || initializedRef.current) return
@@ -114,7 +131,8 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         projectId: project.id,
         projectIndex: i % projects.length,
         initialX: plane.position.x,
-        index: i
+        index: i,
+        originalWorldX: 0
       }
       scene.add(plane)
       planes.push(plane)
@@ -125,6 +143,8 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
     const lastMousePosition = new THREE.Vector2(-999, -999)
 
     const onCanvasClick = (event: MouseEvent) => {
+      if (expandedProjectRef.current !== null) return
+
       const rect = container.getBoundingClientRect()
       mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
       mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
@@ -136,18 +156,32 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         const clickedPlane = intersects[0].object as THREE.Mesh
         const projectId = clickedPlane.userData.projectId
 
+        // Store the clicked plane and its original world position
+        expandedPlaneRef.current = clickedPlane
+        const worldPos = new THREE.Vector3()
+        clickedPlane.getWorldPosition(worldPos)
+        originalPositionRef.current = worldPos.clone()
+        originalScaleRef.current = clickedPlane.scale.x
+
+        // Store the scene position at time of click for restoration
+        clickedPlane.userData.originalWorldX = worldPos.x
+        clickedPlane.userData.scenePositionAtClick = scene.position.x
+
         isManualScrollingRef.current = false
         velocityRef.current = 0
         targetTimeRef.current = timeRef.current
 
         onPauseChangeRef.current(true)
         onProjectClickRef.current(projectId)
+        animatingRef.current = true
       }
     }
 
     renderer.domElement.addEventListener('click', onCanvasClick)
 
     const onMouseMove = (event: MouseEvent) => {
+      if (expandedProjectRef.current !== null) return
+
       const rect = container.getBoundingClientRect()
       mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
       mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
@@ -155,6 +189,8 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
     }
 
     const checkHover = () => {
+      if (expandedProjectRef.current !== null) return
+
       raycaster.setFromCamera(lastMousePosition, camera)
       const intersects = raycaster.intersectObjects(planes)
 
@@ -171,7 +207,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         }
       } else {
         hoveredPlaneRef.current = null
-        if (isPausedRef.current) {
+        if (isPausedRef.current && expandedProjectRef.current === null) {
           onPauseChangeRef.current(false)
         }
       }
@@ -180,6 +216,8 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
     renderer.domElement.addEventListener('mousemove', onMouseMove)
 
     const onWheel = (event: WheelEvent) => {
+      if (expandedProjectRef.current !== null) return
+
       if (isPausedRef.current) {
         onPauseChangeRef.current(false)
       }
@@ -195,6 +233,8 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
     let isTouchScrolling = false
 
     const onTouchStart = (event: TouchEvent) => {
+      if (expandedProjectRef.current !== null) return
+
       if (event.touches.length === 1) {
         touchStartX = event.touches[0].clientX
         touchStartY = event.touches[0].clientY
@@ -208,6 +248,8 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
     }
 
     const onTouchMove = (event: TouchEvent) => {
+      if (expandedProjectRef.current !== null) return
+
       if (event.touches.length === 1) {
         const touchX = event.touches[0].clientX
         const touchY = event.touches[0].clientY
@@ -237,10 +279,22 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
 
     let previousTime = 0
 
+    // Calculate target position for expanded card (left side of screen)
+    const getExpandedTargetPosition = () => {
+      const aspect = container.clientWidth / container.clientHeight
+      // Position card on the left quarter of the screen
+      const targetX = -aspect * 0.5
+      const targetY = 0.1 // Slightly above center
+      const targetZ = 0.5 // Bring forward
+      return new THREE.Vector3(targetX, targetY, targetZ)
+    }
+
     const animate = (currentTime: number) => {
       const timePassed = currentTime - previousTime
+      const expandedPlane = expandedPlaneRef.current
+      const isExpanded = expandedProjectRef.current !== null
 
-      if (!isPausedRef.current) {
+      if (!isPausedRef.current && !isExpanded) {
         const loopWidth = cardWidth * projects.length
 
         updateScrollVelocity(isManualScrollingRef, velocityRef, autoScrollDirectionRef)
@@ -252,22 +306,109 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         } else if (timeRef.current * sceneOptions.speed < -loopWidth) {
           timeRef.current += loopWidth / sceneOptions.speed
         }
-      } else {
+      } else if (!isExpanded) {
         const diff = targetTimeRef.current - timeRef.current
         timeRef.current += diff * 0.1
       }
 
-      scene.position.x = timeRef.current * sceneOptions.speed
+      if (!isExpanded) {
+        scene.position.x = timeRef.current * sceneOptions.speed
+      }
 
-      checkHover()
+      if (!isExpanded) {
+        checkHover()
+      }
 
+      // Animate planes
       planes.forEach(plane => {
-        const targetScale = plane === hoveredPlaneRef.current ? 1.15 : 1
-        const currentScale = plane.scale.x
-        const scaleDiff = targetScale - currentScale
-        const newScale = currentScale + scaleDiff * 0.15
-        plane.scale.set(newScale, newScale, newScale)
+        const isExpandedPlane = plane === expandedPlane && isExpanded
+
+        if (isExpandedPlane) {
+          // Animate to expanded position (left side, no rotation)
+          const target = getExpandedTargetPosition()
+
+          // Get current local position and animate towards target (accounting for scene offset)
+          const targetLocalX = target.x - scene.position.x
+          const targetLocalY = target.y
+          const targetLocalZ = target.z
+
+          plane.position.x += (targetLocalX - plane.position.x) * 0.08
+          plane.position.y += (targetLocalY - plane.position.y) * 0.08
+          plane.position.z += (targetLocalZ - plane.position.z) * 0.08
+
+          // Scale up
+          const targetScale = 1.3
+          const scaleDiff = targetScale - plane.scale.x
+          const newScale = plane.scale.x + scaleDiff * 0.08
+          plane.scale.set(newScale, newScale, newScale)
+
+          // Flatten rotation
+          plane.rotation.y += (0 - plane.rotation.y) * 0.08
+
+          // Keep full opacity
+          if (plane.material instanceof THREE.ShaderMaterial) {
+            plane.material.opacity = 1
+          }
+        } else if (isExpanded && expandedPlane) {
+          // Fade out other cards
+          const targetScale = 0.8
+          const currentScale = plane.scale.x
+          const scaleDiff = targetScale - currentScale
+          const newScale = currentScale + scaleDiff * 0.1
+          plane.scale.set(newScale, newScale, newScale)
+
+          if (plane.material instanceof THREE.ShaderMaterial) {
+            const currentOpacity = plane.material.uniforms?.opacity?.value ?? 1
+            plane.material.uniforms.opacity.value = currentOpacity + (0.2 - currentOpacity) * 0.1
+          }
+        } else if (!isExpanded && animatingRef.current && expandedPlane) {
+          // Animate back to original position
+          const originalWorldX = plane.userData.originalWorldX || plane.userData.initialX
+          const sceneOffset = plane.userData.scenePositionAtClick || 0
+          const targetLocalX = originalWorldX - sceneOffset
+
+          plane.position.x += (plane.userData.initialX - plane.position.x) * 0.08
+          plane.position.y += (0 - plane.position.y) * 0.08
+          plane.position.z += (0 - plane.position.z) * 0.08
+
+          const targetScale = 1
+          const scaleDiff = targetScale - plane.scale.x
+          const newScale = plane.scale.x + scaleDiff * 0.08
+          plane.scale.set(newScale, newScale, newScale)
+
+          if (plane.material instanceof THREE.ShaderMaterial && plane.material.uniforms?.opacity) {
+            const currentOpacity = plane.material.uniforms.opacity.value
+            plane.material.uniforms.opacity.value = currentOpacity + (1 - currentOpacity) * 0.1
+          }
+        } else {
+          // Normal hover behavior
+          const targetScale = plane === hoveredPlaneRef.current ? 1.15 : 1
+          const currentScale = plane.scale.x
+          const scaleDiff = targetScale - currentScale
+          const newScale = currentScale + scaleDiff * 0.15
+          plane.scale.set(newScale, newScale, newScale)
+
+          if (plane.material instanceof THREE.ShaderMaterial && plane.material.uniforms?.opacity) {
+            const currentOpacity = plane.material.uniforms.opacity.value
+            plane.material.uniforms.opacity.value = currentOpacity + (1 - currentOpacity) * 0.1
+          }
+        }
       })
+
+      // Check if animation is complete
+      if (animatingRef.current && !isExpanded) {
+        const allSettled = planes.every(plane => {
+          const scaleDiff = Math.abs(1 - plane.scale.x)
+          const posDiff = Math.abs(plane.position.y) + Math.abs(plane.position.z)
+          return scaleDiff < 0.01 && posDiff < 0.01
+        })
+
+        if (allSettled) {
+          animatingRef.current = false
+          expandedPlaneRef.current = null
+          originalPositionRef.current = null
+        }
+      }
 
       renderer.render(scene, camera)
 

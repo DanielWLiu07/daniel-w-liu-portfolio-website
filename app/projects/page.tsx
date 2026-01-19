@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react'
 import gsap from 'gsap'
-import ProjectModal from '@/components/projects/project-modal'
+import { ProjectInfoPanel } from '@/components/projects/project-info-panel'
 import IntroVideo from '@/components/projects/intro-video'
 import BackgroundVideos from '@/components/projects/background-videos'
 import ProjectSlider from '@/components/projects/project-slider'
@@ -83,7 +83,7 @@ export default function ProjectsPage() {
     }, 100)
   }, [])
 
-  const handleCloseModal = useCallback(() => {
+  const handleClosePanel = useCallback(() => {
     setExpandedProject(null)
     setIsPaused(false)
   }, [])
@@ -104,13 +104,27 @@ export default function ProjectsPage() {
           onProjectClick={setExpandedProject}
           onPauseChange={setIsPaused}
           visible={introFinished}
+          expandedProject={expandedProject}
         />
       )}
 
       <TransitionFlash show={showFlash} />
 
+      {/* Info panel slides in from the right */}
       {expandedProjectData && (
-        <ProjectModal project={expandedProjectData} onClose={handleCloseModal} />
+        <ProjectInfoPanel
+          project={expandedProjectData}
+          onClose={handleClosePanel}
+          visible={expandedProject !== null}
+        />
+      )}
+
+      {/* Backdrop when expanded */}
+      {expandedProject !== null && (
+        <div
+          className="fixed inset-0 bg-black/40 z-30 transition-opacity duration-300"
+          onClick={handleClosePanel}
+        />
       )}
 
       <SocialLinks className="projects-social-links" />
