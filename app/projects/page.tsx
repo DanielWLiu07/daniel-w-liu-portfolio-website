@@ -122,7 +122,7 @@ export default function ProjectsPage() {
       {/* Backdrop when expanded */}
       {expandedProject !== null && (
         <div
-          className="fixed inset-0 bg-black/40 z-30 transition-opacity duration-300"
+          className="fixed inset-0 bg-black/40 z-[37] transition-opacity duration-300"
           onClick={handleClosePanel}
         />
       )}
