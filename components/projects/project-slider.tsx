@@ -495,7 +495,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
 
   return (
     <>
-      <div ref={containerRef} className={`absolute inset-x-0 top-0 bottom-0 curved-slider z-[38] overflow-visible transition-opacity ${!visible ? 'opacity-0 pointer-events-none' : 'opacity-100'}`} />
+      <div ref={containerRef} className={`absolute inset-x-0 top-32 bottom-0 curved-slider z-[38] overflow-visible transition-opacity ${!visible ? 'opacity-0 pointer-events-none' : 'opacity-100'}`} />
       <style jsx>{`
         .curved-slider {
           overflow: visible !important;
