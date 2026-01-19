@@ -1,10 +1,10 @@
 export const MODAL_ANIMATIONS = `
   .animate-fadeIn {
-    animation: fadeIn 0.3s ease-in-out;
+    animation: fadeIn 0.3s ease-out;
   }
 
-  .animate-scaleIn {
-    animation: scaleIn 0.3s ease-in-out;
+  .animate-slideIn {
+    animation: slideIn 0.4s ease-out;
   }
 
   @keyframes fadeIn {
@@ -16,14 +16,14 @@ export const MODAL_ANIMATIONS = `
     }
   }
 
-  @keyframes scaleIn {
+  @keyframes slideIn {
     from {
       opacity: 0;
-      transform: scale(0.9);
+      transform: translateX(-40px);
     }
     to {
       opacity: 1;
-      transform: scale(1);
+      transform: translateX(0);
     }
   }
 
