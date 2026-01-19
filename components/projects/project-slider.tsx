@@ -294,9 +294,9 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
     // Calculate target position for expanded card (left of center, mirroring info panel)
     const getExpandedTargetPosition = () => {
       const aspect = container.clientWidth / container.clientHeight
-      // Position card on the left, closer to center
+      // Position card on the left, closer to center, vertically centered
       const targetX = -aspect * 0.32
-      const targetY = 0.05
+      const targetY = 0 // Centered vertically
       const targetZ = 0.8 // Bring forward more
       return new THREE.Vector3(targetX, targetY, targetZ)
     }
@@ -361,8 +361,8 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           plane.position.y += (targetLocalY - plane.position.y) * 0.08
           plane.position.z += (targetLocalZ - plane.position.z) * 0.08
 
-          // Scale up
-          const targetScale = 1.1
+          // Scale slightly
+          const targetScale = 0.95
           const scaleDiff = targetScale - plane.scale.x
           const newScale = plane.scale.x + scaleDiff * 0.08
           plane.scale.set(newScale, newScale, newScale)

@@ -78,7 +78,7 @@ export function ProjectInfoPanel({ project, onClose, visible }: ProjectInfoPanel
         style={{
           transform: `translateY(${transform.translateY}px) rotateX(${transform.rotateX}deg) rotateY(${transform.rotateY}deg)`,
           transformStyle: 'preserve-3d',
-          minHeight: '550px'
+          minHeight: '620px'
         }}
       >
         <div className="p-10">
