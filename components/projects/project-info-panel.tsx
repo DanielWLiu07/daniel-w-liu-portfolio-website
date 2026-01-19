@@ -64,7 +64,7 @@ export function ProjectInfoPanel({ project, onClose, visible }: ProjectInfoPanel
 
   return (
     <div
-      className={`fixed right-[15%] top-1/2 w-[90%] max-w-sm z-40
+      className={`fixed right-[15%] top-1/2 w-[90%] max-w-md z-40
         transition-all duration-500 ease-out
         ${visible ? 'translate-x-0 opacity-100' : 'translate-x-[150%] opacity-0'}`}
       style={{
@@ -78,10 +78,10 @@ export function ProjectInfoPanel({ project, onClose, visible }: ProjectInfoPanel
         style={{
           transform: `translateY(${transform.translateY}px) rotateX(${transform.rotateX}deg) rotateY(${transform.rotateY}deg)`,
           transformStyle: 'preserve-3d',
-          minHeight: '500px'
+          minHeight: '550px'
         }}
       >
-        <div className="p-8">
+        <div className="p-10">
           <button
             onClick={onClose}
             className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
@@ -95,7 +95,7 @@ export function ProjectInfoPanel({ project, onClose, visible }: ProjectInfoPanel
             {project.title}
           </h2>
 
-          <p className="text-gray-600 text-lg leading-relaxed mb-6">
+          <p className="text-gray-600 text-xl leading-relaxed mb-6">
             {project.detailedDescription}
           </p>
 
