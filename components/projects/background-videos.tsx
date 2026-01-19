@@ -44,7 +44,7 @@ export default function BackgroundVideos({ visible }: BackgroundVideosProps) {
         )}
       </div>
 
-      <div className={`absolute inset-0 w-full h-full ${MOBILE_CONTAINER_CLASSES} ${isLowPerformance ? 'max-[600px]:mt-20' : 'max-[600px]:mt-5'} z-20 pointer-events-none transition-opacity ${visibilityClass}`}>
+      <div className={`absolute inset-0 w-full h-full ${MOBILE_CONTAINER_CLASSES} ${isLowPerformance ? 'max-[600px]:mt-20' : 'max-[600px]:mt-5'} z-[36] pointer-events-none transition-opacity ${visibilityClass}`}>
         {isLowPerformance ? (
           <Image src="/animation_frames/manga/manga_man/0200.png" alt="" fill className="absolute inset-0 w-full h-full object-cover max-[600px]:object-contain" />
         ) : (
