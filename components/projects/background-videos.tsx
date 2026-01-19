@@ -6,11 +6,12 @@ import { usePerformanceMode } from '@/contexts/performance-mode-context'
 
 interface BackgroundVideosProps {
   visible: boolean
+  isExpanded?: boolean
 }
 
 const MOBILE_CONTAINER_CLASSES = 'max-[600px]:w-[1600px] max-[600px]:h-[700px] max-[600px]:left-1/2 max-[600px]:-translate-x-1/2 max-[600px]:-translate-y-[5%]'
 
-export default function BackgroundVideos({ visible }: BackgroundVideosProps) {
+export default function BackgroundVideos({ visible, isExpanded = false }: BackgroundVideosProps) {
   const bgVideoRef = useRef<HTMLVideoElement>(null)
   const manVideoRef = useRef<HTMLVideoElement>(null)
   const { isLowPerformance } = usePerformanceMode()
@@ -22,6 +23,8 @@ export default function BackgroundVideos({ visible }: BackgroundVideosProps) {
   }, [visible])
 
   const visibilityClass = visible ? 'opacity-100' : 'opacity-0 pointer-events-none'
+  // Manga man: above cards (z-[39]) in normal mode, below backdrop (z-[36]) when expanded
+  const mangaManZIndex = isExpanded ? 'z-[36]' : 'z-[39]'
 
   return (
     <>
@@ -44,7 +47,7 @@ export default function BackgroundVideos({ visible }: BackgroundVideosProps) {
         )}
       </div>
 
-      <div className={`absolute inset-0 w-full h-full ${MOBILE_CONTAINER_CLASSES} ${isLowPerformance ? 'max-[600px]:mt-20' : 'max-[600px]:mt-5'} z-[36] pointer-events-none transition-opacity ${visibilityClass}`}>
+      <div className={`absolute inset-0 w-full h-full ${MOBILE_CONTAINER_CLASSES} ${isLowPerformance ? 'max-[600px]:mt-20' : 'max-[600px]:mt-5'} ${mangaManZIndex} pointer-events-none transition-all duration-300 ${visibilityClass}`}>
         {isLowPerformance ? (
           <Image src="/animation_frames/manga/manga_man/0200.png" alt="" fill className="absolute inset-0 w-full h-full object-cover max-[600px]:object-contain" />
         ) : (

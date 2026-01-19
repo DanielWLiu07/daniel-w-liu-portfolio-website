@@ -92,7 +92,7 @@ export default function ProjectsPage() {
 
   return (
     <div ref={mainRef} className="relative w-full h-screen overflow-hidden bg-black">
-      <BackgroundVideos visible={introFinished} />
+      <BackgroundVideos visible={introFinished} isExpanded={expandedProject !== null} />
 
       {!introFinished && !isLowPerformance && (
         <IntroVideo onEnded={handleIntroEnd} onFlashStart={handleFlashStart} />
