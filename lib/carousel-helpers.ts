@@ -18,7 +18,8 @@ export function createCardMaterial(texture: THREE.Texture, curve: number) {
     uniforms: {
       tex: { value: texture },
       curve: { value: curve },
-      isExpanded: { value: 0.0 }
+      isExpanded: { value: 0.0 },
+      opacity: { value: 1.0 }
     },
     transparent: true,
     vertexShader: `
@@ -35,10 +36,11 @@ export function createCardMaterial(texture: THREE.Texture, curve: number) {
     `,
     fragmentShader: `
       uniform sampler2D tex;
+      uniform float opacity;
       varying vec2 vertexUV;
       void main(){
         vec4 texColor = texture2D(tex, vertexUV);
-        gl_FragColor = texColor;
+        gl_FragColor = vec4(texColor.rgb, texColor.a * opacity);
       }
     `
   })

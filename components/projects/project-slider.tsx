@@ -323,6 +323,8 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       planes.forEach(plane => {
         const isExpandedPlane = plane === expandedPlane && isExpanded
 
+        const mat = plane.material as THREE.ShaderMaterial
+
         if (isExpandedPlane) {
           // Animate to expanded position (left side, no rotation)
           const target = getExpandedTargetPosition()
@@ -345,9 +347,14 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           // Flatten rotation
           plane.rotation.y += (0 - plane.rotation.y) * 0.08
 
+          // Flatten the curve using isExpanded uniform
+          if (mat.uniforms.isExpanded) {
+            mat.uniforms.isExpanded.value += (1.0 - mat.uniforms.isExpanded.value) * 0.08
+          }
+
           // Keep full opacity
-          if (plane.material instanceof THREE.ShaderMaterial) {
-            plane.material.opacity = 1
+          if (mat.uniforms.opacity) {
+            mat.uniforms.opacity.value = 1
           }
         } else if (isExpanded && expandedPlane) {
           // Fade out other cards
@@ -357,16 +364,12 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           const newScale = currentScale + scaleDiff * 0.1
           plane.scale.set(newScale, newScale, newScale)
 
-          if (plane.material instanceof THREE.ShaderMaterial) {
-            const currentOpacity = plane.material.uniforms?.opacity?.value ?? 1
-            plane.material.uniforms.opacity.value = currentOpacity + (0.2 - currentOpacity) * 0.1
+          if (mat.uniforms.opacity) {
+            const currentOpacity = mat.uniforms.opacity.value
+            mat.uniforms.opacity.value = currentOpacity + (0.2 - currentOpacity) * 0.1
           }
         } else if (!isExpanded && animatingRef.current && expandedPlane) {
           // Animate back to original position
-          const originalWorldX = plane.userData.originalWorldX || plane.userData.initialX
-          const sceneOffset = plane.userData.scenePositionAtClick || 0
-          const targetLocalX = originalWorldX - sceneOffset
-
           plane.position.x += (plane.userData.initialX - plane.position.x) * 0.08
           plane.position.y += (0 - plane.position.y) * 0.08
           plane.position.z += (0 - plane.position.z) * 0.08
@@ -376,9 +379,14 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           const newScale = plane.scale.x + scaleDiff * 0.08
           plane.scale.set(newScale, newScale, newScale)
 
-          if (plane.material instanceof THREE.ShaderMaterial && plane.material.uniforms?.opacity) {
-            const currentOpacity = plane.material.uniforms.opacity.value
-            plane.material.uniforms.opacity.value = currentOpacity + (1 - currentOpacity) * 0.1
+          // Restore curve
+          if (mat.uniforms.isExpanded) {
+            mat.uniforms.isExpanded.value += (0.0 - mat.uniforms.isExpanded.value) * 0.08
+          }
+
+          if (mat.uniforms.opacity) {
+            const currentOpacity = mat.uniforms.opacity.value
+            mat.uniforms.opacity.value = currentOpacity + (1 - currentOpacity) * 0.1
           }
         } else {
           // Normal hover behavior
@@ -388,9 +396,9 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           const newScale = currentScale + scaleDiff * 0.15
           plane.scale.set(newScale, newScale, newScale)
 
-          if (plane.material instanceof THREE.ShaderMaterial && plane.material.uniforms?.opacity) {
-            const currentOpacity = plane.material.uniforms.opacity.value
-            plane.material.uniforms.opacity.value = currentOpacity + (1 - currentOpacity) * 0.1
+          if (mat.uniforms.opacity) {
+            const currentOpacity = mat.uniforms.opacity.value
+            mat.uniforms.opacity.value = currentOpacity + (1 - currentOpacity) * 0.1
           }
         }
       })
