@@ -23,7 +23,6 @@ export default function BackgroundVideos({ visible, isExpanded = false }: Backgr
   }, [visible])
 
   const visibilityClass = visible ? 'opacity-100' : 'opacity-0 pointer-events-none'
-  // Manga man: above cards (z-[39]) in normal mode, below backdrop (z-[36]) when expanded
   const mangaManZIndex = isExpanded ? 'z-[36]' : 'z-[39]'
 
   return (
@@ -47,7 +46,14 @@ export default function BackgroundVideos({ visible, isExpanded = false }: Backgr
         )}
       </div>
 
-      <div className={`absolute inset-0 w-full h-full ${MOBILE_CONTAINER_CLASSES} ${isLowPerformance ? 'max-[600px]:mt-20' : 'max-[600px]:mt-5'} ${mangaManZIndex} pointer-events-none transition-all duration-300 ${visibilityClass}`}>
+      <div
+        className={`absolute inset-0 w-full h-full ${MOBILE_CONTAINER_CLASSES} ${isLowPerformance ? 'max-[600px]:mt-20' : 'max-[600px]:mt-5'} ${mangaManZIndex} pointer-events-none`}
+        style={{
+          transform: isExpanded ? 'translateY(-100%)' : 'translateY(0)',
+          opacity: visible && !isExpanded ? 1 : 0,
+          transition: 'transform 1.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 1s ease-out',
+        }}
+      >
         {isLowPerformance ? (
           <Image src="/animation_frames/manga/manga_man/0200.png" alt="" fill className="absolute inset-0 w-full h-full object-cover max-[600px]:object-contain" />
         ) : (

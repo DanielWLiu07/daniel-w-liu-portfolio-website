@@ -16,3 +16,8 @@ export const katieRozeFont = localFont({
   src: '../public/shared/fonts/Katie Roze Watercolour Font - By Lef/KatieRoze.otf',
   display: 'swap',
 })
+
+export const fastBlazeFont = localFont({
+  src: '../public/fonts/FAST BLAZE.otf',
+  display: 'swap',
+})

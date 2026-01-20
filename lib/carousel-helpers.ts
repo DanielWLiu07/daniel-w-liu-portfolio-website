@@ -13,10 +13,11 @@ export function createCardGeometry(cardWidth: number, cardHeight: number) {
   return new THREE.PlaneGeometry(cardWidth, cardHeight, 20, 20)
 }
 
-export function createCardMaterial(texture: THREE.Texture, curve: number) {
+export function createCardMaterial(frameTexture: THREE.Texture, contentTexture: THREE.Texture, curve: number) {
   return new THREE.ShaderMaterial({
     uniforms: {
-      tex: { value: texture },
+      frameTex: { value: frameTexture },
+      contentTex: { value: contentTexture },
       curve: { value: curve },
       isExpanded: { value: 0.0 },
       opacity: { value: 1.0 }
@@ -35,12 +36,20 @@ export function createCardMaterial(texture: THREE.Texture, curve: number) {
       }
     `,
     fragmentShader: `
-      uniform sampler2D tex;
+      uniform sampler2D frameTex;
+      uniform sampler2D contentTex;
       uniform float opacity;
       varying vec2 vertexUV;
       void main(){
-        vec4 texColor = texture2D(tex, vertexUV);
-        gl_FragColor = vec4(texColor.rgb, texColor.a * opacity);
+        // Sample content (behind) and frame (in front)
+        vec4 contentColor = texture2D(contentTex, vertexUV);
+        vec4 frameColor = texture2D(frameTex, vertexUV);
+
+        // Blend: frame on top of content using frame's alpha
+        vec3 blended = mix(contentColor.rgb, frameColor.rgb, frameColor.a);
+        float alpha = max(contentColor.a, frameColor.a);
+
+        gl_FragColor = vec4(blended, alpha * opacity);
       }
     `
   })

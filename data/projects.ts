@@ -4,6 +4,7 @@ export interface Project {
   description: string;
   detailedDescription: string;
   image: string;
+  images: string[];
   technologies: string[];
   link?: string;
   github?: string;
@@ -16,6 +17,13 @@ export const projects: Project[] = [
     description: "A brief description of your first project",
     detailedDescription: "A detailed description of your first project. Add details about what you built, the impact it had, the challenges you faced, and what you learned. You can add multiple paragraphs here to provide comprehensive information about your project.",
     image: "/projects/images/frame1.png",
+    images: [
+      "/projects/images/project1/slide1.png",
+      "/projects/images/project1/slide2.png",
+      "/projects/images/project1/slide3.png",
+      "/projects/images/project1/slide4.png",
+      "/projects/images/project1/slide5.png",
+    ],
     technologies: ["React", "Next.js", "TypeScript"],
     link: "https://example.com",
     github: "https://github.com/yourusername/project1"
@@ -26,6 +34,13 @@ export const projects: Project[] = [
     description: "A brief description of your second project",
     detailedDescription: "A detailed description of your second project. Highlight key features and technologies used. Explain the problem it solves and the value it provides to users. Include metrics or results if available.",
     image: "/projects/images/frame2.png",
+    images: [
+      "/projects/images/project2/slide1.png",
+      "/projects/images/project2/slide2.png",
+      "/projects/images/project2/slide3.png",
+      "/projects/images/project2/slide4.png",
+      "/projects/images/project2/slide5.png",
+    ],
     technologies: ["Node.js", "Express", "MongoDB"],
     link: "https://example.com",
     github: "https://github.com/yourusername/project2"
@@ -36,6 +51,13 @@ export const projects: Project[] = [
     description: "A brief description of your third project",
     detailedDescription: "A detailed description of your third project. Explain the problem it solves, your approach to solving it, and the technologies you chose. Discuss any interesting technical challenges you overcame.",
     image: "/projects/images/frame1.png",
+    images: [
+      "/projects/images/project3/slide1.png",
+      "/projects/images/project3/slide2.png",
+      "/projects/images/project3/slide3.png",
+      "/projects/images/project3/slide4.png",
+      "/projects/images/project3/slide5.png",
+    ],
     technologies: ["Python", "Django", "PostgreSQL"],
     link: "https://example.com",
     github: "https://github.com/yourusername/project3"
@@ -46,6 +68,13 @@ export const projects: Project[] = [
     description: "A brief description of your fourth project",
     detailedDescription: "A detailed description of your fourth project. Share what you learned while building it, the design decisions you made, and how you iterated on the solution. Include any feedback or results you received.",
     image: "/projects/images/frame2.png",
+    images: [
+      "/projects/images/project4/slide1.png",
+      "/projects/images/project4/slide2.png",
+      "/projects/images/project4/slide3.png",
+      "/projects/images/project4/slide4.png",
+      "/projects/images/project4/slide5.png",
+    ],
     technologies: ["Vue.js", "Firebase", "TailwindCSS"],
     link: "https://example.com",
     github: "https://github.com/yourusername/project4"
@@ -56,6 +85,13 @@ export const projects: Project[] = [
     description: "A brief description of your fifth project",
     detailedDescription: "A detailed description of your fifth project. Mention any awards or recognition, the team size if collaborative, your specific contributions, and the overall impact of the project.",
     image: "/projects/images/frame1.png",
+    images: [
+      "/projects/images/project5/slide1.png",
+      "/projects/images/project5/slide2.png",
+      "/projects/images/project5/slide3.png",
+      "/projects/images/project5/slide4.png",
+      "/projects/images/project5/slide5.png",
+    ],
     technologies: ["React Native", "AWS", "GraphQL"],
     link: "https://example.com",
     github: "https://github.com/yourusername/project5"

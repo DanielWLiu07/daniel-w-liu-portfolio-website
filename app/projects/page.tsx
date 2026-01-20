@@ -20,6 +20,7 @@ export default function ProjectsPage() {
   const [isPaused, setIsPaused] = useState(false)
   const [introFinished, setIntroFinished] = useState(false)
   const [showFlash, setShowFlash] = useState(false)
+  const [displayProjectData, setDisplayProjectData] = useState<typeof projects[0] | null>(null)
 
   const mainRef = useRef<HTMLDivElement>(null)
   const gsapContextRef = useRef<gsap.Context | null>(null)
@@ -32,16 +33,13 @@ export default function ProjectsPage() {
 
   useBodyOverflow('hidden')
 
-  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!isLowPerformance || readyCalledRef.current) return
     readyCalledRef.current = true
     signalReady()
     setIntroFinished(true)
   }, [isLowPerformance, signalReady])
-  /* eslint-enable react-hooks/set-state-in-effect */
 
-  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (transitionStage === 'loading') {
       readyCalledRef.current = false
@@ -56,7 +54,6 @@ export default function ProjectsPage() {
       }
     }
   }, [transitionStage, isLowPerformance, signalReady])
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   useLayoutEffect(() => {
     if (isLowPerformance || !mainRef.current) return
@@ -88,7 +85,26 @@ export default function ProjectsPage() {
     setIsPaused(false)
   }, [])
 
-  const expandedProjectData = projects.find(p => p.id === expandedProject)
+  const goToNextProject = useCallback(() => {
+    if (expandedProject === null) return
+    const currentIndex = projects.findIndex(p => p.id === expandedProject)
+    const nextIndex = (currentIndex - 1 + projects.length) % projects.length
+    setExpandedProject(projects[nextIndex].id)
+  }, [expandedProject])
+
+  const goToPrevProject = useCallback(() => {
+    if (expandedProject === null) return
+    const currentIndex = projects.findIndex(p => p.id === expandedProject)
+    const prevIndex = (currentIndex + 1) % projects.length
+    setExpandedProject(projects[prevIndex].id)
+  }, [expandedProject])
+
+  useEffect(() => {
+    const projectData = projects.find(p => p.id === expandedProject)
+    if (projectData) {
+      setDisplayProjectData(projectData)
+    }
+  }, [expandedProject])
 
   return (
     <div ref={mainRef} className="relative w-full h-screen overflow-visible bg-black">
@@ -110,22 +126,39 @@ export default function ProjectsPage() {
 
       <TransitionFlash show={showFlash} />
 
-      {/* Info panel slides in from the right */}
-      {expandedProjectData && (
+      {displayProjectData && (
         <ProjectInfoPanel
-          project={expandedProjectData}
+          project={displayProjectData}
           onClose={handleClosePanel}
           visible={expandedProject !== null}
+          expansionStage="expanded"
         />
       )}
 
-      {/* Backdrop when expanded */}
-      {expandedProject !== null && (
-        <div
-          className="fixed inset-0 bg-black/40 z-[37] transition-opacity duration-300"
-          onClick={handleClosePanel}
-        />
-      )}
+      <button
+        onClick={goToPrevProject}
+        className={`fixed left-6 top-1/2 -translate-y-1/2 z-50 w-12 h-12 flex items-center justify-center
+          rounded-full bg-white/10 backdrop-blur-sm border border-white/20
+          hover:bg-white/20 hover:scale-110 transition-all duration-300
+          ${expandedProject !== null ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        aria-label="Previous project"
+      >
+        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+        </svg>
+      </button>
+      <button
+        onClick={goToNextProject}
+        className={`fixed right-6 top-1/2 -translate-y-1/2 z-50 w-12 h-12 flex items-center justify-center
+          rounded-full bg-white/10 backdrop-blur-sm border border-white/20
+          hover:bg-white/20 hover:scale-110 transition-all duration-300
+          ${expandedProject !== null ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        aria-label="Next project"
+      >
+        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+      </button>
 
       <SocialLinks className="projects-social-links" />
     </div>
