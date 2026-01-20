@@ -6,7 +6,7 @@ import { usePerformanceMode } from '@/contexts/performance-mode-context'
 import { useTransitionState } from '@/components/ui/page-transition'
 
 const FALLBACK_TIMEOUT = 3000
-const FLASH_TRIGGER_TIME = 0.5
+const FLASH_TRIGGER_TIME = 0.3
 
 interface IntroVideoProps {
   onEnded: () => void
@@ -19,6 +19,7 @@ export default function IntroVideo({ onEnded, onFlashStart }: IntroVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const readyCalledRef = useRef(false)
   const videoStartedRef = useRef(false)
+  const flashTriggeredRef = useRef(false)
 
   const handleLoaded = useCallback(() => {
     if (readyCalledRef.current) return
@@ -31,6 +32,7 @@ export default function IntroVideo({ onEnded, onFlashStart }: IntroVideoProps) {
     if (transitionStage === 'loading') {
       readyCalledRef.current = false
       videoStartedRef.current = false
+      flashTriggeredRef.current = false
     }
   }, [transitionStage])
 
@@ -79,8 +81,10 @@ export default function IntroVideo({ onEnded, onFlashStart }: IntroVideoProps) {
   }, [isLowPerformance, handleLoaded])
 
   const handleTimeUpdate = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+    if (flashTriggeredRef.current) return
     const video = e.currentTarget
     if (video.duration - video.currentTime <= FLASH_TRIGGER_TIME) {
+      flashTriggeredRef.current = true
       onFlashStart()
     }
   }
