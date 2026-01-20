@@ -7,7 +7,13 @@ interface TransitionFlashProps {
 export default function TransitionFlash({ show }: TransitionFlashProps) {
   return (
     <div
-      className={`absolute inset-0 w-full h-full z-[100] bg-white pointer-events-none transition-opacity duration-500 ${show ? 'opacity-100' : 'opacity-0'}`}
+      className="fixed inset-0 w-screen h-screen z-[9999] bg-white pointer-events-none"
+      style={{
+        opacity: show ? 1 : 0,
+        transition: 'opacity 500ms ease-out',
+        willChange: 'opacity',
+        transform: 'translateZ(0)',
+      }}
     />
   )
 }
