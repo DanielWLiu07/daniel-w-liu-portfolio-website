@@ -14,7 +14,7 @@ export default function TransitionFlash({ show }: TransitionFlashProps) {
     if (!el) return
 
     if (show) {
-      el.style.transition = 'opacity 150ms ease-out'
+      el.style.transition = 'opacity 400ms ease-out'
       el.style.display = 'block'
       el.offsetHeight
       el.style.opacity = '1'
