@@ -75,9 +75,12 @@ export default function ProjectsPage() {
     }, mainRef)
   }, [introFinished, isLowPerformance])
 
+  const handleFlashStart = useCallback(() => {
+    setFlashTrigger(true)
+  }, [])
+
   const handleIntroEnd = useCallback(() => {
     setIntroVideoEnded(true)
-    setFlashTrigger(true)
     setIntroFinished(true)
   }, [])
 
@@ -112,7 +115,7 @@ export default function ProjectsPage() {
       <BackgroundVideos visible={introFinished} isExpanded={expandedProject !== null} />
 
       {!introVideoEnded && !isLowPerformance && (
-        <IntroVideo onEnded={handleIntroEnd} />
+        <IntroVideo onEnded={handleIntroEnd} onFlashStart={handleFlashStart} />
       )}
 
       {showContent && (
