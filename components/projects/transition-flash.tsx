@@ -7,35 +7,49 @@ interface TransitionFlashProps {
 }
 
 export default function TransitionFlash({ show }: TransitionFlashProps) {
-  const [isVisible, setIsVisible] = useState(false)
-  const [isFading, setIsFading] = useState(false)
+  const [phase, setPhase] = useState<'hidden' | 'entering' | 'visible' | 'fading'>('hidden')
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const frameRef = useRef<number | null>(null)
 
   useEffect(() => {
-    if (show) {
-      setIsVisible(true)
-      setIsFading(false)
-    } else if (isVisible) {
-      setIsFading(true)
+    if (timeoutRef.current) clearTimeout(timeoutRef.current)
+    if (frameRef.current) cancelAnimationFrame(frameRef.current)
+
+    if (show && phase === 'hidden') {
+      setPhase('entering')
+      frameRef.current = requestAnimationFrame(() => {
+        frameRef.current = requestAnimationFrame(() => {
+          setPhase('visible')
+        })
+      })
+    } else if (!show && (phase === 'visible' || phase === 'entering')) {
+      setPhase('fading')
       timeoutRef.current = setTimeout(() => {
-        setIsVisible(false)
-        setIsFading(false)
+        setPhase('hidden')
       }, 800)
     }
 
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current)
+      if (frameRef.current) cancelAnimationFrame(frameRef.current)
     }
-  }, [show, isVisible])
+  }, [show, phase])
 
-  if (!isVisible) return null
+  if (phase === 'hidden') return null
+
+  const opacity = phase === 'entering' ? 0 : phase === 'fading' ? 0 : 1
+  const transition = phase === 'fading'
+    ? 'opacity 800ms cubic-bezier(0.4, 0, 0.2, 1)'
+    : phase === 'visible'
+      ? 'opacity 500ms ease-in'
+      : 'none'
 
   return (
     <div
       className="fixed inset-0 w-screen h-screen z-[9999] bg-white pointer-events-none"
       style={{
-        opacity: isFading ? 0 : 1,
-        transition: isFading ? 'opacity 800ms cubic-bezier(0.4, 0, 0.2, 1)' : 'opacity 500ms ease-in',
+        opacity,
+        transition,
         willChange: 'opacity',
         transform: 'translateZ(0)',
       }}
