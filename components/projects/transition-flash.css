@@ -31,8 +31,7 @@
   letter-spacing: 0.05em;
   text-transform: uppercase;
   line-height: 1.2;
-  color: white;
-  text-shadow: 2px 2px 0 black, -2px -2px 0 black, 2px -2px 0 black, -2px 2px 0 black;
+  color: black;
 }
 
 @keyframes flash-animation {
