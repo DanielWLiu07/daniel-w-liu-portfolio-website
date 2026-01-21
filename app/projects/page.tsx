@@ -21,6 +21,7 @@ export default function ProjectsPage() {
   const [introFinished, setIntroFinished] = useState(false)
   const [introVideoEnded, setIntroVideoEnded] = useState(false)
   const [showFlash, setShowFlash] = useState(false)
+  const [flashFading, setFlashFading] = useState(false)
   const [displayProjectData, setDisplayProjectData] = useState<typeof projects[0] | null>(null)
 
   const mainRef = useRef<HTMLDivElement>(null)
@@ -48,6 +49,7 @@ export default function ProjectsPage() {
       setIntroFinished(false)
       setIntroVideoEnded(false)
       setShowFlash(false)
+      setFlashFading(false)
       if (!isLowPerformance && mainRef.current) {
         gsap.set(SOCIAL_LINKS_SELECTOR, { y: 100, opacity: 0 })
       }
@@ -77,14 +79,17 @@ export default function ProjectsPage() {
 
   const handleFlashStart = useCallback(() => {
     setShowFlash(true)
+    setFlashFading(false)
     setIntroFinished(true)
   }, [])
 
   const handleIntroEnd = useCallback(() => {
     setIntroVideoEnded(true)
+    setFlashFading(true)
     setTimeout(() => {
       setShowFlash(false)
-    }, 150)
+      setFlashFading(false)
+    }, 800)
   }, [])
 
   const handleClosePanel = useCallback(() => {
@@ -131,7 +136,7 @@ export default function ProjectsPage() {
         />
       )}
 
-      <TransitionFlash show={showFlash} />
+      <TransitionFlash show={showFlash} fading={flashFading} />
 
       {displayProjectData && (
         <ProjectInfoPanel
