@@ -30,8 +30,6 @@ export default function ProjectsPage() {
   const { transitionStage, signalReady } = useTransitionState()
   const { isLowPerformance } = usePerformanceMode()
 
-  const showContent = isLowPerformance || transitionStage !== 'loading'
-
   useBodyOverflow('hidden')
 
   useEffect(() => {
@@ -118,15 +116,13 @@ export default function ProjectsPage() {
         <IntroVideo onEnded={handleIntroEnd} onFlashStart={handleFlashStart} />
       )}
 
-      {showContent && (
-        <ProjectSlider
-          isPaused={isPaused}
-          onProjectClick={setExpandedProject}
-          onPauseChange={setIsPaused}
-          visible={introFinished}
-          expandedProject={expandedProject}
-        />
-      )}
+      <ProjectSlider
+        isPaused={isPaused}
+        onProjectClick={setExpandedProject}
+        onPauseChange={setIsPaused}
+        visible={introFinished}
+        expandedProject={expandedProject}
+      />
 
       <TransitionFlash trigger={flashTrigger} onComplete={() => setFlashTrigger(false)} />
 
