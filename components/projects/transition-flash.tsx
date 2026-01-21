@@ -8,8 +8,7 @@ interface TransitionFlashProps {
   onComplete?: () => void
 }
 
-const LINES = 20
-const REPEATS = 15
+const LINES = 12
 
 export default function TransitionFlash({ trigger, onComplete }: TransitionFlashProps) {
   const [show, setShow] = useState(false)
@@ -25,7 +24,7 @@ export default function TransitionFlash({ trigger, onComplete }: TransitionFlash
     const timer = setTimeout(() => {
       setShow(false)
       onComplete?.()
-    }, 600)
+    }, 1000)
 
     return () => clearTimeout(timer)
   }, [trigger, onComplete])
@@ -34,38 +33,12 @@ export default function TransitionFlash({ trigger, onComplete }: TransitionFlash
 
   return (
     <div className="flash-overlay">
-      <div className="flash-sphere-container">
-        {Array.from({ length: LINES }).map((_, i) => {
-          const yNorm = (i - (LINES - 1) / 2) / ((LINES - 1) / 2)
-
-          return Array.from({ length: REPEATS }).map((_, j) => {
-            const xNorm = (j - (REPEATS - 1) / 2) / ((REPEATS - 1) / 2)
-
-            const rotateY = xNorm * -60
-            const rotateX = yNorm * 60
-            const distance = Math.sqrt(xNorm * xNorm + yNorm * yNorm)
-            const scale = 1 + distance * 0.4
-            const translateZ = -distance * 150
-
-            const top = 50 + yNorm * 45
-            const left = 50 + xNorm * 45
-
-            return (
-              <span
-                key={`${i}-${j}`}
-                className="flash-text-item"
-                style={{
-                  position: 'absolute',
-                  top: `${top}%`,
-                  left: `${left}%`,
-                  transform: `translate(-50%, -50%) perspective(400px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(${scale}) translateZ(${translateZ}px)`,
-                }}
-              >
-                START
-              </span>
-            )
-          })
-        })}
+      <div className="flash-text-container">
+        {Array.from({ length: LINES }).map((_, i) => (
+          <div key={i} className="flash-text-line">
+            PRESS START
+          </div>
+        ))}
       </div>
     </div>
   )

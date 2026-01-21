@@ -6,7 +6,7 @@ import { usePerformanceMode } from '@/contexts/performance-mode-context'
 import { useTransitionState } from '@/components/ui/page-transition'
 
 const FALLBACK_TIMEOUT = 3000
-const FLASH_TRIGGER_TIME = 0.1
+const FLASH_TRIGGER_TIME = 0.3
 
 interface IntroVideoProps {
   onEnded: () => void
