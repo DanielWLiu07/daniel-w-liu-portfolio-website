@@ -35,16 +35,28 @@ export default function TransitionFlash({ trigger, onComplete }: TransitionFlash
   return (
     <div className="flash-overlay">
       <div className="flash-text-container">
-        {Array.from({ length: LINES }).map((_, i) => (
-          <div
-            key={i}
-            className="flash-text-line"
-          >
-            {Array.from({ length: REPEATS }).map((_, j) => (
-              <span key={j} className="flash-text">START</span>
-            ))}
-          </div>
-        ))}
+        {Array.from({ length: LINES }).map((_, i) => {
+          const centerOffset = (i - (LINES - 1) / 2) / ((LINES - 1) / 2)
+          const rotateX = centerOffset * 45
+          const scale = 1 + Math.abs(centerOffset) * 0.3
+          const translateZ = -Math.abs(centerOffset) * 100
+
+          return (
+            <div
+              key={i}
+              className="flash-text-line-wrapper"
+              style={{
+                transform: `perspective(500px) rotateX(${rotateX}deg) scale(${scale}) translateZ(${translateZ}px)`,
+              }}
+            >
+              <div className={`flash-text-line ${i % 2 === 0 ? 'even' : 'odd'}`}>
+                {Array.from({ length: REPEATS }).map((_, j) => (
+                  <span key={j} className="flash-text">START</span>
+                ))}
+              </div>
+            </div>
+          )
+        })}
       </div>
     </div>
   )

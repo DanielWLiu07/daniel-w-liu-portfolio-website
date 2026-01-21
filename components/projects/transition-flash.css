@@ -19,15 +19,24 @@
   flex-direction: column;
   justify-content: center;
   overflow: hidden;
+  transform-style: preserve-3d;
+  perspective: 800px;
+}
+
+.flash-text-line-wrapper {
+  transform-style: preserve-3d;
 }
 
 .flash-text-line {
   white-space: nowrap;
   line-height: 1.1;
+}
+
+.flash-text-line.odd {
   animation: scroll-left 3s linear infinite;
 }
 
-.flash-text-line:nth-child(even) {
+.flash-text-line.even {
   animation: scroll-right 3s linear infinite;
 }
 
