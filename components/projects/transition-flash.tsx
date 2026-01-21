@@ -23,7 +23,7 @@ export default function TransitionFlash({ trigger, onComplete }: TransitionFlash
     const timer = setTimeout(() => {
       setShow(false)
       onComplete?.()
-    }, 1000)
+    }, 1200)
 
     return () => clearTimeout(timer)
   }, [trigger, onComplete])

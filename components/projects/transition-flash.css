@@ -7,7 +7,7 @@
   pointer-events: none;
   will-change: opacity;
   transform: translateZ(0);
-  animation: flash-animation 1s ease-in-out forwards;
+  animation: flash-animation 1.2s ease-in-out forwards;
   overflow: hidden;
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
@@ -38,10 +38,16 @@
   0% {
     opacity: 0;
   }
-  25% {
+  15% {
     opacity: 1;
   }
-  60% {
+  25% {
+    opacity: 0.3;
+  }
+  40% {
+    opacity: 1;
+  }
+  70% {
     opacity: 1;
   }
   100% {
