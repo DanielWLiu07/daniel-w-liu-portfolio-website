@@ -9,6 +9,7 @@ import ProjectSlider from '@/components/projects/project-slider'
 import TransitionFlash from '@/components/projects/transition-flash'
 import { projects } from '@/data/projects'
 import { SocialLinks } from '@/components/ui/social-links'
+import { mochiFont } from '@/lib/fonts'
 import { useBodyOverflow } from '@/hooks/use-body-overflow'
 import { useTransitionState } from '@/components/ui/page-transition'
 import { usePerformanceMode } from '@/contexts/performance-mode-context'
@@ -137,28 +138,105 @@ export default function ProjectsPage() {
 
       <button
         onClick={goToPrevProject}
-        className={`fixed left-6 top-1/2 -translate-y-1/2 z-50 w-12 h-12 flex items-center justify-center
-          rounded-full bg-white/10 backdrop-blur-sm border border-white/20
-          hover:bg-white/20 hover:scale-110 transition-all duration-300
-          ${expandedProject !== null ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        className={`fixed left-8 top-1/2 z-50
+          text-[120px] leading-none text-white/60 font-black
+          flex items-center justify-center
+          [text-shadow:_3px_3px_0_rgba(0,0,0,0.6),_-2px_-2px_0_rgba(255,255,255,0.4),_0_0_10px_rgba(255,255,255,0.3)]
+          [-webkit-text-stroke:4px_rgba(255,255,255,0.5)]
+          hover:text-white hover:[-webkit-text-stroke:4px_rgba(255,255,255,0.8)] hover:scale-110 hover:drop-shadow-[0_0_30px_rgba(255,255,255,1)]
+          active:scale-95 active:text-white/80
+          transition-all duration-200 ease-out
+          ${expandedProject !== null ? 'animate-slide-in-left' : 'animate-slide-out-left pointer-events-none'}`}
         aria-label="Previous project"
       >
-        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-        </svg>
+        ☜
       </button>
       <button
         onClick={goToNextProject}
-        className={`fixed right-6 top-1/2 -translate-y-1/2 z-50 w-12 h-12 flex items-center justify-center
-          rounded-full bg-white/10 backdrop-blur-sm border border-white/20
-          hover:bg-white/20 hover:scale-110 transition-all duration-300
-          ${expandedProject !== null ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        className={`fixed right-8 top-1/2 z-50
+          text-[120px] leading-none text-white/60 font-black
+          flex items-center justify-center
+          [text-shadow:_3px_3px_0_rgba(0,0,0,0.6),_-2px_-2px_0_rgba(255,255,255,0.4),_0_0_10px_rgba(255,255,255,0.3)]
+          [-webkit-text-stroke:4px_rgba(255,255,255,0.5)]
+          hover:text-white hover:[-webkit-text-stroke:4px_rgba(255,255,255,0.8)] hover:scale-110 hover:drop-shadow-[0_0_30px_rgba(255,255,255,1)]
+          active:scale-95 active:text-white/80
+          transition-all duration-200 ease-out
+          ${expandedProject !== null ? 'animate-slide-in-right' : 'animate-slide-out-right pointer-events-none'}`}
         aria-label="Next project"
       >
-        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-        </svg>
+        ☞
       </button>
+
+      <style jsx>{`
+        @keyframes slide-in-left {
+          0% {
+            transform: translateY(-50%) translateX(-100px);
+            opacity: 0;
+          }
+          100% {
+            transform: translateY(-50%) translateX(0);
+            opacity: 1;
+          }
+        }
+        @keyframes slide-out-left {
+          0% {
+            transform: translateY(-50%) translateX(0);
+            opacity: 1;
+          }
+          100% {
+            transform: translateY(-50%) translateX(-100px);
+            opacity: 0;
+          }
+        }
+        @keyframes slide-in-right {
+          0% {
+            transform: translateY(-50%) translateX(100px);
+            opacity: 0;
+          }
+          100% {
+            transform: translateY(-50%) translateX(0);
+            opacity: 1;
+          }
+        }
+        @keyframes slide-out-right {
+          0% {
+            transform: translateY(-50%) translateX(0);
+            opacity: 1;
+          }
+          100% {
+            transform: translateY(-50%) translateX(100px);
+            opacity: 0;
+          }
+        }
+        @keyframes beckon-left {
+          0%, 100% {
+            transform: translateY(-50%) translateX(0);
+          }
+          50% {
+            transform: translateY(-50%) translateX(-12px);
+          }
+        }
+        @keyframes beckon-right {
+          0%, 100% {
+            transform: translateY(-50%) translateX(0);
+          }
+          50% {
+            transform: translateY(-50%) translateX(12px);
+          }
+        }
+        .animate-slide-in-left {
+          animation: slide-in-left 0.4s ease-out forwards, beckon-left 2s ease-in-out 0.4s infinite;
+        }
+        .animate-slide-out-left {
+          animation: slide-out-left 0.3s ease-in forwards;
+        }
+        .animate-slide-in-right {
+          animation: slide-in-right 0.4s ease-out forwards, beckon-right 2s ease-in-out 0.4s infinite;
+        }
+        .animate-slide-out-right {
+          animation: slide-out-right 0.3s ease-in forwards;
+        }
+      `}</style>
 
       <SocialLinks className="projects-social-links" />
     </div>
