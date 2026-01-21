@@ -1,0 +1,25 @@
+.flash-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 9999;
+  background-color: white;
+  pointer-events: none;
+  animation: flash-animation 1.5s ease-in-out forwards;
+}
+
+@keyframes flash-animation {
+  0% {
+    opacity: 0;
+  }
+  40% {
+    opacity: 1;
+  }
+  60% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
