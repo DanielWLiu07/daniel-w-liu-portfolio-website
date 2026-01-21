@@ -5,6 +5,13 @@ import * as THREE from 'three'
 import { projects, sceneOptions } from '@/data/projects'
 import { getPlaneWidth, createCardGeometry, createCardMaterial } from '@/lib/carousel-helpers'
 import { handleWheelScroll, updateScrollVelocity } from '@/lib/carousel-animation'
+import {
+  DESKTOP_LAYOUT,
+  MOBILE_LAYOUT,
+  SM_BREAKPOINT,
+  SCALE_LIMITS,
+} from '@/lib/layout-config'
+import { getFloatOffset, getEasedMovementAmount, clamp } from '@/lib/animation-utils'
 
 export type ExpansionStage = 'none' | 'expanding' | 'expanded'
 
@@ -49,6 +56,8 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
   const dotMeshesRef = useRef<THREE.Mesh[]>([])
   const dotGroupRef = useRef<THREE.Group | null>(null)
   const hoveredDotIndexRef = useRef<number | null>(null)
+  const arrowMeshesRef = useRef<{ left: THREE.Mesh | null; right: THREE.Mesh | null }>({ left: null, right: null })
+  const hoveredArrowRef = useRef<'left' | 'right' | null>(null)
 
   const backdropMeshRef = useRef<THREE.Mesh | null>(null)
 
@@ -78,7 +87,6 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
 
   const prevExpandedProjectRef = useRef<number | null>(null)
   const flickerTimeRef = useRef(0)
-  const isFlickeringRef = useRef(false)
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useLayoutEffect(() => {
@@ -99,6 +107,14 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         }
       })
 
+      // Fade out arrows
+      if (arrowMeshesRef.current.left) {
+        arrowMeshesRef.current.left.userData.targetOpacity = 0
+      }
+      if (arrowMeshesRef.current.right) {
+        arrowMeshesRef.current.right.userData.targetOpacity = 0
+      }
+
       const plane = expandedPlaneRef.current
       const dotGroup = dotGroupRef.current
       const dotsToClean = [...dotMeshesRef.current]
@@ -115,6 +131,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           })
           if (dotGroupRef.current === dotGroup) {
             dotGroupRef.current = null
+            arrowMeshesRef.current = { left: null, right: null }
           }
           if (dotMeshesRef.current === dotsToClean || dotMeshesRef.current.length === 0) {
             dotMeshesRef.current = []
@@ -122,7 +139,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         }, 600)
       }
     } else if (expandedProject !== null && prevProject !== null && expandedProject !== prevProject) {
-      isFlickeringRef.current = true
+      // Wiggle disabled
       flickerTimeRef.current = 0
 
       dotMeshesRef.current.forEach(dot => {
@@ -276,7 +293,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       side: THREE.DoubleSide
     })
     const backdropMesh = new THREE.Mesh(backdropGeometry, backdropMaterial)
-    backdropMesh.position.z = 0.5
+    backdropMesh.position.z = -0.5
     scene.add(backdropMesh)
     backdropMeshRef.current = backdropMesh
 
@@ -325,8 +342,35 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
     const mouse = new THREE.Vector2()
     const lastMousePosition = new THREE.Vector2(-999, -999)
 
+    const createArrowTexture = async (direction: 'left' | 'right') => {
+      const canvas = document.createElement('canvas')
+      canvas.width = 128
+      canvas.height = 128
+      const ctx = canvas.getContext('2d')!
+
+      // Load Mochi font
+      try {
+        const font = new FontFace('MochiBold', 'url(/fonts/MochibopBold-Demo.ttf)')
+        await font.load()
+        document.fonts.add(font)
+      } catch (e) {
+        // Font may already be loaded or fail, continue with fallback
+      }
+
+      ctx.clearRect(0, 0, 128, 128)
+      ctx.fillStyle = 'white'
+      ctx.font = '80px MochiBold, Arial'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText(direction === 'left' ? '<' : '>', 64, 64)
+      const texture = new THREE.CanvasTexture(canvas)
+      texture.needsUpdate = true
+      return texture
+    }
+
     const createDots = (plane: THREE.Mesh, imageCount: number) => {
       hoveredDotIndexRef.current = null
+      hoveredArrowRef.current = null
       if (dotGroupRef.current) {
         scene.remove(dotGroupRef.current)
         dotGroupRef.current.children.forEach(child => {
@@ -349,8 +393,62 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       const totalWidth = (imageCount - 1) * dotSpacing
       const startX = -totalWidth / 2
 
-      const cardHalfHeight = sceneOptions.cardHeight / 2
-      const dotY = -cardHalfHeight - 0.06
+      // Use cardWidth since the card is horizontal (rotated 90°)
+      const cardHalfWidth = sceneOptions.cardWidth / 2
+      const dotY = -cardHalfWidth - 0.06
+
+      // Create arrows with async texture loading
+      const arrowSize = 0.12
+
+      // Create left arrow
+      const leftArrowGeometry = new THREE.PlaneGeometry(arrowSize, arrowSize)
+      const leftArrowMaterial = new THREE.MeshBasicMaterial({
+        transparent: true,
+        opacity: 0,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+        alphaTest: 0.1
+      })
+      const leftArrow = new THREE.Mesh(leftArrowGeometry, leftArrowMaterial)
+      leftArrow.position.x = startX - 0.12
+      leftArrow.position.y = dotY
+      leftArrow.position.z = 0.01
+      leftArrow.userData.isArrow = true
+      leftArrow.userData.direction = 'left'
+      leftArrow.userData.targetOpacity = 0.5
+      leftArrow.userData.targetScale = 1
+      dotGroup.add(leftArrow)
+      arrowMeshesRef.current.left = leftArrow
+
+      // Create right arrow
+      const rightArrowGeometry = new THREE.PlaneGeometry(arrowSize, arrowSize)
+      const rightArrowMaterial = new THREE.MeshBasicMaterial({
+        transparent: true,
+        opacity: 0,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+        alphaTest: 0.1
+      })
+      const rightArrow = new THREE.Mesh(rightArrowGeometry, rightArrowMaterial)
+      rightArrow.position.x = startX + totalWidth + 0.12
+      rightArrow.position.y = dotY
+      rightArrow.position.z = 0.01
+      rightArrow.userData.isArrow = true
+      rightArrow.userData.direction = 'right'
+      rightArrow.userData.targetOpacity = 0.5
+      rightArrow.userData.targetScale = 1
+      dotGroup.add(rightArrow)
+      arrowMeshesRef.current.right = rightArrow
+
+      // Load textures async
+      createArrowTexture('left').then(texture => {
+        leftArrowMaterial.map = texture
+        leftArrowMaterial.needsUpdate = true
+      })
+      createArrowTexture('right').then(texture => {
+        rightArrowMaterial.map = texture
+        rightArrowMaterial.needsUpdate = true
+      })
 
       for (let i = 0; i < imageCount; i++) {
         const glowGeometry = new THREE.CircleGeometry(glowRadius, 24)
@@ -402,11 +500,31 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       raycaster.setFromCamera(mouse, camera)
 
       if (expandedProjectRef.current !== null) {
-        if (dotMeshesRef.current.length > 0) {
-          const plane = expandedPlaneRef.current
-          if (plane) {
-            plane.updateMatrixWorld(true)
+        const plane = expandedPlaneRef.current
+        if (plane) {
+          plane.updateMatrixWorld(true)
+        }
+
+        // Check arrow clicks
+        const arrows = [arrowMeshesRef.current.left, arrowMeshesRef.current.right].filter(Boolean) as THREE.Mesh[]
+        if (arrows.length > 0) {
+          const arrowIntersects = raycaster.intersectObjects(arrows)
+          if (arrowIntersects.length > 0) {
+            const clickedArrow = arrowIntersects[0].object as THREE.Mesh
+            const direction = clickedArrow.userData.direction as 'left' | 'right'
+            if (direction === 'left') {
+              const changeEvent = new CustomEvent('arrowClick', { detail: { direction: 'prev' } })
+              container.dispatchEvent(changeEvent)
+            } else {
+              const changeEvent = new CustomEvent('arrowClick', { detail: { direction: 'next' } })
+              container.dispatchEvent(changeEvent)
+            }
+            return
           }
+        }
+
+        // Check dot clicks
+        if (dotMeshesRef.current.length > 0) {
           const dotIntersects = raycaster.intersectObjects(dotMeshesRef.current)
           if (dotIntersects.length > 0) {
             const clickedDot = dotIntersects[0].object as THREE.Mesh
@@ -492,6 +610,27 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       })
     }
 
+    const handleArrowClick = (event: Event) => {
+      const customEvent = event as CustomEvent<{ direction: 'prev' | 'next' }>
+      const plane = expandedPlaneRef.current
+      if (!plane) return
+      const contentTextures = plane.userData.contentTextures as THREE.Texture[]
+      if (!contentTextures || contentTextures.length === 0) return
+      const currentIndex = plane.userData.currentImageIndex as number || 0
+      const totalImages = contentTextures.length
+
+      if (customEvent.detail.direction === 'prev') {
+        const newIndex = (currentIndex - 1 + totalImages) % totalImages
+        const changeEvent = new CustomEvent('dotClick', { detail: { index: newIndex } })
+        container.dispatchEvent(changeEvent)
+      } else {
+        const newIndex = (currentIndex + 1) % totalImages
+        const changeEvent = new CustomEvent('dotClick', { detail: { index: newIndex } })
+        container.dispatchEvent(changeEvent)
+      }
+    }
+
+    container.addEventListener('arrowClick', handleArrowClick)
     container.addEventListener('dotClick', handleDotClick)
 
     renderer.domElement.addEventListener('click', onCanvasClick)
@@ -502,21 +641,41 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
       lastMousePosition.copy(mouse)
 
-      if (expandedProjectRef.current !== null && dotMeshesRef.current.length > 0) {
+      if (expandedProjectRef.current !== null) {
         const plane = expandedPlaneRef.current
         if (plane) {
           plane.updateMatrixWorld(true)
         }
         raycaster.setFromCamera(mouse, camera)
-        const dotIntersects = raycaster.intersectObjects(dotMeshesRef.current)
-        if (dotIntersects.length > 0) {
-          const hoveredDot = dotIntersects[0].object as THREE.Mesh
-          hoveredDotIndexRef.current = hoveredDot.userData.dotIndex as number
-          renderer.domElement.style.cursor = 'pointer'
-        } else {
-          hoveredDotIndexRef.current = null
-          renderer.domElement.style.cursor = 'default'
+
+        // Check arrow hover
+        const arrows = [arrowMeshesRef.current.left, arrowMeshesRef.current.right].filter(Boolean) as THREE.Mesh[]
+        if (arrows.length > 0) {
+          const arrowIntersects = raycaster.intersectObjects(arrows)
+          if (arrowIntersects.length > 0) {
+            const hoveredArrow = arrowIntersects[0].object as THREE.Mesh
+            hoveredArrowRef.current = hoveredArrow.userData.direction as 'left' | 'right'
+            hoveredDotIndexRef.current = null
+            renderer.domElement.style.cursor = 'pointer'
+            return
+          }
         }
+
+        // Check dot hover
+        if (dotMeshesRef.current.length > 0) {
+          const dotIntersects = raycaster.intersectObjects(dotMeshesRef.current)
+          if (dotIntersects.length > 0) {
+            const hoveredDot = dotIntersects[0].object as THREE.Mesh
+            hoveredDotIndexRef.current = hoveredDot.userData.dotIndex as number
+            hoveredArrowRef.current = null
+            renderer.domElement.style.cursor = 'pointer'
+            return
+          }
+        }
+
+        hoveredDotIndexRef.current = null
+        hoveredArrowRef.current = null
+        renderer.domElement.style.cursor = 'default'
         return
       }
     }
@@ -614,12 +773,54 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
     }
     window.addEventListener('mousemove', onMouseMoveGlobal)
 
-    const getExpandedTargetPosition = () => {
-      const aspect = container.clientWidth / container.clientHeight
-      const targetX = -aspect * 0.32
-      const targetY = 0
+    // Using shared layout config
+    const isMobile = () => container.clientWidth < SM_BREAKPOINT
+
+    const getUnifiedScale = () => {
       const targetZ = 0.8
-      return new THREE.Vector3(targetX, targetY, targetZ)
+      const distFromCamera = camera.position.z - targetZ
+      const vFov = (camera.fov * Math.PI) / 180
+      const visibleHeight = 2 * Math.tan(vFov / 2) * distFromCamera
+      const visibleWidth = visibleHeight * (container.clientWidth / container.clientHeight)
+      const pixelsPerUnit = container.clientWidth / visibleWidth
+      const baseLeftCardPixels = sceneOptions.cardHeight * pixelsPerUnit
+
+      if (isMobile()) {
+        // Mobile: card takes 80% of viewport width
+        const targetLeftCardPixels = container.clientWidth * MOBILE_LAYOUT.CARD_WIDTH
+        const scale = targetLeftCardPixels / baseLeftCardPixels
+        return clamp(scale, SCALE_LIMITS.MIN, SCALE_LIMITS.MAX)
+      } else {
+        // Desktop: card takes 40% of viewport width
+        const targetLeftCardPixels = container.clientWidth * DESKTOP_LAYOUT.LEFT_CARD
+        const scale = targetLeftCardPixels / baseLeftCardPixels
+        return clamp(scale, SCALE_LIMITS.MIN, SCALE_LIMITS.MAX)
+      }
+    }
+
+    const getExpandedTargetPosition = () => {
+      const targetZ = 0.8
+      const distFromCamera = camera.position.z - targetZ
+      const vFov = (camera.fov * Math.PI) / 180
+      const visibleHeight = 2 * Math.tan(vFov / 2) * distFromCamera
+      const visibleWidth = visibleHeight * (container.clientWidth / container.clientHeight)
+
+      const scale = getUnifiedScale()
+      const scaledCardWidth = sceneOptions.cardHeight * scale
+
+      if (isMobile()) {
+        // Mobile: centered horizontally, positioned in upper portion
+        const targetX = 0
+        const targetY = visibleHeight * MOBILE_LAYOUT.LEFT_CARD_TOP
+        return new THREE.Vector3(targetX, targetY, targetZ)
+      } else {
+        // Desktop: left card right edge at 55% (LEFT_MARGIN + LEFT_CARD)
+        const rightEdgePercent = DESKTOP_LAYOUT.LEFT_MARGIN + DESKTOP_LAYOUT.LEFT_CARD
+        const rightEdgeX = -visibleWidth / 2 + visibleWidth * rightEdgePercent
+        const targetX = rightEdgeX - scaledCardWidth / 2
+        const targetY = 0
+        return new THREE.Vector3(targetX, targetY, targetZ)
+      }
     }
 
     const animate = (currentTime: number) => {
@@ -647,7 +848,12 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           if (bestPlane) {
             const newPlane: THREE.Mesh = bestPlane
 
+            // Preserve the rotation from the old plane
+            let preservedRotX = 0
+            let preservedRotY = 0
             if (expandedPlane) {
+              preservedRotX = expandedPlane.rotation.x
+              preservedRotY = expandedPlane.rotation.y
               const oldMat = expandedPlane.material as THREE.ShaderMaterial
               if (oldMat.uniforms.isExpanded) oldMat.uniforms.isExpanded.value = 0
               if (oldMat.uniforms.opacity) oldMat.uniforms.opacity.value = 0.2
@@ -666,6 +872,10 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
             newPlane.position.y = leftTarget.y
             newPlane.position.z = leftTarget.z
             newPlane.scale.set(0.95, 0.95, 0.95)
+            // Apply preserved rotation to new plane + 90deg Z rotation for horizontal orientation
+            newPlane.rotation.x = preservedRotX
+            newPlane.rotation.y = preservedRotY
+            newPlane.rotation.z = Math.PI / 2
 
             const newMat = newPlane.material as THREE.ShaderMaterial
             if (newMat.uniforms.isExpanded) newMat.uniforms.isExpanded.value = 1.0
@@ -728,22 +938,24 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         if (isExpandedPlane) {
           const currentStage = expansionStageRef.current
           const target = getExpandedTargetPosition()
-          const floatOffsetY = Math.sin(floatTime * 1.5) * 0.03
-          const floatOffsetX = Math.sin(floatTime * 1.2) * 0.01
-          const targetLocalX = target.x - scene.position.x + floatOffsetX
-          const targetLocalY = target.y + floatOffsetY
-          const targetLocalZ = target.z
-          const lerpFactor = 0.08
+          const targetLocalX = target.x - scene.position.x
+          // Varied floating animation using shared utility
+          const floatOffset = getFloatOffset(floatTime, 'left')
+          const targetLocalY = target.y + floatOffset.y
+          const targetLocalZ = target.z + floatOffset.x
 
           const dx = targetLocalX - plane.position.x
           const dy = targetLocalY - plane.position.y
           const dz = targetLocalZ - plane.position.z
           const distance = Math.sqrt(dx * dx + dy * dy + dz * dz)
 
+          // Use shared easing utility
+          const easeAmount = getEasedMovementAmount(distance)
+
           if (distance > 0.01) {
-            plane.position.x += dx * lerpFactor
-            plane.position.y += dy * lerpFactor
-            plane.position.z += dz * lerpFactor
+            plane.position.x += dx * easeAmount
+            plane.position.y += dy * easeAmount
+            plane.position.z += dz * easeAmount
           } else {
             plane.position.x = targetLocalX
             plane.position.y = targetLocalY
@@ -755,37 +967,33 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
             }
           }
 
-          const targetScale = 0.95
-          const scaleLerp = 0.12
-          const newScale = plane.scale.x + (targetScale - plane.scale.x) * scaleLerp
+          // Unified scale based on constant screen percentage
+          const targetScale = getUnifiedScale()
+          const newScale = plane.scale.x + (targetScale - plane.scale.x) * easeAmount
           plane.scale.set(newScale, newScale, newScale)
 
-          const MAX_ROTATION = 0.15
-          const ROTATION_SENSITIVITY = 0.12
+          // Mouse-following rotation for expanded card (relative to card center)
+          const MAX_ROTATION = 0.35 // radians (~20 degrees)
+          const ROTATION_SENSITIVITY = 0.4
+          // Get card center in screen space
           const cardWorldPos = new THREE.Vector3()
           plane.getWorldPosition(cardWorldPos)
-          const cardScreenPos = cardWorldPos.clone().project(camera)
-          const offsetX = smoothMousePosition.x - cardScreenPos.x
-          const offsetY = smoothMousePosition.y - cardScreenPos.y
-          let targetRotY = Math.max(-MAX_ROTATION, Math.min(MAX_ROTATION, offsetX * ROTATION_SENSITIVITY))
-          let targetRotX = Math.max(-MAX_ROTATION, Math.min(MAX_ROTATION, -offsetY * ROTATION_SENSITIVITY))
-
-          if (isFlickeringRef.current) {
-            flickerTimeRef.current += timePassed * 0.001
-            const flickerProgress = flickerTimeRef.current / 0.2
-
-            if (flickerProgress < 1) {
-              const flickerIntensity = Math.sin(flickerProgress * Math.PI)
-              const flickerWave = Math.sin(flickerProgress * Math.PI * 1.5)
-              targetRotY += flickerWave * 0.262 * flickerIntensity
-              targetRotX += Math.cos(flickerProgress * Math.PI * 1.5) * 0.14 * flickerIntensity
-            } else {
-              isFlickeringRef.current = false
-            }
-          }
-
+          cardWorldPos.project(camera)
+          // Calculate offset from card center
+          const offsetX = smoothMousePosition.x - cardWorldPos.x
+          const offsetY = smoothMousePosition.y - cardWorldPos.y
+          const targetRotY = Math.max(-MAX_ROTATION, Math.min(MAX_ROTATION, offsetX * ROTATION_SENSITIVITY))
+          const targetRotX = Math.max(-MAX_ROTATION, Math.min(MAX_ROTATION, -offsetY * ROTATION_SENSITIVITY))
           plane.rotation.y += (targetRotY - plane.rotation.y) * 0.15
           plane.rotation.x += (targetRotX - plane.rotation.x) * 0.15
+          // Animate to horizontal orientation (90 degrees Z rotation) - smooth easing
+          const targetRotZ = Math.PI / 2
+          plane.rotation.z += (targetRotZ - plane.rotation.z) * easeAmount
+
+          // Keep dotGroup counter-rotated so dots stay at bottom
+          if (dotGroupRef.current) {
+            dotGroupRef.current.rotation.z = -plane.rotation.z
+          }
 
           if (mat.uniforms.isExpanded) {
             const expandDiff = 1.0 - mat.uniforms.isExpanded.value
@@ -799,7 +1007,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
             mat.uniforms.opacity.value = 1
           }
 
-          const dotsVisible = currentStage === 'expanded'
+          const dotsVisible = isExpanded
           dotMeshesRef.current.forEach((dot, index) => {
             const dotMat = dot.material as THREE.MeshBasicMaterial
             const targetOpacity = dotsVisible ? (dot.userData.targetOpacity as number) : 0
@@ -834,6 +1042,22 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
               glowMat.opacity += (glowTarget - glowMat.opacity) * 0.15
             }
           })
+
+          // Animate arrows
+          const arrows = [arrowMeshesRef.current.left, arrowMeshesRef.current.right]
+          arrows.forEach(arrow => {
+            if (!arrow) return
+            const arrowMat = arrow.material as THREE.MeshBasicMaterial
+            const direction = arrow.userData.direction as 'left' | 'right'
+            const isHovered = hoveredArrowRef.current === direction
+            const targetOpacity = dotsVisible ? (isHovered ? 1 : 0.5) : 0
+            arrowMat.opacity += (targetOpacity - arrowMat.opacity) * 0.15
+
+            const targetScale = isHovered ? 1.3 : 1.0
+            const currentScale = arrow.scale.x
+            const newScale = currentScale + (targetScale - currentScale) * 0.2
+            arrow.scale.set(newScale, newScale, 1)
+          })
         } else if (isExpanded && expandedPlane) {
           if (mat.uniforms.opacity) {
             const currentOpacity = mat.uniforms.opacity.value
@@ -847,32 +1071,36 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           const dy = targetY - plane.position.y
           const dz = targetZ - plane.position.z
           const distance = Math.sqrt(dx * dx + dy * dy + dz * dz)
-          const BASE_SPEED = 0.008
-          const DISTANCE_FACTOR = 0.018
-          const moveSpeed = BASE_SPEED + distance * DISTANCE_FACTOR
+
+          // Use shared easing utility (same as expand)
+          const easeAmount = getEasedMovementAmount(distance)
 
           if (distance > 0.01) {
-            const moveAmount = Math.min(moveSpeed, distance)
-            plane.position.x += (dx / distance) * moveAmount
-            plane.position.y += (dy / distance) * moveAmount
-            plane.position.z += (dz / distance) * moveAmount
+            plane.position.x += dx * easeAmount
+            plane.position.y += dy * easeAmount
+            plane.position.z += dz * easeAmount
           } else {
             plane.position.x = targetX
             plane.position.y = targetY
             plane.position.z = targetZ
           }
 
-          plane.rotation.x += (0 - plane.rotation.x) * 0.1
-          plane.rotation.y += (0 - plane.rotation.y) * 0.1
+          // Rotation animation - bezier easing synced with position
+          plane.rotation.x += (0 - plane.rotation.x) * easeAmount
+          plane.rotation.y += (0 - plane.rotation.y) * easeAmount
+          plane.rotation.z += (0 - plane.rotation.z) * easeAmount
 
-          const targetScale = 1
-          const scaleDiff = targetScale - plane.scale.x
-          const scaleSpeed = 0.02
-          if (Math.abs(scaleDiff) > 0.001) {
-            const scaleChange = Math.sign(scaleDiff) * Math.min(scaleSpeed, Math.abs(scaleDiff))
-            const newScale = plane.scale.x + scaleChange
-            plane.scale.set(newScale, newScale, newScale)
+          if (Math.abs(plane.rotation.x) < 0.01 && Math.abs(plane.rotation.y) < 0.01 && Math.abs(plane.rotation.z) < 0.01) {
+            plane.rotation.x = 0
+            plane.rotation.y = 0
+            plane.rotation.z = 0
           }
+
+          // Scale animation with bezier easing
+          const targetScale = 1
+          plane.scale.x += (targetScale - plane.scale.x) * easeAmount
+          plane.scale.y += (targetScale - plane.scale.y) * easeAmount
+          plane.scale.z += (targetScale - plane.scale.z) * easeAmount
 
           if (mat.uniforms.isExpanded) {
             const expandDiff = 0.0 - mat.uniforms.isExpanded.value
@@ -898,6 +1126,14 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
                 glowMat.opacity += (0 - glowMat.opacity) * 0.15
               }
             })
+
+            // Animate arrows out
+            const arrows = [arrowMeshesRef.current.left, arrowMeshesRef.current.right]
+            arrows.forEach(arrow => {
+              if (!arrow) return
+              const arrowMat = arrow.material as THREE.MeshBasicMaterial
+              arrowMat.opacity += (0 - arrowMat.opacity) * 0.15
+            })
           }
         } else {
           const targetScale = plane === hoveredPlaneRef.current ? 1.04 : 1
@@ -921,7 +1157,8 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           const scaleDiff = Math.abs(1 - plane.scale.x)
           const targetY = plane.userData.initialY ?? -0.35
           const posDiff = Math.abs(plane.position.y - targetY) + Math.abs(plane.position.z)
-          return scaleDiff < 0.01 && posDiff < 0.01
+          const rotDiff = Math.abs(plane.rotation.x) + Math.abs(plane.rotation.y) + Math.abs(plane.rotation.z)
+          return scaleDiff < 0.01 && posDiff < 0.01 && rotDiff < 0.01
         })
 
         if (allSettled) {
@@ -956,6 +1193,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
     return () => {
       resizeObserver.disconnect()
       window.removeEventListener('mousemove', onMouseMoveGlobal)
+      container.removeEventListener('arrowClick', handleArrowClick)
       container.removeEventListener('dotClick', handleDotClick)
       renderer.domElement.removeEventListener('click', onCanvasClick)
       renderer.domElement.removeEventListener('mousemove', onMouseMove)
