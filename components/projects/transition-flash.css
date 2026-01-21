@@ -9,6 +9,31 @@
   will-change: opacity;
   transform: translateZ(0);
   animation: flash-animation 2.5s ease-in-out forwards;
+  overflow: hidden;
+}
+
+.flash-text-container {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.flash-text-line {
+  white-space: nowrap;
+  line-height: 1.1;
+}
+
+.flash-text {
+  font-family: 'Impact', 'Arial Black', sans-serif;
+  font-size: 5vw;
+  font-weight: 900;
+  color: rgba(0, 0, 0, 0.08);
+  letter-spacing: 0.1em;
+  margin-right: 0.5em;
+  text-transform: uppercase;
 }
 
 @keyframes flash-animation {

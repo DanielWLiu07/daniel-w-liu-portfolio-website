@@ -8,6 +8,9 @@ interface TransitionFlashProps {
   onComplete?: () => void
 }
 
+const LINES = 20
+const REPEATS = 15
+
 export default function TransitionFlash({ trigger, onComplete }: TransitionFlashProps) {
   const [show, setShow] = useState(false)
 
@@ -30,6 +33,20 @@ export default function TransitionFlash({ trigger, onComplete }: TransitionFlash
   if (!show) return null
 
   return (
-    <div className="flash-overlay" />
+    <div className="flash-overlay">
+      <div className="flash-text-container">
+        {Array.from({ length: LINES }).map((_, i) => (
+          <div
+            key={i}
+            className="flash-text-line"
+            style={{ transform: `translateX(${(i % 2) * -50}px)` }}
+          >
+            {Array.from({ length: REPEATS }).map((_, j) => (
+              <span key={j} className="flash-text">START</span>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }
