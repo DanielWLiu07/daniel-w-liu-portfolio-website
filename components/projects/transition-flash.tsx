@@ -1,57 +1,43 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 
 interface TransitionFlashProps {
   show: boolean
 }
 
 export default function TransitionFlash({ show }: TransitionFlashProps) {
-  const [phase, setPhase] = useState<'hidden' | 'entering' | 'visible' | 'fading'>('hidden')
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const frameRef = useRef<number | null>(null)
+  const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current)
-    if (frameRef.current) cancelAnimationFrame(frameRef.current)
+    const el = ref.current
+    if (!el) return
 
-    if (show && phase === 'hidden') {
-      setPhase('entering')
-      frameRef.current = requestAnimationFrame(() => {
-        frameRef.current = requestAnimationFrame(() => {
-          setPhase('visible')
-        })
-      })
-    } else if (!show && (phase === 'visible' || phase === 'entering')) {
-      setPhase('fading')
-      timeoutRef.current = setTimeout(() => {
-        setPhase('hidden')
-      }, 800)
+    if (show) {
+      el.style.display = 'block'
+      el.offsetHeight
+      el.style.opacity = '1'
+    } else {
+      el.style.opacity = '0'
+      const handler = () => {
+        if (el.style.opacity === '0') {
+          el.style.display = 'none'
+        }
+      }
+      el.addEventListener('transitionend', handler, { once: true })
+      return () => el.removeEventListener('transitionend', handler)
     }
-
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current)
-      if (frameRef.current) cancelAnimationFrame(frameRef.current)
-    }
-  }, [show, phase])
-
-  if (phase === 'hidden') return null
-
-  const opacity = phase === 'entering' ? 0 : phase === 'fading' ? 0 : 1
-  const transition = phase === 'fading'
-    ? 'opacity 800ms cubic-bezier(0.4, 0, 0.2, 1)'
-    : phase === 'visible'
-      ? 'opacity 500ms ease-in'
-      : 'none'
+  }, [show])
 
   return (
     <div
+      ref={ref}
       className="fixed inset-0 w-screen h-screen z-[9999] bg-white pointer-events-none"
       style={{
-        opacity,
-        transition,
+        display: 'none',
+        opacity: 0,
+        transition: 'opacity 400ms ease-in-out',
         willChange: 'opacity',
-        transform: 'translateZ(0)',
       }}
     />
   )
