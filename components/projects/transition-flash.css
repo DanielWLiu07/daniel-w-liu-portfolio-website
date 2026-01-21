@@ -6,17 +6,11 @@
   z-index: 9999;
   background-color: white;
   pointer-events: none;
-  animation: flash-animation 1.5s ease-in-out forwards;
+  animation: flash-animation 800ms ease-out forwards;
 }
 
 @keyframes flash-animation {
   0% {
-    opacity: 0;
-  }
-  40% {
-    opacity: 1;
-  }
-  60% {
     opacity: 1;
   }
   100% {
