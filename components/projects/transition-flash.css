@@ -6,6 +6,8 @@
   z-index: 9999;
   background-color: white;
   pointer-events: none;
+  will-change: opacity;
+  transform: translateZ(0);
   animation: flash-animation 2.5s ease-in-out forwards;
 }
 
