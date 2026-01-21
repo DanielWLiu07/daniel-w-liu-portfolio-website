@@ -4,12 +4,14 @@
   width: 100vw;
   height: 100vh;
   z-index: 9999;
-  background-color: white;
+  background-color: #ffffff;
   pointer-events: none;
   will-change: opacity;
   transform: translateZ(0);
   animation: flash-animation 1s ease-in-out forwards;
   overflow: hidden;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 .flash-text-container {
@@ -72,10 +74,10 @@
   0% {
     opacity: 0;
   }
-  30% {
+  25% {
     opacity: 1;
   }
-  50% {
+  60% {
     opacity: 1;
   }
   100% {
