@@ -71,11 +71,13 @@ export default function ProjectsPage() {
     }, mainRef)
   }, [introFinished, isLowPerformance])
 
-  const handleFlashStart = useCallback(() => setShowFlash(true), [])
+  const handleFlashStart = useCallback(() => {
+    setShowFlash(true)
+    setIntroFinished(true)
+  }, [])
 
   const handleIntroEnd = useCallback(() => {
     setTimeout(() => {
-      setIntroFinished(true)
       setShowFlash(false)
     }, 100)
   }, [])
