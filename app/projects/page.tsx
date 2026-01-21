@@ -19,6 +19,7 @@ export default function ProjectsPage() {
   const [expandedProject, setExpandedProject] = useState<number | null>(null)
   const [isPaused, setIsPaused] = useState(false)
   const [introFinished, setIntroFinished] = useState(false)
+  const [introVideoEnded, setIntroVideoEnded] = useState(false)
   const [showFlash, setShowFlash] = useState(false)
   const [displayProjectData, setDisplayProjectData] = useState<typeof projects[0] | null>(null)
 
@@ -38,12 +39,14 @@ export default function ProjectsPage() {
     readyCalledRef.current = true
     signalReady()
     setIntroFinished(true)
+    setIntroVideoEnded(true)
   }, [isLowPerformance, signalReady])
 
   useEffect(() => {
     if (transitionStage === 'loading') {
       readyCalledRef.current = false
       setIntroFinished(false)
+      setIntroVideoEnded(false)
       setShowFlash(false)
       if (!isLowPerformance && mainRef.current) {
         gsap.set(SOCIAL_LINKS_SELECTOR, { y: 100, opacity: 0 })
@@ -51,6 +54,7 @@ export default function ProjectsPage() {
       if (isLowPerformance) {
         signalReady()
         setIntroFinished(true)
+        setIntroVideoEnded(true)
       }
     }
   }, [transitionStage, isLowPerformance, signalReady])
@@ -77,6 +81,7 @@ export default function ProjectsPage() {
   }, [])
 
   const handleIntroEnd = useCallback(() => {
+    setIntroVideoEnded(true)
     setTimeout(() => {
       setShowFlash(false)
     }, 100)
@@ -112,7 +117,7 @@ export default function ProjectsPage() {
     <div ref={mainRef} className="relative w-full h-screen overflow-visible bg-black">
       <BackgroundVideos visible={introFinished} isExpanded={expandedProject !== null} />
 
-      {!introFinished && !isLowPerformance && (
+      {!introVideoEnded && !isLowPerformance && (
         <IntroVideo onEnded={handleIntroEnd} onFlashStart={handleFlashStart} />
       )}
 
