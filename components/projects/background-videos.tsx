@@ -50,7 +50,7 @@ export default function BackgroundVideos({ visible, isExpanded = false }: Backgr
         className={`absolute inset-0 w-full h-full ${MOBILE_CONTAINER_CLASSES} ${isLowPerformance ? 'max-[600px]:mt-20' : 'max-[600px]:mt-5'} ${mangaManZIndex} pointer-events-none`}
         style={{
           transform: isExpanded ? 'translateY(-100%)' : 'translateY(0)',
-          opacity: visible && !isExpanded ? 1 : 0,
+          opacity: !isExpanded ? 1 : 0,
           transition: 'transform 1.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 1s ease-out',
         }}
       >
