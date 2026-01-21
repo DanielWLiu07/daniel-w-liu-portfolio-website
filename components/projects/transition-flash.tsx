@@ -1,54 +1,71 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 interface TransitionFlashProps {
   trigger: boolean
   onComplete?: () => void
 }
 
+const FADE_IN_DURATION = 600
+const FULL_DURATION = 300
+const FADE_OUT_DURATION = 600
+
 export default function TransitionFlash({ trigger, onComplete }: TransitionFlashProps) {
-  const [phase, setPhase] = useState<'hidden' | 'fading-in' | 'full' | 'fading-out'>('hidden')
+  const [mounted, setMounted] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!trigger) {
-      setPhase('hidden')
+      setMounted(false)
       return
     }
 
-    setPhase('fading-in')
+    setMounted(true)
+  }, [trigger])
 
-    const fullTimer = setTimeout(() => {
-      setPhase('full')
-    }, 600)
+  useEffect(() => {
+    if (!mounted || !trigger) return
 
+    const el = ref.current
+    if (!el) return
+
+    // Start at opacity 0
+    el.style.transition = 'none'
+    el.style.opacity = '0'
+
+    // Force reflow to ensure opacity 0 is applied
+    el.offsetHeight
+
+    // Now enable transition and fade in
+    el.style.transition = `opacity ${FADE_IN_DURATION}ms ease-in-out`
+    el.style.opacity = '1'
+
+    // After fade-in + full duration, fade out
     const fadeOutTimer = setTimeout(() => {
-      setPhase('fading-out')
-    }, 900)
+      el.style.transition = `opacity ${FADE_OUT_DURATION}ms ease-in-out`
+      el.style.opacity = '0'
+    }, FADE_IN_DURATION + FULL_DURATION)
 
+    // After everything, unmount
     const completeTimer = setTimeout(() => {
-      setPhase('hidden')
+      setMounted(false)
       onComplete?.()
-    }, 1500)
+    }, FADE_IN_DURATION + FULL_DURATION + FADE_OUT_DURATION)
 
     return () => {
-      clearTimeout(fullTimer)
       clearTimeout(fadeOutTimer)
       clearTimeout(completeTimer)
     }
-  }, [trigger, onComplete])
+  }, [mounted, trigger, onComplete])
 
-  if (phase === 'hidden') return null
-
-  const opacity = phase === 'fading-in' ? 1 : phase === 'full' ? 1 : 0
+  if (!mounted) return null
 
   return (
     <div
+      ref={ref}
       className="fixed inset-0 w-screen h-screen z-[9999] bg-white pointer-events-none"
-      style={{
-        opacity,
-        transition: phase === 'fading-in' ? 'opacity 600ms ease-in' : phase === 'fading-out' ? 'opacity 600ms ease-out' : 'none',
-      }}
+      style={{ opacity: 0 }}
     />
   )
 }
