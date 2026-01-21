@@ -46,6 +46,7 @@ export default function BackgroundVideos({ visible, isExpanded = false }: Backgr
         )}
       </div>
 
+      {visible && (
       <div
         className={`absolute inset-0 w-full h-full ${MOBILE_CONTAINER_CLASSES} ${isLowPerformance ? 'max-[600px]:mt-20' : 'max-[600px]:mt-5'} ${mangaManZIndex} pointer-events-none`}
         style={{
@@ -69,6 +70,7 @@ export default function BackgroundVideos({ visible, isExpanded = false }: Backgr
           </video>
         )}
       </div>
+      )}
     </>
   )
 }
