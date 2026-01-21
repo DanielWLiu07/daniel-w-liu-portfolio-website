@@ -6,6 +6,7 @@ import { ProjectInfoPanel } from '@/components/projects/project-info-panel'
 import IntroVideo from '@/components/projects/intro-video'
 import BackgroundVideos from '@/components/projects/background-videos'
 import ProjectSlider from '@/components/projects/project-slider'
+import TransitionFlash from '@/components/projects/transition-flash'
 import { projects } from '@/data/projects'
 import { SocialLinks } from '@/components/ui/social-links'
 import { useBodyOverflow } from '@/hooks/use-body-overflow'
@@ -19,6 +20,7 @@ export default function ProjectsPage() {
   const [isPaused, setIsPaused] = useState(false)
   const [introFinished, setIntroFinished] = useState(false)
   const [introVideoEnded, setIntroVideoEnded] = useState(false)
+  const [flashTrigger, setFlashTrigger] = useState(false)
   const [displayProjectData, setDisplayProjectData] = useState<typeof projects[0] | null>(null)
 
   const mainRef = useRef<HTMLDivElement>(null)
@@ -45,6 +47,7 @@ export default function ProjectsPage() {
       readyCalledRef.current = false
       setIntroFinished(false)
       setIntroVideoEnded(false)
+      setFlashTrigger(false)
       if (!isLowPerformance && mainRef.current) {
         gsap.set(SOCIAL_LINKS_SELECTOR, { y: 100, opacity: 0 })
       }
@@ -73,8 +76,11 @@ export default function ProjectsPage() {
   }, [introFinished, isLowPerformance])
 
   const handleIntroEnd = useCallback(() => {
-    setIntroFinished(true)
     setIntroVideoEnded(true)
+    setFlashTrigger(true)
+    setTimeout(() => {
+      setIntroFinished(true)
+    }, 600)
   }, [])
 
   const handleClosePanel = useCallback(() => {
@@ -120,6 +126,8 @@ export default function ProjectsPage() {
           expandedProject={expandedProject}
         />
       )}
+
+      <TransitionFlash trigger={flashTrigger} onComplete={() => setFlashTrigger(false)} />
 
       {displayProjectData && (
         <ProjectInfoPanel
