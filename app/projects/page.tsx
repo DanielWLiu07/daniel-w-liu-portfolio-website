@@ -85,11 +85,13 @@ export default function ProjectsPage() {
 
   const handleIntroEnd = useCallback(() => {
     setIntroVideoEnded(true)
-    setFlashFading(true)
+    setTimeout(() => {
+      setFlashFading(true)
+    }, 300)
     setTimeout(() => {
       setShowFlash(false)
       setFlashFading(false)
-    }, 800)
+    }, 1100)
   }, [])
 
   const handleClosePanel = useCallback(() => {
