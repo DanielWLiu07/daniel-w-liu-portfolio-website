@@ -39,7 +39,6 @@ export default function TransitionFlash({ trigger, onComplete }: TransitionFlash
           <div
             key={i}
             className="flash-text-line"
-            style={{ transform: `translateX(${(i % 2) * -50}px)` }}
           >
             {Array.from({ length: REPEATS }).map((_, j) => (
               <span key={j} className="flash-text">START</span>

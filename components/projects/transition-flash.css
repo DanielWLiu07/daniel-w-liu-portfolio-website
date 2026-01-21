@@ -24,6 +24,29 @@
 .flash-text-line {
   white-space: nowrap;
   line-height: 1.1;
+  animation: scroll-left 3s linear infinite;
+}
+
+.flash-text-line:nth-child(even) {
+  animation: scroll-right 3s linear infinite;
+}
+
+@keyframes scroll-left {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-200px);
+  }
+}
+
+@keyframes scroll-right {
+  0% {
+    transform: translateX(-200px);
+  }
+  100% {
+    transform: translateX(0);
+  }
 }
 
 .flash-text {
