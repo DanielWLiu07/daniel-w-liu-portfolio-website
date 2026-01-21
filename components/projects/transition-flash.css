@@ -8,7 +8,7 @@
   pointer-events: none;
   will-change: opacity;
   transform: translateZ(0);
-  animation: flash-animation 2.5s ease-in-out forwards;
+  animation: flash-animation 1s ease-in-out forwards;
   overflow: hidden;
 }
 
@@ -72,10 +72,10 @@
   0% {
     opacity: 0;
   }
-  20% {
+  30% {
     opacity: 1;
   }
-  45% {
+  50% {
     opacity: 1;
   }
   100% {
