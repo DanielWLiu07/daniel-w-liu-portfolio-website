@@ -1,14 +1,13 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { pressStart2P } from '@/lib/fonts'
 import './transition-flash.css'
 
 interface TransitionFlashProps {
   trigger: boolean
   onComplete?: () => void
 }
-
-const LINES = 12
 
 export default function TransitionFlash({ trigger, onComplete }: TransitionFlashProps) {
   const [show, setShow] = useState(false)
@@ -33,12 +32,9 @@ export default function TransitionFlash({ trigger, onComplete }: TransitionFlash
 
   return (
     <div className="flash-overlay">
-      <div className="flash-text-container">
-        {Array.from({ length: LINES }).map((_, i) => (
-          <div key={i} className="flash-text-line">
-            PRESS START
-          </div>
-        ))}
+      <div className={`flash-text-container ${pressStart2P.className}`}>
+        <div className="flash-text-line">PRESS</div>
+        <div className="flash-text-line">START</div>
       </div>
     </div>
   )

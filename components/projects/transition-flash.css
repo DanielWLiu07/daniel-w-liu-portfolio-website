@@ -21,17 +21,15 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0;
 }
 
 .flash-text-line {
-  font-family: 'Impact', 'Arial Black', sans-serif;
-  font-size: 5vw;
-  font-weight: 900;
+  font-size: 10vw;
   color: black;
-  letter-spacing: 0.15em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  white-space: nowrap;
+  line-height: 1.2;
 }
 
 @keyframes flash-animation {
