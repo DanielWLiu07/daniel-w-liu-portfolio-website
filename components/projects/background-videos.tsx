@@ -22,12 +22,12 @@ export default function BackgroundVideos({ visible, isExpanded = false }: Backgr
     manVideoRef.current?.play()
   }, [visible])
 
-  const visibilityClass = visible ? 'opacity-100' : 'opacity-0 pointer-events-none'
+  const visibilityClass = visible ? '' : 'invisible'
   const mangaManZIndex = isExpanded ? 'z-[36]' : 'z-[39]'
 
   return (
     <>
-      <div className={`absolute w-full h-full z-0 transition-opacity ${visibilityClass}`}>
+      <div className={`absolute w-full h-full z-0 ${visibilityClass}`}>
         <Image src="/projects/images/starry.png" alt="" className="object-cover" fill priority />
         {isLowPerformance ? (
           <Image src="/animation_frames/manga/manga_bg/0400.png" alt="" fill className="absolute inset-0 w-full h-full object-cover" />
