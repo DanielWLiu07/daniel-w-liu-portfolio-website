@@ -17,10 +17,9 @@ export default function BackgroundVideos({ visible, isExpanded = false }: Backgr
   const { isLowPerformance } = usePerformanceMode()
 
   useEffect(() => {
-    if (!visible) return
     bgVideoRef.current?.play()
     manVideoRef.current?.play()
-  }, [visible])
+  }, [])
 
   const visibilityClass = visible ? '' : 'invisible'
   const mangaManZIndex = isExpanded ? 'z-[36]' : 'z-[39]'
