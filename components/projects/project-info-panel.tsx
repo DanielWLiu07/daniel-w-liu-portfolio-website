@@ -1,7 +1,16 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import Image from 'next/image'
 import { fastBlazeFont, mochiFont } from '@/lib/fonts'
+import {
+  DESKTOP_LAYOUT,
+  MOBILE_LAYOUT,
+  SM_BREAKPOINT,
+  BASE_RIGHT_CARD_WIDTH,
+  SCALE_LIMITS,
+} from '@/lib/layout-config'
+import { getFloatOffset, clamp } from '@/lib/animation-utils'
 
 type ExpansionStage = 'none' | 'expanding' | 'expanded'
 type PanelState = 'hidden' | 'starting' | 'flying-in' | 'visible' | 'flying-out'
@@ -24,7 +33,7 @@ interface ProjectInfoPanelProps {
 
 export function ProjectInfoPanel({ project, onClose, visible }: ProjectInfoPanelProps) {
   const cardRef = useRef<HTMLDivElement>(null)
-  const [transform, setTransform] = useState({ rotateX: 0, rotateY: 0, translateY: 0 })
+  const [transform, setTransform] = useState({ rotateX: 0, rotateY: 0, translateX: 0, translateY: 0, scale: 1, isMobile: false })
   const currentRotationRef = useRef({ x: 0, y: 0 })
   const animationRef = useRef<number | null>(null)
   const timeRef = useRef(0)
@@ -32,13 +41,9 @@ export function ProjectInfoPanel({ project, onClose, visible }: ProjectInfoPanel
   const mouseRef = useRef({ x: 0, y: 0 })
   const smoothMouseRef = useRef({ x: 0, y: 0 })
 
-  const flickerTimeRef = useRef(0)
-  const isFlickeringRef = useRef(false)
-
   const [panelState, setPanelState] = useState<PanelState>(() => visible ? 'starting' : 'hidden')
 
   const prevVisibleRef = useRef(visible)
-  const prevProjectIdRef = useRef(project.id)
   const hasInitializedRef = useRef(false)
 
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -61,16 +66,6 @@ export function ProjectInfoPanel({ project, onClose, visible }: ProjectInfoPanel
     }
   }, [visible, panelState])
   /* eslint-enable react-hooks/set-state-in-effect */
-
-  useEffect(() => {
-    const prevProjectId = prevProjectIdRef.current
-    prevProjectIdRef.current = project.id
-
-    if (project.id !== prevProjectId && visible && panelState === 'visible') {
-      isFlickeringRef.current = true
-      flickerTimeRef.current = 0
-    }
-  }, [project.id, visible, panelState])
 
   useEffect(() => {
     if (panelState === 'starting') {
@@ -119,7 +114,10 @@ export function ProjectInfoPanel({ project, onClose, visible }: ProjectInfoPanel
       smoothMouseRef.current.x += (mouseRef.current.x - smoothMouseRef.current.x) * 0.05
       smoothMouseRef.current.y += (mouseRef.current.y - smoothMouseRef.current.y) * 0.05
 
-      const floatY = Math.sin(timeRef.current * 1.5) * 8
+      // Varied floating animation - different pattern from left card
+      const floatOffset = getFloatOffset(timeRef.current, 'right')
+      const floatX = floatOffset.x
+      const floatY = floatOffset.y
       const MAX_ROTATION = 8
       const ROTATION_SENSITIVITY = 10
       let cardCenterX = 0
@@ -133,30 +131,31 @@ export function ProjectInfoPanel({ project, onClose, visible }: ProjectInfoPanel
       const offsetX = smoothMouseRef.current.x - cardCenterX
       const offsetY = smoothMouseRef.current.y - cardCenterY
 
-      let targetRotY = Math.max(-MAX_ROTATION, Math.min(MAX_ROTATION, offsetX * ROTATION_SENSITIVITY))
-      let targetRotX = Math.max(-MAX_ROTATION, Math.min(MAX_ROTATION, -offsetY * ROTATION_SENSITIVITY))
-
-      if (isFlickeringRef.current) {
-        flickerTimeRef.current += timePassed * 0.001
-        const flickerProgress = flickerTimeRef.current / 0.2
-
-        if (flickerProgress < 1) {
-          const flickerIntensity = Math.sin(flickerProgress * Math.PI)
-          const flickerWave = Math.sin(flickerProgress * Math.PI * 1.5)
-          targetRotY += flickerWave * -22.5 * flickerIntensity
-          targetRotX += Math.cos(flickerProgress * Math.PI * 1.5) * 12 * flickerIntensity
-        } else {
-          isFlickeringRef.current = false
-        }
-      }
+      const targetRotY = Math.max(-MAX_ROTATION, Math.min(MAX_ROTATION, offsetX * ROTATION_SENSITIVITY))
+      const targetRotX = Math.max(-MAX_ROTATION, Math.min(MAX_ROTATION, -offsetY * ROTATION_SENSITIVITY))
 
       currentRotationRef.current.y += (targetRotY - currentRotationRef.current.y) * 0.25
       currentRotationRef.current.x += (targetRotX - currentRotationRef.current.x) * 0.25
 
+      // Perfect percentage layout using shared config
+      const isMobile = window.innerWidth < SM_BREAKPOINT
+      const rightCardPercent = isMobile ? MOBILE_LAYOUT.RIGHT_CARD_WIDTH : DESKTOP_LAYOUT.RIGHT_CARD
+      const targetRightCardPixels = window.innerWidth * rightCardPercent
+
+      // Scale needed to fit right card to target percentage
+      const responsiveScale = clamp(
+        targetRightCardPixels / BASE_RIGHT_CARD_WIDTH,
+        SCALE_LIMITS.MIN,
+        SCALE_LIMITS.MAX
+      )
+
       setTransform({
         rotateX: currentRotationRef.current.x,
         rotateY: currentRotationRef.current.y,
-        translateY: floatY
+        translateX: floatX,
+        translateY: floatY,
+        scale: responsiveScale,
+        isMobile
       })
       animationRef.current = requestAnimationFrame(animate)
     }
@@ -175,7 +174,9 @@ export function ProjectInfoPanel({ project, onClose, visible }: ProjectInfoPanel
   const isFlyingOut = panelState === 'flying-out'
   const isVisible = panelState === 'visible'
 
-  const translateY = (isFlyingIn || isVisible) ? '-50%' : '-150vh'
+  // Mobile: position in lower portion, Desktop: centered vertically
+  const baseTranslateY = transform.isMobile ? '0%' : '-50%'
+  const translateYStyle = (isFlyingIn || isVisible) ? baseTranslateY : '-150vh'
   const opacity = (isFlyingIn || isVisible) ? 1 : 0
   const transition = (isFlyingOut || isFlyingIn)
     ? 'transform 1.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 1.2s cubic-bezier(0.16, 1, 0.3, 1)'
@@ -254,30 +255,40 @@ export function ProjectInfoPanel({ project, onClose, visible }: ProjectInfoPanel
     </div>
   )
 
+  // Mobile: centered horizontally, positioned lower; Desktop: at 60vw
+  const leftPosition = transform.isMobile ? '50%' : `${DESKTOP_LAYOUT.RIGHT_CARD_LEFT * 100}vw`
+  const topPosition = transform.isMobile ? `${MOBILE_LAYOUT.RIGHT_CARD_TOP * 100}%` : '50%'
+  const originX = transform.isMobile ? 'center' : 'left'
+
   return (
     <div
-      className="fixed right-[15%] top-1/2 w-[90%] max-w-md z-50 pointer-events-auto"
+      className="fixed w-[90%] max-w-md z-50 pointer-events-auto"
       style={{
-        transform: `translateY(${translateY})`,
+        left: leftPosition,
+        top: topPosition,
+        transform: `translateX(${transform.isMobile ? '-50%' : '0'}) translateY(${translateYStyle}) scale(${transform.scale})`,
         opacity,
         transition,
-        perspective: '1000px'
+        perspective: '1000px',
+        transformOrigin: `${originX} center`
       }}
     >
       <div
         ref={cardRef}
         className="relative rounded-2xl shadow-2xl overflow-hidden"
         style={{
-          transform: `translateY(${transform.translateY}px) rotateX(${totalRotateX}deg) rotateY(${totalRotateY}deg)`,
+          transform: `translateX(${transform.translateX}px) translateY(${transform.translateY}px) rotateX(${totalRotateX}deg) rotateY(${totalRotateY}deg)`,
           transformOrigin: 'center center',
           transformStyle: 'preserve-3d',
           minHeight: '620px'
         }}
       >
-        <img
+        <Image
           src="/about/images/bg.png"
           alt=""
-          className="absolute inset-0 w-full h-full object-cover"
+          fill
+          className="object-cover"
+          priority
         />
         <div className="relative z-10">
           {cardContent}
