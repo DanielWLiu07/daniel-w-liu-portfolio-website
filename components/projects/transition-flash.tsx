@@ -35,7 +35,7 @@ export default function TransitionFlash({ show }: TransitionFlashProps) {
       className="fixed inset-0 w-screen h-screen z-[9999] bg-white pointer-events-none"
       style={{
         opacity: isFading ? 0 : 1,
-        transition: isFading ? 'opacity 800ms cubic-bezier(0.4, 0, 0.2, 1)' : 'opacity 250ms ease-in',
+        transition: isFading ? 'opacity 800ms cubic-bezier(0.4, 0, 0.2, 1)' : 'opacity 500ms ease-in',
         willChange: 'opacity',
         transform: 'translateZ(0)',
       }}
