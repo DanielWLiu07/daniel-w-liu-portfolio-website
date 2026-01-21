@@ -14,10 +14,12 @@ export default function TransitionFlash({ show }: TransitionFlashProps) {
     if (!el) return
 
     if (show) {
+      el.style.transition = 'opacity 150ms ease-out'
       el.style.display = 'block'
       el.offsetHeight
       el.style.opacity = '1'
     } else {
+      el.style.transition = 'opacity 600ms ease-in-out'
       el.style.opacity = '0'
       const handler = () => {
         if (el.style.opacity === '0') {

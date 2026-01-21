@@ -84,7 +84,7 @@ export default function ProjectsPage() {
     setIntroVideoEnded(true)
     setTimeout(() => {
       setShowFlash(false)
-    }, 200)
+    }, 400)
   }, [])
 
   const handleClosePanel = useCallback(() => {
