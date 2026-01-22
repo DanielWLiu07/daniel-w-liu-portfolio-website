@@ -243,16 +243,15 @@ export default function ProjectsPage() {
         />
       )}
 
-      {/* Navigation buttons - visible on both mobile and desktop */}
+      {/* Navigation buttons - absolute on mobile (near card), fixed on desktop */}
       <button
         onClick={goToPrevProject}
-        className={`flex fixed left-2 md:left-8 top-1/2 z-50
-          text-[60px] md:text-[120px] leading-none text-white/60 font-black
+        className={`flex absolute md:fixed left-2 md:left-8 top-[38vh] md:top-1/2 z-50
+          text-[100px] md:text-[160px] leading-none text-white font-black
           items-center justify-center
-          [text-shadow:_3px_3px_0_rgba(0,0,0,0.6),_-2px_-2px_0_rgba(255,255,255,0.4),_0_0_10px_rgba(255,255,255,0.3)]
-          [-webkit-text-stroke:2px_rgba(255,255,255,0.5)] md:[-webkit-text-stroke:4px_rgba(255,255,255,0.5)]
-          hover:text-white hover:[-webkit-text-stroke:4px_rgba(255,255,255,0.8)] hover:scale-110 hover:drop-shadow-[0_0_30px_rgba(255,255,255,1)]
-          active:scale-95 active:text-white/80
+          [text-shadow:_0_0_15px_rgba(255,255,255,1),_0_0_30px_rgba(255,255,255,0.8),_0_0_50px_rgba(255,255,255,0.6),_0_0_80px_rgba(255,255,255,0.4)]
+          hover:scale-110 hover:[text-shadow:_0_0_20px_rgba(255,255,255,1),_0_0_40px_rgba(255,255,255,1),_0_0_70px_rgba(255,255,255,0.8),_0_0_100px_rgba(255,255,255,0.6)]
+          active:scale-95
           transition-all duration-200 ease-out
           ${expandedProject !== null ? 'animate-slide-in-left' : 'animate-slide-out-left pointer-events-none'}`}
         aria-label="Previous project"
@@ -261,13 +260,12 @@ export default function ProjectsPage() {
       </button>
       <button
         onClick={goToNextProject}
-        className={`flex fixed right-2 md:right-8 top-1/2 z-50
-          text-[60px] md:text-[120px] leading-none text-white/60 font-black
+        className={`flex absolute md:fixed right-2 md:right-8 top-[38vh] md:top-1/2 z-50
+          text-[100px] md:text-[160px] leading-none text-white font-black
           items-center justify-center
-          [text-shadow:_3px_3px_0_rgba(0,0,0,0.6),_-2px_-2px_0_rgba(255,255,255,0.4),_0_0_10px_rgba(255,255,255,0.3)]
-          [-webkit-text-stroke:2px_rgba(255,255,255,0.5)] md:[-webkit-text-stroke:4px_rgba(255,255,255,0.5)]
-          hover:text-white hover:[-webkit-text-stroke:4px_rgba(255,255,255,0.8)] hover:scale-110 hover:drop-shadow-[0_0_30px_rgba(255,255,255,1)]
-          active:scale-95 active:text-white/80
+          [text-shadow:_0_0_15px_rgba(255,255,255,1),_0_0_30px_rgba(255,255,255,0.8),_0_0_50px_rgba(255,255,255,0.6),_0_0_80px_rgba(255,255,255,0.4)]
+          hover:scale-110 hover:[text-shadow:_0_0_20px_rgba(255,255,255,1),_0_0_40px_rgba(255,255,255,1),_0_0_70px_rgba(255,255,255,0.8),_0_0_100px_rgba(255,255,255,0.6)]
+          active:scale-95
           transition-all duration-200 ease-out
           ${expandedProject !== null ? 'animate-slide-in-right' : 'animate-slide-out-right pointer-events-none'}`}
         aria-label="Next project"
