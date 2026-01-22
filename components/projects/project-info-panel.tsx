@@ -285,11 +285,14 @@ export function ProjectInfoPanel({ project, onClose, visible }: ProjectInfoPanel
   const originX = transform.isMobile ? 'center' : 'left'
   const originY = transform.isMobile ? 'top' : 'center' // top origin keeps gap consistent when scaling
   const positionClass = transform.isMobile ? 'absolute' : 'fixed'
+  // On mobile, compensate for scale so final visual width is 85vw
+  const mobileWidth = transform.isMobile ? `${85 / transform.scale}vw` : undefined
 
   return (
     <div
-      className={`${positionClass} w-[90%] max-w-md z-50 pointer-events-auto`}
+      className={`${positionClass} md:w-[90%] md:max-w-md z-50 pointer-events-auto`}
       style={{
+        width: mobileWidth,
         left: leftPosition,
         top: topPosition,
         transform: `translateX(${transform.isMobile ? '-50%' : '0'}) translateY(${transform.isMobile ? '0' : translateYStyle}) scale(${transform.scale})`,
