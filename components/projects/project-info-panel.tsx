@@ -6,7 +6,7 @@ import { fastBlazeFont, mochiFont } from '@/lib/fonts'
 import {
   DESKTOP_LAYOUT,
   MOBILE_LAYOUT,
-  SM_BREAKPOINT,
+  MD_BREAKPOINT,
   BASE_RIGHT_CARD_WIDTH,
   SCALE_LIMITS,
 } from '@/lib/layout-config'
@@ -33,7 +33,7 @@ interface ProjectInfoPanelProps {
 
 export function ProjectInfoPanel({ project, onClose, visible }: ProjectInfoPanelProps) {
   const cardRef = useRef<HTMLDivElement>(null)
-  const [transform, setTransform] = useState({ rotateX: 0, rotateY: 0, translateX: 0, translateY: 0, scale: 1, isMobile: false })
+  const [transform, setTransform] = useState({ rotateX: 0, rotateY: 0, translateX: 0, translateY: 0, scale: 1, isMobile: false, viewportHeight: 800 })
   const currentRotationRef = useRef({ x: 0, y: 0 })
   const animationRef = useRef<number | null>(null)
   const timeRef = useRef(0)
@@ -100,7 +100,19 @@ export function ProjectInfoPanel({ project, onClose, visible }: ProjectInfoPanel
       }
     }
 
+    // Touch support for 3D card rotation - mirrors mouse behavior
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 1) {
+        const touch = e.touches[0]
+        mouseRef.current = {
+          x: (touch.clientX / window.innerWidth) * 2 - 1,
+          y: (touch.clientY / window.innerHeight) * 2 - 1
+        }
+      }
+    }
+
     window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('touchmove', handleTouchMove, { passive: true })
 
     const animate = (currentTime: number) => {
       if (lastFrameTimeRef.current === 0) {
@@ -138,7 +150,7 @@ export function ProjectInfoPanel({ project, onClose, visible }: ProjectInfoPanel
       currentRotationRef.current.x += (targetRotX - currentRotationRef.current.x) * 0.25
 
       // Perfect percentage layout using shared config
-      const isMobile = window.innerWidth < SM_BREAKPOINT
+      const isMobile = window.innerWidth < MD_BREAKPOINT
       const rightCardPercent = isMobile ? MOBILE_LAYOUT.RIGHT_CARD_WIDTH : DESKTOP_LAYOUT.RIGHT_CARD
       const targetRightCardPixels = window.innerWidth * rightCardPercent
 
@@ -155,7 +167,8 @@ export function ProjectInfoPanel({ project, onClose, visible }: ProjectInfoPanel
         translateX: floatX,
         translateY: floatY,
         scale: responsiveScale,
-        isMobile
+        isMobile,
+        viewportHeight: window.innerHeight
       })
       animationRef.current = requestAnimationFrame(animate)
     }
@@ -164,6 +177,7 @@ export function ProjectInfoPanel({ project, onClose, visible }: ProjectInfoPanel
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('touchmove', handleTouchMove)
       if (animationRef.current) cancelAnimationFrame(animationRef.current)
     }
   }, [panelState])
@@ -255,22 +269,34 @@ export function ProjectInfoPanel({ project, onClose, visible }: ProjectInfoPanel
     </div>
   )
 
-  // Mobile: centered horizontally, positioned lower; Desktop: at 60vw
+  // Mobile: centered horizontally, positioned closer to left card; Desktop: at 60vw
   const leftPosition = transform.isMobile ? '50%' : `${DESKTOP_LAYOUT.RIGHT_CARD_LEFT * 100}vw`
-  const topPosition = transform.isMobile ? `${MOBILE_LAYOUT.RIGHT_CARD_TOP * 100}%` : '50%'
+  // Calculate info panel position with fixed gap from dots bottom
+  // Use pixels throughout for consistent math
+  const vh = transform.viewportHeight
+  const leftCardCenterPx = vh * 0.38 // card center at 38% from top (based on THREE.js visibleHeight * 0.12 from center)
+  const leftCardHeightPx = vh * 0.30 * transform.scale // card visual height scales with viewport and scale
+  const leftCardBottomPx = leftCardCenterPx + leftCardHeightPx / 2
+  const dotsOffsetPx = leftCardHeightPx * 0.25 // dots are ~25% of card height below card
+  const dotsBottomPx = leftCardBottomPx + dotsOffsetPx
+  const fixedGapPx = 80 // constant 80px gap from dots bottom
+  const infoPanelTopPx = dotsBottomPx + fixedGapPx
+  const topPosition = transform.isMobile ? `${infoPanelTopPx}px` : '50%'
   const originX = transform.isMobile ? 'center' : 'left'
+  const originY = transform.isMobile ? 'top' : 'center' // top origin keeps gap consistent when scaling
+  const positionClass = transform.isMobile ? 'absolute' : 'fixed'
 
   return (
     <div
-      className="fixed w-[90%] max-w-md z-50 pointer-events-auto"
+      className={`${positionClass} w-[90%] max-w-md z-50 pointer-events-auto`}
       style={{
         left: leftPosition,
         top: topPosition,
-        transform: `translateX(${transform.isMobile ? '-50%' : '0'}) translateY(${translateYStyle}) scale(${transform.scale})`,
+        transform: `translateX(${transform.isMobile ? '-50%' : '0'}) translateY(${transform.isMobile ? '0' : translateYStyle}) scale(${transform.scale})`,
         opacity,
         transition,
         perspective: '1000px',
-        transformOrigin: `${originX} center`
+        transformOrigin: `${originX} ${originY}`
       }}
     >
       <div
