@@ -27,7 +27,7 @@ export default function BackgroundVideos({ visible, isExpanded = false }: Backgr
 
   return (
     <>
-      <div className={`absolute w-full h-full z-0 ${visibilityClass}`}>
+      <div className={`fixed inset-0 w-full h-screen z-0 ${visibilityClass}`}>
         <Image src="/projects/images/starry.png" alt="" className="object-cover" fill priority />
         {isLowPerformance ? (
           <Image src="/animation_frames/manga/manga_bg/0400.png" alt="" fill className="absolute inset-0 w-full h-full object-cover" />
@@ -47,7 +47,7 @@ export default function BackgroundVideos({ visible, isExpanded = false }: Backgr
       </div>
 
       <div
-        className={`absolute inset-0 w-full h-full ${MOBILE_CONTAINER_CLASSES} ${isLowPerformance ? 'max-[600px]:mt-20' : 'max-[600px]:mt-5'} ${mangaManZIndex} pointer-events-none ${visible ? '' : 'invisible'}`}
+        className={`fixed inset-0 w-full h-screen ${MOBILE_CONTAINER_CLASSES} ${isLowPerformance ? 'max-[600px]:mt-20' : 'max-[600px]:mt-5'} ${mangaManZIndex} pointer-events-none ${visible ? '' : 'invisible'}`}
         style={{
           transform: isExpanded ? 'translateY(-100%)' : 'translateY(0)',
           transition: 'transform 1.2s cubic-bezier(0.4, 0, 0.2, 1)',
