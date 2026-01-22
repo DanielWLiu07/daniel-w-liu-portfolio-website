@@ -20,7 +20,7 @@ export const createInteractiveButtons = (): InteractiveButton[] => [
     width: "40.57%",
     height: "66.49%",
     rotation: -12.5306,
-    action: () => window.open("/Daniel_W_Liu_Resume_Dec_2025.pdf", "_blank"),
+    action: () => window.open("/Daniel_W_Liu_Resume_Jan_2026.pdf", "_blank"),
   },
   {
     id: "github",
