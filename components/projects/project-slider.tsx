@@ -8,7 +8,7 @@ import { handleWheelScroll, updateScrollVelocity } from '@/lib/carousel-animatio
 import {
   DESKTOP_LAYOUT,
   MOBILE_LAYOUT,
-  SM_BREAKPOINT,
+  MD_BREAKPOINT,
   SCALE_LIMITS,
 } from '@/lib/layout-config'
 import { getFloatOffset, getEasedMovementAmount, clamp } from '@/lib/animation-utils'
@@ -59,7 +59,6 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
   const arrowMeshesRef = useRef<{ left: THREE.Mesh | null; right: THREE.Mesh | null }>({ left: null, right: null })
   const hoveredArrowRef = useRef<'left' | 'right' | null>(null)
 
-  const backdropMeshRef = useRef<THREE.Mesh | null>(null)
 
   const onProjectClickRef = useRef(onProjectClick)
   const onPauseChangeRef = useRef(onPauseChange)
@@ -285,17 +284,6 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
 
     container.appendChild(renderer.domElement)
 
-    const backdropGeometry = new THREE.PlaneGeometry(20, 20)
-    const backdropMaterial = new THREE.MeshBasicMaterial({
-      color: 0x000000,
-      transparent: true,
-      opacity: 0,
-      side: THREE.DoubleSide
-    })
-    const backdropMesh = new THREE.Mesh(backdropGeometry, backdropMaterial)
-    backdropMesh.position.z = -0.5
-    scene.add(backdropMesh)
-    backdropMeshRef.current = backdropMesh
 
     const cardWidth = sceneOptions.cardWidth + sceneOptions.gap / 100
     const planeSpace = getPlaneWidth(camera, container.clientWidth, container.clientHeight, sceneOptions.cardWidth, sceneOptions.gap) * cardWidth
@@ -387,18 +375,20 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       dotGroupRef.current = dotGroup
       const dots: THREE.Mesh[] = []
 
-      const dotRadius = 0.02
-      const glowRadius = 0.035
-      const dotSpacing = 0.07
+      // Larger sizes on mobile for better touch targets
+      const isMobileSize = container.clientWidth < MD_BREAKPOINT
+      const dotRadius = isMobileSize ? 0.05 : 0.02
+      const glowRadius = isMobileSize ? 0.08 : 0.035
+      const dotSpacing = isMobileSize ? 0.14 : 0.07
       const totalWidth = (imageCount - 1) * dotSpacing
       const startX = -totalWidth / 2
 
       // Use cardWidth since the card is horizontal (rotated 90°)
       const cardHalfWidth = sceneOptions.cardWidth / 2
-      const dotY = -cardHalfWidth - 0.06
+      const dotY = -cardHalfWidth - (isMobileSize ? 0.14 : 0.06)
 
-      // Create arrows with async texture loading
-      const arrowSize = 0.12
+      // Create arrows with async texture loading - larger on mobile
+      const arrowSize = isMobileSize ? 0.26 : 0.12
 
       // Create left arrow
       const leftArrowGeometry = new THREE.PlaneGeometry(arrowSize, arrowSize)
@@ -409,8 +399,9 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         depthWrite: false,
         alphaTest: 0.1
       })
+      const arrowOffset = isMobileSize ? 0.22 : 0.12
       const leftArrow = new THREE.Mesh(leftArrowGeometry, leftArrowMaterial)
-      leftArrow.position.x = startX - 0.12
+      leftArrow.position.x = startX - arrowOffset
       leftArrow.position.y = dotY
       leftArrow.position.z = 0.01
       leftArrow.userData.isArrow = true
@@ -430,7 +421,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         alphaTest: 0.1
       })
       const rightArrow = new THREE.Mesh(rightArrowGeometry, rightArrowMaterial)
-      rightArrow.position.x = startX + totalWidth + 0.12
+      rightArrow.position.x = startX + totalWidth + arrowOffset
       rightArrow.position.y = dotY
       rightArrow.position.z = 0.01
       rightArrow.userData.isArrow = true
@@ -773,8 +764,18 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
     }
     window.addEventListener('mousemove', onMouseMoveGlobal)
 
+    // Touch support for 3D card rotation - mirrors mouse behavior
+    const onTouchMoveGlobal = (event: TouchEvent) => {
+      if (event.touches.length === 1) {
+        const touch = event.touches[0]
+        mousePosition.x = (touch.clientX / container.clientWidth) * 2 - 1
+        mousePosition.y = -(touch.clientY / container.clientHeight) * 2 + 1
+      }
+    }
+    window.addEventListener('touchmove', onTouchMoveGlobal, { passive: true })
+
     // Using shared layout config
-    const isMobile = () => container.clientWidth < SM_BREAKPOINT
+    const isMobile = () => container.clientWidth < MD_BREAKPOINT
 
     const getUnifiedScale = () => {
       const targetZ = 0.8
@@ -783,17 +784,18 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       const visibleHeight = 2 * Math.tan(vFov / 2) * distFromCamera
       const visibleWidth = visibleHeight * (container.clientWidth / container.clientHeight)
       const pixelsPerUnit = container.clientWidth / visibleWidth
-      const baseLeftCardPixels = sceneOptions.cardHeight * pixelsPerUnit
+      // Card is always horizontal (rotated 90deg), so cardHeight is the horizontal dimension
+      const baseCardPixels = sceneOptions.cardHeight * pixelsPerUnit
 
       if (isMobile()) {
         // Mobile: card takes 80% of viewport width
         const targetLeftCardPixels = container.clientWidth * MOBILE_LAYOUT.CARD_WIDTH
-        const scale = targetLeftCardPixels / baseLeftCardPixels
+        const scale = targetLeftCardPixels / baseCardPixels
         return clamp(scale, SCALE_LIMITS.MIN, SCALE_LIMITS.MAX)
       } else {
         // Desktop: card takes 40% of viewport width
         const targetLeftCardPixels = container.clientWidth * DESKTOP_LAYOUT.LEFT_CARD
-        const scale = targetLeftCardPixels / baseLeftCardPixels
+        const scale = targetLeftCardPixels / baseCardPixels
         return clamp(scale, SCALE_LIMITS.MIN, SCALE_LIMITS.MAX)
       }
     }
@@ -809,9 +811,9 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       const scaledCardWidth = sceneOptions.cardHeight * scale
 
       if (isMobile()) {
-        // Mobile: centered horizontally, positioned in upper portion
+        // Mobile: centered horizontally, positioned in upper portion of viewport
         const targetX = 0
-        const targetY = visibleHeight * MOBILE_LAYOUT.LEFT_CARD_TOP
+        const targetY = visibleHeight * 0.12
         return new THREE.Vector3(targetX, targetY, targetZ)
       } else {
         // Desktop: left card right edge at 55% (LEFT_MARGIN + LEFT_CARD)
@@ -924,11 +926,6 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         checkHover()
       }
 
-      if (backdropMeshRef.current) {
-        const backdropMat = backdropMeshRef.current.material as THREE.MeshBasicMaterial
-        const targetOpacity = isExpanded ? 0.4 : 0
-        backdropMat.opacity += (targetOpacity - backdropMat.opacity) * 0.1
-      }
 
       planes.forEach(plane => {
         const isExpandedPlane = plane === expandedPlane && isExpanded
@@ -972,21 +969,19 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           const newScale = plane.scale.x + (targetScale - plane.scale.x) * easeAmount
           plane.scale.set(newScale, newScale, newScale)
 
-          // Mouse-following rotation for expanded card (relative to card center)
+          // Mouse-following rotation for expanded card (works on both mobile and desktop)
           const MAX_ROTATION = 0.35 // radians (~20 degrees)
           const ROTATION_SENSITIVITY = 0.4
-          // Get card center in screen space
           const cardWorldPos = new THREE.Vector3()
           plane.getWorldPosition(cardWorldPos)
           cardWorldPos.project(camera)
-          // Calculate offset from card center
           const offsetX = smoothMousePosition.x - cardWorldPos.x
           const offsetY = smoothMousePosition.y - cardWorldPos.y
           const targetRotY = Math.max(-MAX_ROTATION, Math.min(MAX_ROTATION, offsetX * ROTATION_SENSITIVITY))
           const targetRotX = Math.max(-MAX_ROTATION, Math.min(MAX_ROTATION, -offsetY * ROTATION_SENSITIVITY))
           plane.rotation.y += (targetRotY - plane.rotation.y) * 0.15
           plane.rotation.x += (targetRotX - plane.rotation.x) * 0.15
-          // Animate to horizontal orientation (90 degrees Z rotation) - smooth easing
+          // Animate to horizontal orientation (90 degrees Z rotation)
           const targetRotZ = Math.PI / 2
           plane.rotation.z += (targetRotZ - plane.rotation.z) * easeAmount
 
@@ -1007,6 +1002,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
             mat.uniforms.opacity.value = 1
           }
 
+          // Show dots and arrows when expanded
           const dotsVisible = isExpanded
           dotMeshesRef.current.forEach((dot, index) => {
             const dotMat = dot.material as THREE.MeshBasicMaterial
@@ -1059,9 +1055,11 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
             arrow.scale.set(newScale, newScale, 1)
           })
         } else if (isExpanded && expandedPlane) {
+          // Non-selected cards: fade to low opacity (same on mobile and desktop)
           if (mat.uniforms.opacity) {
             const currentOpacity = mat.uniforms.opacity.value
-            mat.uniforms.opacity.value = currentOpacity + (0.2 - currentOpacity) * 0.15
+            const targetOpacity = 0.15
+            mat.uniforms.opacity.value = currentOpacity + (targetOpacity - currentOpacity) * 0.08
           }
         } else if (!isExpanded && animatingRef.current && expandedPlane) {
           const targetX = plane.userData.initialX
@@ -1193,6 +1191,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
     return () => {
       resizeObserver.disconnect()
       window.removeEventListener('mousemove', onMouseMoveGlobal)
+      window.removeEventListener('touchmove', onTouchMoveGlobal)
       container.removeEventListener('arrowClick', handleArrowClick)
       container.removeEventListener('dotClick', handleDotClick)
       renderer.domElement.removeEventListener('click', onCanvasClick)
@@ -1223,12 +1222,6 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           }
         })
       }
-      if (backdropMeshRef.current) {
-        backdropMeshRef.current.geometry.dispose()
-        if (backdropMeshRef.current.material instanceof THREE.Material) {
-          backdropMeshRef.current.material.dispose()
-        }
-      }
       renderer.dispose()
     }
   }, [containerReady])
@@ -1237,7 +1230,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
     <>
       <div
         ref={containerRef}
-        className={`absolute inset-0 curved-slider z-[38] overflow-visible transition-opacity ${!visible ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+        className={`absolute inset-x-0 top-0 h-screen curved-slider z-[38] overflow-visible transition-opacity ${!visible ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
         onTouchStart={handleCarouselTouchStart}
         onTouchEnd={handleCarouselTouchEnd}
         onMouseDown={handleCarouselTouchStart}
