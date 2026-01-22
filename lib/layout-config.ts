@@ -24,8 +24,8 @@ export const MOBILE_LAYOUT = {
   RIGHT_CARD_TOP: 0.60,  // 60% from top for right card
 } as const
 
-// Breakpoint
-export const SM_BREAKPOINT = 640
+// Breakpoint (md = 768px)
+export const MD_BREAKPOINT = 768
 
 // Base dimensions
 export const BASE_RIGHT_CARD_WIDTH = 448 // max-w-md in pixels
@@ -33,5 +33,5 @@ export const BASE_RIGHT_CARD_WIDTH = 448 // max-w-md in pixels
 // Scale limits
 export const SCALE_LIMITS = {
   MIN: 0.1,
-  MAX: 1.5,
+  MAX: 3.0,
 } as const
