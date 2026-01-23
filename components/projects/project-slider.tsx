@@ -106,7 +106,6 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         }
       })
 
-      // Fade out arrows
       if (arrowMeshesRef.current.left) {
         arrowMeshesRef.current.left.userData.targetOpacity = 0
       }
@@ -138,7 +137,6 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         }, 600)
       }
     } else if (expandedProject !== null && prevProject !== null && expandedProject !== prevProject) {
-      // Wiggle disabled
       flickerTimeRef.current = 0
 
       dotMeshesRef.current.forEach(dot => {
@@ -336,14 +334,11 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       canvas.height = 128
       const ctx = canvas.getContext('2d')!
 
-      // Load Mochi font
       try {
         const font = new FontFace('MochiBold', 'url(/fonts/MochibopBold-Demo.ttf)')
         await font.load()
         document.fonts.add(font)
-      } catch (e) {
-        // Font may already be loaded or fail, continue with fallback
-      }
+      } catch {}
 
       ctx.clearRect(0, 0, 128, 128)
       ctx.fillStyle = 'white'
@@ -375,22 +370,18 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       dotGroupRef.current = dotGroup
       const dots: THREE.Mesh[] = []
 
-      // Larger sizes on mobile for better touch targets
       const isMobileSize = container.clientWidth < MD_BREAKPOINT
-      const dotRadius = isMobileSize ? 0.05 : 0.02
-      const glowRadius = isMobileSize ? 0.08 : 0.035
-      const dotSpacing = isMobileSize ? 0.14 : 0.07
+      const dotRadius = isMobileSize ? 0.055 : 0.03
+      const glowRadius = isMobileSize ? 0.085 : 0.05
+      const dotSpacing = isMobileSize ? 0.16 : 0.10
       const totalWidth = (imageCount - 1) * dotSpacing
       const startX = -totalWidth / 2
 
-      // Use cardWidth since the card is horizontal (rotated 90°)
       const cardHalfWidth = sceneOptions.cardWidth / 2
-      const dotY = -cardHalfWidth - (isMobileSize ? 0.14 : 0.06)
+      const dotY = -cardHalfWidth - (isMobileSize ? 0.14 : 0.08)
 
-      // Create arrows with async texture loading - larger on mobile
-      const arrowSize = isMobileSize ? 0.26 : 0.12
+      const arrowSize = isMobileSize ? 0.28 : 0.18
 
-      // Create left arrow
       const leftArrowGeometry = new THREE.PlaneGeometry(arrowSize, arrowSize)
       const leftArrowMaterial = new THREE.MeshBasicMaterial({
         transparent: true,
@@ -399,7 +390,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         depthWrite: false,
         alphaTest: 0.1
       })
-      const arrowOffset = isMobileSize ? 0.22 : 0.12
+      const arrowOffset = isMobileSize ? 0.22 : 0.16
       const leftArrow = new THREE.Mesh(leftArrowGeometry, leftArrowMaterial)
       leftArrow.position.x = startX - arrowOffset
       leftArrow.position.y = dotY
@@ -411,7 +402,6 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       dotGroup.add(leftArrow)
       arrowMeshesRef.current.left = leftArrow
 
-      // Create right arrow
       const rightArrowGeometry = new THREE.PlaneGeometry(arrowSize, arrowSize)
       const rightArrowMaterial = new THREE.MeshBasicMaterial({
         transparent: true,
@@ -431,7 +421,6 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       dotGroup.add(rightArrow)
       arrowMeshesRef.current.right = rightArrow
 
-      // Load textures async
       createArrowTexture('left').then(texture => {
         leftArrowMaterial.map = texture
         leftArrowMaterial.needsUpdate = true
@@ -496,7 +485,6 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           plane.updateMatrixWorld(true)
         }
 
-        // Check arrow clicks
         const arrows = [arrowMeshesRef.current.left, arrowMeshesRef.current.right].filter(Boolean) as THREE.Mesh[]
         if (arrows.length > 0) {
           const arrowIntersects = raycaster.intersectObjects(arrows)
@@ -514,7 +502,6 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           }
         }
 
-        // Check dot clicks
         if (dotMeshesRef.current.length > 0) {
           const dotIntersects = raycaster.intersectObjects(dotMeshesRef.current)
           if (dotIntersects.length > 0) {
@@ -639,7 +626,6 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         }
         raycaster.setFromCamera(mouse, camera)
 
-        // Check arrow hover
         const arrows = [arrowMeshesRef.current.left, arrowMeshesRef.current.right].filter(Boolean) as THREE.Mesh[]
         if (arrows.length > 0) {
           const arrowIntersects = raycaster.intersectObjects(arrows)
@@ -652,7 +638,6 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           }
         }
 
-        // Check dot hover
         if (dotMeshesRef.current.length > 0) {
           const dotIntersects = raycaster.intersectObjects(dotMeshesRef.current)
           if (dotIntersects.length > 0) {
@@ -811,9 +796,12 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       const scaledCardWidth = sceneOptions.cardHeight * scale
 
       if (isMobile()) {
-        // Mobile: centered horizontally, positioned in upper portion of viewport
+        // Mobile: centered horizontally, card TOP edge at fixed distance from viewport top
         const targetX = 0
-        const targetY = visibleHeight * 0.12
+        const scaledCardHeight = sceneOptions.cardWidth * scale // vertical dimension after 90° rotation
+        const viewportTop = visibleHeight / 2
+        const cardTopY = viewportTop - (visibleHeight * MOBILE_LAYOUT.TOP_MARGIN)
+        const targetY = cardTopY - (scaledCardHeight / 2) // position card center
         return new THREE.Vector3(targetX, targetY, targetZ)
       } else {
         // Desktop: left card right edge at 55% (LEFT_MARGIN + LEFT_CARD)
@@ -1054,6 +1042,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
             const newScale = currentScale + (targetScale - currentScale) * 0.2
             arrow.scale.set(newScale, newScale, 1)
           })
+
         } else if (isExpanded && expandedPlane) {
           // Non-selected cards: fade to low opacity (same on mobile and desktop)
           if (mat.uniforms.opacity) {
@@ -1132,6 +1121,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
               const arrowMat = arrow.material as THREE.MeshBasicMaterial
               arrowMat.opacity += (0 - arrowMat.opacity) * 0.15
             })
+
           }
         } else {
           const targetScale = plane === hoveredPlaneRef.current ? 1.04 : 1
@@ -1227,29 +1217,13 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
   }, [containerReady])
 
   return (
-    <>
-      <div
-        ref={containerRef}
-        className={`absolute inset-x-0 top-0 h-screen curved-slider z-[38] overflow-visible transition-opacity ${!visible ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
-        onTouchStart={handleCarouselTouchStart}
-        onTouchEnd={handleCarouselTouchEnd}
-        onMouseDown={handleCarouselTouchStart}
-        onMouseUp={handleCarouselTouchEnd}
-      />
-
-      <style jsx>{`
-        .curved-slider {
-          overflow: visible !important;
-        }
-        .curved-slider canvas {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          overflow: visible;
-        }
-      `}</style>
-    </>
+    <div
+      ref={containerRef}
+      className={`absolute inset-x-0 top-0 h-screen z-[38] overflow-visible transition-opacity [&>canvas]:absolute [&>canvas]:inset-0 [&>canvas]:w-full [&>canvas]:h-full [&>canvas]:overflow-visible ${!visible ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+      onTouchStart={handleCarouselTouchStart}
+      onTouchEnd={handleCarouselTouchEnd}
+      onMouseDown={handleCarouselTouchStart}
+      onMouseUp={handleCarouselTouchEnd}
+    />
   )
 }
