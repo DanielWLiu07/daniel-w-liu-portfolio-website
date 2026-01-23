@@ -293,3 +293,31 @@ div[data-nextjs-toast] {
   -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 30%, black 70%, transparent 100%);
 }
 
+/* ArcadeClassic font for projects navigation */
+@font-face {
+  font-family: 'ArcadeClassic';
+  src: url('/fonts/ARCADECLASSIC.TTF') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Beckon animations for project navigation hands */
+@keyframes beckon-left {
+  0%, 100% { transform: translateZ(10px) translateX(0); }
+  50% { transform: translateZ(10px) translateX(-6px); }
+}
+
+@keyframes beckon-right {
+  0%, 100% { transform: translateZ(10px) translateX(0); }
+  50% { transform: translateZ(10px) translateX(6px); }
+}
+
+.animate-beckon-left {
+  animation: beckon-left 1.5s ease-in-out infinite;
+}
+
+.animate-beckon-right {
+  animation: beckon-right 1.5s ease-in-out infinite;
+}
+

@@ -27,11 +27,13 @@ interface ProjectInfoPanelProps {
     github?: string
   }
   onClose: () => void
+  onPrevProject?: () => void
+  onNextProject?: () => void
   visible: boolean
   expansionStage: ExpansionStage
 }
 
-export function ProjectInfoPanel({ project, onClose, visible }: ProjectInfoPanelProps) {
+export function ProjectInfoPanel({ project, onClose, onPrevProject, onNextProject, visible }: ProjectInfoPanelProps) {
   const cardRef = useRef<HTMLDivElement>(null)
   const [transform, setTransform] = useState({ rotateX: 0, rotateY: 0, translateX: 0, translateY: 0, scale: 1, isMobile: false, viewportHeight: 800 })
   const currentRotationRef = useRef({ x: 0, y: 0 })
@@ -271,16 +273,15 @@ export function ProjectInfoPanel({ project, onClose, visible }: ProjectInfoPanel
 
   // Mobile: centered horizontally, positioned closer to left card; Desktop: at 60vw
   const leftPosition = transform.isMobile ? '50%' : `${DESKTOP_LAYOUT.RIGHT_CARD_LEFT * 100}vw`
-  // Calculate info panel position with fixed gap from dots bottom
-  // Use pixels throughout for consistent math
+
+  // Calculate info panel position using layout constants
+  // See MOBILE_LAYOUT in layout-config.ts for visual diagram
   const vh = transform.viewportHeight
-  const leftCardCenterPx = vh * 0.38 // card center at 38% from top (based on THREE.js visibleHeight * 0.12 from center)
-  const leftCardHeightPx = vh * 0.30 * transform.scale // card visual height scales with viewport and scale
-  const leftCardBottomPx = leftCardCenterPx + leftCardHeightPx / 2
-  const dotsOffsetPx = leftCardHeightPx * 0.25 // dots are ~25% of card height below card
-  const dotsBottomPx = leftCardBottomPx + dotsOffsetPx
-  const fixedGapPx = 80 // constant 80px gap from dots bottom
-  const infoPanelTopPx = dotsBottomPx + fixedGapPx
+  const cardTopPx = vh * MOBILE_LAYOUT.TOP_MARGIN
+  const cardHeightPx = vh * MOBILE_LAYOUT.CARD_HEIGHT_RATIO * transform.scale
+  const cardBottomPx = cardTopPx + cardHeightPx
+  const dotsBottomPx = cardBottomPx + (cardHeightPx * MOBILE_LAYOUT.DOTS_OFFSET_RATIO)
+  const infoPanelTopPx = dotsBottomPx + MOBILE_LAYOUT.CARDS_GAP
   const topPosition = transform.isMobile ? `${infoPanelTopPx}px` : '50%'
   const originX = transform.isMobile ? 'center' : 'left'
   const originY = transform.isMobile ? 'top' : 'center' // top origin keeps gap consistent when scaling
@@ -304,23 +305,73 @@ export function ProjectInfoPanel({ project, onClose, visible }: ProjectInfoPanel
     >
       <div
         ref={cardRef}
-        className="relative rounded-2xl shadow-2xl overflow-hidden"
         style={{
           transform: `translateX(${transform.translateX}px) translateY(${transform.translateY}px) rotateX(${totalRotateX}deg) rotateY(${totalRotateY}deg)`,
           transformOrigin: 'center center',
           transformStyle: 'preserve-3d',
-          minHeight: '620px'
         }}
       >
-        <Image
-          src="/about/images/bg.png"
-          alt=""
-          fill
-          className="object-cover"
-          priority
-        />
-        <div className="relative z-10">
-          {cardContent}
+        {transform.isMobile && onPrevProject && onNextProject && (
+          <div
+            className="flex items-center justify-center gap-1 mb-0"
+            style={{
+              transformStyle: 'preserve-3d',
+              fontSize: `${Math.max(2.5, transform.scale * 3)}rem`,
+            }}
+          >
+            <button
+              onClick={onPrevProject}
+              className="text-white transition-transform duration-200 hover:scale-110 active:scale-95 animate-beckon-left"
+              style={{
+                fontSize: '1.8em',
+                transform: 'translateZ(10px)',
+                textShadow: '0 0 15px rgba(255,255,255,1), 0 0 30px rgba(255,255,255,0.8), 0 0 50px rgba(255,255,255,0.5)',
+              }}
+              aria-label="Previous project"
+            >
+              ☜
+            </button>
+            <span
+              className="text-white tracking-widest px-2"
+              style={{
+                fontSize: '0.75em',
+                fontFamily: 'ArcadeClassic, monospace',
+                textShadow: '0 0 12px rgba(255,255,255,0.8), 0 0 25px rgba(255,255,255,0.5)',
+                letterSpacing: '0.12em',
+                transform: 'translateZ(5px)',
+              }}
+            >
+              Projects
+            </span>
+            <button
+              onClick={onNextProject}
+              className="text-white transition-transform duration-200 hover:scale-110 active:scale-95 animate-beckon-right"
+              style={{
+                fontSize: '1.8em',
+                transform: 'translateZ(10px)',
+                textShadow: '0 0 15px rgba(255,255,255,1), 0 0 30px rgba(255,255,255,0.8), 0 0 50px rgba(255,255,255,0.5)',
+              }}
+              aria-label="Next project"
+            >
+              ☞
+            </button>
+          </div>
+        )}
+
+        <div
+          className="relative rounded-2xl shadow-2xl overflow-hidden -mt-8"
+          style={{ minHeight: '620px' }}
+        >
+          <Image
+            src="/about/images/bg.png"
+            alt=""
+            fill
+            className="object-cover"
+            priority
+          />
+          <div className="relative z-10">
+            {cardContent}
+          </div>
         </div>
       </div>
     </div>
