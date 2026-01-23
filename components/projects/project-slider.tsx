@@ -749,7 +749,6 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
     }
     window.addEventListener('mousemove', onMouseMoveGlobal)
 
-    // Touch support for 3D card rotation - mirrors mouse behavior
     const onTouchMoveGlobal = (event: TouchEvent) => {
       if (event.touches.length === 1) {
         const touch = event.touches[0]
@@ -759,7 +758,6 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
     }
     window.addEventListener('touchmove', onTouchMoveGlobal, { passive: true })
 
-    // Using shared layout config
     const isMobile = () => container.clientWidth < MD_BREAKPOINT
 
     const getUnifiedScale = () => {
@@ -769,16 +767,13 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       const visibleHeight = 2 * Math.tan(vFov / 2) * distFromCamera
       const visibleWidth = visibleHeight * (container.clientWidth / container.clientHeight)
       const pixelsPerUnit = container.clientWidth / visibleWidth
-      // Card is always horizontal (rotated 90deg), so cardHeight is the horizontal dimension
       const baseCardPixels = sceneOptions.cardHeight * pixelsPerUnit
 
       if (isMobile()) {
-        // Mobile: card takes 80% of viewport width
         const targetLeftCardPixels = container.clientWidth * MOBILE_LAYOUT.CARD_WIDTH
         const scale = targetLeftCardPixels / baseCardPixels
         return clamp(scale, SCALE_LIMITS.MIN, SCALE_LIMITS.MAX)
       } else {
-        // Desktop: card takes 40% of viewport width
         const targetLeftCardPixels = container.clientWidth * DESKTOP_LAYOUT.LEFT_CARD
         const scale = targetLeftCardPixels / baseCardPixels
         return clamp(scale, SCALE_LIMITS.MIN, SCALE_LIMITS.MAX)
@@ -796,15 +791,13 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       const scaledCardWidth = sceneOptions.cardHeight * scale
 
       if (isMobile()) {
-        // Mobile: centered horizontally, card TOP edge at fixed distance from viewport top
         const targetX = 0
-        const scaledCardHeight = sceneOptions.cardWidth * scale // vertical dimension after 90° rotation
+        const scaledCardHeight = sceneOptions.cardWidth * scale
         const viewportTop = visibleHeight / 2
         const cardTopY = viewportTop - (visibleHeight * MOBILE_LAYOUT.TOP_MARGIN)
-        const targetY = cardTopY - (scaledCardHeight / 2) // position card center
+        const targetY = cardTopY - (scaledCardHeight / 2)
         return new THREE.Vector3(targetX, targetY, targetZ)
       } else {
-        // Desktop: left card right edge at 55% (LEFT_MARGIN + LEFT_CARD)
         const rightEdgePercent = DESKTOP_LAYOUT.LEFT_MARGIN + DESKTOP_LAYOUT.LEFT_CARD
         const rightEdgeX = -visibleWidth / 2 + visibleWidth * rightEdgePercent
         const targetX = rightEdgeX - scaledCardWidth / 2
@@ -838,7 +831,6 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           if (bestPlane) {
             const newPlane: THREE.Mesh = bestPlane
 
-            // Preserve the rotation from the old plane
             let preservedRotX = 0
             let preservedRotY = 0
             if (expandedPlane) {
@@ -862,7 +854,6 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
             newPlane.position.y = leftTarget.y
             newPlane.position.z = leftTarget.z
             newPlane.scale.set(0.95, 0.95, 0.95)
-            // Apply preserved rotation to new plane + 90deg Z rotation for horizontal orientation
             newPlane.rotation.x = preservedRotX
             newPlane.rotation.y = preservedRotY
             newPlane.rotation.z = Math.PI / 2
@@ -924,7 +915,6 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           const currentStage = expansionStageRef.current
           const target = getExpandedTargetPosition()
           const targetLocalX = target.x - scene.position.x
-          // Varied floating animation using shared utility
           const floatOffset = getFloatOffset(floatTime, 'left')
           const targetLocalY = target.y + floatOffset.y
           const targetLocalZ = target.z + floatOffset.x
@@ -933,8 +923,6 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           const dy = targetLocalY - plane.position.y
           const dz = targetLocalZ - plane.position.z
           const distance = Math.sqrt(dx * dx + dy * dy + dz * dz)
-
-          // Use shared easing utility
           const easeAmount = getEasedMovementAmount(distance)
 
           if (distance > 0.01) {
@@ -952,13 +940,11 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
             }
           }
 
-          // Unified scale based on constant screen percentage
           const targetScale = getUnifiedScale()
           const newScale = plane.scale.x + (targetScale - plane.scale.x) * easeAmount
           plane.scale.set(newScale, newScale, newScale)
 
-          // Mouse-following rotation for expanded card (works on both mobile and desktop)
-          const MAX_ROTATION = 0.35 // radians (~20 degrees)
+          const MAX_ROTATION = 0.35
           const ROTATION_SENSITIVITY = 0.4
           const cardWorldPos = new THREE.Vector3()
           plane.getWorldPosition(cardWorldPos)
@@ -969,11 +955,9 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           const targetRotX = Math.max(-MAX_ROTATION, Math.min(MAX_ROTATION, -offsetY * ROTATION_SENSITIVITY))
           plane.rotation.y += (targetRotY - plane.rotation.y) * 0.15
           plane.rotation.x += (targetRotX - plane.rotation.x) * 0.15
-          // Animate to horizontal orientation (90 degrees Z rotation)
           const targetRotZ = Math.PI / 2
           plane.rotation.z += (targetRotZ - plane.rotation.z) * easeAmount
 
-          // Keep dotGroup counter-rotated so dots stay at bottom
           if (dotGroupRef.current) {
             dotGroupRef.current.rotation.z = -plane.rotation.z
           }
@@ -990,7 +974,6 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
             mat.uniforms.opacity.value = 1
           }
 
-          // Show dots and arrows when expanded
           const dotsVisible = isExpanded
           dotMeshesRef.current.forEach((dot, index) => {
             const dotMat = dot.material as THREE.MeshBasicMaterial
@@ -1027,7 +1010,6 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
             }
           })
 
-          // Animate arrows
           const arrows = [arrowMeshesRef.current.left, arrowMeshesRef.current.right]
           arrows.forEach(arrow => {
             if (!arrow) return
@@ -1044,7 +1026,6 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           })
 
         } else if (isExpanded && expandedPlane) {
-          // Non-selected cards: fade to low opacity (same on mobile and desktop)
           if (mat.uniforms.opacity) {
             const currentOpacity = mat.uniforms.opacity.value
             const targetOpacity = 0.15
@@ -1058,8 +1039,6 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           const dy = targetY - plane.position.y
           const dz = targetZ - plane.position.z
           const distance = Math.sqrt(dx * dx + dy * dy + dz * dz)
-
-          // Use shared easing utility (same as expand)
           const easeAmount = getEasedMovementAmount(distance)
 
           if (distance > 0.01) {
@@ -1072,7 +1051,6 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
             plane.position.z = targetZ
           }
 
-          // Rotation animation - bezier easing synced with position
           plane.rotation.x += (0 - plane.rotation.x) * easeAmount
           plane.rotation.y += (0 - plane.rotation.y) * easeAmount
           plane.rotation.z += (0 - plane.rotation.z) * easeAmount
@@ -1083,7 +1061,6 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
             plane.rotation.z = 0
           }
 
-          // Scale animation with bezier easing
           const targetScale = 1
           plane.scale.x += (targetScale - plane.scale.x) * easeAmount
           plane.scale.y += (targetScale - plane.scale.y) * easeAmount
@@ -1114,7 +1091,6 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
               }
             })
 
-            // Animate arrows out
             const arrows = [arrowMeshesRef.current.left, arrowMeshesRef.current.right]
             arrows.forEach(arrow => {
               if (!arrow) return

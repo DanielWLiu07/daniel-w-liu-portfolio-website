@@ -41,11 +41,8 @@ export function createCardMaterial(frameTexture: THREE.Texture, contentTexture: 
       uniform float opacity;
       varying vec2 vertexUV;
       void main(){
-        // Sample content (behind) and frame (in front)
         vec4 contentColor = texture2D(contentTex, vertexUV);
         vec4 frameColor = texture2D(frameTex, vertexUV);
-
-        // Blend: frame on top of content using frame's alpha
         vec3 blended = mix(contentColor.rgb, frameColor.rgb, frameColor.a);
         float alpha = max(contentColor.a, frameColor.a);
 

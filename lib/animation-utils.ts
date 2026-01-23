@@ -1,26 +1,9 @@
-/**
- * Animation utility functions for smooth easing and floating effects
- */
-
-/**
- * Cubic bezier ease-in-out: slow-fast-slow
- * @param t Progress from 0 to 1
- * @returns Eased progress value
- */
 export function easeInOutCubic(t: number): number {
   return t < 0.5
     ? 4 * t * t * t
     : 1 - Math.pow(-2 * t + 2, 3) / 2
 }
 
-/**
- * Calculate eased movement amount based on distance
- * @param distance Current distance from target
- * @param maxDist Maximum distance for normalization
- * @param minSpeed Minimum movement speed
- * @param maxSpeed Maximum movement speed
- * @returns Movement amount per frame
- */
 export function getEasedMovementAmount(
   distance: number,
   maxDist: number = 2.0,
@@ -28,18 +11,11 @@ export function getEasedMovementAmount(
   maxSpeed: number = 0.08
 ): number {
   const normalizedDist = Math.min(distance / maxDist, 1)
-  const t = 1 - normalizedDist // progress from 0 to 1
+  const t = 1 - normalizedDist
   const easedT = easeInOutCubic(t)
   return minSpeed + easedT * (maxSpeed - minSpeed)
 }
 
-/**
- * Generate varied floating animation values
- * Creates organic movement with multiple wave patterns
- * @param time Current time in seconds
- * @param variant 'left' | 'right' to differentiate cards
- * @returns { x, y } float offsets
- */
 export function getFloatOffset(
   time: number,
   variant: 'left' | 'right' = 'left'
@@ -59,16 +35,10 @@ export function getFloatOffset(
   }
 }
 
-/**
- * Clamp a value between min and max
- */
 export function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
 }
 
-/**
- * Linear interpolation
- */
 export function lerp(start: number, end: number, t: number): number {
   return start + (end - start) * t
 }
