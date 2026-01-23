@@ -40,7 +40,6 @@ export default function ProjectsPage() {
     allowScrollWhen: expandedProject !== null
   })
 
-  // Calculate required container height for mobile based on info panel position
   useEffect(() => {
     const calculateHeight = () => {
       const isMobile = window.innerWidth < MD_BREAKPOINT
@@ -56,23 +55,18 @@ export default function ProjectsPage() {
       const vh = window.innerHeight
       const vw = window.innerWidth
 
-      // Calculate scale (same formula as info panel)
       const targetRightCardPixels = vw * MOBILE_LAYOUT.RIGHT_CARD_WIDTH
       const scale = clamp(targetRightCardPixels / BASE_RIGHT_CARD_WIDTH, SCALE_LIMITS.MIN, SCALE_LIMITS.MAX)
 
-      // Calculate info panel position (same formula as info panel)
-      const leftCardCenterPx = vh * 0.38
-      const leftCardHeightPx = vh * 0.30 * scale
-      const leftCardBottomPx = leftCardCenterPx + leftCardHeightPx / 2
-      const dotsOffsetPx = leftCardHeightPx * 0.25
-      const dotsBottomPx = leftCardBottomPx + dotsOffsetPx
-      const fixedGapPx = 80
-      const infoPanelTopPx = dotsBottomPx + fixedGapPx
+      const cardTopPx = vh * MOBILE_LAYOUT.TOP_MARGIN
+      const cardHeightPx = vh * MOBILE_LAYOUT.CARD_HEIGHT_RATIO * scale
+      const cardBottomPx = cardTopPx + cardHeightPx
+      const dotsBottomPx = cardBottomPx + (cardHeightPx * MOBILE_LAYOUT.DOTS_OFFSET_RATIO)
+      const infoPanelTopPx = dotsBottomPx + MOBILE_LAYOUT.CARDS_GAP
 
-      // Info panel base height is 620px, but it's scaled
       const infoPanelBaseHeightPx = 620
       const infoPanelScaledHeightPx = infoPanelBaseHeightPx * scale
-      const bottomMarginPx = 40
+      const bottomMarginPx = 120
       const totalHeightPx = infoPanelTopPx + infoPanelScaledHeightPx + bottomMarginPx
 
       setMobileContainerHeight(`${totalHeightPx}px`)
@@ -81,45 +75,6 @@ export default function ProjectsPage() {
     calculateHeight()
     window.addEventListener('resize', calculateHeight)
     return () => window.removeEventListener('resize', calculateHeight)
-  }, [expandedProject])
-
-  // Prevent overscroll/elastic scrolling - only at actual boundaries
-  useEffect(() => {
-    if (expandedProject === null) return
-    if (typeof window === 'undefined') return
-
-    let startY = 0
-
-    const onTouchStart = (e: TouchEvent) => {
-      startY = e.touches[0].clientY
-    }
-
-    const onTouchMove = (e: TouchEvent) => {
-      const currentY = e.touches[0].clientY
-      const deltaY = currentY - startY
-      const scrollTop = window.scrollY
-      const maxScroll = document.documentElement.scrollHeight - window.innerHeight
-
-      // Only prevent when actually at boundary AND trying to go past it
-      // deltaY > 0 means finger moved down = trying to pull page down = overscroll at top
-      // deltaY < 0 means finger moved up = trying to pull page up = overscroll at bottom
-      const atTop = scrollTop <= 0
-      const atBottom = scrollTop >= maxScroll - 1
-      const pullingDown = deltaY > 0
-      const pullingUp = deltaY < 0
-
-      if ((atTop && pullingDown) || (atBottom && pullingUp)) {
-        e.preventDefault()
-      }
-    }
-
-    document.addEventListener('touchstart', onTouchStart, { passive: true })
-    document.addEventListener('touchmove', onTouchMove, { passive: false })
-
-    return () => {
-      document.removeEventListener('touchstart', onTouchStart)
-      document.removeEventListener('touchmove', onTouchMove)
-    }
   }, [expandedProject])
 
   useEffect(() => {
@@ -173,9 +128,7 @@ export default function ProjectsPage() {
   }, [])
 
   const handleClosePanel = useCallback(() => {
-    // Smooth scroll to top before closing
     window.scrollTo({ top: 0, behavior: 'smooth' })
-    // Small delay to let scroll start, then close
     setTimeout(() => {
       setExpandedProject(null)
       setIsPaused(false)
@@ -205,7 +158,6 @@ export default function ProjectsPage() {
 
   return (
     <>
-      {/* Dark backdrop for expanded state - behind THREE.js scene */}
       <div
         className={`fixed inset-0 bg-black/50 z-[37] pointer-events-none transition-opacity duration-500 ${
           expandedProject !== null ? 'opacity-100' : 'opacity-0'
@@ -214,7 +166,7 @@ export default function ProjectsPage() {
       />
       <div
         ref={mainRef}
-        className={`relative w-full bg-black ${expandedProject !== null ? 'overflow-y-auto md:overflow-hidden md:min-h-0 md:h-screen' : 'overflow-hidden h-screen'}`}
+        className={`relative w-full bg-black ${expandedProject !== null ? 'overflow-visible md:overflow-hidden md:min-h-0 md:h-screen' : 'overflow-hidden h-screen'}`}
         style={{ minHeight: isMobileExpanded ? mobileContainerHeight : undefined }}
       >
         <BackgroundVideos visible={introFinished} isExpanded={expandedProject !== null} />
@@ -238,16 +190,17 @@ export default function ProjectsPage() {
         <ProjectInfoPanel
           project={displayProjectData}
           onClose={handleClosePanel}
+          onPrevProject={goToPrevProject}
+          onNextProject={goToNextProject}
           visible={expandedProject !== null}
           expansionStage="expanded"
         />
       )}
 
-      {/* Navigation buttons - absolute on mobile (near card), fixed on desktop */}
       <button
         onClick={goToPrevProject}
-        className={`flex absolute md:fixed left-2 md:left-8 top-[38vh] md:top-1/2 z-50
-          text-[100px] md:text-[160px] leading-none text-white font-black
+        className={`hidden md:flex fixed left-8 top-1/2 -translate-y-1/2 z-50
+          text-[160px] leading-none text-white font-black
           items-center justify-center
           [text-shadow:_0_0_15px_rgba(255,255,255,1),_0_0_30px_rgba(255,255,255,0.8),_0_0_50px_rgba(255,255,255,0.6),_0_0_80px_rgba(255,255,255,0.4)]
           hover:scale-110 hover:[text-shadow:_0_0_20px_rgba(255,255,255,1),_0_0_40px_rgba(255,255,255,1),_0_0_70px_rgba(255,255,255,0.8),_0_0_100px_rgba(255,255,255,0.6)]
@@ -260,8 +213,8 @@ export default function ProjectsPage() {
       </button>
       <button
         onClick={goToNextProject}
-        className={`flex absolute md:fixed right-2 md:right-8 top-[38vh] md:top-1/2 z-50
-          text-[100px] md:text-[160px] leading-none text-white font-black
+        className={`hidden md:flex fixed right-8 top-1/2 -translate-y-1/2 z-50
+          text-[160px] leading-none text-white font-black
           items-center justify-center
           [text-shadow:_0_0_15px_rgba(255,255,255,1),_0_0_30px_rgba(255,255,255,0.8),_0_0_50px_rgba(255,255,255,0.6),_0_0_80px_rgba(255,255,255,0.4)]
           hover:scale-110 hover:[text-shadow:_0_0_20px_rgba(255,255,255,1),_0_0_40px_rgba(255,255,255,1),_0_0_70px_rgba(255,255,255,0.8),_0_0_100px_rgba(255,255,255,0.6)]
@@ -272,77 +225,6 @@ export default function ProjectsPage() {
       >
         ☞
       </button>
-
-      <style jsx>{`
-        @keyframes slide-in-left {
-          0% {
-            transform: translateY(-50%) translateX(-100px);
-            opacity: 0;
-          }
-          100% {
-            transform: translateY(-50%) translateX(0);
-            opacity: 1;
-          }
-        }
-        @keyframes slide-out-left {
-          0% {
-            transform: translateY(-50%) translateX(0);
-            opacity: 1;
-          }
-          100% {
-            transform: translateY(-50%) translateX(-100px);
-            opacity: 0;
-          }
-        }
-        @keyframes slide-in-right {
-          0% {
-            transform: translateY(-50%) translateX(100px);
-            opacity: 0;
-          }
-          100% {
-            transform: translateY(-50%) translateX(0);
-            opacity: 1;
-          }
-        }
-        @keyframes slide-out-right {
-          0% {
-            transform: translateY(-50%) translateX(0);
-            opacity: 1;
-          }
-          100% {
-            transform: translateY(-50%) translateX(100px);
-            opacity: 0;
-          }
-        }
-        @keyframes beckon-left {
-          0%, 100% {
-            transform: translateY(-50%) translateX(0);
-          }
-          50% {
-            transform: translateY(-50%) translateX(-12px);
-          }
-        }
-        @keyframes beckon-right {
-          0%, 100% {
-            transform: translateY(-50%) translateX(0);
-          }
-          50% {
-            transform: translateY(-50%) translateX(12px);
-          }
-        }
-        .animate-slide-in-left {
-          animation: slide-in-left 0.4s ease-out forwards, beckon-left 2s ease-in-out 0.4s infinite;
-        }
-        .animate-slide-out-left {
-          animation: slide-out-left 0.3s ease-in forwards;
-        }
-        .animate-slide-in-right {
-          animation: slide-in-right 0.4s ease-out forwards, beckon-right 2s ease-in-out 0.4s infinite;
-        }
-        .animate-slide-out-right {
-          animation: slide-out-right 0.3s ease-in forwards;
-        }
-      `}</style>
 
       <SocialLinks className="projects-social-links" />
       </div>

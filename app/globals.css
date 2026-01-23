@@ -321,3 +321,50 @@ div[data-nextjs-toast] {
   animation: beckon-right 1.5s ease-in-out infinite;
 }
 
+/* Desktop project navigation slide animations */
+@keyframes slide-in-left {
+  0% { transform: translateY(-50%) translateX(-100px); opacity: 0; }
+  100% { transform: translateY(-50%) translateX(0); opacity: 1; }
+}
+
+@keyframes slide-out-left {
+  0% { transform: translateY(-50%) translateX(0); opacity: 1; }
+  100% { transform: translateY(-50%) translateX(-100px); opacity: 0; }
+}
+
+@keyframes slide-in-right {
+  0% { transform: translateY(-50%) translateX(100px); opacity: 0; }
+  100% { transform: translateY(-50%) translateX(0); opacity: 1; }
+}
+
+@keyframes slide-out-right {
+  0% { transform: translateY(-50%) translateX(0); opacity: 1; }
+  100% { transform: translateY(-50%) translateX(100px); opacity: 0; }
+}
+
+@keyframes nav-beckon-left {
+  0%, 100% { transform: translateY(-50%) translateX(0); }
+  50% { transform: translateY(-50%) translateX(-12px); }
+}
+
+@keyframes nav-beckon-right {
+  0%, 100% { transform: translateY(-50%) translateX(0); }
+  50% { transform: translateY(-50%) translateX(12px); }
+}
+
+.animate-slide-in-left {
+  animation: slide-in-left 0.4s ease-out forwards, nav-beckon-left 2s ease-in-out 0.4s infinite;
+}
+
+.animate-slide-out-left {
+  animation: slide-out-left 0.3s ease-in forwards;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.4s ease-out forwards, nav-beckon-right 2s ease-in-out 0.4s infinite;
+}
+
+.animate-slide-out-right {
+  animation: slide-out-right 0.3s ease-in forwards;
+}
+
