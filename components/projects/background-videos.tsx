@@ -23,7 +23,7 @@ export default function BackgroundVideos({ visible, isExpanded = false }: Backgr
   }, [visible])
 
   const visibilityClass = visible ? '' : 'invisible'
-  const mangaManZIndex = isExpanded ? 'z-[36]' : 'z-[39]'
+  const mangaManZIndex = isExpanded ? 'z-[36]' : 'z-[56]'
 
   return (
     <>
@@ -50,7 +50,7 @@ export default function BackgroundVideos({ visible, isExpanded = false }: Backgr
         className={`fixed inset-0 w-full h-screen ${MOBILE_CONTAINER_CLASSES} ${isLowPerformance ? 'max-[600px]:mt-20' : 'max-[600px]:mt-5'} ${mangaManZIndex} pointer-events-none ${visible ? '' : 'invisible'}`}
         style={{
           transform: isExpanded ? 'translateY(-100%)' : 'translateY(0)',
-          transition: 'transform 1.2s cubic-bezier(0.4, 0, 0.2, 1)',
+          transition: 'transform 3s cubic-bezier(0.25, 0.1, 0.15, 1)',
         }}
       >
         {isLowPerformance ? (
