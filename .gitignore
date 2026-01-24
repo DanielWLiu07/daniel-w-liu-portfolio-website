@@ -44,5 +44,6 @@ next-env.d.ts
 # animation frames (large assets)
 /animation_frames
 
-# optimization documentation
-OPTIMIZATION_GUIDE.md
+# documentation (except README)
+*.md
+!README.md
