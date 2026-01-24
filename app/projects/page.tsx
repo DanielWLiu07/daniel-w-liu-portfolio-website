@@ -181,6 +181,8 @@ export default function ProjectsPage() {
         onPauseChange={setIsPaused}
         visible={introFinished}
         expandedProject={expandedProject}
+        onPrevProject={goToPrevProject}
+        onNextProject={goToNextProject}
       />
 
 
@@ -196,35 +198,6 @@ export default function ProjectsPage() {
           expansionStage="expanded"
         />
       )}
-
-      <button
-        onClick={goToPrevProject}
-        className={`hidden md:flex fixed left-8 top-1/2 -translate-y-1/2 z-50
-          text-[160px] leading-none text-white font-black
-          items-center justify-center
-          [text-shadow:_0_0_15px_rgba(255,255,255,1),_0_0_30px_rgba(255,255,255,0.8),_0_0_50px_rgba(255,255,255,0.6),_0_0_80px_rgba(255,255,255,0.4)]
-          hover:scale-110 hover:[text-shadow:_0_0_20px_rgba(255,255,255,1),_0_0_40px_rgba(255,255,255,1),_0_0_70px_rgba(255,255,255,0.8),_0_0_100px_rgba(255,255,255,0.6)]
-          active:scale-95
-          transition-all duration-200 ease-out
-          ${expandedProject !== null ? 'animate-slide-in-left' : 'animate-slide-out-left pointer-events-none'}`}
-        aria-label="Previous project"
-      >
-        ☜
-      </button>
-      <button
-        onClick={goToNextProject}
-        className={`hidden md:flex fixed right-8 top-1/2 -translate-y-1/2 z-50
-          text-[160px] leading-none text-white font-black
-          items-center justify-center
-          [text-shadow:_0_0_15px_rgba(255,255,255,1),_0_0_30px_rgba(255,255,255,0.8),_0_0_50px_rgba(255,255,255,0.6),_0_0_80px_rgba(255,255,255,0.4)]
-          hover:scale-110 hover:[text-shadow:_0_0_20px_rgba(255,255,255,1),_0_0_40px_rgba(255,255,255,1),_0_0_70px_rgba(255,255,255,0.8),_0_0_100px_rgba(255,255,255,0.6)]
-          active:scale-95
-          transition-all duration-200 ease-out
-          ${expandedProject !== null ? 'animate-slide-in-right' : 'animate-slide-out-right pointer-events-none'}`}
-        aria-label="Next project"
-      >
-        ☞
-      </button>
 
       <SocialLinks className="projects-social-links" />
       </div>

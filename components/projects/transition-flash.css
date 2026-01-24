@@ -21,32 +21,40 @@
     background-size: 500% 500%;
     background-position: 60% 40%;
   }
-  10% {
+  15% {
     background-size: 300% 300%;
     background-position: 40% 55%;
   }
-  20% {
+  30% {
     background-size: 180% 180%;
     background-position: 55% 48%;
   }
-  30% {
+  45% {
     background-size: 130% 130%;
     background-position: 48% 52%;
   }
-  40% {
+  60% {
     background-size: 108% 108%;
     background-position: 50% 50%;
   }
-  48%, 60% {
-    background-size: 100% 100%;
+  75% {
+    background-size: 98% 98%;
     background-position: 50% 50%;
   }
-  65% {
-    background-size: 105% 105%;
+  82% {
+    background-size: 108% 108%;
     background-position: 50% 51%;
   }
+  88% {
+    background-size: 120% 120%;
+    background-position: 50% 50%;
+  }
+  94% {
+    background-size: 133% 133%;
+    background-position: 50% 49%;
+  }
   100% {
-    background-size: 140% 140%;
+    background-size: 148% 148%;
     background-position: 50% 50%;
   }
 }

@@ -368,3 +368,12 @@ div[data-nextjs-toast] {
   animation: slide-out-right 0.3s ease-in forwards;
 }
 
+@keyframes bob-up-down {
+  0%, 100% { transform: translateZ(5px) translateY(0); }
+  50% { transform: translateZ(5px) translateY(-6px); }
+}
+
+.animate-bob {
+  animation: bob-up-down 2s ease-in-out infinite;
+}
+
