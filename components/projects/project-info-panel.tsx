@@ -151,17 +151,17 @@ export function ProjectInfoPanel({ project, onClose, onPrevProject, onNextProjec
       currentRotationRef.current.y += (targetRotY - currentRotationRef.current.y) * 0.25
       currentRotationRef.current.x += (targetRotX - currentRotationRef.current.x) * 0.25
 
-      // Perfect percentage layout using shared config
       const isMobile = window.innerWidth < MD_BREAKPOINT
-      const rightCardPercent = isMobile ? MOBILE_LAYOUT.RIGHT_CARD_WIDTH : DESKTOP_LAYOUT.RIGHT_CARD
-      const targetRightCardPixels = window.innerWidth * rightCardPercent
 
-      // Scale needed to fit right card to target percentage
-      const responsiveScale = clamp(
-        targetRightCardPixels / BASE_RIGHT_CARD_WIDTH,
-        SCALE_LIMITS.MIN,
-        SCALE_LIMITS.MAX
-      )
+      let responsiveScale = 1
+      if (isMobile) {
+        const targetRightCardPixels = window.innerWidth * MOBILE_LAYOUT.RIGHT_CARD_WIDTH
+        responsiveScale = clamp(
+          targetRightCardPixels / BASE_RIGHT_CARD_WIDTH,
+          SCALE_LIMITS.MIN,
+          SCALE_LIMITS.MAX
+        )
+      }
 
       setTransform({
         rotateX: currentRotationRef.current.x,
@@ -271,57 +271,64 @@ export function ProjectInfoPanel({ project, onClose, onPrevProject, onNextProjec
     </div>
   )
 
-  // Mobile: centered horizontally, positioned closer to left card; Desktop: at 60vw
-  const leftPosition = transform.isMobile ? '50%' : `${DESKTOP_LAYOUT.RIGHT_CARD_LEFT * 100}vw`
-
-  // Calculate info panel position using layout constants
-  // See MOBILE_LAYOUT in layout-config.ts for visual diagram
   const vh = transform.viewportHeight
   const cardTopPx = vh * MOBILE_LAYOUT.TOP_MARGIN
   const cardHeightPx = vh * MOBILE_LAYOUT.CARD_HEIGHT_RATIO * transform.scale
   const cardBottomPx = cardTopPx + cardHeightPx
   const dotsBottomPx = cardBottomPx + (cardHeightPx * MOBILE_LAYOUT.DOTS_OFFSET_RATIO)
   const infoPanelTopPx = dotsBottomPx + MOBILE_LAYOUT.CARDS_GAP
+
   const topPosition = transform.isMobile ? `${infoPanelTopPx}px` : '50%'
-  const originX = transform.isMobile ? 'center' : 'left'
-  const originY = transform.isMobile ? 'top' : 'center' // top origin keeps gap consistent when scaling
   const positionClass = transform.isMobile ? 'absolute' : 'fixed'
-  // On mobile, compensate for scale so final visual width is 85vw
   const mobileWidth = transform.isMobile ? `${85 / transform.scale}vw` : undefined
+
+  const vw = typeof window !== 'undefined' ? window.innerWidth : 1200
+  const leftCardWidthPx = vw * DESKTOP_LAYOUT.LEFT_CARD_WIDTH
+  const rightCardWidthPx = BASE_RIGHT_CARD_WIDTH
+  const middleGapPx = DESKTOP_LAYOUT.MIDDLE_GAP_PX
+  const totalContentWidth = leftCardWidthPx + middleGapPx + rightCardWidthPx
+  const rightGapPx = Math.max(0, (vw - totalContentWidth) / 2)
+
+  const positionStyle = transform.isMobile
+    ? { left: '50%', right: 'auto' }
+    : { left: 'auto', right: `${rightGapPx}px` }
 
   return (
     <div
-      className={`${positionClass} md:w-[90%] md:max-w-md z-50 pointer-events-auto`}
+      className={`${positionClass} md:w-[90%] md:max-w-md z-[60] pointer-events-none`}
       style={{
         width: mobileWidth,
-        left: leftPosition,
+        ...positionStyle,
         top: topPosition,
         transform: `translateX(${transform.isMobile ? '-50%' : '0'}) translateY(${transform.isMobile ? '0' : translateYStyle}) scale(${transform.scale})`,
         opacity,
         transition,
         perspective: '1000px',
-        transformOrigin: `${originX} ${originY}`
+        transformOrigin: `${transform.isMobile ? 'center' : 'right'} ${transform.isMobile ? 'top' : 'center'}`
       }}
     >
       <div
         ref={cardRef}
+        className="pointer-events-none"
         style={{
           transform: `translateX(${transform.translateX}px) translateY(${transform.translateY}px) rotateX(${totalRotateX}deg) rotateY(${totalRotateY}deg)`,
           transformOrigin: 'center center',
           transformStyle: 'preserve-3d',
         }}
       >
-        {transform.isMobile && onPrevProject && onNextProject && (
+        {onPrevProject && onNextProject && (
           <div
-            className="flex items-center justify-center gap-1 mb-0"
+            className="flex items-center justify-center gap-1 mb-0 pointer-events-none relative z-[-1]"
             style={{
               transformStyle: 'preserve-3d',
-              fontSize: `${Math.max(2.5, transform.scale * 3)}rem`,
+              fontSize: transform.isMobile
+                ? `${Math.max(2.5, transform.scale * 3)}rem`
+                : '3rem',
             }}
           >
             <button
               onClick={onPrevProject}
-              className="text-white transition-transform duration-200 hover:scale-110 active:scale-95 animate-beckon-left"
+              className="text-white transition-transform duration-200 hover:scale-110 active:scale-95 animate-beckon-left pointer-events-auto"
               style={{
                 fontSize: '1.8em',
                 transform: 'translateZ(10px)',
@@ -332,9 +339,9 @@ export function ProjectInfoPanel({ project, onClose, onPrevProject, onNextProjec
               ☜
             </button>
             <span
-              className="text-white tracking-widest px-2"
+              className="text-white tracking-widest px-2 animate-bob pointer-events-none"
               style={{
-                fontSize: '0.75em',
+                fontSize: '1em',
                 fontFamily: 'ArcadeClassic, monospace',
                 textShadow: '0 0 12px rgba(255,255,255,0.8), 0 0 25px rgba(255,255,255,0.5)',
                 letterSpacing: '0.12em',
@@ -345,7 +352,7 @@ export function ProjectInfoPanel({ project, onClose, onPrevProject, onNextProjec
             </span>
             <button
               onClick={onNextProject}
-              className="text-white transition-transform duration-200 hover:scale-110 active:scale-95 animate-beckon-right"
+              className="text-white transition-transform duration-200 hover:scale-110 active:scale-95 animate-beckon-right pointer-events-auto"
               style={{
                 fontSize: '1.8em',
                 transform: 'translateZ(10px)',
@@ -359,7 +366,7 @@ export function ProjectInfoPanel({ project, onClose, onPrevProject, onNextProjec
         )}
 
         <div
-          className="relative rounded-2xl shadow-2xl overflow-hidden -mt-8"
+          className="relative rounded-2xl shadow-2xl overflow-hidden -mt-8 pointer-events-auto"
           style={{ minHeight: '620px' }}
         >
           <Image
