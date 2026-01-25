@@ -17,12 +17,9 @@ export default function BackgroundVideos({ visible, isExpanded = false }: Backgr
   const { isLowPerformance } = usePerformanceMode()
   const prevExpandedRef = useRef(isExpanded)
 
-  // Calculate transition duration synchronously (not in useEffect to avoid delay)
-  // Slow when expanding (going away), fast when collapsing (coming back)
   const isCollapsing = !isExpanded && prevExpandedRef.current
-  const transitionDuration = isCollapsing ? '0.8s' : '3s'
+  const transitionDuration = isCollapsing ? 'duration-[800ms]' : 'duration-[3000ms]'
 
-  // Update ref after calculating (for next render)
   useEffect(() => {
     prevExpandedRef.current = isExpanded
   }, [isExpanded])
@@ -33,12 +30,9 @@ export default function BackgroundVideos({ visible, isExpanded = false }: Backgr
     manVideoRef.current?.play()
   }, [visible])
 
-  const visibilityClass = visible ? '' : 'invisible'
-  const mangaManZIndex = isExpanded ? 'z-[36]' : 'z-[56]'
-
   return (
     <>
-      <div className={`fixed inset-0 w-full h-screen z-0 ${visibilityClass}`}>
+      <div className={`fixed inset-0 w-full h-screen z-0 ${visible ? '' : 'invisible'}`}>
         <Image src="/projects/images/starry.png" alt="" className="object-cover" fill priority />
         {isLowPerformance ? (
           <Image src="/animation_frames/manga/manga_bg/0400.png" alt="" fill className="absolute inset-0 w-full h-full object-cover" />
@@ -58,11 +52,7 @@ export default function BackgroundVideos({ visible, isExpanded = false }: Backgr
       </div>
 
       <div
-        className={`fixed inset-0 w-full h-screen ${MOBILE_CONTAINER_CLASSES} ${isLowPerformance ? 'max-[600px]:mt-20' : 'max-[600px]:mt-5'} ${mangaManZIndex} pointer-events-none ${visible ? '' : 'invisible'}`}
-        style={{
-          transform: isExpanded ? 'translateY(-100%)' : 'translateY(0)',
-          transition: `transform ${transitionDuration} cubic-bezier(0.25, 0.1, 0.15, 1)`,
-        }}
+        className={`fixed inset-0 w-full h-screen ${MOBILE_CONTAINER_CLASSES} ${isLowPerformance ? 'max-[600px]:mt-20' : 'max-[600px]:mt-5'} ${isExpanded ? 'z-[36]' : 'z-[56]'} pointer-events-none ${visible ? '' : 'invisible'} transition-transform ease-[cubic-bezier(0.25,0.1,0.15,1)] ${transitionDuration} ${isExpanded ? '-translate-y-full' : 'translate-y-0'}`}
       >
         {isLowPerformance ? (
           <Image src="/animation_frames/manga/manga_man/0200.png" alt="" fill className="absolute inset-0 w-full h-full object-cover max-[600px]:object-contain" />
