@@ -7,6 +7,7 @@ export interface Project {
   thumbnail: string;
   images: string[];
   technologies: string[];
+  titleGradient: string;
   link?: string;
   github?: string;
 }
@@ -26,6 +27,7 @@ export const projects: Project[] = [
       "/projects/projects/rainbolt.ai/gallery (2).jpg",
     ],
     technologies: ["Next.js", "FastAPI", "Gemini", "Pinecone", "LangChain", "CLIP"],
+    titleGradient: "from-[#00d4ff] via-[#00b4d8] to-[#2ecc71]",
     link: "https://rainbolt.ai",
   },
   {
@@ -43,6 +45,7 @@ export const projects: Project[] = [
       "/projects/projects/curve_guard/web_setting_weekly.png",
     ],
     technologies: ["Next.js", "TensorFlow.js", "MediaPipe", "TypeScript"],
+    titleGradient: "from-[#2ecc71] via-[#27ae60] to-[#1a5c32]",
     link: "https://curveguard.app",
   },
   {
@@ -59,6 +62,7 @@ export const projects: Project[] = [
       "/projects/projects/vibetrade/gallery (3).jpg",
     ],
     technologies: ["React", "Node.js", "WebSocket", "OpenAI API"],
+    titleGradient: "from-[#ff6b9d] via-[#c44cd9] to-[#7b2cbf]",
     link: "https://vibetrade.app",
   },
 ];

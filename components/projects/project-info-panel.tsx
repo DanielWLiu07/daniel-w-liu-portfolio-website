@@ -23,6 +23,7 @@ interface ProjectInfoPanelProps {
     image: string
     images: string[]
     technologies: string[]
+    titleGradient: string
     link?: string
     github?: string
   }
@@ -213,7 +214,7 @@ export function ProjectInfoPanel({ project, onClose, onPrevProject, onNextProjec
       </button>
 
       <h2
-        className={`text-4xl mb-4 pr-8 bg-gradient-to-br from-[#ff6b6b] via-[#feca57] via-[#48dbfb] via-[#ff9ff3] to-[#54a0ff] bg-clip-text text-transparent ${fastBlazeFont.className}`}
+        className={`text-4xl mb-4 pr-8 bg-gradient-to-br ${project.titleGradient} bg-clip-text text-transparent ${fastBlazeFont.className}`}
         style={{
           WebkitTextStroke: '1.5px #1a1a1a',
           paintOrder: 'stroke fill'
