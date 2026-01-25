@@ -4,6 +4,7 @@ export interface Project {
   description: string;
   detailedDescription: string;
   image: string;
+  thumbnail: string;
   images: string[];
   technologies: string[];
   link?: string;
@@ -13,89 +14,53 @@ export interface Project {
 export const projects: Project[] = [
   {
     id: 1,
-    title: "Project One",
-    description: "A brief description of your first project",
-    detailedDescription: "A detailed description of your first project. Add details about what you built, the impact it had, the challenges you faced, and what you learned. You can add multiple paragraphs here to provide comprehensive information about your project.",
+    title: "Rainbolt AI",
+    description: "AI-powered geolocation from images",
+    detailedDescription: "An AI application that analyzes images to predict their real-world locations, inspired by GeoGuessr. Features a stunning 3D globe visualization, detailed AI analysis of visual cues like architecture, vegetation, and landmarks, and accuracy scoring. The AI examines features like Mayan pyramids, landscape characteristics, and environmental details to pinpoint locations worldwide.",
     image: "/projects/images/frame1.png",
+    thumbnail: "/projects/thumbnails/rainbolt.webm",
     images: [
-      "/projects/images/project1/slide1.png",
-      "/projects/images/project1/slide2.png",
-      "/projects/images/project1/slide3.png",
-      "/projects/images/project1/slide4.png",
-      "/projects/images/project1/slide5.png",
+      "/projects/projects/rainbolt.ai/Screenshot 2026-01-24 at 1.25.13 PM.png",
+      "/projects/projects/rainbolt.ai/gallery.jpg",
+      "/projects/projects/rainbolt.ai/gallery (1).jpg",
+      "/projects/projects/rainbolt.ai/gallery (2).jpg",
     ],
-    technologies: ["React", "Next.js", "TypeScript"],
-    link: "https://example.com",
-    github: "https://github.com/yourusername/project1"
+    technologies: ["React", "Three.js", "OpenAI API", "TypeScript"],
+    link: "https://rainbolt.ai",
   },
   {
     id: 2,
-    title: "Project Two",
-    description: "A brief description of your second project",
-    detailedDescription: "A detailed description of your second project. Highlight key features and technologies used. Explain the problem it solves and the value it provides to users. Include metrics or results if available.",
+    title: "Curve Guard",
+    description: "AI-powered posture correction",
+    detailedDescription: "Fix your goblin posture with real-time AI monitoring. Curve Guard uses your webcam and machine learning to detect head tilt, shoulder alignment, and slouching. Get instant audio and visual alerts when your posture needs correction, with customizable sensitivity settings and weekly progress tracking.",
     image: "/projects/images/frame2.png",
+    thumbnail: "/projects/thumbnails/curveguard.webm",
     images: [
-      "/projects/images/project2/slide1.png",
-      "/projects/images/project2/slide2.png",
-      "/projects/images/project2/slide3.png",
-      "/projects/images/project2/slide4.png",
-      "/projects/images/project2/slide5.png",
+      "/projects/projects/curve_guard/web_landing.png",
+      "/projects/projects/curve_guard/web_features.png",
+      "/projects/projects/curve_guard/web_alerts.png",
+      "/projects/projects/curve_guard/web_info.png",
+      "/projects/projects/curve_guard/web_setting_weekly.png",
     ],
-    technologies: ["Node.js", "Express", "MongoDB"],
-    link: "https://example.com",
-    github: "https://github.com/yourusername/project2"
+    technologies: ["Next.js", "TensorFlow.js", "MediaPipe", "TypeScript"],
+    link: "https://curveguard.app",
   },
   {
     id: 3,
-    title: "Project Three",
-    description: "A brief description of your third project",
-    detailedDescription: "A detailed description of your third project. Explain the problem it solves, your approach to solving it, and the technologies you chose. Discuss any interesting technical challenges you overcame.",
+    title: "VibeTrade",
+    description: "Social crypto trading platform",
+    detailedDescription: "A cryptocurrency trading platform with live candlestick charts, trade history tracking, and social sentiment analysis. Features prediction markets for crypto events, real-time price updates, and an AI chat assistant to help guide your trading decisions. Combines technical analysis with community-driven insights.",
     image: "/projects/images/frame1.png",
+    thumbnail: "/projects/thumbnails/vibetrade.webm",
     images: [
-      "/projects/images/project3/slide1.png",
-      "/projects/images/project3/slide2.png",
-      "/projects/images/project3/slide3.png",
-      "/projects/images/project3/slide4.png",
-      "/projects/images/project3/slide5.png",
+      "/projects/projects/vibetrade/gallery.jpg",
+      "/projects/projects/vibetrade/gallery (1).jpg",
+      "/projects/projects/vibetrade/gallery (2).jpg",
+      "/projects/projects/vibetrade/gallery (3).jpg",
     ],
-    technologies: ["Python", "Django", "PostgreSQL"],
-    link: "https://example.com",
-    github: "https://github.com/yourusername/project3"
+    technologies: ["React", "Node.js", "WebSocket", "OpenAI API"],
+    link: "https://vibetrade.app",
   },
-  {
-    id: 4,
-    title: "Project Four",
-    description: "A brief description of your fourth project",
-    detailedDescription: "A detailed description of your fourth project. Share what you learned while building it, the design decisions you made, and how you iterated on the solution. Include any feedback or results you received.",
-    image: "/projects/images/frame2.png",
-    images: [
-      "/projects/images/project4/slide1.png",
-      "/projects/images/project4/slide2.png",
-      "/projects/images/project4/slide3.png",
-      "/projects/images/project4/slide4.png",
-      "/projects/images/project4/slide5.png",
-    ],
-    technologies: ["Vue.js", "Firebase", "TailwindCSS"],
-    link: "https://example.com",
-    github: "https://github.com/yourusername/project4"
-  },
-  {
-    id: 5,
-    title: "Project Five",
-    description: "A brief description of your fifth project",
-    detailedDescription: "A detailed description of your fifth project. Mention any awards or recognition, the team size if collaborative, your specific contributions, and the overall impact of the project.",
-    image: "/projects/images/frame1.png",
-    images: [
-      "/projects/images/project5/slide1.png",
-      "/projects/images/project5/slide2.png",
-      "/projects/images/project5/slide3.png",
-      "/projects/images/project5/slide4.png",
-      "/projects/images/project5/slide5.png",
-    ],
-    technologies: ["React Native", "AWS", "GraphQL"],
-    link: "https://example.com",
-    github: "https://github.com/yourusername/project5"
-  }
 ];
 
 export const sceneOptions = {

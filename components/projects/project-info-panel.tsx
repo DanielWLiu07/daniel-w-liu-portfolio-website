@@ -102,7 +102,6 @@ export function ProjectInfoPanel({ project, onClose, onPrevProject, onNextProjec
       }
     }
 
-    // Touch support for 3D card rotation - mirrors mouse behavior
     const handleTouchMove = (e: TouchEvent) => {
       if (e.touches.length === 1) {
         const touch = e.touches[0]
@@ -128,7 +127,6 @@ export function ProjectInfoPanel({ project, onClose, onPrevProject, onNextProjec
       smoothMouseRef.current.x += (mouseRef.current.x - smoothMouseRef.current.x) * 0.05
       smoothMouseRef.current.y += (mouseRef.current.y - smoothMouseRef.current.y) * 0.05
 
-      // Varied floating animation - different pattern from left card
       const floatOffset = getFloatOffset(timeRef.current, 'right')
       const floatX = floatOffset.x
       const floatY = floatOffset.y
@@ -190,8 +188,8 @@ export function ProjectInfoPanel({ project, onClose, onPrevProject, onNextProjec
   const isFlyingOut = panelState === 'flying-out'
   const isVisible = panelState === 'visible'
 
-  // Mobile: position in lower portion, Desktop: centered vertically
-  const baseTranslateY = transform.isMobile ? '0%' : '-50%'
+  const handButtonsOffset = 25
+  const baseTranslateY = transform.isMobile ? '0%' : `calc(-50% - ${handButtonsOffset}px)`
   const translateYStyle = (isFlyingIn || isVisible) ? baseTranslateY : '-150vh'
   const opacity = (isFlyingIn || isVisible) ? 1 : 0
   const transition = (isFlyingOut || isFlyingIn)
@@ -201,7 +199,7 @@ export function ProjectInfoPanel({ project, onClose, onPrevProject, onNextProjec
   const totalRotateY = transform.rotateY
 
   const cardContent = (
-    <div className="p-10 h-full flex flex-col" style={{ minHeight: '620px' }}>
+    <div className="p-10 h-full flex flex-col min-h-[620px]">
       <button
         onClick={(e) => {
           e.stopPropagation()
@@ -215,12 +213,8 @@ export function ProjectInfoPanel({ project, onClose, onPrevProject, onNextProjec
       </button>
 
       <h2
-        className={`text-4xl mb-4 pr-8 ${fastBlazeFont.className}`}
+        className={`text-4xl mb-4 pr-8 bg-gradient-to-br from-[#ff6b6b] via-[#feca57] via-[#48dbfb] via-[#ff9ff3] to-[#54a0ff] bg-clip-text text-transparent ${fastBlazeFont.className}`}
         style={{
-          background: 'linear-gradient(135deg, #ff6b6b, #feca57, #48dbfb, #ff9ff3, #54a0ff)',
-          WebkitBackgroundClip: 'text',
-          backgroundClip: 'text',
-          color: 'transparent',
           WebkitTextStroke: '1.5px #1a1a1a',
           paintOrder: 'stroke fill'
         }}
@@ -287,7 +281,7 @@ export function ProjectInfoPanel({ project, onClose, onPrevProject, onNextProjec
   const rightCardWidthPx = BASE_RIGHT_CARD_WIDTH
   const middleGapPx = DESKTOP_LAYOUT.MIDDLE_GAP_PX
   const totalContentWidth = leftCardWidthPx + middleGapPx + rightCardWidthPx
-  const rightGapPx = Math.max(0, (vw - totalContentWidth) / 2)
+  const rightGapPx = Math.max(0, (vw - totalContentWidth) / 2 - 30)
 
   const positionStyle = transform.isMobile
     ? { left: '50%', right: 'auto' }
@@ -309,66 +303,45 @@ export function ProjectInfoPanel({ project, onClose, onPrevProject, onNextProjec
     >
       <div
         ref={cardRef}
-        className="pointer-events-none"
+        className="pointer-events-none [transform-style:preserve-3d]"
         style={{
           transform: `translateX(${transform.translateX}px) translateY(${transform.translateY}px) rotateX(${totalRotateX}deg) rotateY(${totalRotateY}deg)`,
           transformOrigin: 'center center',
-          transformStyle: 'preserve-3d',
         }}
       >
         {onPrevProject && onNextProject && (
           <div
-            className="flex items-center justify-center gap-1 mb-0 pointer-events-none relative z-[-1]"
+            className="flex items-center justify-center gap-1 mb-0 pointer-events-none relative -z-[1] [transform-style:preserve-3d]"
             style={{
-              transformStyle: 'preserve-3d',
               fontSize: transform.isMobile
                 ? `${Math.max(2.5, transform.scale * 3)}rem`
                 : '3rem',
             }}
           >
             <button
-              onClick={onPrevProject}
-              className="text-white transition-transform duration-200 hover:scale-110 active:scale-95 animate-beckon-left pointer-events-auto"
-              style={{
-                fontSize: '1.8em',
-                transform: 'translateZ(10px)',
-                textShadow: '0 0 15px rgba(255,255,255,1), 0 0 30px rgba(255,255,255,0.8), 0 0 50px rgba(255,255,255,0.5)',
-              }}
-              aria-label="Previous project"
+              onClick={onNextProject}
+              className="text-white transition-transform duration-200 hover:scale-110 active:scale-95 animate-beckon-left pointer-events-auto text-[1.8em] [transform:translateZ(10px)] [text-shadow:0_0_15px_rgba(255,255,255,1),0_0_30px_rgba(255,255,255,0.8),0_0_50px_rgba(255,255,255,0.5)]"
+              aria-label="Next project"
             >
               ☜
             </button>
             <span
-              className="text-white tracking-widest px-2 animate-bob pointer-events-none"
-              style={{
-                fontSize: '1em',
-                fontFamily: 'ArcadeClassic, monospace',
-                textShadow: '0 0 12px rgba(255,255,255,0.8), 0 0 25px rgba(255,255,255,0.5)',
-                letterSpacing: '0.12em',
-                transform: 'translateZ(5px)',
-              }}
+              className="text-white tracking-widest px-2 animate-bob pointer-events-none text-[1em] [text-shadow:0_0_12px_rgba(255,255,255,0.8),0_0_25px_rgba(255,255,255,0.5)] tracking-[0.12em] [transform:translateZ(5px)]"
+              style={{ fontFamily: 'ArcadeClassic, monospace' }}
             >
               Projects
             </span>
             <button
-              onClick={onNextProject}
-              className="text-white transition-transform duration-200 hover:scale-110 active:scale-95 animate-beckon-right pointer-events-auto"
-              style={{
-                fontSize: '1.8em',
-                transform: 'translateZ(10px)',
-                textShadow: '0 0 15px rgba(255,255,255,1), 0 0 30px rgba(255,255,255,0.8), 0 0 50px rgba(255,255,255,0.5)',
-              }}
-              aria-label="Next project"
+              onClick={onPrevProject}
+              className="text-white transition-transform duration-200 hover:scale-110 active:scale-95 animate-beckon-right pointer-events-auto text-[1.8em] [transform:translateZ(10px)] [text-shadow:0_0_15px_rgba(255,255,255,1),0_0_30px_rgba(255,255,255,0.8),0_0_50px_rgba(255,255,255,0.5)]"
+              aria-label="Previous project"
             >
               ☞
             </button>
           </div>
         )}
 
-        <div
-          className="relative rounded-2xl shadow-2xl overflow-hidden -mt-8 pointer-events-auto"
-          style={{ minHeight: '620px' }}
-        >
+        <div className="relative rounded-2xl shadow-2xl overflow-hidden -mt-8 pointer-events-auto min-h-[620px]">
           <Image
             src="/about/images/bg.png"
             alt=""

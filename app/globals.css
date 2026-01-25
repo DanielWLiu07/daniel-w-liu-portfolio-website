@@ -76,6 +76,19 @@
   .loading-dot-3 {
     animation: loading-dots 1.4s ease-in-out 0.4s infinite;
   }
+
+  @keyframes glow-pulse {
+    0%, 100% {
+      filter: brightness(0.8);
+    }
+    50% {
+      filter: brightness(1.3);
+    }
+  }
+
+  .animate-glow-pulse {
+    animation: glow-pulse 3s ease-in-out infinite;
+  }
 }
 
 @theme inline {
@@ -314,11 +327,11 @@ div[data-nextjs-toast] {
 }
 
 .animate-beckon-left {
-  animation: beckon-left 1.5s ease-in-out infinite;
+  animation: beckon-left 1.5s ease-in-out infinite, glow-pulse 3s ease-in-out infinite;
 }
 
 .animate-beckon-right {
-  animation: beckon-right 1.5s ease-in-out infinite;
+  animation: beckon-right 1.5s ease-in-out infinite, glow-pulse 3s ease-in-out infinite;
 }
 
 /* Desktop project navigation slide animations */

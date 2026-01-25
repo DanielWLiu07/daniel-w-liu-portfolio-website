@@ -22,26 +22,38 @@ export async function createArrowTexture(
   canvas.height = 128
   const ctx = canvas.getContext('2d')!
 
-  try {
-    const font = new FontFace('MochiBold', 'url(/fonts/MochibopBold-Demo.ttf)')
-    await font.load()
-    document.fonts.add(font)
-  } catch {
-    // Font load failed, use fallback
-  }
-
   ctx.clearRect(0, 0, 128, 128)
   ctx.fillStyle = 'white'
-  ctx.font = '80px MochiBold, Arial'
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
+  ctx.strokeStyle = 'white'
+  ctx.lineWidth = 8
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
 
-  let symbol: string
-  if (direction === 'left') symbol = '<'
-  else if (direction === 'right') symbol = '>'
-  else symbol = '<' // up/down use rotation
+  // Draw a perfectly centered chevron arrow using paths
+  const cx = 64
+  const cy = 64
+  const size = 30
 
-  ctx.fillText(symbol, 64, 64)
+  ctx.beginPath()
+  if (direction === 'left') {
+    ctx.moveTo(cx + size * 0.5, cy - size)
+    ctx.lineTo(cx - size * 0.5, cy)
+    ctx.lineTo(cx + size * 0.5, cy + size)
+  } else if (direction === 'right') {
+    ctx.moveTo(cx - size * 0.5, cy - size)
+    ctx.lineTo(cx + size * 0.5, cy)
+    ctx.lineTo(cx - size * 0.5, cy + size)
+  } else if (direction === 'up') {
+    ctx.moveTo(cx - size, cy + size * 0.5)
+    ctx.lineTo(cx, cy - size * 0.5)
+    ctx.lineTo(cx + size, cy + size * 0.5)
+  } else {
+    // down
+    ctx.moveTo(cx - size, cy - size * 0.5)
+    ctx.lineTo(cx, cy + size * 0.5)
+    ctx.lineTo(cx + size, cy - size * 0.5)
+  }
+  ctx.stroke()
 
   const texture = new THREE.CanvasTexture(canvas)
   texture.needsUpdate = true
@@ -86,6 +98,7 @@ export function createDotMesh(
     transparent: true,
     opacity: 0,
     side: THREE.DoubleSide,
+    depthWrite: false, // Don't hide objects behind transparent areas
   })
 
   const dot = new THREE.Mesh(geometry, material)
@@ -107,6 +120,7 @@ export function createGlowMesh(
     transparent: true,
     opacity: 0,
     side: THREE.DoubleSide,
+    depthWrite: false, // Don't hide objects behind transparent areas
   })
 
   const glow = new THREE.Mesh(geometry, material)

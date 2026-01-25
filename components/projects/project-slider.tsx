@@ -16,6 +16,20 @@ import { getFloatOffset, getEasedMovementAmount, clamp, easeOutQuart } from '@/l
 
 export type ExpansionStage = 'none' | 'expanding' | 'expanded'
 
+type AnimPhase = 'idle' | 'expanding' | 'expanded' | 'collapsing'
+
+interface AnimStateData {
+  phase: AnimPhase
+  activePlane: THREE.Mesh | null
+  projectId: number | null
+  progress: number  // 0-1 for current animation
+  // Starting values for interpolation
+  startPos: THREE.Vector3 | null
+  startQuat: THREE.Quaternion | null
+  startScale: number
+  frozenSceneX: number
+}
+
 interface ProjectSliderProps {
   isPaused: boolean
   onProjectClick: (projectId: number | null) => void
@@ -44,11 +58,23 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
   const initializedRef = useRef(false)
   const [containerReady, setContainerReady] = useState(false)
 
+  // SINGLE SOURCE OF TRUTH for animation state
+  const animStateRef = useRef<AnimStateData>({
+    phase: 'idle',
+    activePlane: null,
+    projectId: null,
+    progress: 0,
+    startPos: null,
+    startQuat: null,
+    startScale: 1,
+    frozenSceneX: 0
+  })
+
+  // Keep these for compatibility but they derive from animStateRef
   const expandedPlaneRef = useRef<THREE.Mesh | null>(null)
   const expandedProjectRef = useRef<number | null>(null)
   const originalPositionRef = useRef<THREE.Vector3 | null>(null)
   const originalScaleRef = useRef<number>(1)
-  const animatingRef = useRef(false)
 
   const expansionStageRef = useRef<ExpansionStage>('none')
   const [expansionStage, setExpansionStage] = useState<ExpansionStage>('none')
@@ -68,6 +94,8 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
   const carouselOffsetRef = useRef<number>(0) // Current scroll offset
   const carouselTargetOffsetRef = useRef<number>(0) // Target scroll offset
   const imagePlanesRevealedRef = useRef<boolean>(false) // Whether image planes have animated in
+  const imagePlanesExitedRef = useRef<boolean>(false) // Whether image planes have finished exiting
+  const crossfadeProgressRef = useRef<number>(0) // 0 = thumbnail visible, 1 = selection images visible
 
 
   const onProjectClickRef = useRef(onProjectClick)
@@ -145,155 +173,77 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
   const prevExpandedProjectRef = useRef<number | null>(null)
   const flickerTimeRef = useRef(0)
 
+  // Helper to clean up dots and image planes from a plane
+  const cleanupPlaneAttachments = (plane: THREE.Mesh) => {
+    if (dotGroupRef.current) {
+      plane.remove(dotGroupRef.current)
+      dotGroupRef.current.children.forEach(child => {
+        if (child instanceof THREE.Mesh) {
+          child.geometry.dispose()
+          if (child.material instanceof THREE.Material) child.material.dispose()
+        }
+      })
+      dotGroupRef.current = null
+      arrowMeshesRef.current = { left: null, right: null }
+    }
+    if (imagePlanesGroupRef.current) {
+      plane.remove(imagePlanesGroupRef.current)
+      imagePlanesGroupRef.current.children.forEach(child => {
+        if (child instanceof THREE.Mesh) {
+          child.geometry.dispose()
+          if (child.material instanceof THREE.Material) child.material.dispose()
+        }
+      })
+      imagePlanesGroupRef.current = null
+    }
+    dotMeshesRef.current = []
+    imagePlanesRef.current = []
+    imagePlanesRevealedRef.current = false
+    crossfadeProgressRef.current = 0
+  }
+
   /* eslint-disable react-hooks/set-state-in-effect */
   useLayoutEffect(() => {
     const prevProject = prevExpandedProjectRef.current
     prevExpandedProjectRef.current = expandedProject
     expandedProjectRef.current = expandedProject
 
-    if (expandedProject === null && expandedPlaneRef.current) {
-      animatingRef.current = true
+    const anim = animStateRef.current
+
+    // CLOSE: Only handle when expandedProject becomes null AND we're in expanded phase
+    // Click handler handles everything else - we don't interfere
+    if (expandedProject === null && anim.phase === 'expanded' && anim.activePlane) {
+      // Start collapse animation
+      anim.phase = 'collapsing'
+      anim.progress = 0
+      anim.startPos = anim.activePlane.position.clone()
+      anim.startQuat = anim.activePlane.quaternion.clone()
+      anim.startScale = anim.activePlane.scale.x
+
       expansionStageRef.current = 'none'
       setExpansionStage('none')
+      imagePlanesExitedRef.current = false
 
-      dotMeshesRef.current.forEach(dot => {
-        dot.userData.targetOpacity = 0
-        const glowMesh = dot.userData.glowMesh as THREE.Mesh
-        if (glowMesh) {
-          glowMesh.userData.targetOpacity = 0
-        }
-      })
-
-      if (arrowMeshesRef.current.left) {
-        arrowMeshesRef.current.left.userData.targetOpacity = 0
-      }
-      if (arrowMeshesRef.current.right) {
-        arrowMeshesRef.current.right.userData.targetOpacity = 0
-      }
-
-      // Set exit animation targets for image planes
-      // Top cards (positive offset) fly up, bottom cards (negative offset) fly down
+      // Set exit targets for image planes
       imagePlanesRef.current.forEach(imgPlane => {
         const baseOffset = imgPlane.userData.baseOffset as number
         const isFirstFrame = imgPlane.userData.isFirstFrame as boolean
-        if (!isFirstFrame) {
-          const exitDistance = 2.0
-          // Cards above center fly further up, cards below fly further down
-          imgPlane.userData.exitTarget = baseOffset >= 0
-            ? baseOffset + exitDistance  // Above: fly up
-            : baseOffset - exitDistance  // Below: fly down
-          imgPlane.userData.isExiting = true
-        } else {
-          // First frame also exits but to center
-          imgPlane.userData.isExiting = true
-          imgPlane.userData.exitTarget = 0
-        }
+        const exitDistance = 2.0
+        imgPlane.userData.isExiting = true
+        imgPlane.userData.exitTarget = isFirstFrame ? 0 : (baseOffset >= 0 ? baseOffset + exitDistance : baseOffset - exitDistance)
       })
-
-      const plane = expandedPlaneRef.current
-      const dotGroup = dotGroupRef.current
-      const imagePlanesGroup = imagePlanesGroupRef.current
-      const dotsToClean = [...dotMeshesRef.current]
-      const imagePlanesToClean = [...imagePlanesRef.current]
-
-      if (plane) {
-        setTimeout(() => {
-          if (dotGroup) {
-            plane.remove(dotGroup)
-            dotGroup.children.forEach(child => {
-              if (child instanceof THREE.Mesh) {
-                child.geometry.dispose()
-                if (child.material instanceof THREE.Material) {
-                  child.material.dispose()
-                }
-              }
-            })
-            if (dotGroupRef.current === dotGroup) {
-              dotGroupRef.current = null
-              arrowMeshesRef.current = { left: null, right: null }
-            }
-          }
-          if (imagePlanesGroup) {
-            plane.remove(imagePlanesGroup)
-            imagePlanesGroup.children.forEach(child => {
-              if (child instanceof THREE.Mesh) {
-                child.geometry.dispose()
-                if (child.material instanceof THREE.Material) {
-                  child.material.dispose()
-                }
-              }
-            })
-            if (imagePlanesGroupRef.current === imagePlanesGroup) {
-              imagePlanesGroupRef.current = null
-            }
-          }
-          if (dotMeshesRef.current === dotsToClean || dotMeshesRef.current.length === 0) {
-            dotMeshesRef.current = []
-          }
-          if (imagePlanesRef.current === imagePlanesToClean || imagePlanesRef.current.length === 0) {
-            imagePlanesRef.current = []
-            imagePlanesRevealedRef.current = false
-          }
-        }, 600)
-      }
-    } else if (expandedProject !== null && prevProject !== null && expandedProject !== prevProject) {
+    }
+    // PROJECT SWITCH via navigation arrows (when already expanded)
+    // Don't change phase here - let the animation loop handle the transition
+    // The animation loop checks if currentPlaneProjectId !== expandedProjectRef.current
+    else if (expandedProject !== null && prevProject !== null && expandedProject !== prevProject && anim.phase === 'expanded') {
       flickerTimeRef.current = 0
-
-      dotMeshesRef.current.forEach(dot => {
-        const dotMat = dot.material as THREE.MeshBasicMaterial
-        dotMat.opacity = 0
-        const glowMesh = dot.userData.glowMesh as THREE.Mesh
-        if (glowMesh) {
-          const glowMat = glowMesh.material as THREE.MeshBasicMaterial
-          glowMat.opacity = 0
-        }
-      })
-
-      // Hide image planes
-      imagePlanesRef.current.forEach(imgPlane => {
-        const cardMaterial = imgPlane.userData.cardMaterial as THREE.ShaderMaterial
-        if (cardMaterial?.uniforms?.opacity) {
-          cardMaterial.uniforms.opacity.value = 0
-        }
-      })
-
-      const oldPlane = expandedPlaneRef.current
-      const oldDotGroup = dotGroupRef.current
-      const oldImagePlanesGroup = imagePlanesGroupRef.current
-
-      if (oldPlane) {
-        if (oldDotGroup) {
-          oldPlane.remove(oldDotGroup)
-          oldDotGroup.children.forEach(child => {
-            if (child instanceof THREE.Mesh) {
-              child.geometry.dispose()
-              if (child.material instanceof THREE.Material) {
-                child.material.dispose()
-              }
-            }
-          })
-        }
-        if (oldImagePlanesGroup) {
-          oldPlane.remove(oldImagePlanesGroup)
-          oldImagePlanesGroup.children.forEach(child => {
-            if (child instanceof THREE.Mesh) {
-              child.geometry.dispose()
-              if (child.material instanceof THREE.Material) {
-                child.material.dispose()
-              }
-            }
-          })
-        }
-      }
-      dotGroupRef.current = null
-      dotMeshesRef.current = []
-      imagePlanesGroupRef.current = null
-      imagePlanesRef.current = []
       carouselOffsetRef.current = 0
       carouselTargetOffsetRef.current = 0
-      imagePlanesRevealedRef.current = false
-      expansionStageRef.current = 'expanding'
-      setExpansionStage('expanding')
+      // Keep crossfade at 1 (selection images visible) when switching projects
+      crossfadeProgressRef.current = 1
+      imagePlanesRevealedRef.current = true
+      // Phase stays 'expanded' - animation loop will detect the project ID mismatch and handle the switch
     }
 
     setCurrentImageIndex(0)
@@ -417,7 +367,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
 
     const allProjects = []
     for (let i = 0; i < totalCards; i++) {
-      allProjects.push(projects[i % projects.length])
+      allProjects.push(projects[(projects.length - 1 - (i % projects.length))])
     }
 
     const planes: THREE.Mesh[] = []
@@ -427,10 +377,71 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       const textureLoader = new THREE.TextureLoader()
       const frameTexture = textureLoader.load(project.image)
       const contentTextures = project.images.map(imgPath => textureLoader.load(imgPath))
-      const initialContentTexture = contentTextures[0] || frameTexture
+
+      // Create video element for thumbnail (WebM for best performance)
+      // Ping-pong loop: plays forward, then reverse, seamlessly
+      const video = document.createElement('video')
+      video.src = project.thumbnail
+      video.loop = false // We handle looping manually for ping-pong
+      video.muted = true
+      video.playsInline = true
+      video.autoplay = true
+      video.crossOrigin = 'anonymous'
+
+      let playingForward = true
+      let reverseAnimationId: number | null = null
+
+      const playReverse = () => {
+        if (video.currentTime <= 0) {
+          // Reached start, play forward again
+          playingForward = true
+          video.play().catch(() => {})
+          return
+        }
+        // Step backward ~60fps
+        video.currentTime = Math.max(0, video.currentTime - 1/30)
+        reverseAnimationId = requestAnimationFrame(playReverse)
+      }
+
+      video.addEventListener('ended', () => {
+        if (playingForward) {
+          // Video finished forward, now play reverse
+          playingForward = false
+          video.pause()
+          playReverse()
+        }
+      })
+
+      video.play().catch(() => {
+        // Autoplay may be blocked, will play on user interaction
+      })
+
+      // Store reverse animation ID for cleanup
+      video.dataset.reverseAnimId = ''
+      const origPause = video.pause.bind(video)
+      video.pause = () => {
+        if (reverseAnimationId) {
+          cancelAnimationFrame(reverseAnimationId)
+          reverseAnimationId = null
+        }
+        origPause()
+      }
+
+      // Use video texture for thumbnail in main carousel
+      const thumbnailTexture = new THREE.VideoTexture(video)
+      thumbnailTexture.minFilter = THREE.LinearFilter
+      thumbnailTexture.magFilter = THREE.LinearFilter
 
       const geometry = createCardGeometry(sceneOptions.cardWidth, sceneOptions.cardHeight)
-      const material = createCardMaterial(frameTexture, initialContentTexture, sceneOptions.curve)
+      const cardAspectRatio = sceneOptions.cardWidth / sceneOptions.cardHeight
+      const material = createCardMaterial(frameTexture, thumbnailTexture, sceneOptions.curve, 1.0, cardAspectRatio, false)
+
+      // Update aspect ratio when video metadata loads
+      video.addEventListener('loadedmetadata', () => {
+        if (video.videoWidth && video.videoHeight) {
+          material.uniforms.contentAspectRatio.value = video.videoWidth / video.videoHeight
+        }
+      })
 
       const plane = new THREE.Mesh(geometry, material)
       plane.position.x = -(i - initialOffset) * cardWidth
@@ -444,9 +455,12 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         index: i,
         originalWorldX: 0,
         frameTexture,
+        thumbnailVideo: video,
+        thumbnailTexture,
         contentTextures,
         currentImageIndex: 0
       }
+
       scene.add(plane)
       planes.push(plane)
     })
@@ -461,23 +475,37 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       canvas.height = 128
       const ctx = canvas.getContext('2d')!
 
-      try {
-        const font = new FontFace('MochiBold', 'url(/fonts/MochibopBold-Demo.ttf)')
-        await font.load()
-        document.fonts.add(font)
-      } catch {}
-
       ctx.clearRect(0, 0, 128, 128)
       ctx.fillStyle = 'white'
-      ctx.font = '80px MochiBold, Arial'
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      let symbol: string
-      if (direction === 'left') symbol = '<'
-      else if (direction === 'right') symbol = '>'
-      else if (direction === 'up') symbol = '<'  // Rotated 90° via mesh rotation
-      else symbol = '<'  // Rotated -90° via mesh rotation
-      ctx.fillText(symbol, 64, 64)
+      ctx.strokeStyle = 'white'
+      ctx.lineWidth = 14
+      ctx.lineCap = 'round'
+      ctx.lineJoin = 'round'
+
+      const cx = 64
+      const cy = 64
+      const size = 30
+
+      ctx.beginPath()
+      if (direction === 'left') {
+        ctx.moveTo(cx + size * 0.5, cy - size)
+        ctx.lineTo(cx - size * 0.5, cy)
+        ctx.lineTo(cx + size * 0.5, cy + size)
+      } else if (direction === 'right') {
+        ctx.moveTo(cx - size * 0.5, cy - size)
+        ctx.lineTo(cx + size * 0.5, cy)
+        ctx.lineTo(cx - size * 0.5, cy + size)
+      } else if (direction === 'up') {
+        ctx.moveTo(cx - size, cy + size * 0.5)
+        ctx.lineTo(cx, cy - size * 0.5)
+        ctx.lineTo(cx + size, cy + size * 0.5)
+      } else {
+        ctx.moveTo(cx - size, cy - size * 0.5)
+        ctx.lineTo(cx, cy + size * 0.5)
+        ctx.lineTo(cx + size, cy - size * 0.5)
+      }
+      ctx.stroke()
+
       const texture = new THREE.CanvasTexture(canvas)
       texture.needsUpdate = true
       return texture
@@ -499,6 +527,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       }
 
       const dotGroup = new THREE.Group()
+      dotGroup.renderOrder = 10 // Render on top of cards
       dotGroupRef.current = dotGroup
       const dots: THREE.Mesh[] = []
 
@@ -516,7 +545,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       let startX: number, startY: number
       if (isVertical) {
         // Desktop: position to the right of the card, centered vertically
-        startX = cardHalfHeight + 0.02
+        startX = cardHalfHeight + 0.12
         startY = totalSpan / 2
       } else {
         // Mobile: position below the card, centered horizontally
@@ -534,9 +563,11 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         opacity: 0,
         side: THREE.DoubleSide,
         depthWrite: false,
+        depthTest: false,
         alphaTest: 0.1
       })
       const firstArrow = new THREE.Mesh(firstArrowGeometry, firstArrowMaterial)
+      firstArrow.renderOrder = 12
       if (isVertical) {
         firstArrow.position.x = startX
         firstArrow.position.y = startY + arrowOffset
@@ -545,9 +576,6 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         firstArrow.position.y = startY
       }
       firstArrow.position.z = 0.01
-      if (isVertical) {
-        firstArrow.rotation.z = -Math.PI / 2  // Rotate < to point down (this is the top arrow, goes to prev)
-      }
       firstArrow.userData.isArrow = true
       firstArrow.userData.direction = 'left' // 'left' means previous
       firstArrow.userData.targetOpacity = 0.5
@@ -562,9 +590,11 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         opacity: 0,
         side: THREE.DoubleSide,
         depthWrite: false,
+        depthTest: false,
         alphaTest: 0.1
       })
       const secondArrow = new THREE.Mesh(secondArrowGeometry, secondArrowMaterial)
+      secondArrow.renderOrder = 12
       if (isVertical) {
         secondArrow.position.x = startX
         secondArrow.position.y = startY - totalSpan - arrowOffset
@@ -573,9 +603,6 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         secondArrow.position.y = startY
       }
       secondArrow.position.z = 0.01
-      if (isVertical) {
-        secondArrow.rotation.z = Math.PI / 2  // Rotate < to point up (this is the bottom arrow, goes to next)
-      }
       secondArrow.userData.isArrow = true
       secondArrow.userData.direction = 'right' // 'right' means next
       secondArrow.userData.targetOpacity = 0.5
@@ -601,9 +628,12 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           color: 0xffffff,
           transparent: true,
           opacity: 0,
-          side: THREE.DoubleSide
+          side: THREE.DoubleSide,
+          depthWrite: false,
+          depthTest: false,
         })
         const glow = new THREE.Mesh(glowGeometry, glowMaterial)
+        glow.renderOrder = 10
         if (isVertical) {
           glow.position.x = startX
           glow.position.y = startY - i * dotSpacing
@@ -611,7 +641,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           glow.position.x = startX + i * dotSpacing
           glow.position.y = startY
         }
-        glow.position.z = 0.005
+        glow.position.z = 0.01
         glow.userData.isGlow = true
         glow.userData.targetOpacity = i === 0 ? 0.4 : 0
         dotGroup.add(glow)
@@ -621,9 +651,12 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           color: 0xffffff,
           transparent: true,
           opacity: 0,
-          side: THREE.DoubleSide
+          side: THREE.DoubleSide,
+          depthWrite: false,
+          depthTest: false,
         })
         const dot = new THREE.Mesh(geometry, material)
+        dot.renderOrder = 11
         if (isVertical) {
           dot.position.x = startX
           dot.position.y = startY - i * dotSpacing
@@ -647,7 +680,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       plane.add(dotGroup)
     }
 
-    const createImagePlanes = (plane: THREE.Mesh, contentTextures: THREE.Texture[], frameTexture: THREE.Texture) => {
+    const createImagePlanes = (plane: THREE.Mesh, contentTextures: THREE.Texture[], frameTexture: THREE.Texture, skipRevealAnimation = false) => {
       // Clean up existing image planes
       if (imagePlanesGroupRef.current) {
         plane.remove(imagePlanesGroupRef.current)
@@ -679,17 +712,22 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       // No left shift - frames align with main card position
       const leftShiftAmount = 0
 
+      // Card aspect ratio (width / height)
+      const cardAspectRatio = sceneOptions.cardWidth / sceneOptions.cardHeight
+
       // Store spacing and orientation in group userData
       imagePlanesGroup.userData = {
         spacing,
         isVerticalOnScreen,
-        leftShiftAmount
+        leftShiftAmount,
+        introProgress: skipRevealAnimation ? 1 : 0  // Skip intro animation if switching projects
       }
 
       // Reset carousel offset and reveal state
       carouselOffsetRef.current = 0
       carouselTargetOffsetRef.current = 0
-      imagePlanesRevealedRef.current = false
+      // If skipping reveal animation, mark as already revealed
+      imagePlanesRevealedRef.current = skipRevealAnimation
 
       contentTextures.forEach((texture, i) => {
         // Create a group for each image
@@ -717,24 +755,43 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           ? finalOffset + entryDistance  // At or above center: come from above
           : finalOffset - entryDistance  // Below center: come from below
 
+        // Calculate content aspect ratio from texture if available
+        let contentAspectRatio = 1.0
+        const img = texture.image as HTMLImageElement | undefined
+        if (img && img.width && img.height) {
+          contentAspectRatio = img.width / img.height
+        }
+
         // Use same shader material as main card for identical rendering
+        // Rotate content 90 degrees clockwise to match the rotated frame
         const cardGeometry = createCardGeometry(sceneOptions.cardWidth, sceneOptions.cardHeight)
-        const cardMaterial = createCardMaterial(frameTexture, texture, sceneOptions.curve)
+        // When skipping animation (switching projects), start with rotateContent=1 (frame hidden, image rotated)
+        // Otherwise start at 0 and animate to 1
+        const cardMaterial = createCardMaterial(frameTexture, texture, sceneOptions.curve, contentAspectRatio, cardAspectRatio, skipRevealAnimation)
         // Set isExpanded to 1.0 to disable curve effect (flat card)
         cardMaterial.uniforms.isExpanded.value = 1.0
-        cardMaterial.uniforms.opacity.value = 0 // Start hidden
+        // Start visible if skipping animation, otherwise hidden
+        cardMaterial.uniforms.opacity.value = skipRevealAnimation ? 1 : 0
         // Disable depth write for proper transparent rendering at same z-plane
         cardMaterial.depthWrite = false
+
+        // Update aspect ratio when texture loads (in case it wasn't loaded yet)
+        texture.onUpdate = () => {
+          const loadedImg = texture.image as HTMLImageElement | undefined
+          if (loadedImg && loadedImg.width && loadedImg.height) {
+            const ar = loadedImg.width / loadedImg.height
+            cardMaterial.uniforms.contentAspectRatio.value = ar
+          }
+        }
 
         const cardPlane = new THREE.Mesh(cardGeometry, cardMaterial)
         cardPlane.position.z = 0
         imageGroup.add(cardPlane)
 
         // Position in LOCAL coordinates of the rotated plane
-        // First frame starts in place (at 0), others start stacked off-screen
-        // Local Y → screen -X when rotated, so positive Y shifts left
-        // z=0 to match parent surface depth (avoids perspective size difference)
-        const startOffset = isFirstFrame ? finalOffset : startingStackOffset
+        // If skipping reveal animation, start at final position
+        // Otherwise: first frame starts in place, others start stacked off-screen
+        const startOffset = skipRevealAnimation ? finalOffset : (isFirstFrame ? finalOffset : startingStackOffset)
         if (isVerticalOnScreen) {
           imageGroup.position.set(startOffset, leftShiftAmount, 0)
         } else {
@@ -765,10 +822,14 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       imagePlanesRef.current = imagePlanes
       plane.add(imagePlanesGroup)
 
-      // Hide the main plane since we're using separate image planes
-      const mat = plane.material as THREE.ShaderMaterial
-      if (mat.uniforms.opacity) {
-        mat.uniforms.opacity.value = 0
+      // Don't hide the main plane immediately - let it crossfade with image planes
+      // The animation loop will handle the crossfade
+      // If skipping reveal animation (switching projects), hide main plane immediately
+      if (skipRevealAnimation) {
+        const mat = plane.material as THREE.ShaderMaterial
+        if (mat.uniforms.opacity) {
+          mat.uniforms.opacity.value = 0
+        }
       }
     }
 
@@ -778,12 +839,11 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
 
       raycaster.setFromCamera(mouse, camera)
+      const anim = animStateRef.current
 
-      if (expandedProjectRef.current !== null) {
-        const plane = expandedPlaneRef.current
-        if (plane) {
-          plane.updateMatrixWorld(true)
-        }
+      // Check if clicking on arrows/dots first (when expanded/expanding)
+      if (anim.activePlane && (anim.phase === 'expanded' || anim.phase === 'expanding')) {
+        anim.activePlane.updateMatrixWorld(true)
 
         const arrows = [arrowMeshesRef.current.left, arrowMeshesRef.current.right].filter(Boolean) as THREE.Mesh[]
         if (arrows.length > 0) {
@@ -791,13 +851,9 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           if (arrowIntersects.length > 0) {
             const clickedArrow = arrowIntersects[0].object as THREE.Mesh
             const direction = clickedArrow.userData.direction as 'left' | 'right'
-            if (direction === 'left') {
-              const changeEvent = new CustomEvent('arrowClick', { detail: { direction: 'prev' } })
-              container.dispatchEvent(changeEvent)
-            } else {
-              const changeEvent = new CustomEvent('arrowClick', { detail: { direction: 'next' } })
-              container.dispatchEvent(changeEvent)
-            }
+            container.dispatchEvent(new CustomEvent('arrowClick', {
+              detail: { direction: direction === 'left' ? 'prev' : 'next' }
+            }))
             return
           }
         }
@@ -806,58 +862,89 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           const dotIntersects = raycaster.intersectObjects(dotMeshesRef.current)
           if (dotIntersects.length > 0) {
             const clickedDot = dotIntersects[0].object as THREE.Mesh
-            const dotIndex = clickedDot.userData.dotIndex as number
-            const changeEvent = new CustomEvent('dotClick', { detail: { index: dotIndex } })
-            container.dispatchEvent(changeEvent)
+            container.dispatchEvent(new CustomEvent('dotClick', {
+              detail: { index: clickedDot.userData.dotIndex as number }
+            }))
             return
           }
         }
+      }
 
+      // Check if clicking on a card
+      const intersects = raycaster.intersectObjects(planes)
+      if (intersects.length === 0) return
+
+      const clickedPlane = intersects[0].object as THREE.Mesh
+
+      // BLOCK ALL CLICKS during expanding, collapsing, or when already expanded
+      // Only allow clicks when idle (carousel mode)
+      if (anim.phase !== 'idle') {
         return
       }
 
-      const intersects = raycaster.intersectObjects(planes)
+      // === SIMPLIFIED CLICK HANDLING ===
+      // At this point we're idle - starting a new expansion
 
-      if (intersects.length > 0) {
-        const clickedPlane = intersects[0].object as THREE.Mesh
-        const projectId = clickedPlane.userData.projectId
-        const projectData = projects.find(p => p.id === projectId)
-        const imageCount = projectData?.images?.length || 0
+      // Reset all refs for new card
+      dotMeshesRef.current = []
+      imagePlanesRef.current = []
+      arrowMeshesRef.current = { left: null, right: null }
+      imagePlanesRevealedRef.current = false
+      imagePlanesExitedRef.current = false
+      crossfadeProgressRef.current = 0
+      carouselOffsetRef.current = 0
+      carouselTargetOffsetRef.current = 0
 
-        expandedPlaneRef.current = clickedPlane
-        const worldPos = new THREE.Vector3()
-        clickedPlane.getWorldPosition(worldPos)
-        originalPositionRef.current = worldPos.clone()
-        originalScaleRef.current = clickedPlane.scale.x
+      // Step 3: Set up new expansion
+      const projectId = clickedPlane.userData.projectId
+      const projectData = projects.find(p => p.id === projectId)
+      const imageCount = projectData?.images?.length || 0
 
-        clickedPlane.userData.originalWorldX = worldPos.x
-        clickedPlane.userData.scenePositionAtClick = scene.position.x
+      // Ensure clicked card is visible
+      const clickedMat = clickedPlane.material as THREE.ShaderMaterial
+      if (clickedMat.uniforms.opacity) clickedMat.uniforms.opacity.value = 1
+      if (clickedMat.uniforms.isExpanded) clickedMat.uniforms.isExpanded.value = 0
 
-        // Capture EXACT current state using THREE.js clone methods
-        clickedPlane.userData.animStartPos = clickedPlane.position.clone()
-        clickedPlane.userData.animStartQuat = clickedPlane.quaternion.clone()
-        clickedPlane.userData.animStartScale = clickedPlane.scale.x
-        clickedPlane.userData.animProgress = 0
-        clickedPlane.userData.animFrozenSceneX = scene.position.x
+      // Step 4: Set animation state (SINGLE SOURCE OF TRUTH)
+      anim.phase = 'expanding'
+      anim.activePlane = clickedPlane
+      anim.projectId = projectId
+      anim.progress = 0
+      anim.startPos = clickedPlane.position.clone()
+      anim.startQuat = clickedPlane.quaternion.clone()
+      anim.startScale = clickedPlane.scale.x
+      anim.frozenSceneX = scene.position.x
 
-        const contentTextures = clickedPlane.userData.contentTextures as THREE.Texture[]
-        const frameTexture = clickedPlane.userData.frameTexture as THREE.Texture
-        if (imageCount > 0 && contentTextures && frameTexture) {
-          createDots(clickedPlane, imageCount)
-          createImagePlanes(clickedPlane, contentTextures, frameTexture)
-        }
+      // Sync compatibility refs
+      expandedPlaneRef.current = clickedPlane
+      expansionStageRef.current = 'expanding'
+      setExpansionStage('expanding')
 
-        isManualScrollingRef.current = false
-        velocityRef.current = 0
-        targetTimeRef.current = timeRef.current
+      // Stop carousel scroll
+      isManualScrollingRef.current = false
+      velocityRef.current = 0
+      targetTimeRef.current = timeRef.current
 
-        expansionStageRef.current = 'expanding'
-        setExpansionStage('expanding')
+      const worldPos = new THREE.Vector3()
+      clickedPlane.getWorldPosition(worldPos)
+      originalPositionRef.current = worldPos.clone()
+      originalScaleRef.current = clickedPlane.scale.x
+      clickedPlane.userData.originalWorldX = worldPos.x
+      clickedPlane.userData.scenePositionAtClick = scene.position.x
 
-        onPauseChangeRef.current(true)
-        onProjectClickRef.current(projectId)
-        animatingRef.current = true
+      onPauseChangeRef.current(true)
+      onProjectClickRef.current(projectId)
+
+      // Create dots and image planes
+      const contentTextures = clickedPlane.userData.contentTextures as THREE.Texture[]
+      const frameTexture = clickedPlane.userData.frameTexture as THREE.Texture
+      if (imageCount > 0 && contentTextures && frameTexture) {
+        createDots(clickedPlane, imageCount)
+        createImagePlanes(clickedPlane, contentTextures, frameTexture)
       }
+
+      // Re-ensure card is visible after createImagePlanes (which sets opacity to 0)
+      if (clickedMat.uniforms.opacity) clickedMat.uniforms.opacity.value = 1
     }
 
     const handleDotClick = (event: Event) => {
@@ -1130,7 +1217,6 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       const pixelsPerUnit = container.clientWidth / visibleWidth
 
       const scale = getUnifiedScale()
-      const scaledCardWidth = sceneOptions.cardHeight * scale
 
       if (isMobile()) {
         const targetX = 0
@@ -1155,10 +1241,13 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
 
     const animate = (currentTime: number) => {
       const timePassed = currentTime - previousTime
+      const anim = animStateRef.current  // SINGLE SOURCE OF TRUTH
       let expandedPlane = expandedPlaneRef.current
       const isExpanded = expandedProjectRef.current !== null
 
-      if (isExpanded && expandedProjectRef.current !== null) {
+      // Project switch code - ONLY runs when already expanded (for navigation arrows)
+      // Skip during 'expanding' state to avoid interfering with new card animation
+      if (isExpanded && expandedProjectRef.current !== null && anim.phase === 'expanded') {
         const currentPlaneProjectId = expandedPlane?.userData.projectId
         if (currentPlaneProjectId !== expandedProjectRef.current) {
           let bestPlane: THREE.Mesh | null = null
@@ -1178,6 +1267,11 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           if (bestPlane) {
             const newPlane: THREE.Mesh = bestPlane
 
+            // Clean up old plane's attachments first
+            if (expandedPlane) {
+              cleanupPlaneAttachments(expandedPlane)
+            }
+
             let preservedRotX = 0
             let preservedRotY = 0
             if (expandedPlane) {
@@ -1193,8 +1287,11 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
               expandedPlane.position.z = 0
             }
 
+            // Update both refs to the new plane
             expandedPlaneRef.current = newPlane
             expandedPlane = newPlane
+            anim.activePlane = newPlane
+            anim.projectId = newPlane.userData.projectId
 
             const leftTarget = getExpandedTargetPosition()
             newPlane.position.x = leftTarget.x - scene.position.x
@@ -1215,13 +1312,13 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
             const newFrameTexture = newPlane.userData.frameTexture as THREE.Texture
             if (imageCount > 0 && newPlaneTextures && newFrameTexture) {
               createDots(newPlane, imageCount)
-              createImagePlanes(newPlane, newPlaneTextures, newFrameTexture)
+              // Skip reveal animation when switching between projects (not first open from grid)
+              createImagePlanes(newPlane, newPlaneTextures, newFrameTexture, true)
             }
 
             expansionStageRef.current = 'expanded'
             setExpansionStage('expanded')
-
-            animatingRef.current = true
+            anim.phase = 'expanded'
           }
         }
       }
@@ -1230,7 +1327,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       smoothMousePosition.x += (mousePosition.x - smoothMousePosition.x) * 0.05
       smoothMousePosition.y += (mousePosition.y - smoothMousePosition.y) * 0.05
 
-      if (!isPausedRef.current && !isExpanded) {
+      if (!isPausedRef.current && anim.phase === 'idle') {
         const loopWidth = cardWidth * projects.length
 
         updateScrollVelocity(isManualScrollingRef, velocityRef, autoScrollDirectionRef)
@@ -1242,52 +1339,133 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         } else if (timeRef.current * sceneOptions.speed < -loopWidth) {
           timeRef.current += loopWidth / sceneOptions.speed
         }
-      } else if (!isExpanded && expansionStageRef.current === 'none') {
-        // Only scroll when not expanding or expanded
+      } else if (anim.phase === 'idle') {
+        // Only scroll when idle (not expanding, expanded, or exiting)
         const diff = targetTimeRef.current - timeRef.current
         timeRef.current += diff * 0.1
       }
 
-      // Freeze scene position immediately when expansion starts
-      if (!isExpanded && expansionStageRef.current === 'none') {
+      // Freeze scene position when not idle
+      if (anim.phase === 'idle') {
         scene.position.x = timeRef.current * sceneOptions.speed
       }
 
-      if (!isExpanded && expansionStageRef.current === 'none') {
+      if (anim.phase === 'idle') {
         checkHover()
+      }
+
+      // EXIT ANIMATION: Animate image planes and update crossfade based on rotation
+      // This runs OUTSIDE the planes.forEach loop
+      // IMPORTANT: Only run exit animation when state is 'collapsing'
+      if (anim.phase === 'collapsing' && anim.activePlane && !imagePlanesExitedRef.current) {
+        // Calculate rotation progress for crossfade (same as in expansion)
+        const currentRotZ = anim.activePlane.rotation.z
+        const rotationProgress = Math.min(1, Math.abs(currentRotZ) / (Math.PI / 2))
+        crossfadeProgressRef.current = rotationProgress
+
+        const imagePlanes = imagePlanesRef.current
+        if (imagePlanes && imagePlanes.length > 0) {
+          const isMobileSize = container.clientWidth < MD_BREAKPOINT
+          const frameIsVertical = !isMobileSize
+          let allExited = true
+
+          imagePlanes.forEach((imageGroup) => {
+            const isExiting = imageGroup.userData.isExiting as boolean ?? false
+            const exitTarget = imageGroup.userData.exitTarget as number ?? 0
+            const cardMaterial = imageGroup.userData.cardMaterial as THREE.ShaderMaterial
+
+            if (isExiting) {
+              const exitSpeed = getEasedMovementAmount()
+
+              if (frameIsVertical) {
+                imageGroup.position.x += (exitTarget - imageGroup.position.x) * exitSpeed
+              } else {
+                imageGroup.position.y += (exitTarget - imageGroup.position.y) * exitSpeed
+              }
+
+              // Use crossfade progress for opacity (tied to rotation)
+              if (cardMaterial && cardMaterial.uniforms.opacity) {
+                cardMaterial.uniforms.opacity.value = crossfadeProgressRef.current
+                // Also update rotateContent for frame fade
+                if (cardMaterial.uniforms.rotateContent) {
+                  cardMaterial.uniforms.rotateContent.value = crossfadeProgressRef.current
+                }
+                if (crossfadeProgressRef.current > 0.05) {
+                  allExited = false
+                }
+              }
+            }
+          })
+
+          // Fade out dots and arrows quickly
+          dotMeshesRef.current.forEach(dot => {
+            const dotMat = dot.material as THREE.MeshBasicMaterial
+            dotMat.opacity *= 0.7
+            const glowMesh = dot.userData.glowMesh as THREE.Mesh
+            if (glowMesh) {
+              const glowMat = glowMesh.material as THREE.MeshBasicMaterial
+              glowMat.opacity *= 0.7
+            }
+          })
+
+          const arrows = [arrowMeshesRef.current.left, arrowMeshesRef.current.right]
+          arrows.forEach(arrow => {
+            if (!arrow) return
+            const arrowMat = arrow.material as THREE.MeshBasicMaterial
+            arrowMat.opacity *= 0.7
+          })
+
+          if (allExited) {
+            imagePlanesExitedRef.current = true
+          }
+        } else {
+          // No image planes, skip directly to main card animation
+          imagePlanesExitedRef.current = true
+        }
       }
 
 
       planes.forEach(plane => {
-        // Include 'expanding' stage so mouse follow works immediately when card starts flying
-        const isExpandingOrExpanded = isExpanded || expansionStageRef.current === 'expanding'
-        const isExpandedPlane = plane === expandedPlane && isExpandingOrExpanded
-
+        // SIMPLIFIED: Only check if this is the active plane
+        const isActivePlane = plane === anim.activePlane
+        const isExpandingOrExpanded = anim.phase === 'expanding' || anim.phase === 'expanded'
         const mat = plane.material as THREE.ShaderMaterial
 
-        if (isExpandedPlane) {
+        // EXPANSION ANIMATION: Animate the active plane
+        if (isActivePlane && isExpandingOrExpanded) {
           const currentStage = expansionStageRef.current
           const imagePlanesRevealed = imagePlanesRevealedRef.current
 
-          // Get stored animation state (set in click handler)
-          const startPos = plane.userData.animStartPos as THREE.Vector3
-          const startQuat = plane.userData.animStartQuat as THREE.Quaternion
-          const startScale = plane.userData.animStartScale as number
-          const frozenSceneX = plane.userData.animFrozenSceneX as number
-          let progress = plane.userData.animProgress as number
+          // Get animation state (should be set by click handler)
+          let startPos = anim.startPos
+          let startQuat = anim.startQuat
+          let startScale = anim.startScale
+          let frozenSceneX = anim.frozenSceneX
+          let progress = anim.progress
 
-          // If no start state, use current values (shouldn't happen if click handler worked)
-          const safeStartPos = startPos || plane.position.clone()
-          const safeStartQuat = startQuat || plane.quaternion.clone()
-          const safeStartScale = startScale ?? plane.scale.x
-          const safeFrozenSceneX = frozenSceneX ?? scene.position.x
-
-          if (!startPos) {
-            plane.userData.animStartPos = safeStartPos
-            plane.userData.animStartQuat = safeStartQuat
-            plane.userData.animStartScale = safeStartScale
-            plane.userData.animFrozenSceneX = safeFrozenSceneX
+          // Safety fallback: initialize if missing
+          if (!startPos || !startQuat) {
+            startPos = plane.position.clone()
+            startQuat = plane.quaternion.clone()
+            startScale = plane.scale.x
+            frozenSceneX = scene.position.x
+            progress = 0
+            anim.startPos = startPos
+            anim.startQuat = startQuat
+            anim.startScale = startScale
+            anim.frozenSceneX = frozenSceneX
+            anim.progress = progress
           }
+
+          // ALWAYS ensure active plane is visible (before image planes revealed)
+          if (!imagePlanesRevealed && mat.uniforms.opacity) {
+            mat.uniforms.opacity.value = 1
+          }
+
+          const safeStartPos = startPos
+          const safeStartQuat = startQuat
+          const safeStartScale = startScale
+          const safeFrozenSceneX = frozenSceneX
 
           // Calculate target state
           const target = getExpandedTargetPosition()
@@ -1304,9 +1482,9 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           const targetQuat = new THREE.Quaternion().multiplyQuaternions(zQuat, tiltQuat)
           const targetScale = getUnifiedScale()
 
-          // Update progress
-          progress = Math.min(1, (progress || 0) + 0.01)
-          plane.userData.animProgress = progress
+          // Update progress in animStateRef (slower intro animation)
+          progress = Math.min(1, (progress || 0) + 0.02)
+          anim.progress = progress
 
           // Apply easing
           const t = easeOutQuart(progress)
@@ -1321,8 +1499,9 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           const currentEuler = new THREE.Euler().setFromQuaternion(plane.quaternion)
           const rotZ = currentEuler.z
 
-          // Transition to expanded stage early (at 40%) so image planes can start revealing
-          if (progress >= 0.4 && currentStage === 'expanding') {
+          // Transition to expanded stage early (at 20%) so image planes can start revealing
+          if (progress >= 0.2 && currentStage === 'expanding') {
+            anim.phase = 'expanded'
             expansionStageRef.current = 'expanded'
             setExpansionStage('expanded')
           }
@@ -1334,11 +1513,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
             dotGroupRef.current.rotation.y = 0
           }
 
-          if (imagePlanesGroupRef.current) {
-            imagePlanesGroupRef.current.rotation.x = 0
-            imagePlanesGroupRef.current.rotation.y = 0
-            imagePlanesGroupRef.current.rotation.z = 0
-          }
+          // Image planes rotate with the parent frame - no rotation reset needed
 
           if (mat.uniforms.isExpanded) {
             const expandDiff = 1.0 - mat.uniforms.isExpanded.value
@@ -1355,7 +1530,8 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
             mat.depthWrite = !imagePlanesRevealed
           }
 
-          const dotsVisible = isExpanded
+          // Show dots when expanded OR when expanding (handles frames before expandedProjectRef updates)
+          const dotsVisible = anim.phase === 'expanded'
           dotMeshesRef.current.forEach((dot, index) => {
             const dotMat = dot.material as THREE.MeshBasicMaterial
             const targetOpacity = dotsVisible ? (dot.userData.targetOpacity as number) : 0
@@ -1401,18 +1577,50 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
             const totalFrames = imagePlanes.length
             const totalSpan = totalFrames * spacing // Total loop length
 
-            // Start reveal when main card animation is partially done (40%)
-            const expandedPlane = expandedPlaneRef.current
-            const animProgress = expandedPlane?.userData?.animProgress as number ?? 0
-            const animationMostlyDone = animProgress >= 0.4
-            const expansionComplete = expansionStageRef.current === 'expanded' && animationMostlyDone
-            if (expansionComplete && !imagePlanesRevealedRef.current) {
-              // Start revealing - set target positions
-              imagePlanes.forEach((imageGroup) => {
-                imageGroup.userData.targetAnimOffset = imageGroup.userData.baseOffset
-              })
-              imagePlanesRevealedRef.current = true
+            // Crossfade is tied directly to rotation progress
+            // As the card rotates from 0 to 90 degrees, crossfade goes from 0 to 1
+            const isExitingGlobal = anim.phase === 'collapsing'
+            const isExpandingOrExpanded = anim.phase === 'expanding' || anim.phase === 'expanded'
+
+            // Calculate rotation progress from the active plane's Z rotation
+            // 0 rotation = 0 progress, PI/2 rotation = 1 progress
+            let rotationProgress = 0
+            if (anim.activePlane) {
+              const currentRotZ = anim.activePlane.rotation.z
+              rotationProgress = Math.min(1, Math.abs(currentRotZ) / (Math.PI / 2))
             }
+
+            // Use rotation progress for crossfade during expansion
+            // Use animated crossfade during collapse (reverse)
+            if (isExpandingOrExpanded && !isExitingGlobal) {
+              crossfadeProgressRef.current = rotationProgress
+              if (!imagePlanesRevealedRef.current && rotationProgress > 0.1) {
+                imagePlanes.forEach((imageGroup) => {
+                  imageGroup.userData.targetAnimOffset = imageGroup.userData.baseOffset
+                })
+                imagePlanesRevealedRef.current = true
+              }
+            } else if (isExitingGlobal) {
+              // During exit, animate crossfade back based on rotation
+              crossfadeProgressRef.current = rotationProgress
+            }
+
+            // Apply crossfade to main card (thumbnail fades out)
+            if (anim.activePlane) {
+              const mainMat = anim.activePlane.material as THREE.ShaderMaterial
+              if (mainMat?.uniforms?.opacity) {
+                mainMat.uniforms.opacity.value = 1 - crossfadeProgressRef.current
+              }
+            }
+
+            // Apply crossfade to all image planes (selection images fade in)
+            // Also sync rotateContent for frame fade
+            imagePlanes.forEach((imageGroup) => {
+              const cardMaterial = imageGroup.userData.cardMaterial as THREE.ShaderMaterial
+              if (cardMaterial?.uniforms?.rotateContent) {
+                cardMaterial.uniforms.rotateContent.value = crossfadeProgressRef.current
+              }
+            })
 
             // Smoothly interpolate carousel offset (slow and smooth)
             const offsetDiff = carouselTargetOffsetRef.current - carouselOffsetRef.current
@@ -1433,18 +1641,15 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
 
               // Wrap around for infinite seamless scrolling
               if (imagePlanesRevealedRef.current) {
-                // Use larger threshold so cards wrap only when fully off-screen
-                const wrapThreshold = totalSpan * 0.75
-                while (finalOffset > wrapThreshold) {
+                // Use halfSpan for mathematically correct even distribution
+                const halfSpan = totalSpan / 2
+                while (finalOffset > halfSpan) {
                   finalOffset -= totalSpan
                 }
-                while (finalOffset < -wrapThreshold) {
+                while (finalOffset < -halfSpan) {
                   finalOffset += totalSpan
                 }
               }
-
-              // Check if this card has finished its reveal animation
-              const revealComplete = imageGroup.userData.revealComplete as boolean ?? false
 
               // Get per-card starting offset for entrance animation
               const startingOffset = imageGroup.userData.startingOffset as number ?? -3.0
@@ -1453,12 +1658,13 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
               const isExiting = imageGroup.userData.isExiting as boolean ?? false
               const exitTarget = imageGroup.userData.exitTarget as number ?? 0
 
+              // Track intro animation progress (shared across all cards)
+              const introProgress = imagePlanesGroupRef.current?.userData.introProgress as number ?? 0
+
               // Animate reveal, scroll, or exit
               if (isExiting && !isFirstFrame) {
-                // Exit animation: fly to exit target - use faster speed (3x) to match intro
-                const currentPos = frameIsVertical ? imageGroup.position.x : imageGroup.position.y
-                const exitDistance = Math.abs(exitTarget - currentPos)
-                const exitSpeed = getEasedMovementAmount(exitDistance) * 3
+                // Exit animation: fly to exit target
+                const exitSpeed = getEasedMovementAmount()
                 if (frameIsVertical) {
                   imageGroup.position.x += (exitTarget - imageGroup.position.x) * exitSpeed
                   imageGroup.position.y = 0
@@ -1475,35 +1681,38 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
                   imageGroup.position.x = 0
                   imageGroup.position.y = isFirstFrame ? 0 : startingOffset
                 }
-              } else if (!revealComplete) {
-                // During reveal: animate from stacked position to final position
+              } else if (introProgress < 1) {
+                // During intro: animate ALL cards from starting position to final position
+                // Use shared progress so all cards move at same pace
                 const currentPos = frameIsVertical ? imageGroup.position.x : imageGroup.position.y
-                const distToTarget = Math.abs(finalOffset - currentPos)
+                const targetPos = finalOffset
 
-                // Mark reveal complete when close enough
-                if (distToTarget < 0.01) {
-                  imageGroup.userData.revealComplete = true
-                  if (frameIsVertical) {
-                    imageGroup.position.x = finalOffset
-                    imageGroup.position.y = 0
-                  } else {
-                    imageGroup.position.x = 0
-                    imageGroup.position.y = finalOffset
-                  }
+                // Interpolate toward target
+                const introSpeed = 0.15
+                const newPos = currentPos + (targetPos - currentPos) * introSpeed
+
+                if (frameIsVertical) {
+                  imageGroup.position.x = newPos
+                  imageGroup.position.y = 0
                 } else {
-                  // Animate toward target - use 3x speed to match exit timing
-                  const revealSpeed = getEasedMovementAmount(distToTarget) * 3
-                  if (frameIsVertical) {
-                    imageGroup.position.x += (finalOffset - imageGroup.position.x) * revealSpeed
-                    imageGroup.position.y = 0
+                  imageGroup.position.x = 0
+                  imageGroup.position.y = newPos
+                }
+
+                // Update shared intro progress using card index 1 (which actually moves)
+                // Card 0 is already at its final position so can't track progress
+                if (imageGroup.userData.imageIndex === 1) {
+                  const distRemaining = Math.abs(targetPos - newPos)
+                  const totalDist = Math.abs(startingOffset - baseOffset)
+                  if (distRemaining < 0.01 || totalDist < 0.01) {
+                    imagePlanesGroupRef.current!.userData.introProgress = 1
                   } else {
-                    imageGroup.position.x = 0
-                    imageGroup.position.y += (finalOffset - imageGroup.position.y) * revealSpeed
+                    const traveled = totalDist - distRemaining
+                    imagePlanesGroupRef.current!.userData.introProgress = Math.min(0.99, traveled / totalDist)
                   }
                 }
               } else {
-                // After reveal: directly follow finalOffset (already smooth from carousel interpolation)
-                // No additional smoothing needed - just set position directly
+                // After intro complete: ALL cards follow finalOffset directly
                 if (frameIsVertical) {
                   imageGroup.position.x = finalOffset
                   imageGroup.position.y = 0
@@ -1513,50 +1722,55 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
                 }
               }
 
-              // Add individual bobbing animation per card
-              // Gradually blend in float after reveal to avoid snap
-              const floatPhaseOffset = imageGroup.userData.floatPhaseOffset as number || 0
-              const cardFloatOffset = getFloatOffset(floatTime + floatPhaseOffset, 'left')
+              // No per-card float animation - all cards move in perfect sync
+              // Cards further from center come closer to viewer for circular effect
+              const actualPos = frameIsVertical ? imageGroup.position.x : imageGroup.position.y
+              const distFromCenter = Math.abs(actualPos)
 
-              // Blend float intensity: 0 during reveal, gradually increase after
-              let floatBlend = imageGroup.userData.floatBlend as number ?? 0
-              if (revealComplete && !isExiting) {
-                floatBlend = Math.min(1, floatBlend + 0.02)  // Gradually increase
-              } else {
-                floatBlend = 0
-              }
-              imageGroup.userData.floatBlend = floatBlend
+              // Skip position and rotation updates during exit to prevent unwanted movement
+              if (!isExiting) {
+                // Cards further from center come closer to viewer for circular effect
+                imageGroup.position.z = distFromCenter * 0.2
 
-              if (floatBlend > 0) {
-                if (frameIsVertical) {
-                  imageGroup.position.x += cardFloatOffset.y * floatBlend
-                  imageGroup.position.y += cardFloatOffset.x * floatBlend
-                } else {
-                  imageGroup.position.x += cardFloatOffset.x * floatBlend
-                  imageGroup.position.y += cardFloatOffset.y * floatBlend
+                // === ROTATION: Curved carousel effect ===
+                if (cardPlane) {
+                  const forwardBackTilt = smoothMousePosition.x * 0.08
+
+                  // Top cards (positive position) tilt downward, bottom cards tilt upward
+                  const tiltY = -actualPos * 0.25
+                  cardPlane.rotation.x = forwardBackTilt
+                  cardPlane.rotation.y = tiltY
+                  cardPlane.rotation.z = 0
+                  imageGroup.rotation.set(0, 0, 0)
                 }
               }
-              imageGroup.position.z = 0
 
-              // === ROTATION: Inherit from parent (main card has the tilt) ===
-              if (cardPlane) {
-                // Reset to identity - the parent plane already has the 0.15 tilt
-                cardPlane.quaternion.identity()
-              }
-
-              // === OPACITY: Instant show/hide (no fade) ===
+              // === OPACITY: Based on actual position, hide edges for seamless wrap ===
               const shouldShow = dotsVisible && imagePlanesRevealedRef.current && !isExiting
               const cardMaterial = imageGroup.userData.cardMaterial as THREE.ShaderMaterial
 
               if (cardMaterial && cardMaterial.uniforms.opacity) {
+                const actualPos = frameIsVertical ? imageGroup.position.x : imageGroup.position.y
+                const distFromCenter = Math.abs(actualPos)
+
                 if (isExiting) {
-                  // Exiting cards fade out quickly
-                  const exitFadeSpeed = 0.15
-                  const currentOpacity = cardMaterial.uniforms.opacity.value
-                  cardMaterial.uniforms.opacity.value = currentOpacity * (1 - exitFadeSpeed)
+                  // Exiting: use crossfade progress (animated globally above)
+                  cardMaterial.uniforms.opacity.value = crossfadeProgressRef.current
+                } else if (shouldShow) {
+                  // Visibility based on crossfade progress and position (for carousel wrap)
+                  const visibleRange = spacing * 1.5
+                  const positionVisible = distFromCenter <= visibleRange
+
+                  // Base opacity from crossfade, multiplied by position visibility after intro
+                  if (introProgress < 1) {
+                    // During intro: fade in with crossfade
+                    cardMaterial.uniforms.opacity.value = crossfadeProgressRef.current
+                  } else {
+                    // After intro: crossfade * position visibility
+                    cardMaterial.uniforms.opacity.value = positionVisible ? crossfadeProgressRef.current : 0
+                  }
                 } else {
-                  // Instant opacity - no fade
-                  cardMaterial.uniforms.opacity.value = shouldShow ? 1 : 0
+                  cardMaterial.uniforms.opacity.value = 0
                 }
               }
             })
@@ -1577,13 +1791,17 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
             arrow.scale.set(newScale, newScale, 1)
           })
 
-        } else if (isExpanded && expandedPlane) {
+        } else if (isExpandingOrExpanded && anim.activePlane && !plane.userData.isCurrentlyExpanding) {
+          // Other cards fade to 0.15 when a card is expanded/expanding
+          // CRITICAL: Never fade the card with isCurrentlyExpanding marker
           if (mat.uniforms.opacity) {
             const currentOpacity = mat.uniforms.opacity.value
             const targetOpacity = 0.15
             mat.uniforms.opacity.value = currentOpacity + (targetOpacity - currentOpacity) * 0.08
           }
-        } else if (!isExpanded && animatingRef.current && expandedPlane) {
+        } else if (isActivePlane && anim.phase === 'collapsing') {
+          // EXIT: Main card rotates back while image planes fade (simultaneous)
+          // Main card stays fully visible - no fade
           const targetX = plane.userData.initialX
           const targetY = plane.userData.initialY ?? -0.35
           const targetZ = 0
@@ -1591,8 +1809,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           const dy = targetY - plane.position.y
           const dz = targetZ - plane.position.z
           const distance = Math.sqrt(dx * dx + dy * dy + dz * dz)
-          // Use faster exit speed (3x) to match intro timing
-          const easeAmount = getEasedMovementAmount(distance) * 3
+          const easeAmount = getEasedMovementAmount()
 
           if (distance > 0.01) {
             plane.position.x += dx * easeAmount
@@ -1627,61 +1844,16 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
             }
           }
 
+          // Main card fades in as rotation returns to 0 (handled by crossfade logic)
+          // Opacity = 1 - crossfadeProgress, which goes from 0 to 1 as rotation goes PI/2 to 0
+          if (mat.uniforms.opacity) {
+            mat.uniforms.opacity.value = 1 - crossfadeProgressRef.current
+          }
+        } else if (anim.phase === 'collapsing') {
+          // Other cards: fade back to full opacity during exit animation
           if (mat.uniforms.opacity) {
             const currentOpacity = mat.uniforms.opacity.value
-            mat.uniforms.opacity.value = currentOpacity + (1 - currentOpacity) * 0.15
-          }
-
-          if (plane === expandedPlane) {
-            dotMeshesRef.current.forEach(dot => {
-              const dotMat = dot.material as THREE.MeshBasicMaterial
-              dotMat.opacity += (0 - dotMat.opacity) * 0.15
-
-              const glowMesh = dot.userData.glowMesh as THREE.Mesh
-              if (glowMesh) {
-                const glowMat = glowMesh.material as THREE.MeshBasicMaterial
-                glowMat.opacity += (0 - glowMat.opacity) * 0.15
-              }
-            })
-
-            const arrows = [arrowMeshesRef.current.left, arrowMeshesRef.current.right]
-            arrows.forEach(arrow => {
-              if (!arrow) return
-              const arrowMat = arrow.material as THREE.MeshBasicMaterial
-              arrowMat.opacity += (0 - arrowMat.opacity) * 0.15
-            })
-
-            // Exit animation for image planes - fly away and fade out
-            const imagePlanes = imagePlanesRef.current
-            if (imagePlanes && imagePlanes.length > 0) {
-              const isMobileSize = container.clientWidth < MD_BREAKPOINT
-              const frameIsVertical = !isMobileSize
-
-              imagePlanes.forEach((imageGroup) => {
-                const isExiting = imageGroup.userData.isExiting as boolean ?? false
-                const exitTarget = imageGroup.userData.exitTarget as number ?? 0
-                const cardMaterial = imageGroup.userData.cardMaterial as THREE.ShaderMaterial
-
-                if (isExiting) {
-                  // Fly to exit target - use faster speed (3x) to match intro timing
-                  const currentPos = frameIsVertical ? imageGroup.position.x : imageGroup.position.y
-                  const exitDistance = Math.abs(exitTarget - currentPos)
-                  const exitSpeed = getEasedMovementAmount(exitDistance) * 3
-                  if (frameIsVertical) {
-                    imageGroup.position.x += (exitTarget - imageGroup.position.x) * exitSpeed
-                  } else {
-                    imageGroup.position.y += (exitTarget - imageGroup.position.y) * exitSpeed
-                  }
-
-                  // Fade out - match main card fade speed
-                  if (cardMaterial && cardMaterial.uniforms.opacity) {
-                    const currentOpacity = cardMaterial.uniforms.opacity.value
-                    cardMaterial.uniforms.opacity.value = currentOpacity * (1 - exitSpeed)
-                  }
-                }
-              })
-            }
-
+            mat.uniforms.opacity.value = currentOpacity + (1 - currentOpacity) * 0.1
           }
         } else {
           const targetScale = plane === hoveredPlaneRef.current ? 1.04 : 1
@@ -1700,25 +1872,30 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         }
       })
 
-      if (animatingRef.current && !isExpanded && expansionStageRef.current === 'none') {
-        const allSettled = planes.every(plane => {
-          const scaleDiff = Math.abs(1 - plane.scale.x)
-          const targetY = plane.userData.initialY ?? -0.35
-          const posDiff = Math.abs(plane.position.y - targetY) + Math.abs(plane.position.z)
-          const rotDiff = Math.abs(plane.rotation.x) + Math.abs(plane.rotation.y) + Math.abs(plane.rotation.z)
-          return scaleDiff < 0.01 && posDiff < 0.01 && rotDiff < 0.01
-        })
+      // Check if collapse animation is complete
+      if (anim.phase === 'collapsing' && anim.activePlane) {
+        const plane = anim.activePlane
+        const scaleDiff = Math.abs(1 - plane.scale.x)
+        const targetY = plane.userData.initialY ?? -0.35
+        const posDiff = Math.abs(plane.position.y - targetY) + Math.abs(plane.position.z)
+        const rotDiff = Math.abs(plane.rotation.x) + Math.abs(plane.rotation.y) + Math.abs(plane.rotation.z)
+        const isComplete = scaleDiff < 0.01 && posDiff < 0.01 && rotDiff < 0.01
 
-        if (allSettled) {
-          // Reset animation state so next click starts fresh
-          planes.forEach(plane => {
-            plane.userData.animStartPos = undefined
-            plane.userData.animStartQuat = undefined
-            plane.userData.animStartScale = undefined
-            plane.userData.animProgress = undefined
-            plane.userData.animFrozenSceneX = undefined
-          })
-          animatingRef.current = false
+        if (isComplete) {
+          // Clean up dots and image planes
+          cleanupPlaneAttachments(plane)
+
+          // Transition to idle state
+          anim.phase = 'idle'
+          anim.activePlane = null
+          anim.projectId = null
+          anim.progress = 0
+          anim.startPos = null
+          anim.startQuat = null
+          anim.startScale = 1
+          anim.frozenSceneX = 0
+
+          // Sync compatibility refs
           expandedPlaneRef.current = null
           originalPositionRef.current = null
         }
@@ -1769,6 +1946,17 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         if (plane.material instanceof THREE.Material) {
           plane.material.dispose()
         }
+        // Clean up video elements
+        const video = plane.userData.thumbnailVideo as HTMLVideoElement | undefined
+        if (video) {
+          video.pause()
+          video.src = ''
+          video.load()
+        }
+        const thumbnailTex = plane.userData.thumbnailTexture as THREE.VideoTexture | undefined
+        if (thumbnailTex) {
+          thumbnailTex.dispose()
+        }
       })
       if (dotGroupRef.current) {
         dotGroupRef.current.children.forEach(child => {
@@ -1787,7 +1975,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
   return (
     <div
       ref={containerRef}
-      className={`absolute inset-x-0 top-0 h-screen z-[55] overflow-visible transition-opacity [&>canvas]:absolute [&>canvas]:inset-0 [&>canvas]:w-full [&>canvas]:h-full [&>canvas]:overflow-visible ${!visible ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+      className={`absolute inset-x-0 top-0 h-screen z-[55] overflow-visible transition-opacity [&>canvas]:absolute [&>canvas]:inset-0 [&>canvas]:w-full [&>canvas]:h-full [&>canvas]:overflow-visible ${!visible ? 'opacity-0 pointer-events-none [&>canvas]:pointer-events-none' : 'opacity-100 pointer-events-auto [&>canvas]:pointer-events-auto'}`}
       onTouchStart={handleCarouselTouchStart}
       onTouchEnd={handleCarouselTouchEnd}
       onMouseDown={handleCarouselTouchStart}

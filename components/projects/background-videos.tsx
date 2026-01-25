@@ -15,6 +15,17 @@ export default function BackgroundVideos({ visible, isExpanded = false }: Backgr
   const bgVideoRef = useRef<HTMLVideoElement>(null)
   const manVideoRef = useRef<HTMLVideoElement>(null)
   const { isLowPerformance } = usePerformanceMode()
+  const prevExpandedRef = useRef(isExpanded)
+
+  // Calculate transition duration synchronously (not in useEffect to avoid delay)
+  // Slow when expanding (going away), fast when collapsing (coming back)
+  const isCollapsing = !isExpanded && prevExpandedRef.current
+  const transitionDuration = isCollapsing ? '0.8s' : '3s'
+
+  // Update ref after calculating (for next render)
+  useEffect(() => {
+    prevExpandedRef.current = isExpanded
+  }, [isExpanded])
 
   useEffect(() => {
     if (!visible) return
@@ -50,7 +61,7 @@ export default function BackgroundVideos({ visible, isExpanded = false }: Backgr
         className={`fixed inset-0 w-full h-screen ${MOBILE_CONTAINER_CLASSES} ${isLowPerformance ? 'max-[600px]:mt-20' : 'max-[600px]:mt-5'} ${mangaManZIndex} pointer-events-none ${visible ? '' : 'invisible'}`}
         style={{
           transform: isExpanded ? 'translateY(-100%)' : 'translateY(0)',
-          transition: 'transform 3s cubic-bezier(0.25, 0.1, 0.15, 1)',
+          transition: `transform ${transitionDuration} cubic-bezier(0.25, 0.1, 0.15, 1)`,
         }}
       >
         {isLowPerformance ? (

@@ -2,17 +2,9 @@ export function easeOutQuart(t: number): number {
   return 1 - Math.pow(1 - t, 4)
 }
 
-export function getEasedMovementAmount(
-  distance: number,
-  maxDist: number = 2.0,
-  minSpeed: number = 0.005,
-  maxSpeed: number = 0.018
-): number {
-  // Normalize distance: 0 = at target, 1 = far from target
-  const normalizedDist = Math.min(distance / maxDist, 1)
-  // Ease-out: fast when far, slow when close (smooth landing)
-  const easedT = easeOutQuart(normalizedDist)
-  return minSpeed + easedT * (maxSpeed - minSpeed)
+export function getEasedMovementAmount(): number {
+  // Slower exit animation speed
+  return 0.06
 }
 
 export function getFloatOffset(

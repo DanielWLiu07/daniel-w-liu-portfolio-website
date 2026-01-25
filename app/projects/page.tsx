@@ -129,10 +129,9 @@ export default function ProjectsPage() {
 
   const handleClosePanel = useCallback(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
-    setTimeout(() => {
-      setExpandedProject(null)
-      setIsPaused(false)
-    }, 100)
+    // Close immediately - no delay so new card clicks work right away
+    setExpandedProject(null)
+    setIsPaused(false)
   }, [])
 
   const goToNextProject = useCallback(() => {
@@ -148,6 +147,7 @@ export default function ProjectsPage() {
     const prevIndex = (currentIndex + 1) % projects.length
     setExpandedProject(projects[prevIndex].id)
   }, [expandedProject])
+
 
   useEffect(() => {
     const projectData = projects.find(p => p.id === expandedProject)
