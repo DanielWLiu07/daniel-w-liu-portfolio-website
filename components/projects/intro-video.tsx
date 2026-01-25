@@ -7,6 +7,7 @@ import { useTransitionState } from '@/components/ui/page-transition'
 
 const FALLBACK_TIMEOUT = 3000
 const FLASH_TRIGGER_TIME = 0.45
+const MOBILE_CONTAINER_CLASSES = 'max-[600px]:w-[1600px] max-[600px]:h-[700px] max-[600px]:left-1/2 max-[600px]:-translate-x-1/2 max-[600px]:-translate-y-[5%]'
 
 interface IntroVideoProps {
   onEnded: () => void
@@ -16,7 +17,8 @@ interface IntroVideoProps {
 export default function IntroVideo({ onEnded, onFlashStart }: IntroVideoProps) {
   const { isLowPerformance } = usePerformanceMode()
   const { signalReady, transitionStage } = useTransitionState()
-  const videoRef = useRef<HTMLVideoElement>(null)
+  const bgVideoRef = useRef<HTMLVideoElement>(null)
+  const manVideoRef = useRef<HTMLVideoElement>(null)
   const readyCalledRef = useRef(false)
   const videoStartedRef = useRef(false)
   const flashTriggeredRef = useRef(false)
@@ -27,7 +29,6 @@ export default function IntroVideo({ onEnded, onFlashStart }: IntroVideoProps) {
     signalReady()
   }, [signalReady])
 
-  // Reset ready state when entering loading (new navigation to this page)
   useEffect(() => {
     if (transitionStage === 'loading') {
       readyCalledRef.current = false
@@ -36,14 +37,13 @@ export default function IntroVideo({ onEnded, onFlashStart }: IntroVideoProps) {
     }
   }, [transitionStage])
 
-  // Start video when reveal begins or on direct load (hidden)
   useEffect(() => {
     if (isLowPerformance || (transitionStage !== 'revealing' && transitionStage !== 'hidden') || videoStartedRef.current) return
     videoStartedRef.current = true
-    videoRef.current?.play()
+    bgVideoRef.current?.play()
+    manVideoRef.current?.play()
   }, [isLowPerformance, transitionStage])
 
-  // Low performance: signal ready and skip
   useEffect(() => {
     if (!isLowPerformance || readyCalledRef.current) return
     readyCalledRef.current = true
@@ -52,11 +52,10 @@ export default function IntroVideo({ onEnded, onFlashStart }: IntroVideoProps) {
     return () => clearTimeout(timeout)
   }, [isLowPerformance, signalReady, onEnded])
 
-  // Normal mode: wait for video ready
   useEffect(() => {
     if (isLowPerformance) return
 
-    const video = videoRef.current
+    const video = bgVideoRef.current
     if (!video) return
 
     if (video.readyState >= 3) {
@@ -96,25 +95,47 @@ export default function IntroVideo({ onEnded, onFlashStart }: IntroVideoProps) {
 
   if (isLowPerformance) {
     return (
-      <div className="absolute inset-0 z-0 pointer-events-none">
-        <Image src="/animation_frames/manga/manga_intro/0075.png" alt="" fill className="object-cover" />
-      </div>
+      <>
+        <div className="absolute inset-0 z-0 pointer-events-none">
+          <Image src="/animation_frames/manga/manga_intro/0075.png" alt="" fill className="object-cover" />
+        </div>
+        <div className={`absolute inset-0 w-full h-full ${MOBILE_CONTAINER_CLASSES} max-[600px]:mt-20 z-10 pointer-events-none`}>
+          <Image src="/animation_frames/manga/manga_man_intro/0075.png" alt="" fill className="object-cover max-[600px]:object-contain" />
+        </div>
+      </>
     )
   }
 
   return (
-    <div className="absolute inset-0 z-0 pointer-events-none">
-      <video
-        ref={videoRef}
-        src="/projects/videos/manga_intro.webm"
-        className="absolute inset-0 w-full h-full object-cover"
-        muted
-        playsInline
-        preload="auto"
-        onTimeUpdate={handleTimeUpdate}
-        onEnded={onEnded}
-        onError={handleError}
-      />
-    </div>
+    <>
+      <div className="absolute inset-0 z-0 pointer-events-none">
+        <video
+          ref={bgVideoRef}
+          className="absolute inset-0 w-full h-full object-cover"
+          muted
+          playsInline
+          preload="auto"
+          onTimeUpdate={handleTimeUpdate}
+          onEnded={onEnded}
+          onError={handleError}
+        >
+          <source src="/projects/videos/manga_intro_bg.mov" type='video/mp4; codecs="hvc1"' />
+          <source src="/projects/videos/manga_intro_bg.webm" type="video/webm" />
+        </video>
+      </div>
+
+      <div className={`absolute inset-0 w-full h-full ${MOBILE_CONTAINER_CLASSES} max-[600px]:mt-5 z-10 pointer-events-none`}>
+        <video
+          ref={manVideoRef}
+          className="absolute inset-0 w-full h-full object-cover max-[600px]:object-contain"
+          muted
+          playsInline
+          preload="auto"
+        >
+          <source src="/projects/videos/manga_man_intro.mov" type='video/mp4; codecs="hvc1"' />
+          <source src="/projects/videos/manga_man_intro.webm" type="video/webm" />
+        </video>
+      </div>
+    </>
   )
 }

@@ -13,7 +13,7 @@ export const experiences: Experience[] = [
     title: "Software Engineer Intern",
     company: "Wedge (YC S25)",
     period: "Jan 2026 - Present",
-    description: "Building innovative solutions at an early-stage Y Combinator startup.",
+    description: "Building AI agents for healthcare organizations.",
     logo: "/experience/images/wedge_logo.avif",
     logoScale: 0.8,
   },
