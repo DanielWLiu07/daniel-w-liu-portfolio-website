@@ -17,7 +17,7 @@ export const projects: Project[] = [
     id: 1,
     title: "Rainbolt AI",
     description: "AI-powered location identification from images",
-    detailedDescription: "Upload any image and identify its real-world location. Uses a RAG pipeline with OpenAI CLIP and Pinecone to match visual features, while Gemini provides reasoning about road markings, architecture, signage, and vegetation. View nearby street imagery via Mapillary and organize discoveries on an interactive constellation whiteboard.",
+    detailedDescription: "Upload any image and discover its real-world location. Rainbolt.ai uses a RAG pipeline with CLIP and Pinecone to match visual features against a 900k+ image dataset, while Gemini reasons about road markings, architecture, signage, and vegetation. Explore nearby street views via Mapillary and organize your discoveries on an interactive 3D constellation whiteboard.",
     image: "/projects/images/frame1.png",
     thumbnail: "/projects/thumbnails/rainbolt.webm",
     images: [
@@ -26,7 +26,7 @@ export const projects: Project[] = [
       "/projects/projects/rainbolt.ai/gallery (1).jpg",
       "/projects/projects/rainbolt.ai/gallery (2).jpg",
     ],
-    technologies: ["Next.js", "FastAPI", "Gemini", "Pinecone", "LangChain", "CLIP"],
+    technologies: ["Next.js", "TypeScript", "Tailwind CSS", "FastAPI", "Python", "Gemini", "CLIP", "Pinecone", "LangChain", "Firebase", "Auth0", "Google Cloud"],
     titleGradient: "from-[#00d4ff] via-[#00b4d8] to-[#2ecc71]",
     link: "https://rainbolt.ai",
   },
