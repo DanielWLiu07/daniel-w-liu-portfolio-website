@@ -15,8 +15,8 @@ export const projects: Project[] = [
   {
     id: 1,
     title: "Rainbolt AI",
-    description: "AI-powered geolocation from images",
-    detailedDescription: "An AI application that analyzes images to predict their real-world locations, inspired by GeoGuessr. Features a stunning 3D globe visualization, detailed AI analysis of visual cues like architecture, vegetation, and landmarks, and accuracy scoring. The AI examines features like Mayan pyramids, landscape characteristics, and environmental details to pinpoint locations worldwide.",
+    description: "AI-powered location identification from images",
+    detailedDescription: "Upload any image and identify its real-world location. Uses a RAG pipeline with OpenAI CLIP and Pinecone to match visual features, while Gemini provides reasoning about road markings, architecture, signage, and vegetation. View nearby street imagery via Mapillary and organize discoveries on an interactive constellation whiteboard.",
     image: "/projects/images/frame1.png",
     thumbnail: "/projects/thumbnails/rainbolt.webm",
     images: [
@@ -25,7 +25,7 @@ export const projects: Project[] = [
       "/projects/projects/rainbolt.ai/gallery (1).jpg",
       "/projects/projects/rainbolt.ai/gallery (2).jpg",
     ],
-    technologies: ["React", "Three.js", "OpenAI API", "TypeScript"],
+    technologies: ["Next.js", "FastAPI", "Gemini", "Pinecone", "LangChain", "CLIP"],
     link: "https://rainbolt.ai",
   },
   {
