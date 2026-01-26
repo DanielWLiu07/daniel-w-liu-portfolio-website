@@ -354,50 +354,17 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
 
     allProjects.forEach((project, i) => {
       const textureLoader = new THREE.TextureLoader()
-      const frameTexture = textureLoader.load(project.image)
+      const frameTexture = textureLoader.load(project.frame)
       const contentTextures = project.images.map(imgPath => textureLoader.load(imgPath))
 
       const video = document.createElement('video')
       video.src = project.thumbnail
-      video.loop = false // We handle looping manually for ping-pong
+      video.loop = true
       video.muted = true
       video.playsInline = true
       video.autoplay = true
       video.crossOrigin = 'anonymous'
-
-      let playingForward = true
-      let reverseAnimationId: number | null = null
-
-      const playReverse = () => {
-        if (video.currentTime <= 0) {
-          playingForward = true
-          video.play().catch(() => {})
-          return
-        }
-        video.currentTime = Math.max(0, video.currentTime - 1/30)
-        reverseAnimationId = requestAnimationFrame(playReverse)
-      }
-
-      video.addEventListener('ended', () => {
-        if (playingForward) {
-          playingForward = false
-          video.pause()
-          playReverse()
-        }
-      })
-
-      video.play().catch(() => {
-      })
-
-      video.dataset.reverseAnimId = ''
-      const origPause = video.pause.bind(video)
-      video.pause = () => {
-        if (reverseAnimationId) {
-          cancelAnimationFrame(reverseAnimationId)
-          reverseAnimationId = null
-        }
-        origPause()
-      }
+      video.play().catch(() => {})
 
       const thumbnailTexture = new THREE.VideoTexture(video)
       thumbnailTexture.minFilter = THREE.LinearFilter
@@ -405,7 +372,8 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
 
       const geometry = createCardGeometry(sceneOptions.cardWidth, sceneOptions.cardHeight)
       const cardAspectRatio = sceneOptions.cardWidth / sceneOptions.cardHeight
-      const material = createCardMaterial(frameTexture, thumbnailTexture, sceneOptions.curve, 1.0, cardAspectRatio, false)
+      const frameAspectRatio = 389 / 596 // Frame image aspect ratio
+      const material = createCardMaterial(frameTexture, thumbnailTexture, sceneOptions.curve, 1.0, cardAspectRatio, false, frameAspectRatio)
 
       video.addEventListener('loadedmetadata', () => {
         if (video.videoWidth && video.videoHeight) {
@@ -664,9 +632,13 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       const isMobileSize = container.clientWidth < MD_BREAKPOINT
       const isVerticalOnScreen = !isMobileSize
 
+      const imageScale = 1.0
+      const scaledCardWidth = sceneOptions.cardWidth * imageScale
+      const scaledCardHeight = sceneOptions.cardHeight * imageScale
+
       const spacing = isMobileSize
-        ? sceneOptions.cardWidth + 0.55
-        : sceneOptions.cardWidth + 0.12
+        ? scaledCardHeight + 0.5
+        : scaledCardWidth + 0.05
       const leftShiftAmount = 0
 
       const cardAspectRatio = sceneOptions.cardWidth / sceneOptions.cardHeight
@@ -710,8 +682,11 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           contentAspectRatio = img.width / img.height
         }
 
-        const cardGeometry = createCardGeometry(sceneOptions.cardWidth, sceneOptions.cardHeight)
-        const cardMaterial = createCardMaterial(frameTexture, texture, sceneOptions.curve, contentAspectRatio, cardAspectRatio, skipRevealAnimation)
+        const cardGeometry = createCardGeometry(scaledCardWidth, scaledCardHeight)
+        const frameAspectRatio = 389 / 596 // Frame image aspect ratio
+        const imageScale = 0.75 // Scale down the whole unit
+        const frameScale = 1.15 // Frame is 15% larger than image
+        const cardMaterial = createCardMaterial(frameTexture, texture, sceneOptions.curve, contentAspectRatio, cardAspectRatio, true, frameAspectRatio, imageScale, frameScale)
         cardMaterial.uniforms.isExpanded.value = 1.0
         cardMaterial.uniforms.opacity.value = skipRevealAnimation ? 1 : 0
         cardMaterial.depthWrite = false
@@ -1575,14 +1550,20 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
               const distFromCenter = Math.abs(actualPos)
 
               if (!isExiting) {
-                imageGroup.position.z = distFromCenter * 0.2
+                // Individual bobbing for each image
+                const floatPhase = imageGroup.userData.floatPhaseOffset as number
+                const bobY = Math.sin(floatTime * 1.5 + floatPhase) * 0.03
+                const bobZ = Math.cos(floatTime * 1.2 + floatPhase) * 0.02
+
+                imageGroup.position.z = distFromCenter * 0.2 + bobZ
 
                 if (cardPlane) {
                   const forwardBackTilt = smoothMousePosition.x * 0.08
 
-                  const tiltY = -actualPos * 0.25
+                  // Tilt in vertical mode (desktop), no tilt in horizontal mode (mobile)
+                  const tiltY = frameIsVertical ? -actualPos * 0.25 : 0
                   cardPlane.rotation.x = forwardBackTilt
-                  cardPlane.rotation.y = tiltY
+                  cardPlane.rotation.y = tiltY + bobY * 0.5
                   cardPlane.rotation.z = 0
                   imageGroup.rotation.set(0, 0, 0)
                 }
@@ -1686,7 +1667,8 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
             mat.uniforms.opacity.value = currentOpacity + (1 - currentOpacity) * 0.1
           }
         } else {
-          const targetScale = plane === hoveredPlaneRef.current ? 1.04 : 1
+          const isHovered = plane === hoveredPlaneRef.current
+          const targetScale = isHovered ? 1.04 : 1
           const currentScale = plane.scale.x
           const scaleDiff = targetScale - currentScale
           const newScale = currentScale + scaleDiff * 0.15
@@ -1695,9 +1677,18 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           plane.rotation.x += (0 - plane.rotation.x) * 0.1
           plane.rotation.y += (0 - plane.rotation.y) * 0.1
 
+          // Faded by default, full opacity on hover
           if (mat.uniforms.opacity) {
+            const targetOpacity = isHovered ? 1.0 : 0.75
             const currentOpacity = mat.uniforms.opacity.value
-            mat.uniforms.opacity.value = currentOpacity + (1 - currentOpacity) * 0.1
+            mat.uniforms.opacity.value = currentOpacity + (targetOpacity - currentOpacity) * 0.15
+          }
+
+          // Glow effect on hover
+          if (mat.uniforms.glow) {
+            const targetGlow = isHovered ? 0.1 : 0.0
+            const currentGlow = mat.uniforms.glow.value
+            mat.uniforms.glow.value = currentGlow + (targetGlow - currentGlow) * 0.15
           }
         }
       })
