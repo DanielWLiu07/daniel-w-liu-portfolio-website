@@ -31,7 +31,7 @@ export const projects: Project[] = [
     ],
     technologies: ["Next.js", "TypeScript", "Tailwind CSS", "FastAPI", "Python", "Gemini", "CLIP", "Pinecone", "LangChain", "Firebase", "Auth0", "Google Cloud"],
     titleGradient: "linear-gradient(to bottom, #00e5ff 0%, #00bcd4 40%, #00c853 100%)",
-    link: "https://rainbolt.ai",
+    link: "https://rainboltai.vercel.app",
   },
   {
     id: 2,
@@ -50,7 +50,7 @@ export const projects: Project[] = [
     ],
     technologies: ["React", "Three.js", "MediaPipe", "Tailwind CSS", "GSAP", "Chart.js", "AWS Amplify", "Radix UI"],
     titleGradient: "linear-gradient(to bottom, #7fff00 0%, #32cd32 50%, #0d5c0d 100%)",
-    link: "https://curveguard.app",
+    link: "https://curve-guard.vercel.app",
   },
   {
     id: 3,
@@ -69,7 +69,7 @@ export const projects: Project[] = [
     ],
     technologies: ["Next.js", "React", "Tailwind CSS", "FastAPI", "Python", "Supabase", "LangGraph", "OpenAI", "ElevenLabs", "Alpaca", "Finnhub"],
     titleGradient: "linear-gradient(to bottom, #ff00ff 0%, #ff00aa 50%, #9400d3 100%)",
-    link: "https://vibetrade.app",
+    link: "https://devpost.com/software/vibetrade",
   },
   {
     id: 4,
