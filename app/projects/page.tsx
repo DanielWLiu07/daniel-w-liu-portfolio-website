@@ -64,10 +64,11 @@ export default function ProjectsPage() {
       const dotsBottomPx = cardBottomPx + (cardHeightPx * MOBILE_LAYOUT.DOTS_OFFSET_RATIO)
       const infoPanelTopPx = dotsBottomPx + MOBILE_LAYOUT.CARDS_GAP
 
-      const infoPanelBaseHeightPx = 620
+      const projectsHeaderHeightPx = 80
+      const infoPanelBaseHeightPx = 680
       const infoPanelScaledHeightPx = infoPanelBaseHeightPx * scale
-      const bottomMarginPx = 120
-      const totalHeightPx = infoPanelTopPx + infoPanelScaledHeightPx + bottomMarginPx
+      const bottomMarginPx = 150
+      const totalHeightPx = infoPanelTopPx + projectsHeaderHeightPx + infoPanelScaledHeightPx + bottomMarginPx
 
       setMobileContainerHeight(`${totalHeightPx}px`)
     }

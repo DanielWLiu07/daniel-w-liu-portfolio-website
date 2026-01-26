@@ -189,8 +189,9 @@ export function ProjectInfoPanel({ project, onClose, onPrevProject, onNextProjec
   const isFlyingOut = panelState === 'flying-out'
   const isVisible = panelState === 'visible'
 
-  const handButtonsOffset = 25
-  const baseTranslateY = transform.isMobile ? '0%' : `calc(-50% - ${handButtonsOffset}px)`
+  // Center the entire unit (Projects header + info card) by using -50%
+  // No extra offset needed since -50% centers based on total container height
+  const baseTranslateY = transform.isMobile ? '0%' : '-50%'
   const translateYStyle = (isFlyingIn || isVisible) ? baseTranslateY : '-150vh'
   const opacity = (isFlyingIn || isVisible) ? 1 : 0
   const transition = (isFlyingOut || isFlyingIn)
@@ -200,7 +201,7 @@ export function ProjectInfoPanel({ project, onClose, onPrevProject, onNextProjec
   const totalRotateY = transform.rotateY
 
   const cardContent = (
-    <div className="p-10 h-full flex flex-col min-h-[620px]">
+    <div className="p-8 md:p-10 h-full flex flex-col min-h-[580px] md:min-h-[620px]">
       <button
         onClick={(e) => {
           e.stopPropagation()
@@ -214,9 +215,10 @@ export function ProjectInfoPanel({ project, onClose, onPrevProject, onNextProjec
       </button>
 
       <h2
-        className={`text-4xl mb-4 pr-8 bg-gradient-to-br ${project.titleGradient} bg-clip-text text-transparent ${fastBlazeFont.className}`}
+        className={`text-4xl pr-8 bg-clip-text text-transparent pt-[0.2em] pb-[0.1em] -mt-[0.2em] mb-[calc(1rem-0.1em)] ${fastBlazeFont.className}`}
         style={{
-          WebkitTextStroke: '1.5px #1a1a1a',
+          backgroundImage: project.titleGradient,
+          WebkitTextStroke: '1px #1a1a1a',
           paintOrder: 'stroke fill'
         }}
       >
@@ -233,7 +235,7 @@ export function ProjectInfoPanel({ project, onClose, onPrevProject, onNextProjec
           {project.technologies.map((tech, index) => (
             <span
               key={index}
-              className="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full"
+              className="px-2 py-0.5 bg-gray-100 text-gray-700 text-xs rounded-full"
             >
               {tech}
             </span>
@@ -304,7 +306,7 @@ export function ProjectInfoPanel({ project, onClose, onPrevProject, onNextProjec
     >
       <div
         ref={cardRef}
-        className="pointer-events-none [transform-style:preserve-3d]"
+        className="pointer-events-none [transform-style:preserve-3d] w-full"
         style={{
           transform: `translateX(${transform.translateX}px) translateY(${transform.translateY}px) rotateX(${totalRotateX}deg) rotateY(${totalRotateY}deg)`,
           transformOrigin: 'center center',
@@ -312,29 +314,30 @@ export function ProjectInfoPanel({ project, onClose, onPrevProject, onNextProjec
       >
         {onPrevProject && onNextProject && (
           <div
-            className="flex items-center justify-center gap-1 mb-0 pointer-events-none relative -z-[1] [transform-style:preserve-3d]"
+            className="relative flex items-center justify-center w-full mb-2 pointer-events-none z-10 [transform-style:preserve-3d]"
             style={{
-              fontSize: transform.isMobile
-                ? `${Math.max(2.5, transform.scale * 3)}rem`
-                : '3rem',
+              // On mobile, compensate for scale so font stays proportional to card width
+              // Card width = 85/scale vw, then scaled by scale = 85vw visual
+              // Font = 7/scale vw, then scaled by scale = 7vw visual (constant % of card)
+              fontSize: transform.isMobile ? `${10 / transform.scale}vw` : '3.75rem',
             }}
           >
             <button
               onClick={onNextProject}
-              className="text-white transition-transform duration-200 hover:scale-110 active:scale-95 animate-beckon-left pointer-events-auto text-[1.8em] [transform:translateZ(10px)] [text-shadow:0_0_15px_rgba(255,255,255,1),0_0_30px_rgba(255,255,255,0.8),0_0_50px_rgba(255,255,255,0.5)]"
+              className="absolute left-0 text-white transition-transform duration-200 hover:scale-110 active:scale-95 animate-beckon-left pointer-events-auto text-[1.8em] [transform:translateZ(10px)] [text-shadow:0_0_15px_rgba(255,255,255,1),0_0_30px_rgba(255,255,255,0.8),0_0_50px_rgba(255,255,255,0.5)]"
               aria-label="Next project"
             >
               ☜
             </button>
             <span
-              className="text-white tracking-widest px-2 animate-bob pointer-events-none text-[1em] [text-shadow:0_0_12px_rgba(255,255,255,0.8),0_0_25px_rgba(255,255,255,0.5)] tracking-[0.12em] [transform:translateZ(5px)]"
+              className="text-white tracking-widest animate-bob pointer-events-none text-[0.7em] whitespace-nowrap [text-shadow:0_0_12px_rgba(255,255,255,0.8),0_0_25px_rgba(255,255,255,0.5)] tracking-[0.12em] [transform:translateZ(5px)]"
               style={{ fontFamily: 'ArcadeClassic, monospace' }}
             >
               Projects
             </span>
             <button
               onClick={onPrevProject}
-              className="text-white transition-transform duration-200 hover:scale-110 active:scale-95 animate-beckon-right pointer-events-auto text-[1.8em] [transform:translateZ(10px)] [text-shadow:0_0_15px_rgba(255,255,255,1),0_0_30px_rgba(255,255,255,0.8),0_0_50px_rgba(255,255,255,0.5)]"
+              className="absolute right-0 text-white transition-transform duration-200 hover:scale-110 active:scale-95 animate-beckon-right pointer-events-auto text-[1.8em] [transform:translateZ(10px)] [text-shadow:0_0_15px_rgba(255,255,255,1),0_0_30px_rgba(255,255,255,0.8),0_0_50px_rgba(255,255,255,0.5)]"
               aria-label="Previous project"
             >
               ☞
@@ -342,7 +345,13 @@ export function ProjectInfoPanel({ project, onClose, onPrevProject, onNextProjec
           </div>
         )}
 
-        <div className="relative rounded-2xl shadow-2xl overflow-hidden -mt-8 pointer-events-auto min-h-[620px]">
+        <div
+          className="relative rounded-2xl shadow-2xl overflow-hidden pointer-events-auto w-full"
+          style={{
+            marginTop: transform.isMobile ? '0.5rem' : '-0.5rem',
+            minHeight: transform.isMobile ? '580px' : '620px'
+          }}
+        >
           <Image
             src="/about/images/bg.png"
             alt=""

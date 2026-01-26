@@ -7,6 +7,7 @@ import { useTransitionState } from '@/components/ui/page-transition'
 
 const FALLBACK_TIMEOUT = 3000
 const FLASH_TRIGGER_TIME = 0.45
+const INTRO_MAX_DURATION = 8000 // Max time to wait for intro before skipping
 const MOBILE_CONTAINER_CLASSES = 'max-[600px]:w-[1600px] max-[600px]:h-[700px] max-[600px]:left-1/2 max-[600px]:-translate-x-1/2 max-[600px]:-translate-y-[5%]'
 
 interface IntroVideoProps {
@@ -20,8 +21,20 @@ export default function IntroVideo({ onEnded, onFlashStart }: IntroVideoProps) {
   const bgVideoRef = useRef<HTMLVideoElement>(null)
   const manVideoRef = useRef<HTMLVideoElement>(null)
   const readyCalledRef = useRef(false)
-  const videoStartedRef = useRef(false)
   const flashTriggeredRef = useRef(false)
+  const videoReadyRef = useRef(false)
+  const transitionReadyRef = useRef(false)
+  const playStartedRef = useRef(false)
+
+  // Function to attempt playing videos when both conditions are met
+  const maybePlay = useCallback(() => {
+    if (playStartedRef.current) return
+    if (!videoReadyRef.current || !transitionReadyRef.current) return
+
+    playStartedRef.current = true
+    bgVideoRef.current?.play().catch(() => {})
+    manVideoRef.current?.play().catch(() => {})
+  }, [])
 
   const handleLoaded = useCallback(() => {
     if (readyCalledRef.current) return
@@ -29,21 +42,28 @@ export default function IntroVideo({ onEnded, onFlashStart }: IntroVideoProps) {
     signalReady()
   }, [signalReady])
 
+  // Reset ALL state when loading (for navigation)
   useEffect(() => {
     if (transitionStage === 'loading') {
       readyCalledRef.current = false
-      videoStartedRef.current = false
       flashTriggeredRef.current = false
+      videoReadyRef.current = false
+      transitionReadyRef.current = false
+      playStartedRef.current = false
     }
   }, [transitionStage])
 
+  // Track when transition is ready to play
   useEffect(() => {
-    if (isLowPerformance || (transitionStage !== 'revealing' && transitionStage !== 'hidden') || videoStartedRef.current) return
-    videoStartedRef.current = true
-    bgVideoRef.current?.play()
-    manVideoRef.current?.play()
-  }, [isLowPerformance, transitionStage])
+    if (isLowPerformance) return
 
+    if (transitionStage === 'revealing' || transitionStage === 'hidden') {
+      transitionReadyRef.current = true
+      maybePlay()
+    }
+  }, [isLowPerformance, transitionStage, maybePlay])
+
+  // Low performance mode: signal ready immediately and end
   useEffect(() => {
     if (!isLowPerformance || readyCalledRef.current) return
     readyCalledRef.current = true
@@ -52,29 +72,52 @@ export default function IntroVideo({ onEnded, onFlashStart }: IntroVideoProps) {
     return () => clearTimeout(timeout)
   }, [isLowPerformance, signalReady, onEnded])
 
+  // Track when video is ready and signal page ready
   useEffect(() => {
     if (isLowPerformance) return
 
     const video = bgVideoRef.current
     if (!video) return
 
-    if (video.readyState >= 3) {
+    const onCanPlay = () => {
       handleLoaded()
+      videoReadyRef.current = true
+      maybePlay()
+    }
+
+    if (video.readyState >= 3) {
+      onCanPlay()
       return
     }
 
-    const onReady = () => handleLoaded()
-    video.addEventListener('canplay', onReady)
-    video.addEventListener('loadeddata', onReady)
+    video.addEventListener('canplay', onCanPlay)
+    video.addEventListener('loadeddata', onCanPlay)
 
-    const timeout = setTimeout(handleLoaded, FALLBACK_TIMEOUT)
+    const timeout = setTimeout(() => {
+      handleLoaded()
+      videoReadyRef.current = true
+      maybePlay()
+    }, FALLBACK_TIMEOUT)
 
     return () => {
-      video.removeEventListener('canplay', onReady)
-      video.removeEventListener('loadeddata', onReady)
+      video.removeEventListener('canplay', onCanPlay)
+      video.removeEventListener('loadeddata', onCanPlay)
       clearTimeout(timeout)
     }
-  }, [isLowPerformance, handleLoaded])
+  }, [isLowPerformance, handleLoaded, maybePlay])
+
+  // Fallback: if intro takes too long (video doesn't play/end), skip it
+  // Re-runs when transitionStage changes to ensure fresh timeout on navigation
+  useEffect(() => {
+    if (isLowPerformance) return
+    if (transitionStage === 'loading') return // Don't start timeout during loading phase
+
+    const timeout = setTimeout(() => {
+      onEnded()
+    }, INTRO_MAX_DURATION)
+
+    return () => clearTimeout(timeout)
+  }, [isLowPerformance, transitionStage, onEnded])
 
   const handleTimeUpdate = (e: React.SyntheticEvent<HTMLVideoElement>) => {
     if (flashTriggeredRef.current) return
@@ -86,11 +129,14 @@ export default function IntroVideo({ onEnded, onFlashStart }: IntroVideoProps) {
   }
 
   const handleError = () => {
+    // Only signal ready, but don't end intro on error
+    // The video might recover, or we'll fallback to timeout
     if (!readyCalledRef.current) {
       readyCalledRef.current = true
       signalReady()
     }
-    onEnded()
+    // Don't call onEnded() here - let the video try to play
+    // If it truly fails, the fallback timeout will handle it
   }
 
   if (isLowPerformance) {
@@ -112,6 +158,7 @@ export default function IntroVideo({ onEnded, onFlashStart }: IntroVideoProps) {
         <video
           ref={bgVideoRef}
           className="absolute inset-0 w-full h-full object-cover"
+          autoPlay
           muted
           playsInline
           preload="auto"
@@ -128,6 +175,7 @@ export default function IntroVideo({ onEnded, onFlashStart }: IntroVideoProps) {
         <video
           ref={manVideoRef}
           className="absolute inset-0 w-full h-full object-cover max-[600px]:object-contain"
+          autoPlay
           muted
           playsInline
           preload="auto"
