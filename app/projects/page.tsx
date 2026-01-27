@@ -209,7 +209,12 @@ export default function ProjectsPage() {
         <BackgroundVideos visible={introFinished} isExpanded={expandedProject !== null} />
 
       {!introVideoEnded && !isLowPerformance && (
-        <IntroVideo onEnded={handleIntroEnd} onFlashStart={handleFlashStart} onReady={handleIntroVideoReady} />
+        <IntroVideo
+          onEnded={handleIntroEnd}
+          onFlashStart={handleFlashStart}
+          onReady={handleIntroVideoReady}
+          canPlay={!showLoadingOverlay}
+        />
       )}
 
       <ProjectSlider

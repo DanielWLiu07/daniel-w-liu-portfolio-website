@@ -14,11 +14,13 @@ interface IntroVideoProps {
   onEnded: () => void
   onFlashStart: () => void
   onReady?: () => void
+  canPlay?: boolean
 }
 
-export default function IntroVideo({ onEnded, onFlashStart, onReady }: IntroVideoProps) {
+export default function IntroVideo({ onEnded, onFlashStart, onReady, canPlay = true }: IntroVideoProps) {
   const { isLowPerformance } = usePerformanceMode()
   const { transitionStage } = useTransitionState()
+  const canPlayRef = useRef(canPlay)
   const bgVideoRef = useRef<HTMLVideoElement>(null)
   const manVideoRef = useRef<HTMLVideoElement>(null)
   const readyCalledRef = useRef(false)
@@ -27,10 +29,16 @@ export default function IntroVideo({ onEnded, onFlashStart, onReady }: IntroVide
   const transitionReadyRef = useRef(false)
   const playStartedRef = useRef(false)
 
-  // Function to attempt playing videos when both conditions are met
+  // Keep canPlayRef in sync with prop
+  useEffect(() => {
+    canPlayRef.current = canPlay
+  }, [canPlay])
+
+  // Function to attempt playing videos when all conditions are met
   const maybePlay = useCallback(() => {
     if (playStartedRef.current) return
     if (!videoReadyRef.current || !transitionReadyRef.current) return
+    if (!canPlayRef.current) return // Don't play until explicitly allowed
 
     playStartedRef.current = true
     bgVideoRef.current?.play().catch(() => {})
@@ -63,6 +71,14 @@ export default function IntroVideo({ onEnded, onFlashStart, onReady }: IntroVide
       maybePlay()
     }
   }, [isLowPerformance, transitionStage, maybePlay])
+
+  // When canPlay becomes true, attempt to play
+  useEffect(() => {
+    if (isLowPerformance) return
+    if (canPlay) {
+      maybePlay()
+    }
+  }, [isLowPerformance, canPlay, maybePlay])
 
   // Low performance mode: notify ready immediately and end
   useEffect(() => {
