@@ -12,6 +12,7 @@ import { SocialLinks } from '@/components/ui/social-links'
 import { mochiFont } from '@/lib/fonts'
 import { useBodyOverflow } from '@/hooks/use-body-overflow'
 import { useTransitionState } from '@/components/ui/page-transition'
+import { LoadingContent } from '@/components/ui/page-transition/loading-content'
 import { usePerformanceMode } from '@/contexts/performance-mode-context'
 import { MD_BREAKPOINT, MOBILE_LAYOUT, BASE_RIGHT_CARD_WIDTH, SCALE_LIMITS } from '@/lib/layout-config'
 import { clamp } from '@/lib/animation-utils'
@@ -30,6 +31,7 @@ export default function ProjectsPage() {
   const [sliderReady, setSliderReady] = useState(false)
   const [showCarousel, setShowCarousel] = useState(false)
   const [introVideoReady, setIntroVideoReady] = useState(false)
+  const [showLoadingOverlay, setShowLoadingOverlay] = useState(true)
 
   const mainRef = useRef<HTMLDivElement>(null)
   const gsapContextRef = useRef<gsap.Context | null>(null)
@@ -87,6 +89,8 @@ export default function ProjectsPage() {
     if (introVideoReady && sliderReady) {
       readyCalledRef.current = true
       signalReady()
+      // Hide loading overlay after a brief delay to let transition start
+      setTimeout(() => setShowLoadingOverlay(false), 100)
     }
   }, [introVideoReady, sliderReady, signalReady])
 
@@ -110,6 +114,7 @@ export default function ProjectsPage() {
       setSliderReady(false)
       setShowCarousel(false)
       setIntroVideoReady(false)
+      setShowLoadingOverlay(true)
       if (!isLowPerformance && mainRef.current) {
         gsap.set(SOCIAL_LINKS_SELECTOR, { y: 100, opacity: 0 })
       }
@@ -234,6 +239,13 @@ export default function ProjectsPage() {
 
       <SocialLinks className="projects-social-links" />
       </div>
+
+      {/* Loading overlay - shows until all assets are loaded */}
+      {showLoadingOverlay && (
+        <div className="fixed inset-0 z-[10000] bg-[#f5f0e6]">
+          <LoadingContent />
+        </div>
+      )}
     </>
   )
 }

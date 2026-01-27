@@ -159,7 +159,6 @@ export default function IntroVideo({ onEnded, onFlashStart, onReady }: IntroVide
         <video
           ref={bgVideoRef}
           className="absolute inset-0 w-full h-full object-cover"
-          autoPlay
           muted
           playsInline
           preload="auto"
@@ -176,7 +175,6 @@ export default function IntroVideo({ onEnded, onFlashStart, onReady }: IntroVide
         <video
           ref={manVideoRef}
           className="absolute inset-0 w-full h-full object-cover max-[600px]:object-contain"
-          autoPlay
           muted
           playsInline
           preload="auto"
