@@ -413,59 +413,30 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
 
       let videoMarkedReady = false
 
-      // Track when video is actually playing and has frames ready
       const handleVideoReady = () => {
         if (videoMarkedReady) return
         videoMarkedReady = true
         checkAllAssetsLoaded()
       }
 
-      // Check if video is truly ready (playing + has frame data)
-      const checkVideoTrulyReady = () => {
-        if (videoMarkedReady) return
-        // readyState 3 = HAVE_FUTURE_DATA, 4 = HAVE_ENOUGH_DATA
-        // Also check that video is not paused and has current time > 0 (has rendered a frame)
-        if (video.readyState >= 3 && !video.paused && video.currentTime > 0) {
-          handleVideoReady()
-        }
+      // Use canplaythrough - most reliable signal that video can play smoothly
+      video.addEventListener('canplaythrough', handleVideoReady)
+
+      // Also listen for loadeddata as backup (fires when first frame is available)
+      video.addEventListener('loadeddata', () => {
+        // Small delay to ensure frame is actually rendered
+        setTimeout(handleVideoReady, 100)
+      })
+
+      // Fallback: if video already has data when we attach listeners
+      if (video.readyState >= 3) {
+        handleVideoReady()
       }
 
-      // Listen for playing event and then check readiness
-      video.addEventListener('playing', () => {
-        // Video started playing, but double-check it has frame data
-        if (video.readyState >= 3) {
-          handleVideoReady()
-        } else {
-          // Keep checking until ready
-          const checkInterval = setInterval(() => {
-            checkVideoTrulyReady()
-            if (videoMarkedReady) clearInterval(checkInterval)
-          }, 50)
-          // Clear interval after 3 seconds regardless
-          setTimeout(() => clearInterval(checkInterval), 3000)
-        }
-      })
+      // Final fallback timeout
+      setTimeout(handleVideoReady, 10000)
 
-      // Also check on timeupdate (fires when currentTime changes = frame rendered)
-      video.addEventListener('timeupdate', () => {
-        if (!videoMarkedReady && video.readyState >= 3) {
-          handleVideoReady()
-        }
-      }, { once: true })
-
-      // Fallback timeout in case video events don't fire
-      setTimeout(() => {
-        if (!videoMarkedReady) {
-          handleVideoReady()
-        }
-      }, 8000)
-
-      video.play().catch(() => {
-        // If autoplay fails, still mark as ready after timeout
-        setTimeout(() => {
-          if (!videoMarkedReady) handleVideoReady()
-        }, 2000)
-      })
+      video.play().catch(() => {})
 
       const thumbnailTexture = new THREE.VideoTexture(video)
       thumbnailTexture.minFilter = THREE.LinearFilter
