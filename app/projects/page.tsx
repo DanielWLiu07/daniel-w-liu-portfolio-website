@@ -29,6 +29,7 @@ export default function ProjectsPage() {
   const [isMobileExpanded, setIsMobileExpanded] = useState(false)
   const [sliderReady, setSliderReady] = useState(false)
   const [showCarousel, setShowCarousel] = useState(false)
+  const [introVideoReady, setIntroVideoReady] = useState(false)
 
   const mainRef = useRef<HTMLDivElement>(null)
   const gsapContextRef = useRef<gsap.Context | null>(null)
@@ -80,13 +81,25 @@ export default function ProjectsPage() {
     return () => window.removeEventListener('resize', calculateHeight)
   }, [expandedProject])
 
+  // Signal page ready only when BOTH intro video and slider are ready
   useEffect(() => {
-    if (!isLowPerformance || readyCalledRef.current) return
-    readyCalledRef.current = true
-    signalReady()
-    setIntroFinished(true)
-    setIntroVideoEnded(true)
-  }, [isLowPerformance, signalReady])
+    if (readyCalledRef.current) return
+    if (introVideoReady && sliderReady) {
+      readyCalledRef.current = true
+      signalReady()
+    }
+  }, [introVideoReady, sliderReady, signalReady])
+
+  // Low performance mode: skip intro video, just wait for slider
+  useEffect(() => {
+    if (!isLowPerformance) return
+    // In low performance mode, intro video is skipped, so mark it as ready
+    setIntroVideoReady(true)
+    if (sliderReady) {
+      setIntroFinished(true)
+      setIntroVideoEnded(true)
+    }
+  }, [isLowPerformance, sliderReady])
 
   useEffect(() => {
     if (transitionStage === 'loading') {
@@ -96,16 +109,12 @@ export default function ProjectsPage() {
       setFlashTrigger(false)
       setSliderReady(false)
       setShowCarousel(false)
+      setIntroVideoReady(false)
       if (!isLowPerformance && mainRef.current) {
         gsap.set(SOCIAL_LINKS_SELECTOR, { y: 100, opacity: 0 })
       }
-      if (isLowPerformance) {
-        signalReady()
-        setIntroFinished(true)
-        setIntroVideoEnded(true)
-      }
     }
-  }, [transitionStage, isLowPerformance, signalReady])
+  }, [transitionStage, isLowPerformance])
 
   useLayoutEffect(() => {
     if (isLowPerformance || !mainRef.current) return
@@ -129,6 +138,10 @@ export default function ProjectsPage() {
 
   const handleSliderReady = useCallback(() => {
     setSliderReady(true)
+  }, [])
+
+  const handleIntroVideoReady = useCallback(() => {
+    setIntroVideoReady(true)
   }, [])
 
   // Show carousel only when both flash has triggered AND slider is ready
@@ -191,7 +204,7 @@ export default function ProjectsPage() {
         <BackgroundVideos visible={introFinished} isExpanded={expandedProject !== null} />
 
       {!introVideoEnded && !isLowPerformance && (
-        <IntroVideo onEnded={handleIntroEnd} onFlashStart={handleFlashStart} />
+        <IntroVideo onEnded={handleIntroEnd} onFlashStart={handleFlashStart} onReady={handleIntroVideoReady} />
       )}
 
       <ProjectSlider
@@ -207,20 +220,6 @@ export default function ProjectsPage() {
 
 
       <TransitionFlash trigger={flashTrigger} onComplete={() => setFlashTrigger(false)} />
-
-      {/* Loading indicator - shows after flash but before carousel is ready */}
-      <div
-        className={`fixed inset-0 z-[60] flex items-center justify-center bg-black transition-opacity duration-300 ${
-          ((flashTrigger && !showCarousel) || (isLowPerformance && introFinished && !showCarousel))
-            ? 'opacity-100'
-            : 'opacity-0 pointer-events-none'
-        }`}
-      >
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin" />
-          <span className="text-white/60 text-sm">Loading projects...</span>
-        </div>
-      </div>
 
       {displayProjectData && (
         <ProjectInfoPanel

@@ -13,11 +13,12 @@ const MOBILE_CONTAINER_CLASSES = 'max-[600px]:w-[1600px] max-[600px]:h-[700px] m
 interface IntroVideoProps {
   onEnded: () => void
   onFlashStart: () => void
+  onReady?: () => void
 }
 
-export default function IntroVideo({ onEnded, onFlashStart }: IntroVideoProps) {
+export default function IntroVideo({ onEnded, onFlashStart, onReady }: IntroVideoProps) {
   const { isLowPerformance } = usePerformanceMode()
-  const { signalReady, transitionStage } = useTransitionState()
+  const { transitionStage } = useTransitionState()
   const bgVideoRef = useRef<HTMLVideoElement>(null)
   const manVideoRef = useRef<HTMLVideoElement>(null)
   const readyCalledRef = useRef(false)
@@ -39,8 +40,8 @@ export default function IntroVideo({ onEnded, onFlashStart }: IntroVideoProps) {
   const handleLoaded = useCallback(() => {
     if (readyCalledRef.current) return
     readyCalledRef.current = true
-    signalReady()
-  }, [signalReady])
+    onReady?.()
+  }, [onReady])
 
   // Reset ALL state when loading (for navigation)
   useEffect(() => {
@@ -63,14 +64,14 @@ export default function IntroVideo({ onEnded, onFlashStart }: IntroVideoProps) {
     }
   }, [isLowPerformance, transitionStage, maybePlay])
 
-  // Low performance mode: signal ready immediately and end
+  // Low performance mode: notify ready immediately and end
   useEffect(() => {
     if (!isLowPerformance || readyCalledRef.current) return
     readyCalledRef.current = true
-    signalReady()
+    onReady?.()
     const timeout = setTimeout(onEnded, 100)
     return () => clearTimeout(timeout)
-  }, [isLowPerformance, signalReady, onEnded])
+  }, [isLowPerformance, onReady, onEnded])
 
   // Track when video is ready and signal page ready
   useEffect(() => {
@@ -133,7 +134,7 @@ export default function IntroVideo({ onEnded, onFlashStart }: IntroVideoProps) {
     // The video might recover, or we'll fallback to timeout
     if (!readyCalledRef.current) {
       readyCalledRef.current = true
-      signalReady()
+      onReady?.()
     }
     // Don't call onEnded() here - let the video try to play
     // If it truly fails, the fallback timeout will handle it
