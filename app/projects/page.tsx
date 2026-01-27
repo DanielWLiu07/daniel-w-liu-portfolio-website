@@ -251,7 +251,13 @@ export default function ProjectsPage() {
 
       {/* Loading overlay - shows until all assets are loaded */}
       {showLoadingOverlay && (
-        <div className="fixed inset-0 z-[10000] bg-[#f5f0e6]">
+        <div className="fixed inset-0 z-[10000]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/landing/images/white_paper.png"
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover"
+          />
           <LoadingContent />
         </div>
       )}
