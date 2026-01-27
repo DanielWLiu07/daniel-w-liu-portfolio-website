@@ -38,9 +38,10 @@ interface ProjectSliderProps {
   expandedProject: number | null
   onPrevProject?: () => void
   onNextProject?: () => void
+  onReady?: () => void
 }
 
-export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange, onExpansionStageChange, visible, expandedProject, onPrevProject, onNextProject }: ProjectSliderProps) {
+export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange, onExpansionStageChange, visible, expandedProject, onPrevProject, onNextProject, onReady }: ProjectSliderProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const sceneRef = useRef<THREE.Scene | null>(null)
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null)
@@ -56,6 +57,8 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
   const isPausedRef = useRef(false)
   const initializedRef = useRef(false)
   const [containerReady, setContainerReady] = useState(false)
+  const [allVideosLoaded, setAllVideosLoaded] = useState(false)
+  const onReadyCalledRef = useRef(false)
 
   const animStateRef = useRef<AnimStateData>({
     phase: 'idle',
@@ -112,6 +115,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
 
   const onPrevProjectRef = useRef(onPrevProject)
   const onNextProjectRef = useRef(onNextProject)
+  const onReadyRef = useRef(onReady)
 
   useEffect(() => {
     onPrevProjectRef.current = onPrevProject
@@ -120,6 +124,18 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
   useEffect(() => {
     onNextProjectRef.current = onNextProject
   }, [onNextProject])
+
+  useEffect(() => {
+    onReadyRef.current = onReady
+  }, [onReady])
+
+  // Signal ready when all videos are loaded
+  useEffect(() => {
+    if (allVideosLoaded && !onReadyCalledRef.current) {
+      onReadyCalledRef.current = true
+      onReadyRef.current?.()
+    }
+  }, [allVideosLoaded])
 
   useEffect(() => {
     isPausedRef.current = isPaused
@@ -352,9 +368,38 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
     const planes: THREE.Mesh[] = []
     planesRef.current = planes
 
-    allProjects.forEach((project, i) => {
-      const textureLoader = new THREE.TextureLoader()
-      const frameTexture = textureLoader.load(project.frame)
+    // Create a texture cache - load each unique project's assets only ONCE
+    const textureLoader = new THREE.TextureLoader()
+    const projectAssetsCache = new Map<number, {
+      frameTexture: THREE.Texture
+      thumbnailVideo: HTMLVideoElement
+      thumbnailTexture: THREE.VideoTexture
+      contentTextures: THREE.Texture[]
+      videoAspectRatio: number
+    }>()
+
+    // Track total UNIQUE assets to load: videos + frame textures
+    const totalAssetsToLoad = projects.length * 2 // 1 video + 1 frame per project
+    let assetsLoadedCount = 0
+
+    const checkAllAssetsLoaded = () => {
+      assetsLoadedCount++
+      if (assetsLoadedCount >= totalAssetsToLoad) {
+        setAllVideosLoaded(true)
+      }
+    }
+
+    // Pre-load all unique project assets once
+    projects.forEach((project) => {
+      // Load frame texture with callback
+      const frameTexture = textureLoader.load(
+        project.frame,
+        () => checkAllAssetsLoaded(), // onLoad
+        undefined, // onProgress
+        () => checkAllAssetsLoaded() // onError - still count it to not block forever
+      )
+
+      // Load content textures (don't block on these, they're for expanded view)
       const contentTextures = project.images.map(imgPath => textureLoader.load(imgPath))
 
       const video = document.createElement('video')
@@ -364,20 +409,102 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       video.playsInline = true
       video.autoplay = true
       video.crossOrigin = 'anonymous'
-      video.play().catch(() => {})
+      video.preload = 'auto'
+
+      let videoMarkedReady = false
+
+      // Track when video is actually playing and has frames ready
+      const handleVideoReady = () => {
+        if (videoMarkedReady) return
+        videoMarkedReady = true
+        checkAllAssetsLoaded()
+      }
+
+      // Check if video is truly ready (playing + has frame data)
+      const checkVideoTrulyReady = () => {
+        if (videoMarkedReady) return
+        // readyState 3 = HAVE_FUTURE_DATA, 4 = HAVE_ENOUGH_DATA
+        // Also check that video is not paused and has current time > 0 (has rendered a frame)
+        if (video.readyState >= 3 && !video.paused && video.currentTime > 0) {
+          handleVideoReady()
+        }
+      }
+
+      // Listen for playing event and then check readiness
+      video.addEventListener('playing', () => {
+        // Video started playing, but double-check it has frame data
+        if (video.readyState >= 3) {
+          handleVideoReady()
+        } else {
+          // Keep checking until ready
+          const checkInterval = setInterval(() => {
+            checkVideoTrulyReady()
+            if (videoMarkedReady) clearInterval(checkInterval)
+          }, 50)
+          // Clear interval after 3 seconds regardless
+          setTimeout(() => clearInterval(checkInterval), 3000)
+        }
+      })
+
+      // Also check on timeupdate (fires when currentTime changes = frame rendered)
+      video.addEventListener('timeupdate', () => {
+        if (!videoMarkedReady && video.readyState >= 3) {
+          handleVideoReady()
+        }
+      }, { once: true })
+
+      // Fallback timeout in case video events don't fire
+      setTimeout(() => {
+        if (!videoMarkedReady) {
+          handleVideoReady()
+        }
+      }, 8000)
+
+      video.play().catch(() => {
+        // If autoplay fails, still mark as ready after timeout
+        setTimeout(() => {
+          if (!videoMarkedReady) handleVideoReady()
+        }, 2000)
+      })
 
       const thumbnailTexture = new THREE.VideoTexture(video)
       thumbnailTexture.minFilter = THREE.LinearFilter
       thumbnailTexture.magFilter = THREE.LinearFilter
+
+      const assets = {
+        frameTexture,
+        thumbnailVideo: video,
+        thumbnailTexture,
+        contentTextures,
+        videoAspectRatio: 1.0
+      }
+
+      video.addEventListener('loadedmetadata', () => {
+        if (video.videoWidth && video.videoHeight) {
+          assets.videoAspectRatio = video.videoWidth / video.videoHeight
+        }
+      })
+
+      projectAssetsCache.set(project.id, assets)
+    })
+
+    // Now create planes, reusing cached assets
+    allProjects.forEach((project, i) => {
+      const assets = projectAssetsCache.get(project.id)!
+      const { frameTexture, thumbnailVideo, thumbnailTexture, contentTextures } = assets
 
       const geometry = createCardGeometry(sceneOptions.cardWidth, sceneOptions.cardHeight)
       const cardAspectRatio = sceneOptions.cardWidth / sceneOptions.cardHeight
       const frameAspectRatio = 389 / 596 // Frame image aspect ratio
       const material = createCardMaterial(frameTexture, thumbnailTexture, sceneOptions.curve, 1.0, cardAspectRatio, false, frameAspectRatio)
 
-      video.addEventListener('loadedmetadata', () => {
-        if (video.videoWidth && video.videoHeight) {
-          material.uniforms.contentAspectRatio.value = video.videoWidth / video.videoHeight
+      // Update aspect ratio from cached value or listen for updates
+      if (assets.videoAspectRatio !== 1.0) {
+        material.uniforms.contentAspectRatio.value = assets.videoAspectRatio
+      }
+      thumbnailVideo.addEventListener('loadedmetadata', () => {
+        if (thumbnailVideo.videoWidth && thumbnailVideo.videoHeight) {
+          material.uniforms.contentAspectRatio.value = thumbnailVideo.videoWidth / thumbnailVideo.videoHeight
         }
       })
 
@@ -393,7 +520,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         index: i,
         originalWorldX: 0,
         frameTexture,
-        thumbnailVideo: video,
+        thumbnailVideo,
         thumbnailTexture,
         contentTextures,
         currentImageIndex: 0
@@ -1758,22 +1885,27 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       if (renderer.domElement.parentNode === container) {
         container.removeChild(renderer.domElement)
       }
+      // Dispose plane geometries and materials
       planes.forEach(plane => {
         plane.geometry.dispose()
         if (plane.material instanceof THREE.Material) {
           plane.material.dispose()
         }
-        const video = plane.userData.thumbnailVideo as HTMLVideoElement | undefined
-        if (video) {
-          video.pause()
-          video.src = ''
-          video.load()
-        }
-        const thumbnailTex = plane.userData.thumbnailTexture as THREE.VideoTexture | undefined
-        if (thumbnailTex) {
-          thumbnailTex.dispose()
-        }
       })
+
+      // Dispose cached assets only once (not per-plane)
+      projectAssetsCache.forEach(assets => {
+        const { thumbnailVideo, thumbnailTexture, frameTexture, contentTextures } = assets
+        if (thumbnailVideo) {
+          thumbnailVideo.pause()
+          thumbnailVideo.src = ''
+          thumbnailVideo.load()
+        }
+        thumbnailTexture?.dispose()
+        frameTexture?.dispose()
+        contentTextures?.forEach(tex => tex?.dispose())
+      })
+      projectAssetsCache.clear()
       if (dotGroupRef.current) {
         dotGroupRef.current.children.forEach(child => {
           if (child instanceof THREE.Mesh) {

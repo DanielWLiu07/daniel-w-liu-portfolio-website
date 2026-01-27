@@ -27,6 +27,8 @@ export default function ProjectsPage() {
   const [displayProjectData, setDisplayProjectData] = useState<typeof projects[0] | null>(null)
   const [mobileContainerHeight, setMobileContainerHeight] = useState<string | undefined>(undefined)
   const [isMobileExpanded, setIsMobileExpanded] = useState(false)
+  const [sliderReady, setSliderReady] = useState(false)
+  const [showCarousel, setShowCarousel] = useState(false)
 
   const mainRef = useRef<HTMLDivElement>(null)
   const gsapContextRef = useRef<gsap.Context | null>(null)
@@ -92,6 +94,8 @@ export default function ProjectsPage() {
       setIntroFinished(false)
       setIntroVideoEnded(false)
       setFlashTrigger(false)
+      setSliderReady(false)
+      setShowCarousel(false)
       if (!isLowPerformance && mainRef.current) {
         gsap.set(SOCIAL_LINKS_SELECTOR, { y: 100, opacity: 0 })
       }
@@ -122,6 +126,20 @@ export default function ProjectsPage() {
   const handleFlashStart = useCallback(() => {
     setFlashTrigger(true)
   }, [])
+
+  const handleSliderReady = useCallback(() => {
+    setSliderReady(true)
+  }, [])
+
+  // Show carousel only when both flash has triggered AND slider is ready
+  // In low performance mode, show immediately when slider is ready (no flash)
+  useEffect(() => {
+    if (isLowPerformance && sliderReady) {
+      setShowCarousel(true)
+    } else if (flashTrigger && sliderReady) {
+      setShowCarousel(true)
+    }
+  }, [flashTrigger, sliderReady, isLowPerformance])
 
   const handleIntroEnd = useCallback(() => {
     setIntroVideoEnded(true)
@@ -180,14 +198,29 @@ export default function ProjectsPage() {
         isPaused={isPaused}
         onProjectClick={setExpandedProject}
         onPauseChange={setIsPaused}
-        visible={introFinished}
+        visible={showCarousel}
         expandedProject={expandedProject}
         onPrevProject={goToPrevProject}
         onNextProject={goToNextProject}
+        onReady={handleSliderReady}
       />
 
 
       <TransitionFlash trigger={flashTrigger} onComplete={() => setFlashTrigger(false)} />
+
+      {/* Loading indicator - shows after flash but before carousel is ready */}
+      <div
+        className={`fixed inset-0 z-[60] flex items-center justify-center bg-black transition-opacity duration-300 ${
+          ((flashTrigger && !showCarousel) || (isLowPerformance && introFinished && !showCarousel))
+            ? 'opacity-100'
+            : 'opacity-0 pointer-events-none'
+        }`}
+      >
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin" />
+          <span className="text-white/60 text-sm">Loading projects...</span>
+        </div>
+      </div>
 
       {displayProjectData && (
         <ProjectInfoPanel
