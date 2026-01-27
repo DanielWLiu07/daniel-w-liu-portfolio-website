@@ -434,13 +434,16 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         setTimeout(handleVideoReady, 100)
       })
 
+      // Handle video errors - don't block loading if video fails
+      video.addEventListener('error', handleVideoReady)
+
       // Fallback: if video already has data when we attach listeners
       if (video.readyState >= 3) {
         handleVideoReady()
       }
 
-      // Final fallback timeout
-      setTimeout(handleVideoReady, 10000)
+      // Final fallback timeout per video (15s)
+      setTimeout(handleVideoReady, 15000)
 
       video.play().catch(() => {})
 

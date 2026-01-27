@@ -148,19 +148,12 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
       return
     }
 
-    // Poll for ready state
+    // Poll for ready state - no fallback timeout, wait until page signals ready
     readyCheckIntervalRef.current = setInterval(() => {
       if (checkReadyAndReveal()) {
         cleanupTimers()
       }
     }, 50)
-
-    // Fallback timeout: 10s for initial (videos need time), 10s for first quality (in case load event never fires), MIN_LOADING_TIME + 3s for others
-    const fallbackTime = isInitialLoadRef.current ? 10000 : (isFirstQualitySelectionRef.current ? 10000 : MIN_LOADING_TIME + 3000)
-    fallbackTimeoutRef.current = setTimeout(() => {
-      cleanupTimers()
-      doReveal()
-    }, fallbackTime)
   }, [checkReadyAndReveal, doReveal, cleanupTimers])
 
   const navigateWithTransition = useCallback((href: string, onBeforeReveal?: () => void) => {
