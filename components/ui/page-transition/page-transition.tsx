@@ -155,8 +155,8 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
       }
     }, 50)
 
-    // Fallback timeout: 3s for initial, 10s for first quality (in case load event never fires), MIN_LOADING_TIME + 3s for others
-    const fallbackTime = isInitialLoadRef.current ? 3000 : (isFirstQualitySelectionRef.current ? 10000 : MIN_LOADING_TIME + 3000)
+    // Fallback timeout: 10s for initial (videos need time), 10s for first quality (in case load event never fires), MIN_LOADING_TIME + 3s for others
+    const fallbackTime = isInitialLoadRef.current ? 10000 : (isFirstQualitySelectionRef.current ? 10000 : MIN_LOADING_TIME + 3000)
     fallbackTimeoutRef.current = setTimeout(() => {
       cleanupTimers()
       doReveal()

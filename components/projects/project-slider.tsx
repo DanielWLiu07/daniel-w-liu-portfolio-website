@@ -378,8 +378,8 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       videoAspectRatio: number
     }>()
 
-    // Track total UNIQUE assets to load: videos + frame textures
-    const totalAssetsToLoad = projects.length * 2 // 1 video + 1 frame per project
+    // Track total UNIQUE assets to load: videos + frame textures + flash bg
+    const totalAssetsToLoad = projects.length * 2 + 1 // 1 video + 1 frame per project + 1 flash bg
     let assetsLoadedCount = 0
 
     const checkAllAssetsLoaded = () => {
@@ -388,6 +388,12 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         setAllVideosLoaded(true)
       }
     }
+
+    // Preload flash background image
+    const flashBgImg = new Image()
+    flashBgImg.onload = checkAllAssetsLoaded
+    flashBgImg.onerror = checkAllAssetsLoaded // Count even on error to not block forever
+    flashBgImg.src = '/projects/images/flash_bg.png'
 
     // Pre-load all unique project assets once
     projects.forEach((project) => {
