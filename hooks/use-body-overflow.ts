@@ -10,7 +10,14 @@ export function useBodyOverflow(overflow: 'hidden' | 'auto' = 'hidden', options?
 
   useEffect(() => {
     const updateOverflow = () => {
-      const isMobile = mobileBreakpoint && window.innerWidth < mobileBreakpoint
+      // If no mobileBreakpoint, just use the overflow parameter directly
+      if (!mobileBreakpoint) {
+        document.body.style.overflow = overflow === 'auto' ? '' : overflow
+        document.body.style.overscrollBehavior = 'none'
+        return
+      }
+
+      const isMobile = window.innerWidth < mobileBreakpoint
 
       // Only allow scroll on mobile AND when allowScrollWhen is true
       if (isMobile && allowScrollWhen) {
