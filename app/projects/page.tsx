@@ -240,6 +240,15 @@ export default function ProjectsPage() {
       <SocialLinks className="projects-social-links" />
       </div>
 
+      {/* Hidden preload for flash background - ensures browser caches image for CSS */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/projects/images/flash_bg.png"
+        alt=""
+        className="fixed -top-[9999px] -left-[9999px] w-1 h-1 pointer-events-none opacity-0"
+        aria-hidden="true"
+      />
+
       {/* Loading overlay - shows until all assets are loaded */}
       {showLoadingOverlay && (
         <div className="fixed inset-0 z-[10000] bg-[#f5f0e6]">
