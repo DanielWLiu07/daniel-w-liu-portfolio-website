@@ -21,7 +21,7 @@ export const projects: Project[] = [
     detailedDescription: "Upload any image and discover its real-world location. Uses a RAG pipeline with CLIP and Pinecone to match against 900k+ images, while Gemini reasons about visual cues. Explore street views via Mapillary and organize discoveries on an interactive 3D constellation.",
     image: "/projects/images/frames/frame_1.png",
     frame: "/projects/projects/rainbolt.ai/frame.png",
-    thumbnail: "/projects/thumbnails/rainbolt_pingpong.mp4",
+    thumbnail: "/projects/thumbnails/rainbolt_pingpong.webm",
     images: [
       "/projects/projects/rainbolt.ai/landing.png",
       "/projects/projects/rainbolt.ai/chat.png",
@@ -40,7 +40,7 @@ export const projects: Project[] = [
     detailedDescription: "Real-time posture monitoring using computer vision and MediaPipe for body landmark detection. Features an interactive 3D skeleton that responds to your posture, cloud-powered analytics with AWS Amplify, and customizable alerts for head tilt, eye height, and shoulder balance. Track your posture history with Chart.js visualizations.",
     image: "/projects/images/frames/frame_2.png",
     frame: "/projects/projects/curve_guard/frame.png",
-    thumbnail: "/projects/thumbnails/curveguard_pingpong.mp4",
+    thumbnail: "/projects/thumbnails/curveguard_pingpong.webm",
     images: [
       "/projects/projects/curve_guard/landing.png",
       "/projects/projects/curve_guard/features.png",
@@ -59,7 +59,7 @@ export const projects: Project[] = [
     detailedDescription: "An agentic trading system that plans, decides, and executes. Communicate via voice or text while it pulls live prices from Finnhub, evaluates risk constraints, and executes paper trades through Alpaca. Features real-time sentiment analysis from Reddit and Polymarket, TradingView charts, and a reactive 3D model powered by ElevenLabs voice.",
     image: "/projects/images/frames/frame_3.png",
     frame: "/projects/projects/vibetrade/frame.png",
-    thumbnail: "/projects/thumbnails/vibetrade_pingpong.mp4",
+    thumbnail: "/projects/thumbnails/vibetrade_pingpong.webm",
     images: [
       "/projects/projects/vibetrade/landing.png",
       "/projects/projects/vibetrade/girl.png",
@@ -78,7 +78,7 @@ export const projects: Project[] = [
     detailedDescription: "A creative portfolio featuring an animated manga-style intro, interactive 3D project carousel with floating cards, and smooth page transitions. Built with Three.js for immersive visuals, GSAP for animations, and a custom video thumbnail system.",
     image: "/projects/images/frames/frame_4.png",
     frame: "/projects/projects/portfolio_website/frame.png",
-    thumbnail: "/projects/thumbnails/portfolio_pingpong.mp4",
+    thumbnail: "/projects/thumbnails/portfolio_pingpong.webm",
     images: [
       "/projects/projects/portfolio_website/main.png",
       "/projects/projects/portfolio_website/title.png",
