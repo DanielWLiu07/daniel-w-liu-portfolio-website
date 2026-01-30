@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useLayoutEffect } from 'react'
 import * as THREE from 'three'
 import { projects, sceneOptions } from '@/data/projects'
+import { usePerformanceMode } from '@/contexts/performance-mode-context'
 import { getPlaneWidth, createCardGeometry, createCardMaterial } from '@/lib/carousel-helpers'
 import { handleWheelScroll, updateScrollVelocity } from '@/lib/carousel-animation'
 import {
@@ -100,6 +101,8 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
   const onProjectClickRef = useRef(onProjectClick)
   const onPauseChangeRef = useRef(onPauseChange)
   const onExpansionStageChangeRef = useRef(onExpansionStageChange)
+
+  const { isLowPerformance } = usePerformanceMode()
 
   useEffect(() => {
     onProjectClickRef.current = onProjectClick
@@ -372,8 +375,8 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
     const textureLoader = new THREE.TextureLoader()
     const projectAssetsCache = new Map<number, {
       frameTexture: THREE.Texture
-      thumbnailVideo: HTMLVideoElement
-      thumbnailTexture: THREE.VideoTexture
+      thumbnailVideo: HTMLVideoElement | null
+      thumbnailTexture: THREE.Texture | THREE.VideoTexture
       contentTextures: THREE.Texture[]
       videoAspectRatio: number
     }>()
@@ -408,64 +411,87 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       // Load content textures (don't block on these, they're for expanded view)
       const contentTextures = project.images.map(imgPath => textureLoader.load(imgPath))
 
-      const video = document.createElement('video')
-      video.src = project.thumbnail
-      video.loop = true
-      video.muted = true
-      video.playsInline = true
-      video.autoplay = true
-      video.crossOrigin = 'anonymous'
-      video.preload = 'auto'
+      // Low performance mode: use first content image as static thumbnail
+      if (isLowPerformance) {
+        const thumbnailTexture = textureLoader.load(
+          project.images[0], // Use first project image as thumbnail
+          () => checkAllAssetsLoaded(),
+          undefined,
+          () => checkAllAssetsLoaded()
+        )
+        thumbnailTexture.minFilter = THREE.LinearFilter
+        thumbnailTexture.magFilter = THREE.LinearFilter
 
-      let videoMarkedReady = false
-
-      const handleVideoReady = () => {
-        if (videoMarkedReady) return
-        videoMarkedReady = true
-        checkAllAssetsLoaded()
-      }
-
-      // Use canplaythrough - most reliable signal that video can play smoothly
-      video.addEventListener('canplaythrough', handleVideoReady)
-
-      // Also listen for loadeddata as backup (fires when first frame is available)
-      video.addEventListener('loadeddata', () => {
-        // Small delay to ensure frame is actually rendered
-        setTimeout(handleVideoReady, 100)
-      })
-
-      // Handle video errors - don't block loading if video fails
-      video.addEventListener('error', handleVideoReady)
-
-      // Fallback: if video already has data when we attach listeners
-      if (video.readyState >= 3) {
-        handleVideoReady()
-      }
-
-      // Final fallback timeout per video (15s)
-      setTimeout(handleVideoReady, 15000)
-
-      video.play().catch(() => {})
-
-      const thumbnailTexture = new THREE.VideoTexture(video)
-      thumbnailTexture.minFilter = THREE.LinearFilter
-      thumbnailTexture.magFilter = THREE.LinearFilter
-
-      const assets = {
-        frameTexture,
-        thumbnailVideo: video,
-        thumbnailTexture,
-        contentTextures,
-        videoAspectRatio: 1.0
-      }
-
-      video.addEventListener('loadedmetadata', () => {
-        if (video.videoWidth && video.videoHeight) {
-          assets.videoAspectRatio = video.videoWidth / video.videoHeight
+        const assets = {
+          frameTexture,
+          thumbnailVideo: null,
+          thumbnailTexture,
+          contentTextures,
+          videoAspectRatio: 1.0 // Will be updated when texture loads
         }
-      })
 
-      projectAssetsCache.set(project.id, assets)
+        projectAssetsCache.set(project.id, assets)
+      } else {
+        // High performance mode: use video thumbnails
+        const video = document.createElement('video')
+        video.src = project.thumbnail
+        video.loop = true
+        video.muted = true
+        video.playsInline = true
+        video.autoplay = true
+        video.crossOrigin = 'anonymous'
+        video.preload = 'auto'
+
+        let videoMarkedReady = false
+
+        const handleVideoReady = () => {
+          if (videoMarkedReady) return
+          videoMarkedReady = true
+          checkAllAssetsLoaded()
+        }
+
+        // Use canplaythrough - most reliable signal that video can play smoothly
+        video.addEventListener('canplaythrough', handleVideoReady)
+
+        // Also listen for loadeddata as backup (fires when first frame is available)
+        video.addEventListener('loadeddata', () => {
+          // Small delay to ensure frame is actually rendered
+          setTimeout(handleVideoReady, 100)
+        })
+
+        // Handle video errors - don't block loading if video fails
+        video.addEventListener('error', handleVideoReady)
+
+        // Fallback: if video already has data when we attach listeners
+        if (video.readyState >= 3) {
+          handleVideoReady()
+        }
+
+        // Final fallback timeout per video (15s)
+        setTimeout(handleVideoReady, 15000)
+
+        video.play().catch(() => {})
+
+        const thumbnailTexture = new THREE.VideoTexture(video)
+        thumbnailTexture.minFilter = THREE.LinearFilter
+        thumbnailTexture.magFilter = THREE.LinearFilter
+
+        const assets = {
+          frameTexture,
+          thumbnailVideo: video,
+          thumbnailTexture,
+          contentTextures,
+          videoAspectRatio: 1.0
+        }
+
+        video.addEventListener('loadedmetadata', () => {
+          if (video.videoWidth && video.videoHeight) {
+            assets.videoAspectRatio = video.videoWidth / video.videoHeight
+          }
+        })
+
+        projectAssetsCache.set(project.id, assets)
+      }
     })
 
     // Now create planes, reusing cached assets
@@ -482,11 +508,13 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       if (assets.videoAspectRatio !== 1.0) {
         material.uniforms.contentAspectRatio.value = assets.videoAspectRatio
       }
-      thumbnailVideo.addEventListener('loadedmetadata', () => {
-        if (thumbnailVideo.videoWidth && thumbnailVideo.videoHeight) {
-          material.uniforms.contentAspectRatio.value = thumbnailVideo.videoWidth / thumbnailVideo.videoHeight
-        }
-      })
+      if (thumbnailVideo) {
+        thumbnailVideo.addEventListener('loadedmetadata', () => {
+          if (thumbnailVideo.videoWidth && thumbnailVideo.videoHeight) {
+            material.uniforms.contentAspectRatio.value = thumbnailVideo.videoWidth / thumbnailVideo.videoHeight
+          }
+        })
+      }
 
       const plane = new THREE.Mesh(geometry, material)
       plane.position.x = -(i - initialOffset) * cardWidth
@@ -1898,7 +1926,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       }
       renderer.dispose()
     }
-  }, [containerReady])
+  }, [containerReady, isLowPerformance])
 
   return (
     <div
