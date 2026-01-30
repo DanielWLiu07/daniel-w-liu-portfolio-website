@@ -101,6 +101,6 @@ export const VIDEO_CONFIG = {
 };
 
 export const PHOTO_IMAGES = {
-  selfie: "/resume/images/photo_img/self.JPG",
-  cat: "/resume/images/photo_img/cat.jpg",
+  selfie: "/resume/images/photo_img/self.webp",
+  cat: "/resume/images/photo_img/cat.webp",
 };
