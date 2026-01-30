@@ -11,7 +11,7 @@
   overflow: hidden;
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
-  background-image: url('/projects/images/flash_bg.png');
+  background-image: url('/projects/images/flash_bg.webp');
   background-size: cover;
   background-position: center;
 }
