@@ -44,6 +44,9 @@ next-env.d.ts
 # animation frames (large assets)
 /animation_frames
 
+# original unoptimized assets (keep locally, don't deploy)
+public/_originals/
+
 # documentation (except README)
 *.md
 !README.md
