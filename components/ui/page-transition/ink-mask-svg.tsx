@@ -121,7 +121,7 @@ export function InkMaskSvg({ svgRef, maskType, onReady, triggerAnimation }: InkM
   }, [triggerAnimation, isSafari, svgRef])
 
   useEffect(() => {
-    if (!isSafari) return
+    if (!isSafari || !triggerAnimation) return
     if (maskType === 'cover') {
       const timer = setTimeout(() => setCssOpacity(1), 50)
       return () => clearTimeout(timer)
@@ -129,7 +129,7 @@ export function InkMaskSvg({ svgRef, maskType, onReady, triggerAnimation }: InkM
       const timer = setTimeout(() => setCssOpacity(0), 50)
       return () => clearTimeout(timer)
     }
-  }, [maskType, isSafari])
+  }, [maskType, isSafari, triggerAnimation])
 
   const filterId = maskType === 'cover' ? 'inkNoiseCover' : 'inkNoiseReveal'
   const maskId = maskType === 'cover' ? 'inkMaskCover' : 'inkMaskReveal'
