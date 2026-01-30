@@ -14,9 +14,17 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const { mode } = usePerformanceMode()
 
-  const [overlayState, setOverlayState] = useState<OverlayState>(() =>
-    mode === null ? 'hidden' : 'loading'
-  )
+  // Start as 'loading' and only go to 'hidden' if mode is actually null after hydration
+  const [overlayState, setOverlayState] = useState<OverlayState>('loading')
+  const [hydrated, setHydrated] = useState(false)
+
+  // Handle hydration - determine correct initial state after client mount
+  useEffect(() => {
+    setHydrated(true)
+    if (mode === null) {
+      setOverlayState('hidden')
+    }
+  }, [])
   const [isNavigating, setIsNavigating] = useState(false)
 
   // Use ref for initial load tracking to avoid state timing issues
@@ -330,7 +338,8 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
 
   const isRevealed = overlayState === 'hidden'
   // Show overlays for navigation OR for initial load when mode is already set (page reload)
-  const showOverlays = !isInitialLoadRef.current || mode !== null
+  // Only show after hydration to avoid SSR mismatch
+  const showOverlays = hydrated && (!isInitialLoadRef.current || mode !== null)
 
   return (
     <TransitionContext.Provider value={{ transitionStage: overlayState, signalReady, isRevealed, isInitialLoad: isInitialLoadRef.current, navigateWithTransition, onIntroStart }}>
