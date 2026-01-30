@@ -134,7 +134,6 @@ export function BackgroundVideo({ onReady }: BackgroundVideoProps) {
         style={{ objectPosition }}
         preload="auto"
       >
-        <source src="/experience/videos/anime_intro.mov?v=6" type='video/mp4; codecs="hvc1"' />
         <source src="/experience/videos/anime_intro.webm?v=6" type="video/webm" />
       </video>
       <video
@@ -146,7 +145,6 @@ export function BackgroundVideo({ onReady }: BackgroundVideoProps) {
         style={{ objectPosition }}
         preload="auto"
       >
-        <source src="/experience/videos/anime_style_bg.mov?v=7" type='video/mp4; codecs="hvc1"' />
         <source src="/experience/videos/anime_style_bg.webm?v=7" type="video/webm" />
       </video>
     </>

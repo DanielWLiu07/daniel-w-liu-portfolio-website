@@ -244,7 +244,7 @@ export default function Home() {
                 }}
               >
                 <div className="absolute inset-0 w-full h-full min-h-screen">
-                  <Image src="/landing/images/painted_bg.png" alt="" fill className="object-cover z-0" priority />
+                  <Image src="/landing/images/painted_bg.webp" alt="" fill className="object-cover z-0" priority />
                 </div>
                 <div
                   ref={sunGradientRef}
@@ -257,7 +257,6 @@ export default function Home() {
                     <Image src="/animation_frames/landing/composed_bg/composed_bg0300.png" alt="" fill sizes="100vw" className="object-cover" priority />
                   ) : (
                     <video ref={compositeVideoRef} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" preload="auto">
-                      <source src="/landing/videos/landing_composite_24fps.mov" type='video/mp4; codecs="hvc1"' />
                       <source src="/landing/videos/landing_composite_24fps.webm" type="video/webm" />
                     </video>
                   )}

@@ -45,7 +45,6 @@ export default function BackgroundVideos({ visible, isExpanded = false }: Backgr
             playsInline
             preload="auto"
           >
-            <source src="/projects/videos/manga_bg_slowed.mov" type='video/mp4; codecs="hvc1"' />
             <source src="/projects/videos/manga_bg_slowed.webm" type="video/webm" />
           </video>
         )}
@@ -65,7 +64,6 @@ export default function BackgroundVideos({ visible, isExpanded = false }: Backgr
             playsInline
             preload="auto"
           >
-            <source src="/projects/videos/manga_man.mov" type='video/mp4; codecs="hvc1"' />
             <source src="/projects/videos/manga_man.webm" type="video/webm" />
           </video>
         )}

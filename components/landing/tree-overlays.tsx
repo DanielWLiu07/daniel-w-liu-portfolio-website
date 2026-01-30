@@ -48,7 +48,6 @@ export function TreeOverlays({ isLowPerformance, treeRightRef, treeLeftRef }: Tr
           playsInline
           preload="auto"
         >
-          <source src="/landing/videos/tree_right.mov" type='video/mp4; codecs="hvc1"' />
           <source src="/landing/videos/tree_right.webm" type="video/webm" />
         </video>
       </div>
@@ -62,7 +61,6 @@ export function TreeOverlays({ isLowPerformance, treeRightRef, treeLeftRef }: Tr
           playsInline
           preload="auto"
         >
-          <source src="/landing/videos/tree_left.mov" type='video/mp4; codecs="hvc1"' />
           <source src="/landing/videos/tree_left.webm" type="video/webm" />
         </video>
       </div>

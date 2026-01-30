@@ -69,7 +69,6 @@ function HighPerformanceMobile({ scrollHeight }: { scrollHeight: number }) {
     <>
       <section className="min-[1038px]:hidden relative h-screen z-[5]">
         <video autoPlay muted playsInline className="absolute inset-0 w-full h-full object-cover object-[12%_100%] min-[530px]:object-[10%_100%] z-0" preload="auto">
-          <source src="/about/videos/water_colour.mov" type='video/mp4; codecs="hvc1"' />
           <source src="/about/videos/water_colour.webm" type="video/webm" />
         </video>
         <video
@@ -80,7 +79,6 @@ function HighPerformanceMobile({ scrollHeight }: { scrollHeight: number }) {
           className={`absolute inset-0 w-full h-full object-cover object-[12%_100%] min-[530px]:object-[10%_100%] z-10 ${sparkleDone ? 'hidden' : ''}`}
           preload="auto"
         >
-          <source src="/about/videos/sparkle_being.mov" type='video/mp4; codecs="hvc1"' />
           <source src="/about/videos/sparkle_being.webm" type="video/webm" />
         </video>
         <video
@@ -91,7 +89,6 @@ function HighPerformanceMobile({ scrollHeight }: { scrollHeight: number }) {
           className={`absolute inset-0 w-full h-full object-cover object-[12%_100%] min-[530px]:object-[10%_100%] z-10 ${sparkleDone ? '' : 'hidden'}`}
           preload="auto"
         >
-          <source src="/about/videos/sparkle_loop.mov" type='video/mp4; codecs="hvc1"' />
           <source src="/about/videos/sparkle_loop.webm?v=2" type="video/webm" />
         </video>
       </section>
@@ -101,7 +98,6 @@ function HighPerformanceMobile({ scrollHeight }: { scrollHeight: number }) {
       <section className="min-[1038px]:hidden relative" style={{ height: `${scrollHeight}vh` }}>
         <div className="sticky top-0 h-screen">
           <video autoPlay muted playsInline className="absolute inset-0 w-full h-full object-cover object-right" preload="none">
-            <source src="/about/videos/right_colour_phone.mov" type='video/mp4; codecs="hvc1"' />
             <source src="/about/videos/right_colour_phone.webm" type="video/webm" />
           </video>
           <MobileSvgMask />

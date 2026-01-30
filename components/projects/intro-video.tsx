@@ -182,7 +182,6 @@ export default function IntroVideo({ onEnded, onFlashStart, onReady, canPlay = t
           onEnded={onEnded}
           onError={handleError}
         >
-          <source src="/projects/videos/manga_intro_bg.mov" type='video/mp4; codecs="hvc1"' />
           <source src="/projects/videos/manga_intro_bg.webm" type="video/webm" />
         </video>
       </div>
@@ -195,7 +194,6 @@ export default function IntroVideo({ onEnded, onFlashStart, onReady, canPlay = t
           playsInline
           preload="auto"
         >
-          <source src="/projects/videos/manga_man_intro.mov" type='video/mp4; codecs="hvc1"' />
           <source src="/projects/videos/manga_man_intro.webm" type="video/webm" />
         </video>
       </div>

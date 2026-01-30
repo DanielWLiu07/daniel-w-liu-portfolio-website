@@ -46,7 +46,6 @@ function WaterColourMaskSvg({
             className="absolute inset-0 w-full h-full object-cover object-bottom"
             preload="auto"
           >
-            <source src="/about/videos/water_colour.mov" type='video/mp4; codecs="hvc1"' />
             <source src="/about/videos/water_colour.webm" type="video/webm" />
           </video>
         </div>
@@ -107,7 +106,6 @@ function SafariWaterColourMask({
         className="absolute inset-0 w-full h-full object-cover object-bottom"
         preload="auto"
       >
-        <source src="/about/videos/water_colour.mov" type='video/mp4; codecs="hvc1"' />
         <source src="/about/videos/water_colour.webm" type="video/webm" />
       </video>
     </div>
@@ -147,7 +145,6 @@ function SparkleVideo({
         className={`absolute inset-0 w-full h-full object-cover object-bottom ${showLoop ? 'hidden' : ''}`}
         preload="auto"
       >
-        <source src="/about/videos/sparkle_being.mov" type='video/mp4; codecs="hvc1"' />
         <source src="/about/videos/sparkle_being.webm" type="video/webm" />
       </video>
       <video
@@ -158,7 +155,6 @@ function SparkleVideo({
         className={`absolute inset-0 w-full h-full object-cover object-bottom ${showLoop ? '' : 'hidden'}`}
         preload="auto"
       >
-        <source src="/about/videos/sparkle_loop.mov" type='video/mp4; codecs="hvc1"' />
         <source src="/about/videos/sparkle_loop.webm?v=2" type="video/webm" />
       </video>
     </div>
@@ -306,7 +302,6 @@ export const BackgroundLayers = memo(function BackgroundLayers() {
               className="absolute inset-0 w-full h-full object-cover"
               preload="auto"
             >
-              <source src="/about/videos/right_colour.mov" type='video/mp4; codecs="hvc1"' />
               <source src="/about/videos/right_colour.webm" type="video/webm" />
             </video>
           </div>
