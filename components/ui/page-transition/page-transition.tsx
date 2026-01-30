@@ -258,13 +258,24 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     }
   }, [overlayState])
 
-  // Trigger intro animations when revealing
+  // Trigger reveal animation and intro when revealing
   useLayoutEffect(() => {
     if (overlayState === 'revealing') {
       if (revealAnimationFiredRef.current) return
       revealAnimationFiredRef.current = true
 
-      // Trigger intro animations (SVG animation is handled by InkMaskSvg triggerAnimation prop)
+      // Trigger SVG reveal animation directly as backup
+      const triggerWithRetry = (attempts: number) => {
+        if (attempts <= 0) return
+        if (revealSvgRef.current) {
+          triggerSvgAnimations(revealSvgRef.current)
+        } else {
+          setTimeout(() => triggerWithRetry(attempts - 1), 50)
+        }
+      }
+      triggerWithRetry(10)
+
+      // Trigger intro animations
       if (onIntroStartRef.current) {
         onIntroStartRef.current()
         onIntroStartRef.current = null
