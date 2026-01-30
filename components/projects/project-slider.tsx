@@ -411,10 +411,10 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       // Load content textures (don't block on these, they're for expanded view)
       const contentTextures = project.images.map(imgPath => textureLoader.load(imgPath))
 
-      // Low performance mode: use first content image as static thumbnail
+      // Low performance mode: use extracted video frame as static thumbnail
       if (isLowPerformance) {
         const thumbnailTexture = textureLoader.load(
-          project.images[0], // Use first project image as thumbnail
+          project.thumbnailImage, // Use extracted first frame from video
           () => checkAllAssetsLoaded(),
           undefined,
           () => checkAllAssetsLoaded()

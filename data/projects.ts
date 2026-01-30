@@ -6,6 +6,7 @@ export interface Project {
   image: string;
   frame: string;
   thumbnail: string;
+  thumbnailImage: string;
   images: string[];
   technologies: string[];
   titleGradient: string;
@@ -22,6 +23,7 @@ export const projects: Project[] = [
     image: "/projects/images/frames/frame_1.png",
     frame: "/projects/projects/rainbolt.ai/frame.png",
     thumbnail: "/projects/thumbnails/rainbolt_pingpong.webm",
+    thumbnailImage: "/projects/thumbnails/rainbolt_pingpong_frame.webp",
     images: [
       "/projects/projects/rainbolt.ai/landing.webp",
       "/projects/projects/rainbolt.ai/chat.webp",
@@ -41,6 +43,7 @@ export const projects: Project[] = [
     image: "/projects/images/frames/frame_2.png",
     frame: "/projects/projects/curve_guard/frame.png",
     thumbnail: "/projects/thumbnails/curveguard_pingpong.webm",
+    thumbnailImage: "/projects/thumbnails/curveguard_pingpong_frame.webp",
     images: [
       "/projects/projects/curve_guard/landing.webp",
       "/projects/projects/curve_guard/features.webp",
@@ -60,6 +63,7 @@ export const projects: Project[] = [
     image: "/projects/images/frames/frame_3.png",
     frame: "/projects/projects/vibetrade/frame.png",
     thumbnail: "/projects/thumbnails/vibetrade_pingpong.webm",
+    thumbnailImage: "/projects/thumbnails/vibetrade_pingpong_frame.webp",
     images: [
       "/projects/projects/vibetrade/landing.webp",
       "/projects/projects/vibetrade/girl.webp",
@@ -79,6 +83,7 @@ export const projects: Project[] = [
     image: "/projects/images/frames/frame_4.png",
     frame: "/projects/projects/portfolio_website/frame.png",
     thumbnail: "/projects/thumbnails/portfolio_pingpong.webm",
+    thumbnailImage: "/projects/thumbnails/portfolio_pingpong_frame.webp",
     images: [
       "/projects/projects/portfolio_website/main.webp",
       "/projects/projects/portfolio_website/title.webp",
