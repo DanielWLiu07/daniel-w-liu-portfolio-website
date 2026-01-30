@@ -246,11 +246,13 @@ export const BackgroundLayers = memo(function BackgroundLayers() {
     sparkleLoopRef.current?.play()
   }, [])
 
+  // Low performance mode: signal ready immediately (no videos to wait for)
+  // Include transitionStage in deps so this re-runs after navigation resets readyCalledRef
   useEffect(() => {
     if (!isLowPerformance || readyCalledRef.current) return
     readyCalledRef.current = true
     signalReady()
-  }, [isLowPerformance, signalReady])
+  }, [isLowPerformance, transitionStage, signalReady])
 
   useEffect(() => {
     if (isLowPerformance) return

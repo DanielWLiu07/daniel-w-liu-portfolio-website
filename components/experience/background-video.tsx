@@ -43,12 +43,14 @@ export function BackgroundVideo({ onReady }: BackgroundVideoProps) {
     introRef.current?.play()
   }, [isLowPerformance, transitionStage])
 
+  // Low performance mode: signal ready immediately
+  // Include transitionStage in deps so this re-runs after navigation resets readyCalledRef
   useEffect(() => {
     if (!isLowPerformance || readyCalledRef.current) return
     readyCalledRef.current = true
     signalReady()
     onReady?.()
-  }, [isLowPerformance, signalReady, onReady])
+  }, [isLowPerformance, transitionStage, signalReady, onReady])
 
   useEffect(() => {
     if (isLowPerformance) return

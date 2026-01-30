@@ -82,25 +82,24 @@ export default function Resume() {
     videoRef.current?.play()
   }, [isLowPerformance, transitionStage])
 
-  useEffect(() => {
-    if (!isLowPerformance || readyCalledRef.current) return
-    readyCalledRef.current = true
-    signalReady()
-    setVideoEnded(true)
-  }, [isLowPerformance, signalReady])
-
+  // Reset state on navigation
   useEffect(() => {
     if (transitionStage === 'loading') {
       readyCalledRef.current = false
       videoStartedRef.current = false
       scrollTextAnimatedRef.current = false
       setVideoEnded(false)
-      if (isLowPerformance) {
-        signalReady()
-        setVideoEnded(true)
-      }
     }
-  }, [transitionStage, isLowPerformance, signalReady])
+  }, [transitionStage])
+
+  // Low performance mode: signal ready immediately
+  // Include transitionStage in deps so this re-runs after navigation resets readyCalledRef
+  useEffect(() => {
+    if (!isLowPerformance || readyCalledRef.current) return
+    readyCalledRef.current = true
+    signalReady()
+    setVideoEnded(true)
+  }, [isLowPerformance, transitionStage, signalReady])
 
   useEffect(() => {
     if (isLowPerformance) return
