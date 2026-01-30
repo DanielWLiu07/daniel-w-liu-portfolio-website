@@ -36,6 +36,7 @@ export default function ProjectsPage() {
   const mainRef = useRef<HTMLDivElement>(null)
   const gsapContextRef = useRef<gsap.Context | null>(null)
   const readyCalledRef = useRef(false)
+  const isFirstMountRef = useRef(true)
 
   const { transitionStage, signalReady } = useTransitionState()
   const { isLowPerformance } = usePerformanceMode()
@@ -106,6 +107,11 @@ export default function ProjectsPage() {
   }, [isLowPerformance, sliderReady])
 
   useEffect(() => {
+    // Skip reset on first mount - only reset when navigating back to this page
+    if (isFirstMountRef.current) {
+      isFirstMountRef.current = false
+      return
+    }
     if (transitionStage === 'loading') {
       readyCalledRef.current = false
       setIntroFinished(false)

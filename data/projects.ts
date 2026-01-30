@@ -12,6 +12,7 @@ export interface Project {
   titleGradient: string;
   link?: string;
   github?: string;
+  devpost?: string;
 }
 
 export const projects: Project[] = [
@@ -31,9 +32,11 @@ export const projects: Project[] = [
       "/projects/projects/rainbolt.ai/team.webp",
       "/projects/projects/rainbolt.ai/tech.webp",
     ],
-    technologies: ["Next.js", "TypeScript", "Tailwind CSS", "FastAPI", "Python", "Gemini", "CLIP", "Pinecone", "LangChain", "Firebase", "Auth0", "Google Cloud"],
-    titleGradient: "linear-gradient(to bottom, #00e5ff 0%, #00bcd4 40%, #00c853 100%)",
-    link: "https://rainboltai.vercel.app",
+    technologies: ["Next.js", "TypeScript", "Tailwind CSS", "FastAPI", "Python", "Gemini", "CLIP", "Pinecone", "LangChain", "Firebase", "Auth0", "Google Cloud", "Zustand", "Radix UI", "Mapillary"],
+    titleGradient: "linear-gradient(to bottom, #00ffff 0%, #00bcd4 40%, #006633 100%)",
+    link: "https://rainboltai.vercel.app/",
+    github: "https://github.com/dtpu/rainbolt.ai",
+    devpost: "https://devpost.com/software/rainbolt-ai",
   },
   {
     id: 2,
@@ -51,9 +54,10 @@ export const projects: Project[] = [
       "/projects/projects/curve_guard/calender.webp",
       "/projects/projects/curve_guard/error.webp",
     ],
-    technologies: ["React", "Three.js", "MediaPipe", "Tailwind CSS", "GSAP", "Chart.js", "AWS Amplify", "Radix UI"],
-    titleGradient: "linear-gradient(to bottom, #7fff00 0%, #32cd32 50%, #0d5c0d 100%)",
-    link: "https://curve-guard.vercel.app",
+    technologies: ["React", "Vite", "Three.js", "React Three Fiber", "MediaPipe", "Tailwind CSS", "GSAP", "Chart.js", "AWS Amplify", "Radix UI", "React Router", "Python", "PyQt5", "OpenCV"],
+    titleGradient: "linear-gradient(to bottom, #adff2f 0%, #32cd32 50%, #004400 100%)",
+    link: "https://curve-guard.vercel.app/",
+    github: "https://github.com/DanielWLiu07/curve-guard",
   },
   {
     id: 3,
@@ -71,9 +75,10 @@ export const projects: Project[] = [
       "/projects/projects/vibetrade/selection.webp",
       "/projects/projects/vibetrade/tables.webp",
     ],
-    technologies: ["Next.js", "React", "Tailwind CSS", "FastAPI", "Python", "Supabase", "LangGraph", "OpenAI", "ElevenLabs", "Alpaca", "Finnhub"],
-    titleGradient: "linear-gradient(to bottom, #ff00ff 0%, #ff00aa 50%, #9400d3 100%)",
-    link: "https://devpost.com/software/vibetrade",
+    technologies: ["Next.js", "React", "Tailwind CSS", "FastAPI", "Python", "Supabase", "LangGraph", "OpenAI", "ElevenLabs", "Alpaca", "Finnhub", "TradingView"],
+    titleGradient: "linear-gradient(to bottom, #ff66ff 0%, #ff00aa 50%, #4b0082 100%)",
+    github: "https://github.com/Tankman61/VibeTrade",
+    devpost: "https://devpost.com/software/vibetrade",
   },
   {
     id: 4,
@@ -92,7 +97,7 @@ export const projects: Project[] = [
       "/projects/projects/portfolio_website/resume.webp",
     ],
     technologies: ["Next.js", "React", "Three.js", "TypeScript", "Tailwind CSS", "GSAP", "Blender"],
-    titleGradient: "linear-gradient(to bottom, #ffa500 0%, #ff6347 50%, #dc143c 100%)",
+    titleGradient: "linear-gradient(to bottom, #ff2200 0%, #dc143c 50%, #4a0000 100%)",
     link: "https://danielwliu.com",
     github: "https://github.com/DanielWLiu07/daniel-w-liu-portfolio-website",
   },

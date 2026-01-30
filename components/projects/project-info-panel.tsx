@@ -26,6 +26,7 @@ interface ProjectInfoPanelProps {
     titleGradient: string
     link?: string
     github?: string
+    devpost?: string
   }
   onClose: () => void
   onPrevProject?: () => void
@@ -231,25 +232,35 @@ export function ProjectInfoPanel({ project, onClose, onPrevProject, onNextProjec
 
       <div className="mb-6">
         <h3 className="text-xs uppercase tracking-wider text-gray-400 mb-2">Technologies</h3>
-        <div className="flex flex-wrap gap-2">
-          {project.technologies.map((tech, index) => (
-            <span
-              key={index}
-              className="px-2 py-0.5 bg-gray-100 text-gray-700 text-xs rounded-full"
-            >
-              {tech}
-            </span>
-          ))}
+        <div className="flex flex-wrap gap-1.5">
+          {(() => {
+            // Extract middle color from gradient (more balanced/readable)
+            const colorMatches = project.titleGradient.match(/#[a-fA-F0-9]{6}/g)
+            const accentColor = colorMatches && colorMatches.length > 1 ? colorMatches[1] : (colorMatches?.[0] || '#6b7280')
+            return project.technologies.map((tech, index) => (
+              <span
+                key={index}
+                className="px-2 py-0.5 text-xs rounded border shadow-sm font-medium"
+                style={{
+                  backgroundColor: `${accentColor}18`,
+                  borderColor: `${accentColor}50`,
+                  color: accentColor,
+                }}
+              >
+                {tech}
+              </span>
+            ))
+          })()}
         </div>
       </div>
 
-      <div className="flex gap-3 mt-auto">
+      <div className="flex gap-3 mt-auto flex-wrap">
         {project.link && (
           <a
             href={project.link}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-1 px-4 py-2.5 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors text-center"
+            className="flex-1 px-4 py-2.5 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors text-center min-w-[100px]"
           >
             View Project
           </a>
@@ -259,9 +270,19 @@ export function ProjectInfoPanel({ project, onClose, onPrevProject, onNextProjec
             href={project.github}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors text-center"
+            className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors text-center min-w-[100px]"
           >
             GitHub
+          </a>
+        )}
+        {project.devpost && (
+          <a
+            href={project.devpost}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-1 px-4 py-2.5 bg-[#003E54] text-white text-sm font-medium rounded-lg hover:bg-[#00526e] transition-colors text-center min-w-[100px]"
+          >
+            Devpost
           </a>
         )}
       </div>
@@ -319,25 +340,25 @@ export function ProjectInfoPanel({ project, onClose, onPrevProject, onNextProjec
               // On mobile, compensate for scale so font stays proportional to card width
               // Card width = 85/scale vw, then scaled by scale = 85vw visual
               // Font = 7/scale vw, then scaled by scale = 7vw visual (constant % of card)
-              fontSize: transform.isMobile ? `${10 / transform.scale}vw` : '3.75rem',
+              fontSize: transform.isMobile ? `${10 / transform.scale}vw` : '3.25rem',
             }}
           >
             <button
               onClick={onNextProject}
-              className="absolute left-0 text-white transition-transform duration-200 hover:scale-110 active:scale-95 animate-beckon-left pointer-events-auto text-[1.8em] [transform:translateZ(10px)] [text-shadow:0_0_15px_rgba(255,255,255,1),0_0_30px_rgba(255,255,255,0.8),0_0_50px_rgba(255,255,255,0.5)]"
+              className="absolute left-0 text-white transition-transform duration-200 hover:scale-110 active:scale-95 animate-beckon-left pointer-events-auto text-[1.8em] [transform:translateZ(10px)] [text-shadow:0_0_15px_rgba(255,255,255,1),0_0_30px_rgba(255,255,255,0.8),0_0_50px_rgba(255,255,255,0.5)] leading-[0.6] overflow-visible"
               aria-label="Next project"
             >
               ☜
             </button>
             <span
-              className="text-white tracking-widest animate-bob pointer-events-none text-[0.7em] whitespace-nowrap [text-shadow:0_0_12px_rgba(255,255,255,0.8),0_0_25px_rgba(255,255,255,0.5)] tracking-[0.12em] [transform:translateZ(5px)]"
+              className="text-white tracking-widest animate-bob pointer-events-none text-[0.85em] whitespace-nowrap [text-shadow:0_0_12px_rgba(255,255,255,0.8),0_0_25px_rgba(255,255,255,0.5)] tracking-[0.12em] [transform:translateZ(5px)]"
               style={{ fontFamily: 'ArcadeClassic, monospace' }}
             >
               Projects
             </span>
             <button
               onClick={onPrevProject}
-              className="absolute right-0 text-white transition-transform duration-200 hover:scale-110 active:scale-95 animate-beckon-right pointer-events-auto text-[1.8em] [transform:translateZ(10px)] [text-shadow:0_0_15px_rgba(255,255,255,1),0_0_30px_rgba(255,255,255,0.8),0_0_50px_rgba(255,255,255,0.5)]"
+              className="absolute right-0 text-white transition-transform duration-200 hover:scale-110 active:scale-95 animate-beckon-right pointer-events-auto text-[1.8em] [transform:translateZ(10px)] [text-shadow:0_0_15px_rgba(255,255,255,1),0_0_30px_rgba(255,255,255,0.8),0_0_50px_rgba(255,255,255,0.5)] leading-[0.6] overflow-visible"
               aria-label="Previous project"
             >
               ☞
@@ -349,7 +370,12 @@ export function ProjectInfoPanel({ project, onClose, onPrevProject, onNextProjec
           className="relative rounded-2xl shadow-2xl overflow-hidden pointer-events-auto w-full"
           style={{
             marginTop: transform.isMobile ? '0.5rem' : '-0.5rem',
-            minHeight: transform.isMobile ? '580px' : '620px'
+            minHeight: transform.isMobile ? '580px' : '620px',
+            boxShadow: (() => {
+              const colorMatches = project.titleGradient.match(/#[a-fA-F0-9]{6}/g)
+              const glowColor = colorMatches?.[0] || '#ffffff'
+              return `0 0 60px ${glowColor}66, 0 0 120px ${glowColor}33, 0 20px 60px rgba(0,0,0,0.4)`
+            })()
           }}
         >
           <Image

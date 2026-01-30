@@ -1,5 +1,13 @@
 import * as THREE from 'three'
 
+export function extractGlowColor(gradient: string): THREE.Color {
+  const colorMatches = gradient.match(/#[a-fA-F0-9]{6}/g)
+  if (colorMatches && colorMatches.length > 0) {
+    return new THREE.Color(colorMatches[0])
+  }
+  return new THREE.Color(1, 1, 1)
+}
+
 export function getPlaneWidth(camera: THREE.PerspectiveCamera, containerWidth: number, containerHeight: number, cardWidth: number, gap: number) {
   const width = cardWidth + gap / 100
   const vFov = (camera.fov * Math.PI) / 180
@@ -13,12 +21,13 @@ export function createCardGeometry(cardWidth: number, cardHeight: number) {
   return new THREE.PlaneGeometry(cardWidth, cardHeight, 20, 20)
 }
 
-export function createCardMaterial(frameTexture: THREE.Texture, contentTexture: THREE.Texture, curve: number, contentAspectRatio?: number, cardAspectRatio?: number, rotateContent?: boolean, frameAspectRatio?: number, imageScale?: number, frameScale?: number) {
+export function createCardMaterial(frameTexture: THREE.Texture, contentTexture: THREE.Texture, curve: number, contentAspectRatio?: number, cardAspectRatio?: number, rotateContent?: boolean, frameAspectRatio?: number, imageScale?: number, frameScale?: number, glowColor?: THREE.Color) {
   const contentAR = contentAspectRatio || 1.0
   const cardAR = cardAspectRatio || 0.75
   const frameAR = frameAspectRatio || 0.653
   const imgScale = imageScale || 0.75
   const frmScale = frameScale || 1.15
+  const gColor = glowColor || new THREE.Color(1, 1, 1)
 
   return new THREE.ShaderMaterial({
     uniforms: {
@@ -28,6 +37,7 @@ export function createCardMaterial(frameTexture: THREE.Texture, contentTexture: 
       isExpanded: { value: 0.0 },
       opacity: { value: 0.75 },
       glow: { value: 0.0 },
+      glowColor: { value: gColor },
       contentAspectRatio: { value: contentAR },
       cardAspectRatio: { value: cardAR },
       frameAspectRatio: { value: frameAR },
@@ -53,6 +63,7 @@ export function createCardMaterial(frameTexture: THREE.Texture, contentTexture: 
       uniform sampler2D contentTex;
       uniform float opacity;
       uniform float glow;
+      uniform vec3 glowColor;
       uniform float contentAspectRatio;
       uniform float cardAspectRatio;
       uniform float frameAspectRatio;
@@ -81,8 +92,14 @@ export function createCardMaterial(frameTexture: THREE.Texture, contentTexture: 
 
           vec3 blended = mix(contentColor.rgb, frameColor.rgb, frameColor.a);
           float alpha = max(contentColor.a, frameColor.a);
-          vec3 glowColor = blended + vec3(glow);
-          gl_FragColor = vec4(glowColor, alpha * opacity);
+
+          // Add colored edge glow effect
+          float edgeDist = min(min(vertexUV.x, 1.0 - vertexUV.x), min(vertexUV.y, 1.0 - vertexUV.y));
+          float edgeGlow = smoothstep(0.0, 0.15, edgeDist);
+          vec3 coloredGlow = mix(glowColor * 0.6, vec3(0.0), edgeGlow) * glow;
+
+          vec3 finalColor = blended + coloredGlow;
+          gl_FragColor = vec4(finalColor, alpha * opacity);
         }
       }
     `

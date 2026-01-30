@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useLayoutEffect } from 'react'
 import * as THREE from 'three'
 import { projects, sceneOptions } from '@/data/projects'
 import { usePerformanceMode } from '@/contexts/performance-mode-context'
-import { getPlaneWidth, createCardGeometry, createCardMaterial } from '@/lib/carousel-helpers'
+import { getPlaneWidth, createCardGeometry, createCardMaterial, extractGlowColor } from '@/lib/carousel-helpers'
 import { handleWheelScroll, updateScrollVelocity } from '@/lib/carousel-animation'
 import {
   DESKTOP_LAYOUT,
@@ -509,7 +509,8 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       const geometry = createCardGeometry(sceneOptions.cardWidth, sceneOptions.cardHeight)
       const cardAspectRatio = sceneOptions.cardWidth / sceneOptions.cardHeight
       const frameAspectRatio = 389 / 596 // Frame image aspect ratio
-      const material = createCardMaterial(frameTexture, thumbnailTexture, sceneOptions.curve, 1.0, cardAspectRatio, false, frameAspectRatio)
+      const glowColor = extractGlowColor(project.titleGradient)
+      const material = createCardMaterial(frameTexture, thumbnailTexture, sceneOptions.curve, 1.0, cardAspectRatio, false, frameAspectRatio, undefined, undefined, glowColor)
 
       // Update aspect ratio from cached value or listen for updates
       if (assets.videoAspectRatio !== 1.0) {
@@ -1843,9 +1844,9 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
             mat.uniforms.opacity.value = currentOpacity + (targetOpacity - currentOpacity) * 0.15
           }
 
-          // Glow effect on hover
+          // Colored edge glow effect on hover
           if (mat.uniforms.glow) {
-            const targetGlow = isHovered ? 0.1 : 0.0
+            const targetGlow = isHovered ? 1.0 : 0.0
             const currentGlow = mat.uniforms.glow.value
             mat.uniforms.glow.value = currentGlow + (targetGlow - currentGlow) * 0.15
           }
