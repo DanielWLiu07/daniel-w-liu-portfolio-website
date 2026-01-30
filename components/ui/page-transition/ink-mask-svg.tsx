@@ -150,7 +150,7 @@ export function InkMaskSvg({ svgRef, maskType, onReady, triggerAnimation }: InkM
       >
         <div className="relative w-full h-full">
           <Image
-            src="/landing/images/white_paper.png"
+            src="/landing/images/white_paper.webp"
             alt=""
             fill
             className="object-cover"
@@ -202,7 +202,7 @@ export function InkMaskSvg({ svgRef, maskType, onReady, triggerAnimation }: InkM
           </mask>
         </defs>
         <image
-          href="/landing/images/white_paper.png"
+          href="/landing/images/white_paper.webp"
           width="100%"
           height="100%"
           preserveAspectRatio="xMidYMid slice"

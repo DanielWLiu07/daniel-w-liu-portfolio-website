@@ -232,7 +232,7 @@ export default function Home() {
         <>
           <div ref={rootRef} className="relative w-full h-screen overflow-hidden">
             <div className={`absolute inset-0 z-[50] pointer-events-none transition-opacity duration-500 ${startMaskAnimation ? 'opacity-0' : 'opacity-100'}`}>
-              <Image src="/landing/images/white_paper.png" alt="" fill className="object-cover" priority />
+              <Image src="/landing/images/white_paper.webp" alt="" fill className="object-cover" priority />
             </div>
 
             <div className="absolute inset-0 w-full h-full overflow-visible min-h-screen">
@@ -254,7 +254,7 @@ export default function Home() {
                 <div className="absolute inset-0 pointer-events-none z-[1] landing-gradient-right" />
                 <div className="absolute inset-0 w-full h-full min-h-screen z-[2]">
                   {isLowPerformance ? (
-                    <Image src="/animation_frames/landing/composed_bg/composed_bg0300.png" alt="" fill sizes="100vw" className="object-cover" priority />
+                    <Image src="/animation_frames/landing/composed_bg/composed_bg0300.webp" alt="" fill sizes="100vw" className="object-cover" priority />
                   ) : (
                     <video ref={compositeVideoRef} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" preload="auto">
                       <source src="/landing/videos/landing_composite_24fps.webm" type="video/webm" />

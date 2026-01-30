@@ -16,7 +16,7 @@ export function TreeOverlays({ isLowPerformance, treeRightRef, treeLeftRef }: Tr
       <>
         <div className={`${baseClasses} z-[65]`}>
           <Image
-            src="/animation_frames/landing/tree_right0200.png"
+            src="/animation_frames/landing/tree_right0200.webp"
             alt=""
             width={1920}
             height={1080}
@@ -25,7 +25,7 @@ export function TreeOverlays({ isLowPerformance, treeRightRef, treeLeftRef }: Tr
         </div>
         <div className={`${baseClasses} z-[60]`}>
           <Image
-            src="/animation_frames/landing/tree_left0200.png"
+            src="/animation_frames/landing/tree_left0200.webp"
             alt=""
             width={1920}
             height={1080}

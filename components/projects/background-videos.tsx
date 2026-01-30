@@ -33,9 +33,9 @@ export default function BackgroundVideos({ visible, isExpanded = false }: Backgr
   return (
     <>
       <div className={`fixed inset-0 w-full h-screen z-0 ${visible ? '' : 'invisible'}`}>
-        <Image src="/projects/images/starry.png" alt="" className="object-cover" fill priority />
+        <Image src="/projects/images/starry.webp" alt="" className="object-cover" fill priority />
         {isLowPerformance ? (
-          <Image src="/animation_frames/manga/manga_bg/0400.png" alt="" fill className="absolute inset-0 w-full h-full object-cover" />
+          <Image src="/animation_frames/manga/manga_bg/0400.webp" alt="" fill className="absolute inset-0 w-full h-full object-cover" />
         ) : (
           <video
             ref={bgVideoRef}
@@ -54,7 +54,7 @@ export default function BackgroundVideos({ visible, isExpanded = false }: Backgr
         className={`fixed inset-0 w-full h-screen ${MOBILE_CONTAINER_CLASSES} ${isLowPerformance ? 'max-[600px]:mt-20' : 'max-[600px]:mt-5'} ${isExpanded ? 'z-[36]' : 'z-[56]'} pointer-events-none ${visible ? '' : 'invisible'} transition-transform ease-[cubic-bezier(0.25,0.1,0.15,1)] ${transitionDuration} ${isExpanded ? '-translate-y-full' : 'translate-y-0'}`}
       >
         {isLowPerformance ? (
-          <Image src="/animation_frames/manga/manga_man/0200.png" alt="" fill className="absolute inset-0 w-full h-full object-cover max-[600px]:object-contain" />
+          <Image src="/animation_frames/manga/manga_man/0200.webp" alt="" fill className="absolute inset-0 w-full h-full object-cover max-[600px]:object-contain" />
         ) : (
           <video
             ref={manVideoRef}

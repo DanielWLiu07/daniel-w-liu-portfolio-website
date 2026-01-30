@@ -15,14 +15,14 @@ interface ElementState {
 }
 
 const INITIAL_ELEMENTS: ElementState[] = [
-  { id: 'pin_1', src: '/quality/images/pin_outline_1.png', x: 100, y: 100, rotation: 0, scale: 1, zIndex: 10 },
-  { id: 'pin_2', src: '/quality/images/pin_outline_2.png', x: 200, y: 100, rotation: 0, scale: 1, zIndex: 10 },
-  { id: 'pin_3', src: '/quality/images/pin_outline_3.png', x: 300, y: 100, rotation: 0, scale: 1, zIndex: 10 },
-  { id: 'paper_clip_1', src: '/quality/images/paper_clip_outline_1.png', x: 100, y: 250, rotation: 0, scale: 1, zIndex: 10 },
-  { id: 'paper_clip_2', src: '/quality/images/paper_clip_outline_2.png', x: 200, y: 250, rotation: 0, scale: 1, zIndex: 10 },
-  { id: 'paper_clip_3', src: '/quality/images/paper_clip_outline_3.png', x: 300, y: 250, rotation: 0, scale: 1, zIndex: 10 },
-  { id: 'clip_1', src: '/quality/images/clip_1_outline.png', x: 100, y: 400, rotation: 0, scale: 1, zIndex: 10 },
-  { id: 'stationary', src: '/quality/images/stationary_outline.png', x: 300, y: 400, rotation: 0, scale: 1, zIndex: 10 },
+  { id: 'pin_1', src: '/quality/images/pin_outline_1.webp', x: 100, y: 100, rotation: 0, scale: 1, zIndex: 10 },
+  { id: 'pin_2', src: '/quality/images/pin_outline_2.webp', x: 200, y: 100, rotation: 0, scale: 1, zIndex: 10 },
+  { id: 'pin_3', src: '/quality/images/pin_outline_3.webp', x: 300, y: 100, rotation: 0, scale: 1, zIndex: 10 },
+  { id: 'paper_clip_1', src: '/quality/images/paper_clip_outline_1.webp', x: 100, y: 250, rotation: 0, scale: 1, zIndex: 10 },
+  { id: 'paper_clip_2', src: '/quality/images/paper_clip_outline_2.webp', x: 200, y: 250, rotation: 0, scale: 1, zIndex: 10 },
+  { id: 'paper_clip_3', src: '/quality/images/paper_clip_outline_3.webp', x: 300, y: 250, rotation: 0, scale: 1, zIndex: 10 },
+  { id: 'clip_1', src: '/quality/images/clip_1_outline.webp', x: 100, y: 400, rotation: 0, scale: 1, zIndex: 10 },
+  { id: 'stationary', src: '/quality/images/stationary_outline.webp', x: 300, y: 400, rotation: 0, scale: 1, zIndex: 10 },
 ]
 
 export default function PositionEditor() {
@@ -149,7 +149,7 @@ export default function PositionEditor() {
       {/* Canvas */}
       <div className="absolute inset-0">
         <Image
-          src="/landing/images/white_paper.png"
+          src="/landing/images/white_paper.webp"
           alt="background"
           fill
           className="object-cover"

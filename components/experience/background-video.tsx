@@ -115,7 +115,7 @@ export function BackgroundVideo({ onReady }: BackgroundVideoProps) {
   if (isLowPerformance) {
     return (
       <Image
-        src="/animation_frames/experience/bg_anime/your_name_scene_.png0300.png"
+        src="/animation_frames/experience/bg_anime/your_name_scene_.png0300.webp"
         alt=""
         fill
         className="object-cover"

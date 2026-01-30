@@ -353,7 +353,7 @@ export function ProjectInfoPanel({ project, onClose, onPrevProject, onNextProjec
           }}
         >
           <Image
-            src="/about/images/bg.png"
+            src="/about/images/bg.webp"
             alt=""
             fill
             className="object-cover"

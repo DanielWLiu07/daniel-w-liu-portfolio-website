@@ -7,7 +7,7 @@ export function ExperienceHeader() {
   return (
     <div className="experience-header relative ml-0 mt-5 flex flex-col items-center lg:ml-21 lg:mt-5 lg:block [transform:rotateZ(0deg)] lg:[transform:rotateZ(1deg)]">
       <Image
-        src="/experience/images/experience_text.png"
+        src="/experience/images/experience_text.webp"
         alt=""
         width={600}
         height={200}
@@ -16,7 +16,7 @@ export function ExperienceHeader() {
         aria-hidden="true"
       />
       <Image
-        src="/experience/images/experience_text.png"
+        src="/experience/images/experience_text.webp"
         alt="Experience"
         width={600}
         height={200}

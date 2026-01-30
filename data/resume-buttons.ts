@@ -13,7 +13,7 @@ export interface InteractiveButton {
 export const createInteractiveButtons = (): InteractiveButton[] => [
   {
     id: "folder",
-    imageName: "folder_selected.png",
+    imageName: "folder_selected.webp",
     shape: "square",
     left: "50.29%",
     top: "44.91%",
@@ -24,7 +24,7 @@ export const createInteractiveButtons = (): InteractiveButton[] => [
   },
   {
     id: "github",
-    imageName: "github_selected.png",
+    imageName: "github_selected.webp",
     shape: "rounded-full",
     left: "79.66%",
     top: "57.45%",
@@ -35,7 +35,7 @@ export const createInteractiveButtons = (): InteractiveButton[] => [
   },
   {
     id: "linkedin",
-    imageName: "linkedln_selected.png",
+    imageName: "linkedln_selected.webp",
     shape: "square",
     left: "90.31%",
     top: "74.5%",
@@ -46,7 +46,7 @@ export const createInteractiveButtons = (): InteractiveButton[] => [
   },
   {
     id: "email",
-    imageName: "email_selected.png",
+    imageName: "email_selected.webp",
     shape: "rounded-full",
     left: "74.43%",
     top: "82.14%",
@@ -61,7 +61,7 @@ export const createInteractiveButtons = (): InteractiveButton[] => [
   },
   {
     id: "waterloo",
-    imageName: "waterloo_selected.png",
+    imageName: "waterloo_selected.webp",
     shape: "rounded-full",
     left: "86.07%",
     top: "23.76%",
@@ -72,7 +72,7 @@ export const createInteractiveButtons = (): InteractiveButton[] => [
   },
   {
     id: "selfie",
-    imageName: "selfie_selected.png",
+    imageName: "selfie_selected.webp",
     shape: "square",
     left: "13.95%",
     top: "30.27%",
@@ -83,7 +83,7 @@ export const createInteractiveButtons = (): InteractiveButton[] => [
   },
   {
     id: "cat",
-    imageName: "cat_selected.png",
+    imageName: "cat_selected.webp",
     shape: "square",
     left: "14.49%",
     top: "73.67%",

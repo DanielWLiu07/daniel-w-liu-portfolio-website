@@ -248,7 +248,7 @@ export default function ProjectsPage() {
       {/* Hidden preload for flash background - ensures browser caches image for CSS */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src="/projects/images/flash_bg.png"
+        src="/projects/images/flash_bg.webp"
         alt=""
         className="fixed -top-[9999px] -left-[9999px] w-1 h-1 pointer-events-none opacity-0"
         aria-hidden="true"
@@ -259,7 +259,7 @@ export default function ProjectsPage() {
         <div className="fixed inset-0 z-[10000]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/landing/images/white_paper.png"
+            src="/landing/images/white_paper.webp"
             alt=""
             className="absolute inset-0 w-full h-full object-cover"
           />

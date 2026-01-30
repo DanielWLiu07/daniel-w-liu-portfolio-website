@@ -35,7 +35,7 @@ export function ModeSelector() {
   // Preload white paper image immediately for SVG mask
   useEffect(() => {
     const img = new window.Image()
-    img.src = '/landing/images/white_paper.png'
+    img.src = '/landing/images/white_paper.webp'
   }, [])
 
   useEffect(() => {
@@ -247,7 +247,7 @@ export function ModeSelector() {
       <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 lg:p-8 overflow-visible">
         <div className="absolute inset-0 z-0">
           <Image
-          src="/landing/images/white_paper.png"
+          src="/landing/images/white_paper.webp"
           alt="paper background"
           fill
           className="object-cover"
@@ -260,7 +260,7 @@ export function ModeSelector() {
         className="fixed right-[15%] lg:right-[30%] -top-16 lg:-top-8 w-16 h-16 z-[203] pointer-events-none opacity-0 [transform:rotate(15deg)_scale(2.5)] lg:[transform:rotate(15deg)_scale(2.5)]"
       >
         <Image
-          src="/quality/images/paper_clip_outline_1.png"
+          src="/quality/images/paper_clip_outline_1.webp"
           alt=""
           width={64}
           height={64}
@@ -273,7 +273,7 @@ export function ModeSelector() {
         className="fixed left-[15%] lg:left-[30%] -top-14 lg:-top-6 w-16 h-16 z-[204] pointer-events-none opacity-0 [transform:rotate(-15deg)_scale(2.5)] lg:[transform:rotate(-15deg)_scale(2.5)]"
       >
         <Image
-          src="/quality/images/paper_clip_outline_2.png"
+          src="/quality/images/paper_clip_outline_2.webp"
           alt=""
           width={64}
           height={64}
@@ -286,7 +286,7 @@ export function ModeSelector() {
         className="fixed left-1/2 -translate-x-1/2 -top-12 lg:-top-2 w-16 h-16 z-[205] pointer-events-none opacity-0 [transform:rotate(180deg)_scale(2.5)_scaleX(-1)] lg:[transform:rotate(180deg)_scale(2.5)_scaleX(-1)]"
       >
         <Image
-          src="/quality/images/paper_clip_outline_3.png"
+          src="/quality/images/paper_clip_outline_3.webp"
           alt=""
           width={64}
           height={64}
@@ -299,7 +299,7 @@ export function ModeSelector() {
         className="fixed left-0 top-0 h-screen opacity-0 overflow-visible pointer-events-none z-[1] -ml-80 md:-ml-0 md:left-[-20vw] lg:left-[-5%] -mt-5 will-change-[opacity]"
       >
         <Image
-          src="/quality/images/selfie_outline.png"
+          src="/quality/images/selfie_outline.webp"
           alt="Daniel W Liu"
           width={500}
           height={1750}
@@ -309,7 +309,7 @@ export function ModeSelector() {
           className="absolute top-[20%] left-[50%] w-20 h-20 z-[200] pointer-events-none [transform:translate(-220px,150px)_rotate(0deg)_scale(1.4)] lg:[transform:translate(-220px,150px)_rotate(0deg)_scale(1.8)]"
         >
           <Image
-            src="/quality/images/pin_outline_1.png"
+            src="/quality/images/pin_outline_1.webp"
             alt=""
             width={80}
             height={80}
@@ -320,7 +320,7 @@ export function ModeSelector() {
           className="absolute top-[0%] left-[15%] w-20 h-20 z-[200] pointer-events-none [transform:translate(50px,0px)_rotate(45deg)_scale(1.4)] lg:[transform:translate(100px,0px)_rotate(-55deg)_scale(2.0)]"
         >
           <Image
-            src="/quality/images/clip_3_outline.png"
+            src="/quality/images/clip_3_outline.webp"
             alt=""
             width={80}
             height={80}
@@ -342,7 +342,7 @@ export function ModeSelector() {
         >
           <div className="relative h-full w-full transition-transform duration-300 ease-out group-hover:scale-110 -rotate-[35deg]">
             <Image
-              src="/quality/images/waterloo_outline.png"
+              src="/quality/images/waterloo_outline.webp"
               alt="Waterloo"
               width={300}
               height={1200}
@@ -352,7 +352,7 @@ export function ModeSelector() {
               className="absolute top-[10%] left-[80%] w-20 h-20 z-[200] pointer-events-none [transform:translate(-20px,-30px)_rotate(85deg)_scale(0.8)] lg:[transform:translate(-20px,-30px)_rotate(85deg)_scale(1)]"
             >
               <Image
-                src="/quality/images/pin_outline_3.png"
+                src="/quality/images/pin_outline_3.webp"
                 alt=""
                 width={80}
                 height={80}
@@ -368,7 +368,7 @@ export function ModeSelector() {
         className="fixed right-0 top-0 h-screen opacity-0 overflow-visible pointer-events-none z-[1] -mr-80 md:-mr-0 md:right-[-20vw] lg:right-[-5%] -mt-5 will-change-[opacity]"
       >
         <Image
-          src="/quality/images/cat_tongue_outline.png"
+          src="/quality/images/cat_tongue_outline.webp"
           alt="Bongo"
           width={500}
           height={1750}
@@ -378,7 +378,7 @@ export function ModeSelector() {
           className="absolute top-[20%] right-[50%] w-20 h-20 z-[201] pointer-events-none [transform:translate(-50px,-150px)_rotate(-40deg)_scale(1.4)] lg:[transform:translate(-50px,-150px)_rotate(-40deg)_scale(1.8)]"
         >
           <Image
-            src="/quality/images/pin_outline_2.png"
+            src="/quality/images/pin_outline_2.webp"
             alt=""
             width={80}
             height={80}
@@ -389,7 +389,7 @@ export function ModeSelector() {
           className="absolute top-[5%] right-[40%] w-20 h-20 z-[201] pointer-events-none [transform:translate(50px,50px)_rotate(60deg)_scale(1.4)] lg:[transform:translate(170px,80px)_rotate(-130deg)_scale(2.0)]"
         >
           <Image
-            src="/quality/images/clip_4_outline.png"
+            src="/quality/images/clip_4_outline.webp"
             alt=""
             width={80}
             height={80}
@@ -400,7 +400,7 @@ export function ModeSelector() {
 
       <div ref={paperClipRight1Ref} className="fixed -right-4 top-[40vh] lg:top-[50vh] w-16 h-16 z-[203] pointer-events-none opacity-0 [transform:rotate(-80deg)_scale(2)] lg:[transform:rotate(-80deg)_scale(2.0)]">
         <Image
-          src="/quality/images/paper_clip_outline_5.png"
+          src="/quality/images/paper_clip_outline_5.webp"
           alt=""
           width={64}
           height={64}
@@ -409,7 +409,7 @@ export function ModeSelector() {
       </div>
       <div ref={paperClipRight2Ref} className="fixed -right-2 top-[50vh] lg:top-[60vh] w-16 h-16 z-[203] pointer-events-none opacity-0 [transform:rotate(-80deg)_scale(2.4)] lg:[transform:rotate(-80deg)_scale(2.5)]">
         <Image
-          src="/quality/images/paper_clip_outline_7.png"
+          src="/quality/images/paper_clip_outline_7.webp"
           alt=""
           width={64}
           height={64}
@@ -443,7 +443,7 @@ export function ModeSelector() {
               className="relative w-[280px] h-[280px] md:w-[360px] md:h-[360px] lg:w-[420px] lg:h-[420px] rotate-[1deg] hover:scale-105 hover:rotate-0 transition-all duration-300 ease-out overflow-visible will-change-transform"
             >
               <Image
-                src="/quality/images/sticky_quality_outline_1.png"
+                src="/quality/images/sticky_quality_outline_1.webp"
                 alt="High Quality"
                 width={420}
                 height={420}
@@ -464,7 +464,7 @@ export function ModeSelector() {
                 className="absolute -bottom-4 -left-4 w-20 h-20 z-[206] pointer-events-none [transform:translate(10px,40px)_rotate(35deg)_scale(1.6)] md:[transform:translate(10px,40px)_rotate(35deg)_scale(1.9)] lg:[transform:translate(10px,40px)_rotate(35deg)_scale(2.2)]"
               >
                 <Image
-                  src="/quality/images/clip_1_outline.png"
+                  src="/quality/images/clip_1_outline.webp"
                   alt=""
                   width={80}
                   height={80}
@@ -475,7 +475,7 @@ export function ModeSelector() {
                 className="absolute -top-10 md:-top-4 -right-8 md:-right-4 w-16 h-16 z-[206] pointer-events-none [transform:translate(-30px,60px)_rotate(-140deg)_scale(1.5)] md:[transform:translate(-30px,60px)_rotate(-140deg)_scale(1.75)] lg:[transform:translate(-30px,60px)_rotate(-140deg)_scale(2.0)]"
               >
                 <Image
-                  src="/quality/images/paper_clip_outline_4.png"
+                  src="/quality/images/paper_clip_outline_4.webp"
                   alt=""
                   width={64}
                   height={64}
@@ -494,7 +494,7 @@ export function ModeSelector() {
               className="relative w-[280px] h-[280px] md:w-[360px] md:h-[360px] lg:w-[420px] lg:h-[420px] -rotate-[1deg] hover:scale-105 hover:rotate-0 transition-all duration-300 ease-out overflow-visible will-change-transform"
             >
               <Image
-                src="/quality/images/sticky_quality_outline_2.png"
+                src="/quality/images/sticky_quality_outline_2.webp"
                 alt="Low Quality"
                 width={420}
                 height={420}
@@ -515,7 +515,7 @@ export function ModeSelector() {
                 className="absolute -bottom-4 -left-4 w-20 h-20 z-[202] pointer-events-none [transform:translate(220px,-30px)_rotate(130deg)_scale(1.3)] md:[transform:translate(280px,-35px)_rotate(130deg)_scale(1.6)] lg:[transform:translate(350px,-40px)_rotate(130deg)_scale(2.0)]"
               >
                 <Image
-                  src="/quality/images/clip_2_outline.png"
+                  src="/quality/images/clip_2_outline.webp"
                   alt=""
                   width={80}
                   height={80}
@@ -526,7 +526,7 @@ export function ModeSelector() {
                 className="absolute -top-4 -left-4 w-16 h-16 z-[202] pointer-events-none [transform:translate(30px,30px)_rotate(35deg)_scale(1.8)] md:[transform:translate(45px,40px)_rotate(35deg)_scale(2.1)] lg:[transform:translate(60px,50px)_rotate(35deg)_scale(2.4)]"
               >
                 <Image
-                  src="/quality/images/paper_clip_outline_6.png"
+                  src="/quality/images/paper_clip_outline_6.webp"
                   alt=""
                   width={64}
                   height={64}

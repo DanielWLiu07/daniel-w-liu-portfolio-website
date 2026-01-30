@@ -5,7 +5,7 @@ export function LoadingScreen() {
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center">
       <Image
-        src="/landing/images/white_paper.png"
+        src="/landing/images/white_paper.webp"
         alt="loading background"
         fill
         className="object-cover"
@@ -13,7 +13,7 @@ export function LoadingScreen() {
       />
       <div className="relative z-10 flex flex-col items-center gap-4">
         <Image
-          src="/images/cat_spin.png"
+          src="/images/cat_spin.webp"
           alt="Loading"
           width={256}
           height={256}

@@ -81,7 +81,7 @@ export default function About() {
 
           <div className="flex flex-col mt-5 mb-0 items-center min-[1038px]:items-start -ml-0 min-[1038px]:-ml-50 overflow-visible">
             <Image
-              src="/about/images/cat3.png"
+              src="/about/images/cat3.webp"
               alt="Cat"
               width={650}
               height={150}

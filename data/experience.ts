@@ -22,7 +22,7 @@ export const experiences: Experience[] = [
     company: "HOSA Canada",
     period: "Sept 2025 - Dec 2025",
     description: "Engineered a full-stack resource platform via Next.js and designed a scalable Twilio messaging architecture to coordinate 360+ workshops servicing 9,000+ students.",
-    logo: "/experience/images/hosa_canada_logo.png",
+    logo: "/experience/images/hosa_canada_logo.webp",
     logoScale: 1.5
   },
   {

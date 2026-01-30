@@ -23,7 +23,7 @@ function MobileSvgMask() {
       </defs>
       <foreignObject width="100%" height="100%" mask="url(#mobileAboutBgMask)">
         <div className="relative w-full h-full">
-          <Image src="/about/images/right_graphics.png" alt="" fill className="object-cover object-right-top" priority />
+          <Image src="/about/images/right_graphics.webp" alt="" fill className="object-cover object-right-top" priority />
         </div>
       </foreignObject>
     </svg>
@@ -34,15 +34,15 @@ function LowPerformanceMobile({ scrollHeight }: { scrollHeight: number }) {
   return (
     <>
       <section className="min-[1038px]:hidden relative h-screen">
-        <Image src="/animation_frames/watercolour_sequences/portrait_vid/render_compositing_080.png" alt="" fill className="object-cover object-[12%_100%] min-[530px]:object-[10%_100%] z-0" />
-        <Image src="/animation_frames/watercolour_sequences/sparkle_loop_vid/render_compositing_250.png" alt="" fill className="object-cover object-[12%_100%] min-[530px]:object-[10%_100%] z-10" />
+        <Image src="/animation_frames/watercolour_sequences/portrait_vid/render_compositing_080.webp" alt="" fill className="object-cover object-[12%_100%] min-[530px]:object-[10%_100%] z-0" />
+        <Image src="/animation_frames/watercolour_sequences/sparkle_loop_vid/render_compositing_250.webp" alt="" fill className="object-cover object-[12%_100%] min-[530px]:object-[10%_100%] z-10" />
       </section>
       <section className="min-[1038px]:hidden absolute inset-x-0 top-[100vh] h-20 z-[8] -translate-y-[40%]">
-        <div className="w-full h-full bg-cover bg-center gradient-mask-vertical bg-[url('/about/images/bg.png')]" />
+        <div className="w-full h-full bg-cover bg-center gradient-mask-vertical bg-[url('/about/images/bg.webp')]" />
       </section>
       <section className="min-[1038px]:hidden relative" style={{ height: `${scrollHeight}vh` }}>
         <div className="sticky top-0 h-screen">
-          <Image src="/animation_frames/watercolour_sequences/colour_vid_phone/render_compositing_080.png" alt="" fill className="object-cover object-right" />
+          <Image src="/animation_frames/watercolour_sequences/colour_vid_phone/render_compositing_080.webp" alt="" fill className="object-cover object-right" />
           <MobileSvgMask />
         </div>
       </section>
@@ -93,7 +93,7 @@ function HighPerformanceMobile({ scrollHeight }: { scrollHeight: number }) {
         </video>
       </section>
       <section className="min-[1038px]:hidden absolute inset-x-0 top-[100vh] h-20 z-[8] -translate-y-[40%]">
-        <div className="w-full h-full bg-cover bg-center gradient-mask-vertical bg-[url('/about/images/bg.png')]" />
+        <div className="w-full h-full bg-cover bg-center gradient-mask-vertical bg-[url('/about/images/bg.webp')]" />
       </section>
       <section className="min-[1038px]:hidden relative" style={{ height: `${scrollHeight}vh` }}>
         <div className="sticky top-0 h-screen">
@@ -113,7 +113,7 @@ export function MobileBackground({ scrollHeight = 300 }: { scrollHeight?: number
   return (
     <>
       <div className="min-[1038px]:hidden fixed inset-0 z-0">
-        <Image src="/about/images/bg.png" alt="" fill className="object-cover" priority />
+        <Image src="/about/images/bg.webp" alt="" fill className="object-cover" priority />
       </div>
       {isLowPerformance ? <LowPerformanceMobile scrollHeight={scrollHeight} /> : <HighPerformanceMobile scrollHeight={scrollHeight} />}
     </>

@@ -227,7 +227,7 @@ export default function Resume() {
       >
         {isLowPerformance ? (
           <Image
-            src="/resume/images/resume_last_frame.png"
+            src="/resume/images/resume_last_frame.webp"
             alt=""
             width={1920}
             height={1080}

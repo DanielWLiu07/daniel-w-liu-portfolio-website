@@ -38,7 +38,7 @@ export default function RootLayout({
         {/* Preload white paper image for landing page SVG mask */}
         <link
           rel="preload"
-          href="/landing/images/white_paper.png"
+          href="/landing/images/white_paper.webp"
           as="image"
           fetchPriority="high"
         />

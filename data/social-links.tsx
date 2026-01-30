@@ -19,9 +19,9 @@ export const SOCIAL_URLS = {
 }
 
 export const socialLinksImageData: SocialLinkImage[] = [
-  { href: SOCIAL_URLS.github, label: "GitHub", image: "/about/images/github.png" },
-  { href: SOCIAL_URLS.linkedin, label: "LinkedIn", image: "/about/images/linkedln.png" },
-  { href: SOCIAL_URLS.email, label: "Email", image: "/about/images/gmail.png" },
+  { href: SOCIAL_URLS.github, label: "GitHub", image: "/about/images/github.webp" },
+  { href: SOCIAL_URLS.linkedin, label: "LinkedIn", image: "/about/images/linkedln.webp" },
+  { href: SOCIAL_URLS.email, label: "Email", image: "/about/images/gmail.webp" },
 ]
 
 export const socialLinksData: SocialLink[] = [

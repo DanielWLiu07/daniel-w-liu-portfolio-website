@@ -28,7 +28,7 @@ export function LoadingContent() {
       <div className="flex flex-col items-center gap-4">
         <Image
           ref={imgRef}
-          src="/images/cat_spin.png"
+          src="/images/cat_spin.webp"
           alt="Loading"
           width={256}
           height={256}

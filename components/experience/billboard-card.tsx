@@ -29,7 +29,7 @@ export function BillboardCard({ experience }: BillboardCardProps) {
         className="relative rounded-lg border-3 border-gray-300 p-3 lg:p-4 shadow-2xl transition-all duration-500 ease-out group-hover:shadow-3xl min-h-[100px] lg:min-h-[140px] z-10 group-hover:-translate-x-1 group-hover:-translate-y-1 opacity-80 group-hover:opacity-100 group-hover:brightness-110 flex items-center"
         style={{
           filter: isComingSoon ? CARD_GLOW_DIMMED : CARD_GLOW,
-          background: `linear-gradient(rgba(255,255,255,0.85), rgba(255,255,255,0.85)), url('/experience/images/card_img.png') center/cover repeat`,
+          background: `linear-gradient(rgba(255,255,255,0.85), rgba(255,255,255,0.85)), url('/experience/images/card_img.webp') center/cover repeat`,
           backgroundColor: '#fff',
           boxShadow: '0 4px 32px 0 rgba(60,40,20,0.10)',
         }}

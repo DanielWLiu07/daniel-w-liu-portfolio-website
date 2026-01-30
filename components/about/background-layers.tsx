@@ -83,7 +83,7 @@ function RightGraphicsMaskSvg({
       </defs>
       <foreignObject width="100%" height="100%" mask="url(#aboutBgMask)">
         <div className="relative w-full h-full">
-          <Image src="/about/images/right_graphics.png" alt="" fill className="object-cover object-right-top" priority />
+          <Image src="/about/images/right_graphics.webp" alt="" fill className="object-cover object-right-top" priority />
         </div>
       </foreignObject>
     </svg>
@@ -119,7 +119,7 @@ function SafariRightGraphicsMask({
 }) {
   return (
     <div className={`hidden min-[1038px]:block fixed inset-0 z-[5] about-safari-fallback about-safari-reveal ${safariAnimating ? 'animating' : ''}`}>
-      <Image src="/about/images/right_graphics.png" alt="" fill className="object-cover object-right-top" priority />
+      <Image src="/about/images/right_graphics.webp" alt="" fill className="object-cover object-right-top" priority />
     </div>
   )
 }
@@ -166,7 +166,7 @@ function LowPerformanceBackgrounds() {
     <>
       <div className="hidden min-[1038px]:block fixed inset-0 z-[3]">
         <Image
-          src="/animation_frames/watercolour_sequences/colour_vid/render_compositing_080.png"
+          src="/animation_frames/watercolour_sequences/colour_vid/render_compositing_080.webp"
           alt=""
           fill
           className="object-cover"
@@ -174,18 +174,18 @@ function LowPerformanceBackgrounds() {
       </div>
       <div className="hidden min-[1038px]:block fixed inset-0 z-0">
         <Image
-          src="/animation_frames/watercolour_sequences/portrait_vid/render_compositing_080.png"
+          src="/animation_frames/watercolour_sequences/portrait_vid/render_compositing_080.webp"
           alt=""
           fill
           className="object-cover object-bottom"
         />
       </div>
       <div className="hidden min-[1038px]:block fixed inset-0 z-[5]">
-        <Image src="/about/images/right_graphics.png" alt="" fill className="object-cover object-right-top" />
+        <Image src="/about/images/right_graphics.webp" alt="" fill className="object-cover object-right-top" />
       </div>
       <div className="hidden min-[1038px]:block fixed inset-0 z-10">
         <Image
-          src="/animation_frames/watercolour_sequences/sparkle_loop_vid/render_compositing_250.png"
+          src="/animation_frames/watercolour_sequences/sparkle_loop_vid/render_compositing_250.webp"
           alt=""
           fill
           className="object-cover object-bottom"
@@ -286,7 +286,7 @@ export const BackgroundLayers = memo(function BackgroundLayers() {
   return (
     <>
       <div className="hidden min-[1038px]:block fixed inset-0 z-0">
-        <Image src="/about/images/bg.png" alt="" fill className="object-cover" priority />
+        <Image src="/about/images/bg.webp" alt="" fill className="object-cover" priority />
       </div>
 
       {isLowPerformance ? (

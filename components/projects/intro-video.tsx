@@ -160,10 +160,10 @@ export default function IntroVideo({ onEnded, onFlashStart, onReady, canPlay = t
     return (
       <>
         <div className="absolute inset-0 z-0 pointer-events-none">
-          <Image src="/animation_frames/manga/manga_intro/0075.png" alt="" fill className="object-cover" />
+          <Image src="/animation_frames/manga/manga_intro/0075.webp" alt="" fill className="object-cover" />
         </div>
         <div className={`absolute inset-0 w-full h-full ${MOBILE_CONTAINER_CLASSES} max-[600px]:mt-20 z-10 pointer-events-none`}>
-          <Image src="/animation_frames/manga/manga_man_intro/0075.png" alt="" fill className="object-cover max-[600px]:object-contain" />
+          <Image src="/animation_frames/manga/manga_man_intro/0075.webp" alt="" fill className="object-cover max-[600px]:object-contain" />
         </div>
       </>
     )

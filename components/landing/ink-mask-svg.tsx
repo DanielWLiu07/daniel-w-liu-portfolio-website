@@ -150,7 +150,7 @@ export function InkMaskSvg({ maskX, maskWidth, startMaskAnimation, useSimpleFade
             </mask>
           </defs>
           <image
-            href="/landing/images/white_paper.png"
+            href="/landing/images/white_paper.webp"
             width="100%"
             height="100%"
             preserveAspectRatio="xMidYMid slice"
@@ -178,7 +178,7 @@ export function InkMaskSvg({ maskX, maskWidth, startMaskAnimation, useSimpleFade
               </mask>
             </defs>
             <image
-              href="/landing/images/white_paper.png"
+              href="/landing/images/white_paper.webp"
               width="100%"
               height="100%"
               preserveAspectRatio="xMidYMid slice"
@@ -195,7 +195,7 @@ export function InkMaskSvg({ maskX, maskWidth, startMaskAnimation, useSimpleFade
             }}
           >
             <img
-              src="/landing/images/white_paper.png"
+              src="/landing/images/white_paper.webp"
               alt=""
               className="w-full h-full object-cover"
             />

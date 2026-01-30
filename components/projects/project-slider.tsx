@@ -396,7 +396,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
     const flashBgImg = new Image()
     flashBgImg.onload = checkAllAssetsLoaded
     flashBgImg.onerror = checkAllAssetsLoaded // Count even on error to not block forever
-    flashBgImg.src = '/projects/images/flash_bg.png'
+    flashBgImg.src = '/projects/images/flash_bg.webp'
 
     // Pre-load all unique project assets once
     projects.forEach((project) => {

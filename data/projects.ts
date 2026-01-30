@@ -20,8 +20,8 @@ export const projects: Project[] = [
     title: "Rainbolt AI",
     description: "AI-powered location identification from images",
     detailedDescription: "Upload any image and discover its real-world location. Uses a RAG pipeline with CLIP and Pinecone to match against 900k+ images, while Gemini reasons about visual cues. Explore street views via Mapillary and organize discoveries on an interactive 3D constellation.",
-    image: "/projects/images/frames/frame_1.png",
-    frame: "/projects/projects/rainbolt.ai/frame.png",
+    image: "/projects/images/frames/frame_1.webp",
+    frame: "/projects/projects/rainbolt.ai/frame.webp",
     thumbnail: "/projects/thumbnails/rainbolt_pingpong.webm",
     thumbnailImage: "/projects/thumbnails/rainbolt_pingpong_frame.webp",
     images: [
@@ -40,8 +40,8 @@ export const projects: Project[] = [
     title: "Curve Guard",
     description: "AI-powered posture wellness platform",
     detailedDescription: "Real-time posture monitoring using computer vision and MediaPipe for body landmark detection. Features an interactive 3D skeleton that responds to your posture, cloud-powered analytics with AWS Amplify, and customizable alerts for head tilt, eye height, and shoulder balance. Track your posture history with Chart.js visualizations.",
-    image: "/projects/images/frames/frame_2.png",
-    frame: "/projects/projects/curve_guard/frame.png",
+    image: "/projects/images/frames/frame_2.webp",
+    frame: "/projects/projects/curve_guard/frame.webp",
     thumbnail: "/projects/thumbnails/curveguard_pingpong.webm",
     thumbnailImage: "/projects/thumbnails/curveguard_pingpong_frame.webp",
     images: [
@@ -60,8 +60,8 @@ export const projects: Project[] = [
     title: "VibeTrade",
     description: "Emotionally intelligent trading assistant",
     detailedDescription: "An agentic trading system that plans, decides, and executes. Communicate via voice or text while it pulls live prices from Finnhub, evaluates risk constraints, and executes paper trades through Alpaca. Features real-time sentiment analysis from Reddit and Polymarket, TradingView charts, and a reactive 3D model powered by ElevenLabs voice.",
-    image: "/projects/images/frames/frame_3.png",
-    frame: "/projects/projects/vibetrade/frame.png",
+    image: "/projects/images/frames/frame_3.webp",
+    frame: "/projects/projects/vibetrade/frame.webp",
     thumbnail: "/projects/thumbnails/vibetrade_pingpong.webm",
     thumbnailImage: "/projects/thumbnails/vibetrade_pingpong_frame.webp",
     images: [
@@ -80,8 +80,8 @@ export const projects: Project[] = [
     title: "Portfolio",
     description: "Interactive 3D developer portfolio",
     detailedDescription: "A creative portfolio featuring an animated manga-style intro, interactive 3D project carousel with floating cards, and smooth page transitions. Built with Three.js for immersive visuals, GSAP for animations, and a custom video thumbnail system.",
-    image: "/projects/images/frames/frame_4.png",
-    frame: "/projects/projects/portfolio_website/frame.png",
+    image: "/projects/images/frames/frame_4.webp",
+    frame: "/projects/projects/portfolio_website/frame.webp",
     thumbnail: "/projects/thumbnails/portfolio_pingpong.webm",
     thumbnailImage: "/projects/thumbnails/portfolio_pingpong_frame.webp",
     images: [
