@@ -413,22 +413,29 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
 
       // Low performance mode: use extracted video frame as static thumbnail
       if (isLowPerformance) {
+        const assets = {
+          frameTexture,
+          thumbnailVideo: null,
+          thumbnailTexture: null as unknown as THREE.Texture,
+          contentTextures,
+          videoAspectRatio: 1.0
+        }
+
         const thumbnailTexture = textureLoader.load(
-          project.thumbnailImage, // Use extracted first frame from video
-          () => checkAllAssetsLoaded(),
+          project.thumbnailImage,
+          (texture) => {
+            // Get aspect ratio from loaded image, mimicking video behavior
+            if (texture.image && texture.image.width && texture.image.height) {
+              assets.videoAspectRatio = texture.image.width / texture.image.height
+            }
+            checkAllAssetsLoaded()
+          },
           undefined,
           () => checkAllAssetsLoaded()
         )
         thumbnailTexture.minFilter = THREE.LinearFilter
         thumbnailTexture.magFilter = THREE.LinearFilter
-
-        const assets = {
-          frameTexture,
-          thumbnailVideo: null,
-          thumbnailTexture,
-          contentTextures,
-          videoAspectRatio: 1.0 // Will be updated when texture loads
-        }
+        assets.thumbnailTexture = thumbnailTexture
 
         projectAssetsCache.set(project.id, assets)
       } else {
@@ -514,6 +521,23 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
             material.uniforms.contentAspectRatio.value = thumbnailVideo.videoWidth / thumbnailVideo.videoHeight
           }
         })
+      } else {
+        // For static images, check if already loaded or wait for load
+        const img = thumbnailTexture.image as HTMLImageElement | undefined
+        if (img && img.width && img.height) {
+          material.uniforms.contentAspectRatio.value = img.width / img.height
+        } else {
+          // Image not yet loaded, poll for it
+          const checkImageLoaded = () => {
+            const loadedImg = thumbnailTexture.image as HTMLImageElement | undefined
+            if (loadedImg && loadedImg.width && loadedImg.height) {
+              material.uniforms.contentAspectRatio.value = loadedImg.width / loadedImg.height
+            } else {
+              requestAnimationFrame(checkImageLoaded)
+            }
+          }
+          requestAnimationFrame(checkImageLoaded)
+        }
       }
 
       const plane = new THREE.Mesh(geometry, material)
