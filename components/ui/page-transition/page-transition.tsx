@@ -264,21 +264,14 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
       if (revealAnimationFiredRef.current) return
       revealAnimationFiredRef.current = true
 
-      if (isInitialLoadRef.current) {
-        // Initial load: just trigger intros, no SVG
-        if (onIntroStartRef.current) {
-          onIntroStartRef.current()
-          onIntroStartRef.current = null
-        }
-      } else {
-        // Navigation: trigger SVG reveal and intros
-        if (revealSvgRef.current) {
-          triggerSvgAnimations(revealSvgRef.current)
-        }
-        if (onIntroStartRef.current) {
-          onIntroStartRef.current()
-          onIntroStartRef.current = null
-        }
+      // Trigger SVG reveal animation (for navigation OR initial load with mode set)
+      if (revealSvgRef.current) {
+        triggerSvgAnimations(revealSvgRef.current)
+      }
+      // Trigger intro animations
+      if (onIntroStartRef.current) {
+        onIntroStartRef.current()
+        onIntroStartRef.current = null
       }
     } else if (overlayState === 'loading' || overlayState === 'covering') {
       revealAnimationFiredRef.current = false
@@ -329,7 +322,8 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   }, [pathname, startNavigation])
 
   const isRevealed = overlayState === 'hidden'
-  const showOverlays = !isInitialLoadRef.current
+  // Show overlays for navigation OR for initial load when mode is already set (page reload)
+  const showOverlays = !isInitialLoadRef.current || mode !== null
 
   return (
     <TransitionContext.Provider value={{ transitionStage: overlayState, signalReady, isRevealed, isInitialLoad: isInitialLoadRef.current, navigateWithTransition, onIntroStart }}>
