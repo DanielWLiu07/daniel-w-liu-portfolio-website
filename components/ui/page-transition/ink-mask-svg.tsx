@@ -141,7 +141,7 @@ export function InkMaskSvg({ svgRef, maskType, onReady, triggerAnimation }: InkM
   if (isSafari) {
     return (
       <div
-        className="fixed inset-0 z-[9999] pointer-events-none"
+        className="fixed inset-0 z-[10002] pointer-events-none"
         style={{
           opacity: cssOpacity,
           transition: `opacity ${transitionDuration} cubic-bezier(0.2, 0.8, 0.3, 1)`,

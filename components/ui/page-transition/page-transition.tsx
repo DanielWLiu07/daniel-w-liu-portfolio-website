@@ -338,14 +338,14 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
 
       {/* Cover SVG - only for navigation */}
       {showOverlays && (overlayState === 'covering' || overlayState === 'loading') && (
-        <div className="fixed inset-0 z-[9998] pointer-events-none">
+        <div className="fixed inset-0 z-[10001] pointer-events-none">
           <InkMaskSvg svgRef={coverSvgRef} maskType="cover" triggerAnimation={overlayState === 'covering'} />
         </div>
       )}
 
       {/* Reveal SVG - only for navigation */}
       {showOverlays && (overlayState === 'loading' || overlayState === 'revealing') && (
-        <div className="fixed inset-0 z-[9999] pointer-events-none">
+        <div className="fixed inset-0 z-[10002] pointer-events-none">
           <InkMaskSvg svgRef={revealSvgRef} maskType="reveal" triggerAnimation={overlayState === 'revealing'} />
         </div>
       )}
