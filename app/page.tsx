@@ -174,7 +174,7 @@ export default function Home() {
       video.removeEventListener('loadeddata', handleReady)
       clearTimeout(timeout)
     }
-  }, [mode, isLowPerformance, doSignalReady])
+  }, [mode, isLowPerformance, doSignalReady, transitionStage])
 
   const startIntroAnimations = useCallback(() => {
     if (introAnimationsStartedRef.current) return
