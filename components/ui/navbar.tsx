@@ -3,7 +3,6 @@ import * as NavigationMenu from '@radix-ui/react-navigation-menu';
 import { usePerformanceMode } from '@/contexts/performance-mode-context';
 import { usePathname } from 'next/navigation';
 import { useTransitionState } from '@/components/ui/page-transition';
-import Link from 'next/link';
 
 export default function Navbar(){
     const { mode, resetMode } = usePerformanceMode();
@@ -14,11 +13,19 @@ export default function Navbar(){
         navigateWithTransition('/', resetMode);
     };
 
+    const handleNavClick = (href: string) => {
+        if (pathname === href) {
+            window.location.reload();
+        } else {
+            navigateWithTransition(href);
+        }
+    };
+
     // Hide navbar during transitions and on quality selector
     const isQualitySelector = mode === null && pathname === '/';
     const isHidden = transitionStage === 'covering' || transitionStage === 'loading' || isQualitySelector;
 
-    const baseLinkClass = "text-gray-900 hover:bg-gray-100 block select-none rounded-[4px] px-2 md:px-3 py-2 mx-0.5 text-[11px] min-[431px]:text-[13px] md:text-[15px] font-medium leading-none no-underline outline-none transition-colors duration-200";
+    const baseLinkClass = "text-gray-900 hover:bg-gray-100 block select-none rounded-[4px] px-2 md:px-3 py-2 mx-0.5 text-[11px] min-[431px]:text-[13px] md:text-[15px] font-medium leading-none no-underline outline-none transition-colors duration-200 cursor-pointer";
     const activeClass = "bg-gray-100";
 
     const getLinkClass = (href: string) => {
@@ -32,7 +39,7 @@ export default function Navbar(){
                 <NavigationMenu.List className="center shadow-blackA4 m-0 flex list-none rounded-[6px] bg-white p-1 shadow-[0_2px_10px]">
                     <NavigationMenu.Item>
                         <button
-                            className={`${getLinkClass('/')} whitespace-nowrap cursor-pointer`}
+                            className={`${getLinkClass('/')} whitespace-nowrap`}
                             onClick={handleHomeClick}
                         >
                             Daniel W Liu
@@ -40,27 +47,27 @@ export default function Navbar(){
                     </NavigationMenu.Item>
 
                     <NavigationMenu.Item>
-                        <Link className={getLinkClass('/about')} href="/about">
+                        <button className={getLinkClass('/about')} onClick={() => handleNavClick('/about')}>
                             About
-                        </Link>
+                        </button>
                     </NavigationMenu.Item>
 
                     <NavigationMenu.Item>
-                        <Link className={getLinkClass('/experience')} href="/experience">
+                        <button className={getLinkClass('/experience')} onClick={() => handleNavClick('/experience')}>
                             Experience
-                        </Link>
+                        </button>
                     </NavigationMenu.Item>
 
                     <NavigationMenu.Item>
-                        <Link className={getLinkClass('/projects')} href="/projects">
+                        <button className={getLinkClass('/projects')} onClick={() => handleNavClick('/projects')}>
                             Projects
-                        </Link>
+                        </button>
                     </NavigationMenu.Item>
 
                     <NavigationMenu.Item>
-                        <Link className={getLinkClass('/resume')} href="/resume">
+                        <button className={getLinkClass('/resume')} onClick={() => handleNavClick('/resume')}>
                             Resume
-                        </Link>
+                        </button>
                     </NavigationMenu.Item>
 
                     <NavigationMenu.Indicator className="data-[state=visible]:animate-fadeIn data-[state=hidden]:animate-fadeOut top-full z-[1] flex h-[10px] items-end justify-center overflow-hidden transition-[width,transform_250ms_ease]">
