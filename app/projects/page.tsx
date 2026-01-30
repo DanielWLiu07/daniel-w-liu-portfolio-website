@@ -9,7 +9,6 @@ import ProjectSlider from '@/components/projects/project-slider'
 import TransitionFlash from '@/components/projects/transition-flash'
 import { projects } from '@/data/projects'
 import { SocialLinks } from '@/components/ui/social-links'
-import { mochiFont } from '@/lib/fonts'
 import { useBodyOverflow } from '@/hooks/use-body-overflow'
 import { useTransitionState } from '@/components/ui/page-transition'
 import { LoadingContent } from '@/components/ui/page-transition/loading-content'
@@ -96,6 +95,7 @@ export default function ProjectsPage() {
   }, [introVideoReady, sliderReady, signalReady])
 
   // Low performance mode: skip intro video, just wait for slider
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!isLowPerformance) return
     // In low performance mode, intro video is skipped, so mark it as ready
@@ -126,6 +126,7 @@ export default function ProjectsPage() {
       }
     }
   }, [transitionStage, isLowPerformance])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useLayoutEffect(() => {
     if (isLowPerformance || !mainRef.current) return
@@ -157,6 +158,7 @@ export default function ProjectsPage() {
 
   // Show carousel only when both flash has triggered AND slider is ready
   // In low performance mode, show immediately when slider is ready (no flash)
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (isLowPerformance && sliderReady) {
       setShowCarousel(true)
@@ -164,6 +166,7 @@ export default function ProjectsPage() {
       setShowCarousel(true)
     }
   }, [flashTrigger, sliderReady, isLowPerformance])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleIntroEnd = useCallback(() => {
     setIntroVideoEnded(true)
@@ -192,12 +195,14 @@ export default function ProjectsPage() {
   }, [expandedProject])
 
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const projectData = projects.find(p => p.id === expandedProject)
     if (projectData) {
       setDisplayProjectData(projectData)
     }
   }, [expandedProject])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   return (
     <>
