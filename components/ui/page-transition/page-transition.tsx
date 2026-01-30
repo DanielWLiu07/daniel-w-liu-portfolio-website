@@ -258,17 +258,13 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     }
   }, [overlayState])
 
-  // Trigger reveal animation and intro
+  // Trigger intro animations when revealing
   useLayoutEffect(() => {
     if (overlayState === 'revealing') {
       if (revealAnimationFiredRef.current) return
       revealAnimationFiredRef.current = true
 
-      // Trigger SVG reveal animation (for navigation OR initial load with mode set)
-      if (revealSvgRef.current) {
-        triggerSvgAnimations(revealSvgRef.current)
-      }
-      // Trigger intro animations
+      // Trigger intro animations (SVG animation is handled by InkMaskSvg triggerAnimation prop)
       if (onIntroStartRef.current) {
         onIntroStartRef.current()
         onIntroStartRef.current = null
@@ -339,7 +335,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
       {/* Reveal SVG - only for navigation */}
       {showOverlays && (overlayState === 'loading' || overlayState === 'revealing') && (
         <div className="fixed inset-0 z-[9999] pointer-events-none">
-          <InkMaskSvg svgRef={revealSvgRef} maskType="reveal" triggerAnimation={false} />
+          <InkMaskSvg svgRef={revealSvgRef} maskType="reveal" triggerAnimation={overlayState === 'revealing'} />
         </div>
       )}
     </TransitionContext.Provider>
