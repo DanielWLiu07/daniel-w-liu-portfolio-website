@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useState, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 
 type PerformanceMode = 'high' | 'low' | null
 
@@ -13,10 +13,27 @@ interface PerformanceModeContextType {
 
 const PerformanceModeContext = createContext<PerformanceModeContextType | undefined>(undefined)
 
+const STORAGE_KEY = 'portfolio-quality-mode'
+
+function getStoredMode(): PerformanceMode {
+  if (typeof window === 'undefined') return null
+  const stored = localStorage.getItem(STORAGE_KEY)
+  if (stored === 'high' || stored === 'low') return stored
+  return null
+}
+
 export function PerformanceModeProvider({ children }: { children: ReactNode }) {
-  // Mode starts as null on every fresh page load (quality selector shows)
-  // Mode persists during session via React state (navigation doesn't reset it)
-  const [mode, setModeState] = useState<PerformanceMode>(null)
+  // Initialize from localStorage to survive page reloads
+  const [mode, setModeState] = useState<PerformanceMode>(() => getStoredMode())
+
+  // Sync to localStorage when mode changes
+  useEffect(() => {
+    if (mode === null) {
+      localStorage.removeItem(STORAGE_KEY)
+    } else {
+      localStorage.setItem(STORAGE_KEY, mode)
+    }
+  }, [mode])
 
   const setMode = (newMode: 'high' | 'low') => {
     setModeState(newMode)
