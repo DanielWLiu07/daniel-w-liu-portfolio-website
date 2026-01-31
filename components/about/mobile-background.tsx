@@ -34,14 +34,14 @@ function MobileSvgMask() {
 function LowPerformanceMobile({ scrollHeight }: { scrollHeight: number }) {
   return (
     <>
-      <section className="min-[1038px]:hidden relative h-screen">
+      <section className="min-[1038px]:hidden relative h-screen pointer-events-none">
         <Image src="/animation_frames/watercolour_sequences/portrait_vid/render_compositing_080.webp" alt="" fill className="object-cover object-[12%_100%] min-[530px]:object-[10%_100%] z-0" />
         <Image src="/animation_frames/watercolour_sequences/sparkle_loop_vid/render_compositing_250.webp" alt="" fill className="object-cover object-[12%_100%] min-[530px]:object-[10%_100%] z-10" />
       </section>
-      <section className="min-[1038px]:hidden absolute inset-x-0 top-[100vh] h-20 z-[8] -translate-y-[40%]">
+      <section className="min-[1038px]:hidden absolute inset-x-0 top-[100vh] h-20 z-[8] -translate-y-[40%] pointer-events-none">
         <div className="w-full h-full bg-cover bg-center gradient-mask-vertical bg-[url('/about/images/bg.webp')]" />
       </section>
-      <section className="min-[1038px]:hidden relative" style={{ height: `${scrollHeight}vh` }}>
+      <section className="min-[1038px]:hidden relative pointer-events-none" style={{ height: `${scrollHeight}vh` }}>
         <div className="sticky top-0 h-screen">
           <Image src="/animation_frames/watercolour_sequences/colour_vid_phone/render_compositing_080.webp" alt="" fill className="object-cover object-right" />
           <MobileSvgMask />
@@ -68,7 +68,7 @@ function HighPerformanceMobile({ scrollHeight }: { scrollHeight: number }) {
 
   return (
     <>
-      <section className="min-[1038px]:hidden relative h-screen z-[5]">
+      <section className="min-[1038px]:hidden relative h-screen z-[5] pointer-events-none">
         <video autoPlay muted playsInline className="absolute inset-0 w-full h-full object-cover object-[12%_100%] min-[530px]:object-[10%_100%] z-0" preload="auto">
           <source src="/about/videos/water_colour.webm" type="video/webm" />
         </video>
@@ -95,10 +95,10 @@ function HighPerformanceMobile({ scrollHeight }: { scrollHeight: number }) {
           preload="auto"
         />
       </section>
-      <section className="min-[1038px]:hidden absolute inset-x-0 top-[100vh] h-20 z-[8] -translate-y-[40%]">
+      <section className="min-[1038px]:hidden absolute inset-x-0 top-[100vh] h-20 z-[8] -translate-y-[40%] pointer-events-none">
         <div className="w-full h-full bg-cover bg-center gradient-mask-vertical bg-[url('/about/images/bg.webp')]" />
       </section>
-      <section className="min-[1038px]:hidden relative" style={{ height: `${scrollHeight}vh` }}>
+      <section className="min-[1038px]:hidden relative pointer-events-none" style={{ height: `${scrollHeight}vh` }}>
         <div className="sticky top-0 h-screen">
           <video autoPlay muted playsInline className="absolute inset-0 w-full h-full object-cover object-right" preload="none">
             <source src="/about/videos/right_colour_phone.webm" type="video/webm" />
