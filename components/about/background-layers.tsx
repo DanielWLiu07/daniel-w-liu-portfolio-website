@@ -22,7 +22,7 @@ function WaterColourMaskSvg({
       width="100%"
       height="100%"
       xmlns="http://www.w3.org/2000/svg"
-      className="hidden min-[1038px]:block fixed inset-0 z-0 about-svg-mask"
+      className="hidden min-[1038px]:block fixed inset-0 z-0 pointer-events-none about-svg-mask"
     >
       <defs>
         <filter id="waterColourFilter">
@@ -38,8 +38,8 @@ function WaterColourMaskSvg({
           </circle>
         </mask>
       </defs>
-      <foreignObject width="100%" height="100%" mask="url(#waterColourMask)">
-        <div className="relative w-full h-full">
+      <foreignObject width="100%" height="100%" mask="url(#waterColourMask)" style={{ pointerEvents: 'none' }}>
+        <div className="relative w-full h-full pointer-events-none">
           <video
             ref={videoRef}
             muted
@@ -66,7 +66,7 @@ function RightGraphicsMaskSvg({
       width="100%"
       height="100%"
       xmlns="http://www.w3.org/2000/svg"
-      className="hidden min-[1038px]:block fixed inset-0 z-[5] about-svg-mask"
+      className="hidden min-[1038px]:block fixed inset-0 z-[5] pointer-events-none about-svg-mask"
     >
       <defs>
         <filter id="aboutBgFilter">
@@ -82,8 +82,8 @@ function RightGraphicsMaskSvg({
           </circle>
         </mask>
       </defs>
-      <foreignObject width="100%" height="100%" mask="url(#aboutBgMask)">
-        <div className="relative w-full h-full">
+      <foreignObject width="100%" height="100%" mask="url(#aboutBgMask)" style={{ pointerEvents: 'none' }}>
+        <div className="relative w-full h-full pointer-events-none">
           <Image src="/about/images/right_graphics.webp" alt="" fill className="object-cover object-right-top" priority />
         </div>
       </foreignObject>
@@ -99,7 +99,7 @@ function SafariWaterColourMask({
   safariAnimating: boolean
 }) {
   return (
-    <div className={`hidden min-[1038px]:block fixed inset-0 z-0 about-safari-fallback about-safari-reveal ${safariAnimating ? 'animating' : ''}`}>
+    <div className={`hidden min-[1038px]:block fixed inset-0 z-0 pointer-events-none about-safari-fallback about-safari-reveal ${safariAnimating ? 'animating' : ''}`}>
       <video
         ref={waterColourRef}
         muted
@@ -119,7 +119,7 @@ function SafariRightGraphicsMask({
   safariAnimating: boolean
 }) {
   return (
-    <div className={`hidden min-[1038px]:block fixed inset-0 z-[5] about-safari-fallback about-safari-reveal ${safariAnimating ? 'animating' : ''}`}>
+    <div className={`hidden min-[1038px]:block fixed inset-0 z-[5] pointer-events-none about-safari-fallback about-safari-reveal ${safariAnimating ? 'animating' : ''}`}>
       <Image src="/about/images/right_graphics.webp" alt="" fill className="object-cover object-right-top" priority />
     </div>
   )
@@ -137,7 +137,7 @@ function SparkleVideo({
   onSparkleEnd: () => void
 }) {
   return (
-    <div className="hidden min-[1038px]:block fixed inset-0 z-10">
+    <div className="hidden min-[1038px]:block fixed inset-0 z-10 pointer-events-none">
       <AlphaVideo
         ref={sparkleRef}
         src="/about/videos/sparkle_being"
@@ -167,7 +167,7 @@ function SparkleVideo({
 function LowPerformanceBackgrounds() {
   return (
     <>
-      <div className="hidden min-[1038px]:block fixed inset-0 z-[3]">
+      <div className="hidden min-[1038px]:block fixed inset-0 z-[3] pointer-events-none">
         <Image
           src="/animation_frames/watercolour_sequences/colour_vid/render_compositing_080.webp"
           alt=""
@@ -175,7 +175,7 @@ function LowPerformanceBackgrounds() {
           className="object-cover"
         />
       </div>
-      <div className="hidden min-[1038px]:block fixed inset-0 z-0">
+      <div className="hidden min-[1038px]:block fixed inset-0 z-0 pointer-events-none">
         <Image
           src="/animation_frames/watercolour_sequences/portrait_vid/render_compositing_080.webp"
           alt=""
@@ -183,10 +183,10 @@ function LowPerformanceBackgrounds() {
           className="object-cover object-bottom"
         />
       </div>
-      <div className="hidden min-[1038px]:block fixed inset-0 z-[5]">
+      <div className="hidden min-[1038px]:block fixed inset-0 z-[5] pointer-events-none">
         <Image src="/about/images/right_graphics.webp" alt="" fill className="object-cover object-right-top" />
       </div>
-      <div className="hidden min-[1038px]:block fixed inset-0 z-10">
+      <div className="hidden min-[1038px]:block fixed inset-0 z-10 pointer-events-none">
         <Image
           src="/animation_frames/watercolour_sequences/sparkle_loop_vid/render_compositing_250.webp"
           alt=""
@@ -288,7 +288,7 @@ export const BackgroundLayers = memo(function BackgroundLayers() {
 
   return (
     <>
-      <div className="hidden min-[1038px]:block fixed inset-0 z-0">
+      <div className="hidden min-[1038px]:block fixed inset-0 z-0 pointer-events-none">
         <Image src="/about/images/bg.webp" alt="" fill className="object-cover" priority />
       </div>
 
@@ -299,7 +299,7 @@ export const BackgroundLayers = memo(function BackgroundLayers() {
           <WaterColourMaskSvg svgRef={waterColourSvgRef} videoRef={waterColourRef} />
           <SafariWaterColourMask waterColourRef={waterColourSafariRef} safariAnimating={safariAnimating} />
 
-          <div className="hidden min-[1038px]:block fixed inset-0 z-[3]">
+          <div className="hidden min-[1038px]:block fixed inset-0 z-[3] pointer-events-none">
             <AlphaVideo
               ref={rightColourRef}
               src="/about/videos/right_colour"

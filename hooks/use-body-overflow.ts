@@ -13,7 +13,6 @@ export function useBodyOverflow(overflow: 'hidden' | 'auto' = 'hidden', options?
       // If no mobileBreakpoint, just use the overflow parameter directly
       if (!mobileBreakpoint) {
         document.body.style.overflow = overflow === 'auto' ? '' : overflow
-        document.body.style.overscrollBehavior = 'none'
         return
       }
 

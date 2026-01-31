@@ -13,7 +13,7 @@ const INFO_ITEMS = [
   "- University of Waterloo - Computer Science and Finance Double Major (2025 - Present)",
   "-  45/45 Final IB Score (Top 0.1% Global)",
   "- Fullstack and ML - Jack of All Trades",
-  "- Hobbies: Rock Climbing, Brawl Stars, Riot Games, Pingpong, Pokemon, Calisthenics, Game Dev.",
+  "- Hobbies: Rock Climbing, Brawl Stars, Riot Games, Pingpong, Pokemon, Calisthenics, Game Dev, Badminton.",
 ];
 
 export default function About() {
@@ -46,7 +46,7 @@ export default function About() {
   }, []);
 
   return (
-    <div className="relative w-full max-h-screen min-[1038px]:max-h-screen xl:max-h-none overflow-y-auto overflow-x-hidden min-[1038px]:overflow-hidden xl:overflow-visible overscroll-y-none overscroll-x-none">
+    <div className="relative w-full h-screen overflow-y-auto overflow-x-hidden overscroll-none" style={{ WebkitOverflowScrolling: 'touch' }}>
       <BackgroundLayers />
       <MobileBackground scrollHeight={scrollHeight} />
 

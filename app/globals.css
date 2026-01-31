@@ -207,6 +207,10 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html, body {
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+  }
   body {
     @apply bg-background text-foreground;
   }

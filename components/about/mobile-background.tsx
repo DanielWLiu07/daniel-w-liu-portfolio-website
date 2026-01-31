@@ -7,7 +7,7 @@ import { AlphaVideo } from '@/components/ui/alpha-video'
 
 function MobileSvgMask() {
   return (
-    <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" className="absolute inset-0">
+    <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" className="absolute inset-0 pointer-events-none">
       <defs>
         <filter id="mobileAboutBgFilter">
           <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="2" result="noise" />
@@ -22,8 +22,8 @@ function MobileSvgMask() {
           </circle>
         </mask>
       </defs>
-      <foreignObject width="100%" height="100%" mask="url(#mobileAboutBgMask)">
-        <div className="relative w-full h-full">
+      <foreignObject width="100%" height="100%" mask="url(#mobileAboutBgMask)" style={{ pointerEvents: 'none' }}>
+        <div className="relative w-full h-full pointer-events-none">
           <Image src="/about/images/right_graphics.webp" alt="" fill className="object-cover object-right-top" priority />
         </div>
       </foreignObject>
@@ -115,7 +115,7 @@ export function MobileBackground({ scrollHeight = 300 }: { scrollHeight?: number
 
   return (
     <>
-      <div className="min-[1038px]:hidden fixed inset-0 z-0">
+      <div className="min-[1038px]:hidden fixed inset-0 z-0 pointer-events-none">
         <Image src="/about/images/bg.webp" alt="" fill className="object-cover" priority />
       </div>
       {isLowPerformance ? <LowPerformanceMobile scrollHeight={scrollHeight} /> : <HighPerformanceMobile scrollHeight={scrollHeight} />}
