@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import Image from 'next/image'
 import { usePerformanceMode } from '@/contexts/performance-mode-context'
+import { AlphaVideo } from '@/components/ui/alpha-video'
 
 function MobileSvgMask() {
   return (
@@ -71,26 +72,28 @@ function HighPerformanceMobile({ scrollHeight }: { scrollHeight: number }) {
         <video autoPlay muted playsInline className="absolute inset-0 w-full h-full object-cover object-[12%_100%] min-[530px]:object-[10%_100%] z-0" preload="auto">
           <source src="/about/videos/water_colour.webm" type="video/webm" />
         </video>
-        <video
+        <AlphaVideo
           ref={sparkleBeingRef}
+          src="/about/videos/sparkle_being"
+          query="?v=3"
+          fallbackImage="/animation_frames/watercolour_sequences/sparkle_being_vid/render_compositing_047.webp"
           muted
           playsInline
           onEnded={handleSparkleEnd}
           className={`absolute inset-0 w-full h-full object-cover object-[12%_100%] min-[530px]:object-[10%_100%] z-10 ${sparkleDone ? 'hidden' : ''}`}
           preload="auto"
-        >
-          <source src="/about/videos/sparkle_being.webm" type="video/webm" />
-        </video>
-        <video
+        />
+        <AlphaVideo
           ref={loopVideoRef}
+          src="/about/videos/sparkle_loop"
+          query="?v=3"
+          fallbackImage="/animation_frames/watercolour_sequences/sparkle_loop_vid/render_compositing_250.webp"
           loop
           muted
           playsInline
           className={`absolute inset-0 w-full h-full object-cover object-[12%_100%] min-[530px]:object-[10%_100%] z-10 ${sparkleDone ? '' : 'hidden'}`}
           preload="auto"
-        >
-          <source src="/about/videos/sparkle_loop.webm?v=2" type="video/webm" />
-        </video>
+        />
       </section>
       <section className="min-[1038px]:hidden absolute inset-x-0 top-[100vh] h-20 z-[8] -translate-y-[40%]">
         <div className="w-full h-full bg-cover bg-center gradient-mask-vertical bg-[url('/about/images/bg.webp')]" />

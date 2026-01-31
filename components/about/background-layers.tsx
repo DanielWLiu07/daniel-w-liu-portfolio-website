@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { usePerformanceMode } from '@/contexts/performance-mode-context'
 import { useTransitionState } from '@/components/ui/page-transition'
 import { triggerSvgAnimations } from '@/lib/svg-utils'
+import { AlphaVideo } from '@/components/ui/alpha-video'
 
 const FALLBACK_TIMEOUT = 1500
 
@@ -137,26 +138,28 @@ function SparkleVideo({
 }) {
   return (
     <div className="hidden min-[1038px]:block fixed inset-0 z-10">
-      <video
+      <AlphaVideo
         ref={sparkleRef}
+        src="/about/videos/sparkle_being"
+        query="?v=3"
+        fallbackImage="/animation_frames/watercolour_sequences/sparkle_being_vid/render_compositing_047.webp"
         muted
         playsInline
         onEnded={onSparkleEnd}
         className={`absolute inset-0 w-full h-full object-cover object-bottom ${showLoop ? 'hidden' : ''}`}
         preload="auto"
-      >
-        <source src="/about/videos/sparkle_being.webm" type="video/webm" />
-      </video>
-      <video
+      />
+      <AlphaVideo
         ref={loopRef}
+        src="/about/videos/sparkle_loop"
+        query="?v=3"
+        fallbackImage="/animation_frames/watercolour_sequences/sparkle_loop_vid/render_compositing_250.webp"
         loop
         muted
         playsInline
         className={`absolute inset-0 w-full h-full object-cover object-bottom ${showLoop ? '' : 'hidden'}`}
         preload="auto"
-      >
-        <source src="/about/videos/sparkle_loop.webm?v=2" type="video/webm" />
-      </video>
+      />
     </div>
   )
 }
@@ -297,15 +300,16 @@ export const BackgroundLayers = memo(function BackgroundLayers() {
           <SafariWaterColourMask waterColourRef={waterColourSafariRef} safariAnimating={safariAnimating} />
 
           <div className="hidden min-[1038px]:block fixed inset-0 z-[3]">
-            <video
+            <AlphaVideo
               ref={rightColourRef}
+              src="/about/videos/right_colour"
+              query="?v=3"
+              fallbackImage="/animation_frames/watercolour_sequences/colour_vid/render_compositing_080.webp"
               muted
               playsInline
               className="absolute inset-0 w-full h-full object-cover"
               preload="auto"
-            >
-              <source src="/about/videos/right_colour.webm" type="video/webm" />
-            </video>
+            />
           </div>
 
           <RightGraphicsMaskSvg svgRef={aboutBgSvgRef} />

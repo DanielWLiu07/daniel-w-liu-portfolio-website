@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import { AlphaVideo } from '@/components/ui/alpha-video'
 
 interface TreeOverlaysProps {
   isLowPerformance: boolean
@@ -39,30 +40,32 @@ export function TreeOverlays({ isLowPerformance, treeRightRef, treeLeftRef }: Tr
   return (
     <>
       <div className={`${baseClasses} z-[65]`}>
-        <video
+        <AlphaVideo
           ref={treeRightRef}
+          src="/landing/videos/tree_right"
+          query="?v=3"
+          fallbackImage="/animation_frames/landing/tree_right0200.webp"
           className="tree-right absolute top-0 right-0 h-screen w-auto object-cover object-top will-change-transform"
           autoPlay
           loop
           muted
           playsInline
           preload="auto"
-        >
-          <source src="/landing/videos/tree_right.webm" type="video/webm" />
-        </video>
+        />
       </div>
       <div className={`${baseClasses} z-[60]`}>
-        <video
+        <AlphaVideo
           ref={treeLeftRef}
+          src="/landing/videos/tree_left"
+          query="?v=3"
+          fallbackImage="/animation_frames/landing/tree_left0200.webp"
           className="tree-left absolute top-0 left-0 h-screen w-auto object-cover object-top will-change-transform"
           autoPlay
           loop
           muted
           playsInline
           preload="auto"
-        >
-          <source src="/landing/videos/tree_left.webm" type="video/webm" />
-        </video>
+        />
       </div>
     </>
   )

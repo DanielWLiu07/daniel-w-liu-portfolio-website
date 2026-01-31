@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useLayoutEffect, useState } from 'react'
+import { useRef, useLayoutEffect, useState, useEffect } from 'react'
 
 interface InkMaskSvgProps {
   maskX: string
@@ -25,11 +25,14 @@ function triggerAnimations(animRefs: React.MutableRefObject<SVGAnimateElement[]>
 }
 
 export function InkMaskSvg({ maskX, maskWidth, startMaskAnimation, useSimpleFade = false }: InkMaskSvgProps) {
-  const [isSafari] = useState(() => {
-    if (typeof window === 'undefined') return false
+  // Initialize as false to match server render, then detect Safari after hydration
+  const [isSafari, setIsSafari] = useState(false)
+
+  useEffect(() => {
     const ua = navigator.userAgent
-    return /^((?!chrome|android).)*safari/i.test(ua)
-  })
+    const safari = /^((?!chrome|android).)*safari/i.test(ua)
+    setIsSafari(safari)
+  }, [])
 
   // Use simple fade for Safari OR when explicitly requested (e.g., initial load)
   const shouldUseSimpleFade = isSafari || useSimpleFade

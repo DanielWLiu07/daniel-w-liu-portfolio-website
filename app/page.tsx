@@ -10,6 +10,7 @@ import { ModeSelector } from '@/components/ui/mode-selector'
 import { useMobile } from '@/hooks/use-mobile'
 import { useTransitionState } from '@/components/ui/page-transition'
 import { InkMaskSvg, TreeOverlays, NameDisplay } from '@/components/landing'
+import { AlphaVideo } from '@/components/ui/alpha-video'
 
 const FALLBACK_TIMEOUT = 2000
 const VIDEO_DURATION = 12.54
@@ -256,9 +257,18 @@ export default function Home() {
                   {isLowPerformance ? (
                     <Image src="/animation_frames/landing/composed_bg/composed_bg0300.webp" alt="" fill sizes="100vw" className="object-cover" priority />
                   ) : (
-                    <video ref={compositeVideoRef} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" preload="auto">
-                      <source src="/landing/videos/landing_composite_24fps.webm" type="video/webm" />
-                    </video>
+                    <AlphaVideo
+                      ref={compositeVideoRef}
+                      src="/landing/videos/landing_composite_24fps"
+                      query="?v=3"
+                      fallbackImage="/animation_frames/landing/composed_bg/composed_bg0300.webp"
+                      className="absolute inset-0 w-full h-full object-cover"
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      preload="auto"
+                    />
                   )}
                 </div>
               </div>

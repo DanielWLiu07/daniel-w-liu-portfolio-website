@@ -4,6 +4,7 @@ import { useRef, useState, useEffect, useCallback } from 'react'
 import Image from 'next/image'
 import { usePerformanceMode } from '@/contexts/performance-mode-context'
 import { useTransitionState } from '@/components/ui/page-transition'
+import { AlphaVideo } from '@/components/ui/alpha-video'
 
 const FALLBACK_TIMEOUT = 1500
 
@@ -56,18 +57,23 @@ export function BackgroundVideo({ onReady }: BackgroundVideoProps) {
     if (isLowPerformance) return
 
     const intro = introRef.current
-    if (!intro) return
+
+    // Always set up fallback timeout, even if video ref isn't ready yet
+    const timeout = setTimeout(handleLoaded, FALLBACK_TIMEOUT)
+
+    if (!intro) {
+      return () => clearTimeout(timeout)
+    }
 
     if (intro.readyState >= 3) {
       handleLoaded()
+      clearTimeout(timeout)
       return
     }
 
     const onReady = () => handleLoaded()
     intro.addEventListener('canplay', onReady)
     intro.addEventListener('loadeddata', onReady)
-
-    const timeout = setTimeout(handleLoaded, FALLBACK_TIMEOUT)
 
     return () => {
       intro.removeEventListener('canplay', onReady)
@@ -127,28 +133,30 @@ export function BackgroundVideo({ onReady }: BackgroundVideoProps) {
 
   return (
     <>
-      <video
+      <AlphaVideo
         ref={introRef}
+        src="/experience/videos/anime_intro"
+        query="?v=9"
+        fallbackImage="/animation_frames/experience/bg_anime/your_name_scene_.png0300.webp"
         muted
         playsInline
         onEnded={handleIntroEnded}
         className={`absolute inset-0 w-full h-full object-cover ${showLoop ? 'hidden' : ''}`}
         style={{ objectPosition }}
         preload="auto"
-      >
-        <source src="/experience/videos/anime_intro.webm?v=6" type="video/webm" />
-      </video>
-      <video
+      />
+      <AlphaVideo
         ref={loopRef}
+        src="/experience/videos/anime_style_bg"
+        query="?v=9"
+        fallbackImage="/animation_frames/experience/bg_anime/your_name_scene_.png0300.webp"
         loop
         muted
         playsInline
         className={`absolute inset-0 w-full h-full object-cover ${showLoop ? '' : 'hidden'}`}
         style={{ objectPosition }}
         preload="auto"
-      >
-        <source src="/experience/videos/anime_style_bg.webm?v=7" type="video/webm" />
-      </video>
+      />
     </>
   )
 }

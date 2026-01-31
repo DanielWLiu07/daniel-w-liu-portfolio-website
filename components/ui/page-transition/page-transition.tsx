@@ -12,19 +12,22 @@ import type { OverlayState } from './types'
 export function PageTransition({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { mode } = usePerformanceMode()
+  const { mode, isHydrated } = usePerformanceMode()
 
-  // Start as 'loading' and only go to 'hidden' if mode is actually null after hydration
+  // Start as 'loading' and only go to 'hidden' if mode is actually null after context hydration
   const [overlayState, setOverlayState] = useState<OverlayState>('loading')
-  const [hydrated, setHydrated] = useState(false)
 
-  // Handle hydration - determine correct initial state after client mount
+  // Handle context hydration - determine correct initial state after mode is resolved
+  // This only affects INITIAL page load, not subsequent navigation
   useEffect(() => {
-    setHydrated(true)
+    if (!isHydrated) return
+    // Only set to hidden on initial load when mode is null
+    // Don't interfere with active navigation (isInitialLoadRef is false during navigation)
+    if (!isInitialLoadRef.current) return
     if (mode === null) {
       setOverlayState('hidden')
     }
-  }, [])
+  }, [isHydrated, mode])
   const [isNavigating, setIsNavigating] = useState(false)
 
   // Use ref for initial load tracking to avoid state timing issues
@@ -259,10 +262,26 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     }
   }, [cleanupTimers])
 
-  // Trigger cover animation
+  // Trigger cover animation with robust retry logic
   useLayoutEffect(() => {
-    if (overlayState === 'covering' && !isInitialLoadRef.current && coverSvgRef.current) {
-      triggerSvgAnimations(coverSvgRef.current)
+    if (overlayState === 'covering' && !isInitialLoadRef.current) {
+      const delays = [0, 16, 32, 50, 100, 150, 200, 300]
+      let animationStarted = false
+      const timeouts: NodeJS.Timeout[] = []
+
+      delays.forEach((delay) => {
+        const timeout = setTimeout(() => {
+          if (animationStarted) return
+          if (coverSvgRef.current) {
+            const success = triggerSvgAnimations(coverSvgRef.current)
+            if (success) {
+              animationStarted = true
+              timeouts.forEach(t => clearTimeout(t))
+            }
+          }
+        }, delay)
+        timeouts.push(timeout)
+      })
     }
   }, [overlayState])
 
@@ -272,16 +291,25 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
       if (revealAnimationFiredRef.current) return
       revealAnimationFiredRef.current = true
 
-      // Trigger SVG reveal animation directly as backup
-      const triggerWithRetry = (attempts: number) => {
-        if (attempts <= 0) return
-        if (revealSvgRef.current) {
-          triggerSvgAnimations(revealSvgRef.current)
-        } else {
-          setTimeout(() => triggerWithRetry(attempts - 1), 50)
-        }
-      }
-      triggerWithRetry(10)
+      // Trigger SVG reveal animation with robust retry logic
+      // Retry until animations are actually triggered (not just until ref is set)
+      const delays = [0, 16, 32, 50, 100, 150, 200, 300, 400, 500]
+      let animationStarted = false
+      const timeouts: NodeJS.Timeout[] = []
+
+      delays.forEach((delay) => {
+        const timeout = setTimeout(() => {
+          if (animationStarted) return
+          if (revealSvgRef.current) {
+            const success = triggerSvgAnimations(revealSvgRef.current)
+            if (success) {
+              animationStarted = true
+              timeouts.forEach(t => clearTimeout(t))
+            }
+          }
+        }, delay)
+        timeouts.push(timeout)
+      })
 
       // Trigger intro animations
       if (onIntroStartRef.current) {
@@ -338,8 +366,8 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
 
   const isRevealed = overlayState === 'hidden'
   // Show overlays for navigation OR for initial load when mode is already set (page reload)
-  // Only show after hydration to avoid SSR mismatch
-  const showOverlays = hydrated && (!isInitialLoadRef.current || mode !== null)
+  // Only show after context hydration to avoid SSR mismatch
+  const showOverlays = isHydrated && (!isInitialLoadRef.current || mode !== null)
 
   return (
     <TransitionContext.Provider value={{ transitionStage: overlayState, signalReady, isRevealed, isInitialLoad: isInitialLoadRef.current, navigateWithTransition, onIntroStart }}>

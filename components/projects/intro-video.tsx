@@ -4,6 +4,7 @@ import { useEffect, useRef, useCallback } from 'react'
 import Image from 'next/image'
 import { usePerformanceMode } from '@/contexts/performance-mode-context'
 import { useTransitionState } from '@/components/ui/page-transition'
+import { AlphaVideo } from '@/components/ui/alpha-video'
 
 const FALLBACK_TIMEOUT = 3000
 const FLASH_TRIGGER_TIME = 0.45
@@ -20,6 +21,7 @@ interface IntroVideoProps {
 export default function IntroVideo({ onEnded, onFlashStart, onReady, canPlay = true }: IntroVideoProps) {
   const { isLowPerformance } = usePerformanceMode()
   const { transitionStage } = useTransitionState()
+
   const canPlayRef = useRef(canPlay)
   const bgVideoRef = useRef<HTMLVideoElement>(null)
   const manVideoRef = useRef<HTMLVideoElement>(null)
@@ -94,7 +96,17 @@ export default function IntroVideo({ onEnded, onFlashStart, onReady, canPlay = t
     if (isLowPerformance) return
 
     const video = bgVideoRef.current
-    if (!video) return
+
+    // Always set up fallback timeout, even if video ref isn't ready yet
+    const timeout = setTimeout(() => {
+      handleLoaded()
+      videoReadyRef.current = true
+      maybePlay()
+    }, FALLBACK_TIMEOUT)
+
+    if (!video) {
+      return () => clearTimeout(timeout)
+    }
 
     const onCanPlay = () => {
       handleLoaded()
@@ -104,17 +116,12 @@ export default function IntroVideo({ onEnded, onFlashStart, onReady, canPlay = t
 
     if (video.readyState >= 3) {
       onCanPlay()
+      clearTimeout(timeout)
       return
     }
 
     video.addEventListener('canplay', onCanPlay)
     video.addEventListener('loadeddata', onCanPlay)
-
-    const timeout = setTimeout(() => {
-      handleLoaded()
-      videoReadyRef.current = true
-      maybePlay()
-    }, FALLBACK_TIMEOUT)
 
     return () => {
       video.removeEventListener('canplay', onCanPlay)
@@ -172,8 +179,11 @@ export default function IntroVideo({ onEnded, onFlashStart, onReady, canPlay = t
   return (
     <>
       <div className="absolute inset-0 z-0 pointer-events-none">
-        <video
+        <AlphaVideo
           ref={bgVideoRef}
+          src="/projects/videos/manga_intro_bg"
+          query="?v=3"
+          fallbackImage="/animation_frames/manga/manga_intro/0075.webp"
           className="absolute inset-0 w-full h-full object-cover"
           muted
           playsInline
@@ -181,21 +191,20 @@ export default function IntroVideo({ onEnded, onFlashStart, onReady, canPlay = t
           onTimeUpdate={handleTimeUpdate}
           onEnded={onEnded}
           onError={handleError}
-        >
-          <source src="/projects/videos/manga_intro_bg.webm" type="video/webm" />
-        </video>
+        />
       </div>
 
       <div className={`absolute inset-0 w-full h-full ${MOBILE_CONTAINER_CLASSES} max-[600px]:mt-5 z-10 pointer-events-none`}>
-        <video
+        <AlphaVideo
           ref={manVideoRef}
+          src="/projects/videos/manga_man_intro"
+          query="?v=3"
+          fallbackImage="/animation_frames/manga/manga_man_intro/0075.webp"
           className="absolute inset-0 w-full h-full object-cover max-[600px]:object-contain"
           muted
           playsInline
           preload="auto"
-        >
-          <source src="/projects/videos/manga_man_intro.webm" type="video/webm" />
-        </video>
+        />
       </div>
     </>
   )

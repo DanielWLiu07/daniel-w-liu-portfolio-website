@@ -3,6 +3,7 @@
 import { useRef, useEffect } from 'react'
 import Image from 'next/image'
 import { usePerformanceMode } from '@/contexts/performance-mode-context'
+import { AlphaVideo } from '@/components/ui/alpha-video'
 
 interface BackgroundVideosProps {
   visible: boolean
@@ -37,16 +38,17 @@ export default function BackgroundVideos({ visible, isExpanded = false }: Backgr
         {isLowPerformance ? (
           <Image src="/animation_frames/manga/manga_bg/0400.webp" alt="" fill className="absolute inset-0 w-full h-full object-cover" />
         ) : (
-          <video
+          <AlphaVideo
             ref={bgVideoRef}
+            src="/projects/videos/manga_bg_slowed"
+            query="?v=3"
+            fallbackImage="/animation_frames/manga/manga_bg/0400.webp"
             className="absolute inset-0 w-full h-full object-cover"
             muted
             loop
             playsInline
             preload="auto"
-          >
-            <source src="/projects/videos/manga_bg_slowed.webm" type="video/webm" />
-          </video>
+          />
         )}
       </div>
 
@@ -56,16 +58,17 @@ export default function BackgroundVideos({ visible, isExpanded = false }: Backgr
         {isLowPerformance ? (
           <Image src="/animation_frames/manga/manga_man/0200.webp" alt="" fill className="absolute inset-0 w-full h-full object-cover max-[600px]:object-contain" />
         ) : (
-          <video
+          <AlphaVideo
             ref={manVideoRef}
+            src="/projects/videos/manga_man"
+            query="?v=3"
+            fallbackImage="/animation_frames/manga/manga_man/0200.webp"
             className="absolute inset-0 w-full h-full object-cover max-[600px]:object-contain"
             muted
             loop
             playsInline
             preload="auto"
-          >
-            <source src="/projects/videos/manga_man.webm" type="video/webm" />
-          </video>
+          />
         )}
       </div>
     </>

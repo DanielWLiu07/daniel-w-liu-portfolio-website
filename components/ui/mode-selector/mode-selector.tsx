@@ -244,7 +244,7 @@ export function ModeSelector() {
         <InkMaskSvg maskX="6.5%" maskWidth="87%" startMaskAnimation={false} />
       </div>
 
-      <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 lg:p-8 overflow-visible">
+      <div className="fixed inset-0 z-[20000] flex items-center justify-center p-4 lg:p-8 overflow-visible">
         <div className="absolute inset-0 z-0">
           <Image
           src="/landing/images/white_paper.webp"
@@ -417,9 +417,9 @@ export function ModeSelector() {
         />
       </div>
 
-      <div className="relative flex flex-col items-center justify-center gap-16 lg:gap-16 w-full max-w-6xl mx-auto z-10 will-change-auto">
+      <div className="relative flex flex-col items-center justify-center gap-16 lg:gap-16 w-full max-w-6xl mx-auto z-[300] will-change-auto">
 
-        <div ref={titleRef} className="text-center space-y-2 opacity-0 relative -mt-15 lg:mt-0 z-[100]">
+        <div ref={titleRef} className="text-center space-y-2 opacity-0 relative -mt-15 lg:mt-0 z-[300]">
           <h2
             className={`text-4xl md:text-6xl lg:text-7xl text-center tracking-wider md:text-stroke-white text-stroke-white-sm drop-shadow-lg relative whitespace-nowrap text-[#2c1810] ${frederickaFont.className}`}
           >
