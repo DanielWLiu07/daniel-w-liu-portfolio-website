@@ -214,7 +214,7 @@ export default function ProjectsPage() {
       />
       <div
         ref={mainRef}
-        className={`relative w-full bg-black ${expandedProject !== null ? 'overflow-visible md:overflow-hidden md:min-h-0 md:h-screen' : 'overflow-hidden h-screen'}`}
+        className={`relative w-full bg-black ${expandedProject !== null ? 'overflow-visible md:overflow-hidden md:min-h-0 md:h-screen' : 'max-[865px]:overflow-visible overflow-hidden h-screen'}`}
         style={{ minHeight: isMobileExpanded ? mobileContainerHeight : undefined }}
       >
         <BackgroundVideos visible={introFinished} isExpanded={expandedProject !== null} />
