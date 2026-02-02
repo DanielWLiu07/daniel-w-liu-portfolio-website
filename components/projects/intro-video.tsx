@@ -9,7 +9,21 @@ import { AlphaVideo } from '@/components/ui/alpha-video'
 const FALLBACK_TIMEOUT = 3000
 const FLASH_TRIGGER_TIME = 0.45
 const INTRO_MAX_DURATION = 8000 // Max time to wait for intro before skipping
-const MOBILE_CONTAINER_CLASSES = 'max-[600px]:w-[1600px] max-[600px]:h-[700px] max-[600px]:left-1/2 max-[600px]:-translate-x-1/2 max-[600px]:-translate-y-[5%]'
+
+// Vertical mode: fixed size 448-865px, scales with screen width below 448px
+const MANGA_MAN_MOBILE_CLASSES = [
+  // Reset inset and set dimensions for vertical mode (448-865px)
+  'max-[865px]:!inset-auto',
+  'max-[865px]:!top-0',
+  'max-[865px]:!left-1/2',
+  'max-[865px]:!-translate-x-1/2',
+  'max-[865px]:!w-[1600px]',
+  'max-[865px]:!h-[700px]',
+  // Scale with viewport below 448px
+  'max-[448px]:!w-[360%]',
+  'max-[448px]:!h-auto',
+  'max-[448px]:!aspect-[16/7]',
+].join(' ')
 
 interface IntroVideoProps {
   onEnded: () => void
@@ -169,8 +183,8 @@ export default function IntroVideo({ onEnded, onFlashStart, onReady, canPlay = t
         <div className="absolute inset-0 z-0 pointer-events-none">
           <Image src="/animation_frames/manga/manga_intro/0075.webp" alt="" fill className="object-cover" />
         </div>
-        <div className={`absolute inset-0 w-full h-full ${MOBILE_CONTAINER_CLASSES} max-[600px]:mt-20 z-10 pointer-events-none`}>
-          <Image src="/animation_frames/manga/manga_man_intro/0075.webp" alt="" fill className="object-cover max-[600px]:object-contain" />
+        <div className={`absolute inset-0 w-full h-full ${MANGA_MAN_MOBILE_CLASSES} z-10 pointer-events-none`}>
+          <Image src="/animation_frames/manga/manga_man_intro/0075.webp" alt="" fill className="object-cover max-[865px]:object-contain" />
         </div>
       </>
     )
@@ -194,13 +208,13 @@ export default function IntroVideo({ onEnded, onFlashStart, onReady, canPlay = t
         />
       </div>
 
-      <div className={`absolute inset-0 w-full h-full ${MOBILE_CONTAINER_CLASSES} max-[600px]:mt-5 z-10 pointer-events-none`}>
+      <div className={`absolute inset-0 w-full h-full ${MANGA_MAN_MOBILE_CLASSES} z-10 pointer-events-none`}>
         <AlphaVideo
           ref={manVideoRef}
           src="/projects/videos/manga_man_intro"
           query="?v=3"
           fallbackImage="/animation_frames/manga/manga_man_intro/0075.webp"
-          className="absolute inset-0 w-full h-full object-cover max-[600px]:object-contain"
+          className="absolute inset-0 w-full h-full object-cover max-[865px]:object-contain"
           muted
           playsInline
           preload="auto"
