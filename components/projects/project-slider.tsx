@@ -398,6 +398,9 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
     flashBgImg.onerror = checkAllAssetsLoaded // Count even on error to not block forever
     flashBgImg.src = '/projects/images/flash_bg.webp'
 
+    // Detect mobile devices for static thumbnails (videos are heavy on phones)
+    const isMobileDevice = container.clientWidth < MD_BREAKPOINT
+
     // Pre-load all unique project assets once
     projects.forEach((project) => {
       // Load frame texture with callback
@@ -411,8 +414,8 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       // Load content textures (don't block on these, they're for expanded view)
       const contentTextures = project.images.map(imgPath => textureLoader.load(imgPath))
 
-      // Low performance mode: use extracted video frame as static thumbnail
-      if (isLowPerformance) {
+      // Use static thumbnails on mobile devices or low performance mode
+      if (isLowPerformance || isMobileDevice) {
         const assets = {
           frameTexture,
           thumbnailVideo: null,
