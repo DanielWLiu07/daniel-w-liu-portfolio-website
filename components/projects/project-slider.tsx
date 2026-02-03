@@ -1194,7 +1194,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         if (Math.abs(deltaX) > Math.abs(deltaY)) {
           event.preventDefault()
           isTouchScrolling = true
-          velocityRef.current = deltaX * 0.015
+          velocityRef.current = deltaX * 0.005
           isManualScrollingRef.current = true
 
           touchStartX = touchX
