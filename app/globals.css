@@ -83,7 +83,7 @@
   }
 
   .animate-spin-cat {
-    animation: spin-cat linear infinite;
+    animation: spin-cat 1s linear infinite;
   }
 
   @keyframes glow-pulse {

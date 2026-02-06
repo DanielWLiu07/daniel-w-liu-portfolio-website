@@ -1,6 +1,5 @@
 import Image from 'next/image'
 import { frederickaFont } from '@/lib/fonts'
-import { SPIN_DURATION } from './constants'
 
 export function LoadingContent() {
   return (
@@ -12,7 +11,6 @@ export function LoadingContent() {
           width={256}
           height={256}
           className="animate-spin-cat"
-          style={{ animationDuration: `${SPIN_DURATION}ms` }}
         />
         <p className={`text-5xl md:text-7xl text-center tracking-wider text-stroke-white text-[#2c1810] ${frederickaFont.className}`}>
           Loading
