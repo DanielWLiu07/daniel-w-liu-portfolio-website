@@ -1,4 +1,5 @@
 'use client';
+import { useEffect, useState } from 'react';
 import * as NavigationMenu from '@radix-ui/react-navigation-menu';
 import { usePerformanceMode } from '@/contexts/performance-mode-context';
 import { usePathname } from 'next/navigation';
@@ -8,6 +9,10 @@ export default function Navbar(){
     const { mode, resetMode } = usePerformanceMode();
     const pathname = usePathname();
     const { transitionStage, navigateWithTransition } = useTransitionState();
+
+    const isQualitySelector = mode === null && pathname === '/';
+
+    const [delayedSlideUp, setDelayedSlideUp] = useState(false);
 
     const handleHomeClick = () => {
         navigateWithTransition('/', resetMode);
@@ -21,9 +26,24 @@ export default function Navbar(){
         }
     };
 
-    // Hide navbar during transitions and on quality selector
-    const isQualitySelector = mode === null && pathname === '/';
-    const isHidden = transitionStage === 'covering' || transitionStage === 'loading' || isQualitySelector;
+    // Slide navbar up with delay when cover animation starts, slide down on reveal
+    useEffect(() => {
+        if (transitionStage === 'covering') {
+            const timer = setTimeout(() => setDelayedSlideUp(true), 200);
+            return () => clearTimeout(timer);
+        } else if (transitionStage === 'revealing') {
+            const timer = setTimeout(() => setDelayedSlideUp(false), 600);
+            return () => clearTimeout(timer);
+        } else if (transitionStage === 'hidden') {
+            setDelayedSlideUp(false);
+        }
+    }, [transitionStage]);
+
+    const shouldSlideUp = isQualitySelector || delayedSlideUp;
+
+    const isInteractive = !shouldSlideUp
+        && transitionStage !== 'covering'
+        && transitionStage !== 'loading';
 
     const baseLinkClass = "text-gray-900 hover:bg-gray-100 block select-none rounded-[4px] px-2 md:px-3 py-2 mx-0.5 text-[11px] min-[431px]:text-[13px] md:text-[15px] font-medium leading-none no-underline outline-none transition-colors duration-200 cursor-pointer";
     const activeClass = "bg-gray-100";
@@ -34,8 +54,8 @@ export default function Navbar(){
     };
 
     return (
-        <nav className={`fixed top-5 left-1/2 -translate-x-1/2 md:left-5 md:translate-x-0 z-[10000] pointer-events-none transition-transform duration-700 ease-out ${isHidden ? '-translate-y-20' : 'translate-y-0'}`}>
-            <NavigationMenu.Root className="relative z-[1] flex justify-start pointer-events-auto">
+        <nav className={`fixed top-5 left-1/2 -translate-x-1/2 md:left-5 md:translate-x-0 z-[10000] pointer-events-none transition-transform duration-700 ${shouldSlideUp ? 'ease-in-out -translate-y-20' : 'ease-out translate-y-0'}`}>
+            <NavigationMenu.Root className={`relative z-[1] flex justify-start ${isInteractive ? 'pointer-events-auto' : 'pointer-events-none'}`}>
                 <NavigationMenu.List className="center shadow-blackA4 m-0 flex list-none rounded-[6px] bg-white p-1 shadow-[0_2px_10px]">
                     <NavigationMenu.Item>
                         <button

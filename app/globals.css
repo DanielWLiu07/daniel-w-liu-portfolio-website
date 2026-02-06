@@ -77,6 +77,15 @@
     animation: loading-dots 1.4s ease-in-out 0.4s infinite;
   }
 
+  @keyframes spin-cat {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  .animate-spin-cat {
+    animation: spin-cat linear infinite;
+  }
+
   @keyframes glow-pulse {
     0%, 100% {
       filter: brightness(0.8);
