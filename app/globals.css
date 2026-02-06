@@ -83,7 +83,10 @@
   }
 
   .animate-spin-cat {
-    animation: spin-cat 1s linear infinite;
+    animation-name: spin-cat;
+    animation-duration: 1s;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
   }
 
   @keyframes glow-pulse {
