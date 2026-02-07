@@ -14,7 +14,10 @@ export function handleWheelScroll(
 
   if (absDelta < MIN_SCROLL_THRESHOLD) return
 
-  const sensitivity = Math.pow(absDelta / 100, 0.85)
+  // Trackpad sends many small pixel-based deltas; mouse wheel sends fewer large ones.
+  // Dampen trackpad input more aggressively.
+  const isTrackpad = event.deltaMode === 0 && absDelta < 50
+  const sensitivity = Math.pow(absDelta / 100, 0.85) * (isTrackpad ? 0.3 : 1)
   const impulse = -Math.sign(primaryDelta) * sensitivity * WHEEL_ACCEL * 100
 
   velocityRef.current = Math.max(-MAX_VELOCITY, Math.min(MAX_VELOCITY, velocityRef.current + impulse))

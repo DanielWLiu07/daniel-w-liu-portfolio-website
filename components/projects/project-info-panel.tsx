@@ -189,6 +189,7 @@ export function ProjectInfoPanel({ project, onClose, onPrevProject, onNextProjec
   const isFlyingIn = panelState === 'flying-in'
   const isFlyingOut = panelState === 'flying-out'
   const isVisible = panelState === 'visible'
+  const isInteractive = isVisible || isFlyingIn
 
   // Center the entire unit (Projects header + info card) by using -50%
   // No extra offset needed since -50% centers based on total container height
@@ -345,7 +346,7 @@ export function ProjectInfoPanel({ project, onClose, onPrevProject, onNextProjec
           >
             <button
               onClick={onNextProject}
-              className="absolute left-0 text-white transition-transform duration-200 hover:scale-110 active:scale-95 animate-beckon-left pointer-events-auto text-[1.8em] [transform:translateZ(10px)] [text-shadow:0_0_15px_rgba(255,255,255,1),0_0_30px_rgba(255,255,255,0.8),0_0_50px_rgba(255,255,255,0.5)] leading-[0.6] overflow-visible"
+              className={`absolute left-0 text-white transition-transform duration-200 hover:scale-110 active:scale-95 animate-beckon-left ${isInteractive ? 'pointer-events-auto' : 'pointer-events-none'} text-[1.8em] [transform:translateZ(10px)] [text-shadow:0_0_15px_rgba(255,255,255,1),0_0_30px_rgba(255,255,255,0.8),0_0_50px_rgba(255,255,255,0.5)] leading-[0.6] overflow-visible`}
               aria-label="Next project"
             >
               ☜
@@ -358,7 +359,7 @@ export function ProjectInfoPanel({ project, onClose, onPrevProject, onNextProjec
             </span>
             <button
               onClick={onPrevProject}
-              className="absolute right-0 text-white transition-transform duration-200 hover:scale-110 active:scale-95 animate-beckon-right pointer-events-auto text-[1.8em] [transform:translateZ(10px)] [text-shadow:0_0_15px_rgba(255,255,255,1),0_0_30px_rgba(255,255,255,0.8),0_0_50px_rgba(255,255,255,0.5)] leading-[0.6] overflow-visible"
+              className={`absolute right-0 text-white transition-transform duration-200 hover:scale-110 active:scale-95 animate-beckon-right ${isInteractive ? 'pointer-events-auto' : 'pointer-events-none'} text-[1.8em] [transform:translateZ(10px)] [text-shadow:0_0_15px_rgba(255,255,255,1),0_0_30px_rgba(255,255,255,0.8),0_0_50px_rgba(255,255,255,0.5)] leading-[0.6] overflow-visible`}
               aria-label="Previous project"
             >
               ☞
@@ -367,7 +368,7 @@ export function ProjectInfoPanel({ project, onClose, onPrevProject, onNextProjec
         )}
 
         <div
-          className="relative rounded-2xl shadow-2xl overflow-hidden pointer-events-auto w-full"
+          className={`relative rounded-2xl shadow-2xl overflow-hidden ${isInteractive ? 'pointer-events-auto' : 'pointer-events-none'} w-full`}
           style={{
             marginTop: transform.isMobile ? '0.5rem' : '-0.5rem',
             minHeight: transform.isMobile ? '580px' : '620px',

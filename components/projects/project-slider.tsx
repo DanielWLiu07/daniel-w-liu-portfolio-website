@@ -89,6 +89,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
   const arrowMeshesRef = useRef<{ left: THREE.Mesh | null; right: THREE.Mesh | null }>({ left: null, right: null })
   const hoveredArrowRef = useRef<'left' | 'right' | null>(null)
 
+  const returningPlanesRef = useRef<THREE.Mesh[]>([])
   const imagePlanesRef = useRef<THREE.Mesh[]>([])
   const imagePlanesGroupRef = useRef<THREE.Group | null>(null)
   const carouselOffsetRef = useRef<number>(0) // Current scroll offset
@@ -96,7 +97,6 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
   const imagePlanesRevealedRef = useRef<boolean>(false) // Whether image planes have animated in
   const imagePlanesExitedRef = useRef<boolean>(false) // Whether image planes have finished exiting
   const crossfadeProgressRef = useRef<number>(0) // 0 = thumbnail visible, 1 = selection images visible
-
 
   const onProjectClickRef = useRef(onProjectClick)
   const onPauseChangeRef = useRef(onPauseChange)
@@ -218,12 +218,15 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
 
     const anim = animStateRef.current
 
-    if (expandedProject === null && anim.phase === 'expanded' && anim.activePlane) {
+    if (expandedProject === null && (anim.phase === 'expanded' || anim.phase === 'expanding') && anim.activePlane) {
       anim.phase = 'collapsing'
       anim.progress = 0
       anim.startPos = anim.activePlane.position.clone()
       anim.startQuat = anim.activePlane.quaternion.clone()
       anim.startScale = anim.activePlane.scale.x
+
+      hoveredPlaneRef.current = null
+      onPauseChangeRef.current(false)
 
       expansionStageRef.current = 'none'
       setExpansionStage('none')
@@ -355,7 +358,6 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
     rendererRef.current = renderer
 
     container.appendChild(renderer.domElement)
-
 
     const cardWidth = sceneOptions.cardWidth + sceneOptions.gap / 100
     const planeSpace = getPlaneWidth(camera, container.clientWidth, container.clientHeight, sceneOptions.cardWidth, sceneOptions.gap) * cardWidth
@@ -939,15 +941,47 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         }
       }
 
-      const intersects = raycaster.intersectObjects(planes)
-      if (intersects.length === 0) return
-
-      const clickedPlane = intersects[0].object as THREE.Mesh
-
-      if (anim.phase !== 'idle') {
+      // Block all clicks while collapsing — wait for it to finish
+      if (anim.phase === 'collapsing') {
         return
       }
 
+      const intersects = raycaster.intersectObjects(planes)
+
+      if (intersects.length === 0) {
+        return
+      }
+
+      const clickedPlane = intersects[0].object as THREE.Mesh
+
+      if (anim.phase !== 'idle' && anim.phase !== 'expanded' && anim.phase !== 'expanding') return
+
+      const projectId = clickedPlane.userData.projectId
+
+      // Don't allow clicking background cards while a card is expanded
+      if ((anim.phase === 'expanded' || anim.phase === 'expanding') && anim.activePlane && anim.activePlane !== clickedPlane) {
+        return
+      }
+
+      // Same card re-clicked during expanded/expanding
+      if ((anim.phase === 'expanded' || anim.phase === 'expanding') && anim.activePlane === clickedPlane) {
+        imagePlanesRef.current.forEach(ip => {
+          ip.userData.isExiting = false
+        })
+        imagePlanesExitedRef.current = false
+        onPauseChangeRef.current(true)
+        onProjectClickRef.current(projectId)
+        return
+      }
+
+      // Different card — cleanup old active plane
+      if ((anim.phase === 'expanded' || anim.phase === 'expanding') && anim.activePlane) {
+        cleanupPlaneAttachments(anim.activePlane)
+        returningPlanesRef.current = returningPlanesRef.current.filter(p => p !== anim.activePlane)
+        returningPlanesRef.current.push(anim.activePlane)
+      }
+
+      returningPlanesRef.current = returningPlanesRef.current.filter(p => p !== clickedPlane)
 
       dotMeshesRef.current = []
       imagePlanesRef.current = []
@@ -957,8 +991,6 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       crossfadeProgressRef.current = 0
       carouselOffsetRef.current = 0
       carouselTargetOffsetRef.current = 0
-
-      const projectId = clickedPlane.userData.projectId
       const projectData = projects.find(p => p.id === projectId)
       const imageCount = projectData?.images?.length || 0
 
@@ -1134,7 +1166,11 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
     }
 
     const checkHover = () => {
-      if (expandedProjectRef.current !== null) return
+      if (animStateRef.current.phase !== 'idle') {
+        hoveredPlaneRef.current = null
+        renderer.domElement.style.cursor = 'default'
+        return
+      }
 
       raycaster.setFromCamera(lastMousePosition, camera)
       const intersects = raycaster.intersectObjects(planes)
@@ -1371,7 +1407,9 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       smoothMousePosition.x += (mousePosition.x - smoothMousePosition.x) * 0.05
       smoothMousePosition.y += (mousePosition.y - smoothMousePosition.y) * 0.05
 
-      if (!isPausedRef.current && anim.phase === 'idle') {
+      const shouldScroll = anim.phase === 'idle' || anim.phase === 'collapsing'
+
+      if (!isPausedRef.current && shouldScroll) {
         const loopWidth = cardWidth * projects.length
 
         updateScrollVelocity(isManualScrollingRef, velocityRef, autoScrollDirectionRef)
@@ -1388,11 +1426,11 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         timeRef.current += diff * 0.1
       }
 
-      if (anim.phase === 'idle') {
+      if (shouldScroll) {
         scene.position.x = timeRef.current * sceneOptions.speed
       }
 
-      if (anim.phase === 'idle') {
+      if (shouldScroll) {
         checkHover()
       }
 
@@ -1458,8 +1496,52 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         }
       }
 
+      const easeAmount = getEasedMovementAmount()
+      returningPlanesRef.current = returningPlanesRef.current.filter(rPlane => {
+        const rMat = rPlane.material as THREE.ShaderMaterial
+        const targetX = rPlane.userData.initialX
+        const targetY = rPlane.userData.initialY ?? -0.35
+
+        rPlane.position.x += (targetX - rPlane.position.x) * easeAmount
+        rPlane.position.y += (targetY - rPlane.position.y) * easeAmount
+        rPlane.position.z += (0 - rPlane.position.z) * easeAmount
+
+        rPlane.rotation.x += (0 - rPlane.rotation.x) * easeAmount
+        rPlane.rotation.y += (0 - rPlane.rotation.y) * easeAmount
+        rPlane.rotation.z += (0 - rPlane.rotation.z) * easeAmount
+
+        rPlane.scale.x += (1 - rPlane.scale.x) * easeAmount
+        rPlane.scale.y += (1 - rPlane.scale.y) * easeAmount
+        rPlane.scale.z += (1 - rPlane.scale.z) * easeAmount
+
+        if (rMat.uniforms.isExpanded) {
+          rMat.uniforms.isExpanded.value += (0 - rMat.uniforms.isExpanded.value) * easeAmount
+        }
+        if (rMat.uniforms.opacity) {
+          rMat.uniforms.opacity.value += (0.75 - rMat.uniforms.opacity.value) * 0.15
+        }
+        if (rMat.uniforms.glow) {
+          rMat.uniforms.glow.value += (0 - rMat.uniforms.glow.value) * 0.15
+        }
+
+        const posDiff = Math.abs(targetX - rPlane.position.x) + Math.abs(targetY - rPlane.position.y) + Math.abs(rPlane.position.z)
+        const rotDiff = Math.abs(rPlane.rotation.x) + Math.abs(rPlane.rotation.y) + Math.abs(rPlane.rotation.z)
+        const scaleDiff = Math.abs(1 - rPlane.scale.x)
+
+        if (posDiff < 0.01 && rotDiff < 0.01 && scaleDiff < 0.01) {
+          rPlane.position.set(targetX, targetY, 0)
+          rPlane.rotation.set(0, 0, 0)
+          rPlane.scale.set(1, 1, 1)
+          if (rMat.uniforms.isExpanded) rMat.uniforms.isExpanded.value = 0
+          return false
+        }
+
+        return true
+      })
 
       planes.forEach(plane => {
+        if (returningPlanesRef.current.includes(plane)) return
+
         const isActivePlane = plane === anim.activePlane
         const isExpandingOrExpanded = anim.phase === 'expanding' || anim.phase === 'expanded'
         const mat = plane.material as THREE.ShaderMaterial
@@ -1510,6 +1592,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           const targetScale = getUnifiedScale()
 
           progress = Math.min(1, (progress || 0) + 0.02)
+
           anim.progress = progress
 
           const t = easeOutQuart(progress)
@@ -1534,7 +1617,6 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
             dotGroupRef.current.rotation.y = 0
           }
 
-
           if (mat.uniforms.isExpanded) {
             const expandDiff = 1.0 - mat.uniforms.isExpanded.value
             const expandSpeed = 0.08
@@ -1546,6 +1628,10 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           if (mat.uniforms.opacity) {
             mat.uniforms.opacity.value = imagePlanesRevealed ? 0 : 1
             mat.depthWrite = !imagePlanesRevealed
+          }
+
+          if (mat.uniforms.glow) {
+            mat.uniforms.glow.value += (0 - mat.uniforms.glow.value) * 0.15
           }
 
           const dotsVisible = anim.phase === 'expanded'
@@ -1603,7 +1689,19 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
             }
 
             if (isExpandingOrExpanded && !isExitingGlobal) {
-              crossfadeProgressRef.current = rotationProgress
+              // Rate-limit crossfade increase to prevent thumbnail vanishing when
+              // re-expanding a card that's already at high rotation (e.g. same card
+              // clicked right after closing). Without this, crossfade jumps from 0 to
+              // ~1 in one frame, hiding the thumbnail before image planes are positioned.
+              const maxCrossfadeStep = 0.10
+              if (rotationProgress > crossfadeProgressRef.current) {
+                crossfadeProgressRef.current = Math.min(
+                  crossfadeProgressRef.current + maxCrossfadeStep,
+                  rotationProgress
+                )
+              } else {
+                crossfadeProgressRef.current = rotationProgress
+              }
               if (!imagePlanesRevealedRef.current && rotationProgress > 0.1) {
                 imagePlanes.forEach((imageGroup) => {
                   imageGroup.userData.targetAnimOffset = imageGroup.userData.baseOffset
@@ -1617,7 +1715,16 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
             if (anim.activePlane) {
               const mainMat = anim.activePlane.material as THREE.ShaderMaterial
               if (mainMat?.uniforms?.opacity) {
-                mainMat.uniforms.opacity.value = 1 - crossfadeProgressRef.current
+                // During expanding phase, keep thumbnail at least partially visible
+                // so the card never vanishes when re-expanding from high rotation.
+                // Floor fades to 0 as progress approaches 0.2 (phase transition point).
+                const expandingFloor = anim.phase === 'expanding'
+                  ? 0.4 * Math.max(0, 1 - (anim.progress || 0) / 0.2)
+                  : 0
+                mainMat.uniforms.opacity.value = Math.max(
+                  1 - crossfadeProgressRef.current,
+                  expandingFloor
+                )
               }
             }
 
@@ -1732,7 +1839,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
                 }
               }
 
-              const shouldShow = dotsVisible && imagePlanesRevealedRef.current && !isExiting
+              const shouldShow = (dotsVisible || anim.phase === 'expanding') && imagePlanesRevealedRef.current && !isExiting
               const cardMaterial = imageGroup.userData.cardMaterial as THREE.ShaderMaterial
 
               if (cardMaterial && cardMaterial.uniforms.opacity) {
@@ -1772,11 +1879,14 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
             arrow.scale.set(newScale, newScale, 1)
           })
 
-        } else if (isExpandingOrExpanded && anim.activePlane && !plane.userData.isCurrentlyExpanding) {
+        } else if (isExpandingOrExpanded && anim.activePlane) {
           if (mat.uniforms.opacity) {
             const currentOpacity = mat.uniforms.opacity.value
             const targetOpacity = 0.15
             mat.uniforms.opacity.value = currentOpacity + (targetOpacity - currentOpacity) * 0.08
+          }
+          if (mat.uniforms.glow) {
+            mat.uniforms.glow.value += (0 - mat.uniforms.glow.value) * 0.15
           }
         } else if (isActivePlane && anim.phase === 'collapsing') {
           const targetX = plane.userData.initialX
@@ -1824,10 +1934,9 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           if (mat.uniforms.opacity) {
             mat.uniforms.opacity.value = 1 - crossfadeProgressRef.current
           }
-        } else if (anim.phase === 'collapsing') {
-          if (mat.uniforms.opacity) {
-            const currentOpacity = mat.uniforms.opacity.value
-            mat.uniforms.opacity.value = currentOpacity + (1 - currentOpacity) * 0.1
+
+          if (mat.uniforms.glow) {
+            mat.uniforms.glow.value += (0 - mat.uniforms.glow.value) * 0.15
           }
         } else {
           const isHovered = plane === hoveredPlaneRef.current
@@ -1859,8 +1968,9 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       if (anim.phase === 'collapsing' && anim.activePlane) {
         const plane = anim.activePlane
         const scaleDiff = Math.abs(1 - plane.scale.x)
+        const targetX = plane.userData.initialX
         const targetY = plane.userData.initialY ?? -0.35
-        const posDiff = Math.abs(plane.position.y - targetY) + Math.abs(plane.position.z)
+        const posDiff = Math.abs(plane.position.x - targetX) + Math.abs(plane.position.y - targetY) + Math.abs(plane.position.z)
         const rotDiff = Math.abs(plane.rotation.x) + Math.abs(plane.rotation.y) + Math.abs(plane.rotation.z)
         const isComplete = scaleDiff < 0.01 && posDiff < 0.01 && rotDiff < 0.01
 
