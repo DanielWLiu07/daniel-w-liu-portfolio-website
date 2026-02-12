@@ -194,7 +194,6 @@ export default function ProjectsPage() {
     setExpandedProject(projects[prevIndex].id)
   }, [expandedProject])
 
-
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const projectData = projects.find(p => p.id === expandedProject)
@@ -219,41 +218,40 @@ export default function ProjectsPage() {
       >
         <BackgroundVideos visible={introFinished} isExpanded={expandedProject !== null} />
 
-      {!introVideoEnded && !isLowPerformance && (
-        <IntroVideo
-          onEnded={handleIntroEnd}
-          onFlashStart={handleFlashStart}
-          onReady={handleIntroVideoReady}
-          canPlay={!showLoadingOverlay}
-        />
-      )}
+        {!introVideoEnded && !isLowPerformance && (
+          <IntroVideo
+            onEnded={handleIntroEnd}
+            onFlashStart={handleFlashStart}
+            onReady={handleIntroVideoReady}
+            canPlay={!showLoadingOverlay}
+          />
+        )}
 
-      <ProjectSlider
-        isPaused={isPaused}
-        onProjectClick={setExpandedProject}
-        onPauseChange={setIsPaused}
-        visible={showCarousel}
-        expandedProject={expandedProject}
-        onPrevProject={goToPrevProject}
-        onNextProject={goToNextProject}
-        onReady={handleSliderReady}
-      />
-
-
-      <TransitionFlash trigger={flashTrigger} onComplete={() => setFlashTrigger(false)} />
-
-      {displayProjectData && (
-        <ProjectInfoPanel
-          project={displayProjectData}
-          onClose={handleClosePanel}
+        <ProjectSlider
+          isPaused={isPaused}
+          onProjectClick={setExpandedProject}
+          onPauseChange={setIsPaused}
+          visible={showCarousel}
+          expandedProject={expandedProject}
           onPrevProject={goToPrevProject}
           onNextProject={goToNextProject}
-          visible={expandedProject !== null}
-          expansionStage="expanded"
+          onReady={handleSliderReady}
         />
-      )}
 
-      <SocialLinks className="projects-social-links" />
+        <TransitionFlash trigger={flashTrigger} onComplete={() => setFlashTrigger(false)} />
+
+        {displayProjectData && (
+          <ProjectInfoPanel
+            project={displayProjectData}
+            onClose={handleClosePanel}
+            onPrevProject={goToPrevProject}
+            onNextProject={goToNextProject}
+            visible={expandedProject !== null}
+            expansionStage="expanded"
+          />
+        )}
+
+        <SocialLinks className="projects-social-links" />
       </div>
 
       {/* Hidden preload for flash background - ensures browser caches image for CSS */}
