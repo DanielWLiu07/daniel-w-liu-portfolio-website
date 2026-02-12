@@ -101,36 +101,20 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
   const onProjectClickRef = useRef(onProjectClick)
   const onPauseChangeRef = useRef(onPauseChange)
   const onExpansionStageChangeRef = useRef(onExpansionStageChange)
+  const onPrevProjectRef = useRef(onPrevProject)
+  const onNextProjectRef = useRef(onNextProject)
+  const onReadyRef = useRef(onReady)
 
   const { isLowPerformance } = usePerformanceMode()
 
   useEffect(() => {
     onProjectClickRef.current = onProjectClick
-  }, [onProjectClick])
-
-  useEffect(() => {
     onPauseChangeRef.current = onPauseChange
-  }, [onPauseChange])
-
-  useEffect(() => {
     onExpansionStageChangeRef.current = onExpansionStageChange
-  }, [onExpansionStageChange])
-
-  const onPrevProjectRef = useRef(onPrevProject)
-  const onNextProjectRef = useRef(onNextProject)
-  const onReadyRef = useRef(onReady)
-
-  useEffect(() => {
     onPrevProjectRef.current = onPrevProject
-  }, [onPrevProject])
-
-  useEffect(() => {
     onNextProjectRef.current = onNextProject
-  }, [onNextProject])
-
-  useEffect(() => {
     onReadyRef.current = onReady
-  }, [onReady])
+  }, [onProjectClick, onPauseChange, onExpansionStageChange, onPrevProject, onNextProject, onReady])
 
   // Signal ready when all videos are loaded
   useEffect(() => {
