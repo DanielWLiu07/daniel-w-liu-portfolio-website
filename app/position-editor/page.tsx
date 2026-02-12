@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
-import gsap from 'gsap'
 
 interface ElementState {
   id: string
