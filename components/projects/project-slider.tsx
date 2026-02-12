@@ -90,7 +90,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
   const hoveredArrowRef = useRef<'left' | 'right' | null>(null)
 
   const returningPlanesRef = useRef<THREE.Mesh[]>([])
-  const imagePlanesRef = useRef<THREE.Mesh[]>([])
+  const imagePlanesRef = useRef<THREE.Object3D[]>([])
   const imagePlanesGroupRef = useRef<THREE.Group | null>(null)
   const carouselOffsetRef = useRef<number>(0) // Current scroll offset
   const carouselTargetOffsetRef = useRef<number>(0) // Target scroll offset
@@ -418,18 +418,9 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
 
       // Use static thumbnails on mobile devices or low performance mode
       if (isLowPerformance || isMobileDevice) {
-        const assets = {
-          frameTexture,
-          thumbnailVideo: null,
-          thumbnailTexture: null as unknown as THREE.Texture,
-          contentTextures,
-          videoAspectRatio: 1.0
-        }
-
         const thumbnailTexture = textureLoader.load(
           project.thumbnailImage,
           (texture) => {
-            // Get aspect ratio from loaded image, mimicking video behavior
             if (texture.image && texture.image.width && texture.image.height) {
               assets.videoAspectRatio = texture.image.width / texture.image.height
             }
@@ -440,7 +431,14 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         )
         thumbnailTexture.minFilter = THREE.LinearFilter
         thumbnailTexture.magFilter = THREE.LinearFilter
-        assets.thumbnailTexture = thumbnailTexture
+
+        const assets = {
+          frameTexture,
+          thumbnailVideo: null,
+          thumbnailTexture: thumbnailTexture as THREE.Texture | THREE.VideoTexture,
+          contentTextures,
+          videoAspectRatio: 1.0
+        }
 
         projectAssetsCache.set(project.id, assets)
       } else {
@@ -792,7 +790,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
 
       const imagePlanesGroup = new THREE.Group()
       imagePlanesGroupRef.current = imagePlanesGroup
-      const imagePlanes: THREE.Mesh[] = []
+      const imagePlanes: THREE.Object3D[] = []
 
       const isMobileSize = container.clientWidth < MD_BREAKPOINT
       const isVerticalOnScreen = !isMobileSize
@@ -891,7 +889,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         }
 
         imagePlanesGroup.add(imageGroup)
-        imagePlanes.push(imageGroup as unknown as THREE.Mesh)
+        imagePlanes.push(imageGroup)
       })
 
       imagePlanesRef.current = imagePlanes
