@@ -1,15 +1,6 @@
 import Image from 'next/image'
 import { CardCorners } from './card-corners'
-
-interface Experience {
-  title: string
-  company: string
-  period: string
-  description: string
-  logo?: string
-  logoScale?: number
-  comingSoon?: boolean
-}
+import type { Experience } from '@/data/experience'
 
 interface BillboardCardProps {
   experience: Experience
