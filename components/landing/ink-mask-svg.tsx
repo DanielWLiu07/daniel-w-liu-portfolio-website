@@ -92,7 +92,7 @@ export function InkMaskSvg({ maskX, maskWidth, startMaskAnimation, useSimpleFade
         >
           <defs>
             <filter id="bgFilter" x="-20%" y="-20%" width="140%" height="140%">
-              <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="5" result="noise" />
+              <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="2" result="noise" />
               <feDisplacementMap in="SourceGraphic" in2="noise" scale="200" xChannelSelector="R" yChannelSelector="G">
                 <animate
                   ref={(el: SVGAnimateElement | null) => { if (el) animRefs.current[4] = el }}
@@ -172,7 +172,7 @@ export function InkMaskSvg({ maskX, maskWidth, startMaskAnimation, useSimpleFade
           >
             <defs>
               <filter id="bgFilterSafari" x="-15%" y="-15%" width="130%" height="130%" colorInterpolationFilters="sRGB">
-                <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="5" result="noise" seed="1" />
+                <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="2" result="noise" seed="1" />
                 <feDisplacementMap in="SourceGraphic" in2="noise" scale="200" xChannelSelector="R" yChannelSelector="G" />
               </filter>
               <mask id="bgMaskSafari">
