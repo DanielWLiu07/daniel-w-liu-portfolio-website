@@ -14,18 +14,17 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const { mode, isHydrated } = usePerformanceMode()
 
-  // Start as 'loading' and only go to 'hidden' if mode is actually null after context hydration
-  const [overlayState, setOverlayState] = useState<OverlayState>('loading')
+  // Start as 'hidden' — no loading screen flash on fresh visits (mode === null)
+  // Switch to 'loading' only when mode is already set (returning user with localStorage)
+  const [overlayState, setOverlayState] = useState<OverlayState>('hidden')
 
   // Handle context hydration - determine correct initial state after mode is resolved
   // This only affects INITIAL page load, not subsequent navigation
   useEffect(() => {
     if (!isHydrated) return
-    // Only set to hidden on initial load when mode is null
-    // Don't interfere with active navigation (isInitialLoadRef is false during navigation)
     if (!isInitialLoadRef.current) return
-    if (mode === null) {
-      setOverlayState('hidden')
+    if (mode !== null) {
+      setOverlayState('loading')
     }
   }, [isHydrated, mode])
   const [isNavigating, setIsNavigating] = useState(false)
@@ -338,6 +337,8 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     pageReadyRef.current = false
     revealTriggeredRef.current = false
     setOverlayState('covering')
+
+    router.prefetch(href)
 
     navigationTimeoutRef.current = setTimeout(() => {
       if (transitionIdRef.current !== currentTransitionId) return
