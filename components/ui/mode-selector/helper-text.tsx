@@ -1,7 +1,7 @@
 'use client'
 
 import { forwardRef } from 'react'
-import { frederickaFont } from '@/lib/fonts'
+import { frederickaFont } from '@/lib/fonts/frederica'
 
 export const HelperText = forwardRef<HTMLDivElement>((_, ref) => {
   return (

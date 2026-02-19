@@ -1,6 +1,6 @@
 'use client'
 
-import { weddingDayFont } from '@/lib/fonts'
+import { weddingDayFont } from '@/lib/fonts/wedding-day'
 
 interface NameDisplayProps {
   showImmediately: boolean

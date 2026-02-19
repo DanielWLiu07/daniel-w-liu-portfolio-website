@@ -1,6 +1,6 @@
 import Image from 'next/image'
 import { forwardRef } from 'react'
-import { frederickaFont } from '@/lib/fonts'
+import { frederickaFont } from '@/lib/fonts/frederica'
 
 interface QualityOptionCardProps {
   variant: 'high' | 'low'

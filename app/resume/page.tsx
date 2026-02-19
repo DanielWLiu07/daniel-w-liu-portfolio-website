@@ -8,7 +8,8 @@ import { createInteractiveButtons, VIDEO_CONFIG, PHOTO_IMAGES, InteractiveButton
 import { useBodyOverflow } from '@/hooks/use-body-overflow'
 import { usePerformanceMode } from '@/contexts/performance-mode-context'
 import { useTransitionState } from '@/components/ui/page-transition'
-import { weddingDayFont, mochiFont } from '@/lib/fonts'
+import { weddingDayFont } from '@/lib/fonts/wedding-day'
+import { mochiFont } from '@/lib/fonts/mochi'
 
 const FALLBACK_TIMEOUT = 1500
 const SCROLL_TEXT_BREAKPOINT = 1440

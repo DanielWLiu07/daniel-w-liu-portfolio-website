@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
-import { fastBlazeFont, mochiFont } from '@/lib/fonts'
+import { fastBlazeFont } from '@/lib/fonts/fast-blaze'
+import { mochiFont } from '@/lib/fonts/mochi'
 import {
   DESKTOP_LAYOUT,
   MOBILE_LAYOUT,

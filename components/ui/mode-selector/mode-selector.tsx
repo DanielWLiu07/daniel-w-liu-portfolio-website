@@ -8,7 +8,7 @@ import { REVEAL_DURATION } from '@/components/ui/page-transition/constants'
 import Image from 'next/image'
 import { useEffect, useRef, useState } from 'react'
 import gsap from 'gsap'
-import { frederickaFont } from '@/lib/fonts'
+import { frederickaFont } from '@/lib/fonts/frederica'
 import {
   SocialLinks,
   HelperText,

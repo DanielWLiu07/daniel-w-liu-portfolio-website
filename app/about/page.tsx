@@ -7,7 +7,8 @@ import { SocialLinksImages } from "@/components/about/social-links-images"
 import { useBodyOverflow } from "@/hooks/use-body-overflow"
 import Image from 'next/image'
 import { useRef, useState, useEffect } from 'react'
-import { mochiFont, katieRozeFont } from '@/lib/fonts'
+import { mochiFont } from '@/lib/fonts/mochi'
+import { katieRozeFont } from '@/lib/fonts/katie-roze'
 
 const INFO_ITEMS = [
   "- University of Waterloo - Computer Science and Finance Double Major (2025 - Present)",

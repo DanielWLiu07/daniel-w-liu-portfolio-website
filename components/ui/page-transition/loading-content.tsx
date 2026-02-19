@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import { useEffect, useRef } from 'react'
-import { frederickaFont } from '@/lib/fonts'
+import { frederickaFont } from '@/lib/fonts/frederica'
 
 const SPIN_DURATION = 1000
 

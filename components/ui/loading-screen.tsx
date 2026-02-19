@@ -1,5 +1,5 @@
 import Image from 'next/image'
-import { frederickaFont } from '@/lib/fonts'
+import { frederickaFont } from '@/lib/fonts/frederica'
 
 export function LoadingScreen() {
   return (

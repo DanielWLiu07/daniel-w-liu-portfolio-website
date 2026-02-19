@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { pressStart2P } from '@/lib/fonts'
+import { pressStart2P } from '@/lib/fonts/press-start'
 import './transition-flash.css'
 
 interface TransitionFlashProps {

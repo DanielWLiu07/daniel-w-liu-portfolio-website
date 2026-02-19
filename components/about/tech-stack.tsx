@@ -1,6 +1,6 @@
 import { TechBadge } from "./tech-badge"
 import { techCategories } from "@/data/tech-stack"
-import { mochiFont } from '@/lib/fonts'
+import { mochiFont } from '@/lib/fonts/mochi'
 
 export function TechStack() {
   return (
