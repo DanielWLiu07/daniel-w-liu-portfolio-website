@@ -4,7 +4,7 @@ export function easeOutQuart(t: number): number {
 
 export function getEasedMovementAmount(): number {
   // Slower exit animation speed
-  return 0.06
+  return 0.09
 }
 
 export function getFloatOffset(

@@ -37,6 +37,8 @@ export default function ProjectsPage() {
   const gsapContextRef = useRef<gsap.Context | null>(null)
   const readyCalledRef = useRef(false)
   const isFirstMountRef = useRef(true)
+  const prevExpandedForSwapRef = useRef<number | null>(null)
+  const [panelSwapping, setPanelSwapping] = useState(false)
 
   const { transitionStage, signalReady } = useTransitionState()
   const { isLowPerformance } = usePerformanceMode()
@@ -198,7 +200,18 @@ export default function ProjectsPage() {
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const projectData = projects.find(p => p.id === expandedProject)
-    if (projectData) {
+    const prev = prevExpandedForSwapRef.current
+    const isSwap = prev !== null && expandedProject !== null && expandedProject !== prev
+    prevExpandedForSwapRef.current = expandedProject
+
+    if (isSwap && projectData) {
+      // Fade in new panel content
+      setPanelSwapping(true)
+      setDisplayProjectData(projectData)
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => setPanelSwapping(false))
+      })
+    } else if (projectData) {
       setDisplayProjectData(projectData)
     }
   }, [expandedProject])
@@ -242,14 +255,16 @@ export default function ProjectsPage() {
         <TransitionFlash trigger={flashTrigger} onComplete={() => setFlashTrigger(false)} />
 
         {displayProjectData && (
-          <ProjectInfoPanel
-            project={displayProjectData}
-            onClose={handleClosePanel}
-            onPrevProject={goToPrevProject}
-            onNextProject={goToNextProject}
-            visible={expandedProject !== null}
-            expansionStage="expanded"
-          />
+          <div style={{ opacity: panelSwapping ? 0 : 1, transition: 'opacity 0.25s ease-in-out' }}>
+            <ProjectInfoPanel
+              project={displayProjectData}
+              onClose={handleClosePanel}
+              onPrevProject={goToPrevProject}
+              onNextProject={goToNextProject}
+              visible={expandedProject !== null}
+              expansionStage="expanded"
+            />
+          </div>
         )}
 
         <SocialLinks className="projects-social-links" />

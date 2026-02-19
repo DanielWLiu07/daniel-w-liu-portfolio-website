@@ -54,6 +54,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
   const velocityRef = useRef(0)
   const isManualScrollingRef = useRef(false)
   const autoScrollDirectionRef = useRef(-1)
+  const lastInputTimeRef = useRef(0)
   const hoveredPlaneRef = useRef<THREE.Mesh | null>(null)
   const isPausedRef = useRef(false)
   const initializedRef = useRef(false)
@@ -165,27 +166,25 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
 
   const prevExpandedProjectRef = useRef<number | null>(null)
   const flickerTimeRef = useRef(0)
+  const swapFadeRef = useRef(1) // 0→1 fade-in progress for new content after swap
+  const outgoingContainerRef = useRef<THREE.Group | null>(null)
 
   const cleanupPlaneAttachments = (plane: THREE.Mesh) => {
     if (dotGroupRef.current) {
+      // Detach pooled children without disposing
+      while (dotGroupRef.current.children.length > 0) {
+        dotGroupRef.current.remove(dotGroupRef.current.children[0])
+      }
       plane.remove(dotGroupRef.current)
-      dotGroupRef.current.children.forEach(child => {
-        if (child instanceof THREE.Mesh) {
-          child.geometry.dispose()
-          if (child.material instanceof THREE.Material) child.material.dispose()
-        }
-      })
       dotGroupRef.current = null
       arrowMeshesRef.current = { left: null, right: null }
     }
     if (imagePlanesGroupRef.current) {
+      // Detach pooled children without disposing
+      while (imagePlanesGroupRef.current.children.length > 0) {
+        imagePlanesGroupRef.current.remove(imagePlanesGroupRef.current.children[0])
+      }
       plane.remove(imagePlanesGroupRef.current)
-      imagePlanesGroupRef.current.children.forEach(child => {
-        if (child instanceof THREE.Mesh) {
-          child.geometry.dispose()
-          if (child.material instanceof THREE.Material) child.material.dispose()
-        }
-      })
       imagePlanesGroupRef.current = null
     }
     dotMeshesRef.current = []
@@ -398,7 +397,12 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       )
 
       // Load content textures (don't block on these, they're for expanded view)
-      const contentTextures = project.images.map(imgPath => textureLoader.load(imgPath))
+      // Pre-upload to GPU as each loads so first expand doesn't stall
+      const contentTextures = project.images.map(imgPath =>
+        textureLoader.load(imgPath, (tex) => {
+          if (rendererRef.current) rendererRef.current.initTexture(tex)
+        })
+      )
 
       // Use static thumbnails on mobile devices or low performance mode
       if (isLowPerformance || isMobileDevice) {
@@ -600,25 +604,19 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       hoveredDotIndexRef.current = null
       hoveredArrowRef.current = null
       if (dotGroupRef.current) {
-        scene.remove(dotGroupRef.current)
-        dotGroupRef.current.children.forEach(child => {
-          if (child instanceof THREE.Mesh) {
-            child.geometry.dispose()
-            if (child.material instanceof THREE.Material) {
-              child.material.dispose()
-            }
-          }
-        })
+        // Detach pooled children before removing group
+        while (dotGroupRef.current.children.length > 0) {
+          dotGroupRef.current.remove(dotGroupRef.current.children[0])
+        }
+        plane.remove(dotGroupRef.current)
       }
 
       const dotGroup = new THREE.Group()
-      dotGroup.renderOrder = 10 // Render on top of cards
+      dotGroup.renderOrder = 10
       dotGroupRef.current = dotGroup
       const dots: THREE.Mesh[] = []
 
       const isMobileSize = container.clientWidth < MD_BREAKPOINT
-      const dotRadius = isMobileSize ? 0.055 : 0.03
-      const glowRadius = isMobileSize ? 0.085 : 0.05
       const dotSpacing = isMobileSize ? 0.16 : 0.10
       const totalSpan = (imageCount - 1) * dotSpacing
 
@@ -635,122 +633,91 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         startY = -cardHalfWidth - 0.14
       }
 
-      const arrowSize = isMobileSize ? 0.28 : 0.18
       const arrowOffset = isMobileSize ? 0.22 : 0.14
 
-      const firstArrowGeometry = new THREE.PlaneGeometry(arrowSize, arrowSize)
-      const firstArrowMaterial = new THREE.MeshBasicMaterial({
-        transparent: true,
-        opacity: 0,
-        side: THREE.DoubleSide,
-        depthWrite: false,
-        depthTest: false,
-        alphaTest: 0.1
-      })
-      const firstArrow = new THREE.Mesh(firstArrowGeometry, firstArrowMaterial)
-      firstArrow.renderOrder = 12
+      // Reuse pooled arrows
+      const firstArrow = arrowPool[0].mesh
+      const firstArrowMaterial = arrowPool[0].material
+      firstArrowMaterial.opacity = 0
       if (isVertical) {
-        firstArrow.position.x = startX
-        firstArrow.position.y = startY + arrowOffset
+        firstArrow.position.set(startX, startY + arrowOffset, 0.01)
       } else {
-        firstArrow.position.x = startX - arrowOffset
-        firstArrow.position.y = startY
+        firstArrow.position.set(startX - arrowOffset, startY, 0.01)
       }
-      firstArrow.position.z = 0.01
       firstArrow.userData.isArrow = true
-      firstArrow.userData.direction = 'left' // 'left' means previous
+      firstArrow.userData.direction = 'left'
       firstArrow.userData.targetOpacity = 0.5
       firstArrow.userData.targetScale = 1
+      firstArrow.scale.set(1, 1, 1)
       dotGroup.add(firstArrow)
       arrowMeshesRef.current.left = firstArrow
 
-      const secondArrowGeometry = new THREE.PlaneGeometry(arrowSize, arrowSize)
-      const secondArrowMaterial = new THREE.MeshBasicMaterial({
-        transparent: true,
-        opacity: 0,
-        side: THREE.DoubleSide,
-        depthWrite: false,
-        depthTest: false,
-        alphaTest: 0.1
-      })
-      const secondArrow = new THREE.Mesh(secondArrowGeometry, secondArrowMaterial)
-      secondArrow.renderOrder = 12
+      const secondArrow = arrowPool[1].mesh
+      const secondArrowMaterial = arrowPool[1].material
+      secondArrowMaterial.opacity = 0
       if (isVertical) {
-        secondArrow.position.x = startX
-        secondArrow.position.y = startY - totalSpan - arrowOffset
+        secondArrow.position.set(startX, startY - totalSpan - arrowOffset, 0.01)
       } else {
-        secondArrow.position.x = startX + totalSpan + arrowOffset
-        secondArrow.position.y = startY
+        secondArrow.position.set(startX + totalSpan + arrowOffset, startY, 0.01)
       }
-      secondArrow.position.z = 0.01
       secondArrow.userData.isArrow = true
-      secondArrow.userData.direction = 'right' // 'right' means next
+      secondArrow.userData.direction = 'right'
       secondArrow.userData.targetOpacity = 0.5
       secondArrow.userData.targetScale = 1
+      secondArrow.scale.set(1, 1, 1)
       dotGroup.add(secondArrow)
       arrowMeshesRef.current.right = secondArrow
 
+      // Apply pre-created arrow textures
       const firstArrowDir = isVertical ? 'up' : 'left'
       const secondArrowDir = isVertical ? 'down' : 'right'
-      createArrowTexture(firstArrowDir).then(texture => {
-        firstArrowMaterial.map = texture
+      if (arrowTextures[firstArrowDir]) {
+        firstArrowMaterial.map = arrowTextures[firstArrowDir]
         firstArrowMaterial.needsUpdate = true
-      })
-      createArrowTexture(secondArrowDir).then(texture => {
-        secondArrowMaterial.map = texture
+      } else {
+        createArrowTexture(firstArrowDir).then(tex => {
+          arrowTextures[firstArrowDir] = tex
+          firstArrowMaterial.map = tex
+          firstArrowMaterial.needsUpdate = true
+        })
+      }
+      if (arrowTextures[secondArrowDir]) {
+        secondArrowMaterial.map = arrowTextures[secondArrowDir]
         secondArrowMaterial.needsUpdate = true
-      })
-
-      for (let i = 0; i < imageCount; i++) {
-        const glowGeometry = new THREE.CircleGeometry(glowRadius, 24)
-        const glowMaterial = new THREE.MeshBasicMaterial({
-          color: 0xffffff,
-          transparent: true,
-          opacity: 0,
-          side: THREE.DoubleSide,
-          depthWrite: false,
-          depthTest: false,
+      } else {
+        createArrowTexture(secondArrowDir).then(tex => {
+          arrowTextures[secondArrowDir] = tex
+          secondArrowMaterial.map = tex
+          secondArrowMaterial.needsUpdate = true
         })
-        const glow = new THREE.Mesh(glowGeometry, glowMaterial)
-        glow.renderOrder = 10
+      }
+
+      for (let i = 0; i < imageCount && i < dotPool.length; i++) {
+        const { glow, dot } = dotPool[i]
+        const glowMat = glow.material as THREE.MeshBasicMaterial
+        const dotMat = dot.material as THREE.MeshBasicMaterial
+
+        glowMat.opacity = 0
+        dotMat.opacity = 0
+
         if (isVertical) {
-          glow.position.x = startX
-          glow.position.y = startY - i * dotSpacing
+          glow.position.set(startX, startY - i * dotSpacing, 0.01)
+          dot.position.set(startX, startY - i * dotSpacing, 0.01)
         } else {
-          glow.position.x = startX + i * dotSpacing
-          glow.position.y = startY
+          glow.position.set(startX + i * dotSpacing, startY, 0.01)
+          dot.position.set(startX + i * dotSpacing, startY, 0.01)
         }
-        glow.position.z = 0.01
-        glow.userData.isGlow = true
+
         glow.userData.targetOpacity = i === 0 ? 0.4 : 0
-        dotGroup.add(glow)
-
-        const geometry = new THREE.CircleGeometry(dotRadius, 16)
-        const material = new THREE.MeshBasicMaterial({
-          color: 0xffffff,
-          transparent: true,
-          opacity: 0,
-          side: THREE.DoubleSide,
-          depthWrite: false,
-          depthTest: false,
-        })
-        const dot = new THREE.Mesh(geometry, material)
-        dot.renderOrder = 11
-        if (isVertical) {
-          dot.position.x = startX
-          dot.position.y = startY - i * dotSpacing
-        } else {
-          dot.position.x = startX + i * dotSpacing
-          dot.position.y = startY
-        }
-        dot.position.z = 0.01
         dot.userData.dotIndex = i
         dot.userData.glowMesh = glow
         dot.userData.targetOpacity = i === 0 ? 1 : 0.4
         dot.userData.targetScale = 1
         dot.userData.isAnimating = i === 0
         dot.userData.animProgress = 0
+        dot.scale.set(1, 1, 1)
 
+        dotGroup.add(glow)
         dotGroup.add(dot)
         dots.push(dot)
       }
@@ -761,15 +728,11 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
 
     const createImagePlanes = (plane: THREE.Mesh, contentTextures: THREE.Texture[], frameTexture: THREE.Texture, skipRevealAnimation = false) => {
       if (imagePlanesGroupRef.current) {
+        // Detach pooled children before removing group
+        while (imagePlanesGroupRef.current.children.length > 0) {
+          imagePlanesGroupRef.current.remove(imagePlanesGroupRef.current.children[0])
+        }
         plane.remove(imagePlanesGroupRef.current)
-        imagePlanesGroupRef.current.children.forEach(child => {
-          if (child instanceof THREE.Mesh) {
-            child.geometry.dispose()
-            if (child.material instanceof THREE.Material) {
-              child.material.dispose()
-            }
-          }
-        })
       }
 
       const imagePlanesGroup = new THREE.Group()
@@ -779,9 +742,8 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       const isMobileSize = container.clientWidth < MD_BREAKPOINT
       const isVerticalOnScreen = !isMobileSize
 
-      const imageScale = 1.0
-      const scaledCardWidth = sceneOptions.cardWidth * imageScale
-      const scaledCardHeight = sceneOptions.cardHeight * imageScale
+      const scaledCardWidth = sceneOptions.cardWidth
+      const scaledCardHeight = sceneOptions.cardHeight
 
       const spacing = isMobileSize
         ? scaledCardHeight + 0.5
@@ -794,7 +756,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         spacing,
         isVerticalOnScreen,
         leftShiftAmount,
-        introProgress: skipRevealAnimation ? 1 : 0  // Skip intro animation if switching projects
+        introProgress: skipRevealAnimation ? 1 : 0
       }
 
       carouselOffsetRef.current = 0
@@ -802,10 +764,9 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       imagePlanesRevealedRef.current = skipRevealAnimation
 
       contentTextures.forEach((texture, i) => {
-        const imageGroup = new THREE.Group()
+        if (i >= imagePlanePool.length) return
 
         const isFirstFrame = i === 0
-
         const totalImages = contentTextures.length
         const halfCount = Math.floor(totalImages / 2)
 
@@ -813,15 +774,15 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         if (i === 0) {
           finalOffset = 0
         } else if (i <= halfCount) {
-          finalOffset = -spacing * i  // Below center
+          finalOffset = -spacing * i
         } else {
-          finalOffset = spacing * (totalImages - i)  // Above center (wrapped)
+          finalOffset = spacing * (totalImages - i)
         }
 
         const entryDistance = 2.0
         const startingStackOffset = finalOffset >= 0
-          ? finalOffset + entryDistance  // At or above center: come from above
-          : finalOffset - entryDistance  // Below center: come from below
+          ? finalOffset + entryDistance
+          : finalOffset - entryDistance
 
         let contentAspectRatio = 1.0
         const img = texture.image as HTMLImageElement | undefined
@@ -829,26 +790,28 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           contentAspectRatio = img.width / img.height
         }
 
-        const cardGeometry = createCardGeometry(scaledCardWidth, scaledCardHeight)
-        const frameAspectRatio = 389 / 596 // Frame image aspect ratio
-        const imageScale = 0.75 // Scale down the whole unit
-        const frameScale = 1.15 // Frame is 15% larger than image
-        const cardMaterial = createCardMaterial(frameTexture, texture, sceneOptions.curve, contentAspectRatio, cardAspectRatio, true, frameAspectRatio, imageScale, frameScale)
+        // Reuse pooled objects instead of creating new ones
+        const pooled = imagePlanePool[i]
+        const imageGroup = pooled.group
+        const cardMaterial = pooled.material
+        const cardPlane = pooled.mesh
+
+        // Update material uniforms
+        cardMaterial.uniforms.frameTex.value = frameTexture
+        cardMaterial.uniforms.contentTex.value = texture
+        cardMaterial.uniforms.contentAspectRatio.value = contentAspectRatio
+        cardMaterial.uniforms.cardAspectRatio.value = cardAspectRatio
         cardMaterial.uniforms.isExpanded.value = 1.0
         cardMaterial.uniforms.opacity.value = skipRevealAnimation ? 1 : 0
+        cardMaterial.uniforms.rotateContent.value = 1.0
         cardMaterial.depthWrite = false
 
         texture.onUpdate = () => {
           const loadedImg = texture.image as HTMLImageElement | undefined
           if (loadedImg && loadedImg.width && loadedImg.height) {
-            const ar = loadedImg.width / loadedImg.height
-            cardMaterial.uniforms.contentAspectRatio.value = ar
+            cardMaterial.uniforms.contentAspectRatio.value = loadedImg.width / loadedImg.height
           }
         }
-
-        const cardPlane = new THREE.Mesh(cardGeometry, cardMaterial)
-        cardPlane.position.z = 0
-        imageGroup.add(cardPlane)
 
         const startOffset = skipRevealAnimation ? finalOffset : (isFirstFrame ? finalOffset : startingStackOffset)
         if (isVerticalOnScreen) {
@@ -856,20 +819,23 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         } else {
           imageGroup.position.set(0, startOffset, 0)
         }
+        imageGroup.position.z = 0
+        imageGroup.rotation.set(0, 0, 0)
+        imageGroup.scale.set(1, 1, 1)
 
         imageGroup.userData = {
           imageIndex: i,
-          baseOffset: finalOffset, // Final position offset
-          startingOffset: startingStackOffset, // Where this card starts for reveal animation
-          currentAnimOffset: startOffset, // Current animated offset (first frame at 0, others stacked)
-          targetAnimOffset: finalOffset, // Target position (same as start for first frame)
+          baseOffset: finalOffset,
+          startingOffset: startingStackOffset,
+          currentAnimOffset: startOffset,
+          targetAnimOffset: finalOffset,
           isVerticalOnScreen,
           isFirstFrame,
           leftShift: leftShiftAmount,
           currentRotY: 0,
           floatPhaseOffset: i * 0.7,
-          cardPlane, // Single plane with shader material
-          cardMaterial // Reference to shader material for opacity control
+          cardPlane,
+          cardMaterial
         }
 
         imagePlanesGroup.add(imageGroup)
@@ -1004,8 +970,11 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       clickedPlane.userData.originalWorldX = worldPos.x
       clickedPlane.userData.scenePositionAtClick = scene.position.x
 
-      onPauseChangeRef.current(true)
-      onProjectClickRef.current(projectId)
+      // Defer parent state updates so they don't block the first animation frame
+      requestAnimationFrame(() => {
+        onPauseChangeRef.current(true)
+        onProjectClickRef.current(projectId)
+      })
 
       const contentTextures = clickedPlane.userData.contentTextures as THREE.Texture[]
       const frameTexture = clickedPlane.userData.frameTexture as THREE.Texture
@@ -1179,7 +1148,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       }
 
       hoveredPlaneRef.current = null
-      handleWheelScroll(event, velocityRef, isManualScrollingRef)
+      handleWheelScroll(event, velocityRef, isManualScrollingRef, lastInputTimeRef)
     }
 
     renderer.domElement.addEventListener('wheel', onWheel, { passive: false })
@@ -1200,6 +1169,8 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           onPauseChangeRef.current(false)
         }
         hoveredPlaneRef.current = null
+        isManualScrollingRef.current = true
+        lastInputTimeRef.current = performance.now()
       }
     }
 
@@ -1217,6 +1188,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           isTouchScrolling = true
           velocityRef.current = deltaX * 0.005
           isManualScrollingRef.current = true
+          lastInputTimeRef.current = performance.now()
 
           touchStartX = touchX
         }
@@ -1275,6 +1247,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       }
     }
 
+    const _expandTargetResult = new THREE.Vector3()
     const getExpandedTargetPosition = () => {
       const targetZ = 0.8
       const distFromCamera = camera.position.z - targetZ
@@ -1291,7 +1264,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         const viewportTop = visibleHeight / 2
         const cardTopY = viewportTop - (visibleHeight * MOBILE_LAYOUT.TOP_MARGIN)
         const targetY = cardTopY - (scaledCardHeight / 2)
-        return new THREE.Vector3(targetX, targetY, targetZ)
+        return _expandTargetResult.set(targetX, targetY, targetZ)
       } else {
         const vw = container.clientWidth
         const leftCardWidthPx = vw * DESKTOP_LAYOUT.LEFT_CARD_WIDTH
@@ -1302,9 +1275,98 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         const leftCardCenterPx = margin + leftCardWidthPx / 2
         const targetX = (leftCardCenterPx - vw / 2) / pixelsPerUnit
         const targetY = 0
-        return new THREE.Vector3(targetX, targetY, targetZ)
+        return _expandTargetResult.set(targetX, targetY, targetZ)
       }
     }
+
+    // === Pre-create reusable object pool (avoids first-click lag) ===
+    const POOL_SIZE = 5
+    const poolCardAR = sceneOptions.cardWidth / sceneOptions.cardHeight
+    const sharedImageGeometry = createCardGeometry(sceneOptions.cardWidth, sceneOptions.cardHeight)
+
+    // Grab a placeholder texture from the first project
+    const firstProjectAssets = projectAssetsCache.values().next().value
+    const placeholderTex = firstProjectAssets?.frameTexture ?? new THREE.Texture()
+
+    const imagePlanePool: { group: THREE.Group; mesh: THREE.Mesh; material: THREE.ShaderMaterial }[] = []
+    for (let i = 0; i < POOL_SIZE; i++) {
+      const material = createCardMaterial(
+        placeholderTex, placeholderTex, sceneOptions.curve,
+        1.0, poolCardAR, true, 389 / 596, 0.75, 1.15
+      )
+      material.uniforms.isExpanded.value = 1.0
+      material.uniforms.opacity.value = 0
+      material.depthWrite = false
+      const mesh = new THREE.Mesh(sharedImageGeometry, material)
+      mesh.position.z = 0
+      const group = new THREE.Group()
+      group.add(mesh)
+      imagePlanePool.push({ group, mesh, material })
+    }
+
+    // Pre-create dot + glow pool
+    const dotPool: { dot: THREE.Mesh; glow: THREE.Mesh }[] = []
+    const poolDotRadius = 0.03
+    const poolGlowRadius = 0.05
+    const sharedDotGeometry = new THREE.CircleGeometry(poolDotRadius, 16)
+    const sharedGlowGeometry = new THREE.CircleGeometry(poolGlowRadius, 24)
+    for (let i = 0; i < POOL_SIZE; i++) {
+      const glowMat = new THREE.MeshBasicMaterial({
+        color: 0xffffff, transparent: true, opacity: 0,
+        side: THREE.DoubleSide, depthWrite: false, depthTest: false,
+      })
+      const glow = new THREE.Mesh(sharedGlowGeometry, glowMat)
+      glow.renderOrder = 10
+      glow.userData.isGlow = true
+
+      const dotMat = new THREE.MeshBasicMaterial({
+        color: 0xffffff, transparent: true, opacity: 0,
+        side: THREE.DoubleSide, depthWrite: false, depthTest: false,
+      })
+      const dot = new THREE.Mesh(sharedDotGeometry, dotMat)
+      dot.renderOrder = 11
+      dotPool.push({ dot, glow })
+    }
+
+    // Pre-create arrow pool (2 arrows)
+    const sharedArrowGeometry = new THREE.PlaneGeometry(0.18, 0.18)
+    const arrowPool: { mesh: THREE.Mesh; material: THREE.MeshBasicMaterial }[] = []
+    for (let i = 0; i < 2; i++) {
+      const mat = new THREE.MeshBasicMaterial({
+        color: 0xffffff, transparent: true, opacity: 0,
+        side: THREE.DoubleSide, depthWrite: false, depthTest: false, alphaTest: 0.1,
+      })
+      const mesh = new THREE.Mesh(sharedArrowGeometry, mat)
+      mesh.renderOrder = 12
+      arrowPool.push({ mesh, material: mat })
+    }
+
+    // Pre-create arrow textures
+    const arrowTextures: Record<string, THREE.Texture> = {}
+    ;(['left', 'right', 'up', 'down'] as const).forEach(dir => {
+      createArrowTexture(dir).then(tex => { arrowTextures[dir] = tex })
+    })
+
+    // Force GPU pre-compilation
+    const warmupGroup = new THREE.Group()
+    imagePlanePool.forEach(p => warmupGroup.add(p.group))
+    dotPool.forEach(p => { warmupGroup.add(p.dot); warmupGroup.add(p.glow) })
+    arrowPool.forEach(p => warmupGroup.add(p.mesh))
+    scene.add(warmupGroup)
+    renderer.compile(scene, camera)
+    scene.remove(warmupGroup)
+    imagePlanePool.forEach(p => warmupGroup.remove(p.group))
+    dotPool.forEach(p => { warmupGroup.remove(p.dot); warmupGroup.remove(p.glow) })
+    arrowPool.forEach(p => warmupGroup.remove(p.mesh))
+
+    // Pre-allocated reusable objects for the animation loop (avoids GC pressure)
+    const _tempTargetPos = new THREE.Vector3()
+    const _tempZQuat = new THREE.Quaternion()
+    const _tempTiltQuat = new THREE.Quaternion()
+    const _tempTargetQuat = new THREE.Quaternion()
+    const _tempEuler = new THREE.Euler()
+    const _tempAxisZ = new THREE.Vector3(0, 0, 1)
+    const _tempAxisX = new THREE.Vector3(1, 0, 0)
 
     const animate = (currentTime: number) => {
       const timePassed = currentTime - previousTime
@@ -1314,7 +1376,53 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
 
       if (isExpanded && expandedProjectRef.current !== null && anim.phase === 'expanded') {
         const currentPlaneProjectId = expandedPlane?.userData.projectId
-        if (currentPlaneProjectId !== expandedProjectRef.current) {
+        const needsSwap = currentPlaneProjectId !== expandedProjectRef.current
+
+        if (needsSwap) {
+          // --- Crossfade: save old content, swap instantly, fade both ---
+
+          // 1) Reparent old content into a scene-level container so it stays visible
+          if (expandedPlane && (imagePlanesGroupRef.current || dotGroupRef.current)) {
+            const container = new THREE.Group()
+            expandedPlane.updateWorldMatrix(true, false)
+
+            // Match old plane's world transform so local coords stay correct
+            const wp = new THREE.Vector3()
+            const wq = new THREE.Quaternion()
+            const ws = new THREE.Vector3()
+            expandedPlane.getWorldPosition(wp)
+            expandedPlane.getWorldQuaternion(wq)
+            expandedPlane.getWorldScale(ws)
+
+            container.position.set(wp.x - scene.position.x, wp.y, wp.z)
+            container.quaternion.copy(wq)
+            container.scale.copy(ws)
+            scene.add(container)
+
+            if (imagePlanesGroupRef.current) {
+              expandedPlane.remove(imagePlanesGroupRef.current)
+              container.add(imagePlanesGroupRef.current)
+              imagePlanesGroupRef.current = null
+            }
+            if (dotGroupRef.current) {
+              expandedPlane.remove(dotGroupRef.current)
+              container.add(dotGroupRef.current)
+              dotGroupRef.current = null
+            }
+
+            // Clean up any previous outgoing container (don't dispose - objects are pooled)
+            if (outgoingContainerRef.current) {
+              scene.remove(outgoingContainerRef.current)
+            }
+            outgoingContainerRef.current = container
+          }
+
+          // 2) Clear refs before cleanup so cleanupPlaneAttachments skips disposal
+          imagePlanesRef.current = []
+          dotMeshesRef.current = []
+          arrowMeshesRef.current = { left: null, right: null }
+
+          // 3) Perform the swap
           let bestPlane: THREE.Mesh | null = null
           let bestDistance = Infinity
           planes.forEach(p => {
@@ -1331,9 +1439,12 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
 
           if (bestPlane) {
             const newPlane: THREE.Mesh = bestPlane
+            returningPlanesRef.current = returningPlanesRef.current.filter(p => p !== newPlane)
 
             if (expandedPlane) {
               cleanupPlaneAttachments(expandedPlane)
+              crossfadeProgressRef.current = 1
+              imagePlanesRevealedRef.current = true
             }
 
             let preservedRotX = 0
@@ -1367,7 +1478,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
 
             const newMat = newPlane.material as THREE.ShaderMaterial
             if (newMat.uniforms.isExpanded) newMat.uniforms.isExpanded.value = 1.0
-            if (newMat.uniforms.opacity) newMat.uniforms.opacity.value = 1.0
+            if (newMat.uniforms.opacity) newMat.uniforms.opacity.value = 0
 
             const projectData = projects.find(p => p.id === expandedProjectRef.current)
             const imageCount = projectData?.images?.length || 0
@@ -1382,6 +1493,33 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
             setExpansionStage('expanded')
             anim.phase = 'expanded'
           }
+
+          // 4) Start crossfade from 0
+          swapFadeRef.current = 0
+        } else if (swapFadeRef.current < 1) {
+          // Crossfade in progress — advance
+          swapFadeRef.current = Math.min(1, swapFadeRef.current + 0.08)
+        }
+
+        // 5) Fade outgoing container content
+        if (outgoingContainerRef.current) {
+          const outOpacity = 1 - swapFadeRef.current
+          outgoingContainerRef.current.traverse(child => {
+            if (child instanceof THREE.Mesh) {
+              const mat = child.material as THREE.ShaderMaterial | THREE.MeshBasicMaterial
+              if ('uniforms' in mat && mat.uniforms?.opacity) {
+                mat.uniforms.opacity.value = outOpacity
+              } else if ('opacity' in mat) {
+                mat.opacity = outOpacity
+              }
+            }
+          })
+
+          // Cleanup outgoing when crossfade is done
+          if (swapFadeRef.current >= 1) {
+            scene.remove(outgoingContainerRef.current)
+            outgoingContainerRef.current = null
+          }
         }
       }
 
@@ -1394,7 +1532,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       if (!isPausedRef.current && shouldScroll) {
         const loopWidth = cardWidth * projects.length
 
-        updateScrollVelocity(isManualScrollingRef, velocityRef, autoScrollDirectionRef)
+        updateScrollVelocity(isManualScrollingRef, velocityRef, autoScrollDirectionRef, lastInputTimeRef)
 
         timeRef.current += velocityRef.current * timePassed * 0.001
 
@@ -1562,30 +1700,30 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
 
           const target = getExpandedTargetPosition()
           const floatOffset = getFloatOffset(floatTime, 'left')
-          const targetPos = new THREE.Vector3(
+          _tempTargetPos.set(
             target.x - safeFrozenSceneX,
             target.y + floatOffset.y,
             target.z + floatOffset.x
           )
-          const zQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI / 2)
+          _tempZQuat.setFromAxisAngle(_tempAxisZ, Math.PI / 2)
           const tiltAmount = isMobile() ? 0 : 0.15
-          const tiltQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), tiltAmount)
-          const targetQuat = new THREE.Quaternion().multiplyQuaternions(zQuat, tiltQuat)
+          _tempTiltQuat.setFromAxisAngle(_tempAxisX, tiltAmount)
+          _tempTargetQuat.multiplyQuaternions(_tempZQuat, _tempTiltQuat)
           const targetScale = getUnifiedScale()
 
-          progress = Math.min(1, (progress || 0) + 0.02)
+          progress = Math.min(1, (progress || 0) + 0.018)
 
           anim.progress = progress
 
           const t = easeOutQuart(progress)
 
-          plane.position.lerpVectors(safeStartPos, targetPos, t)
-          plane.quaternion.slerpQuaternions(safeStartQuat, targetQuat, t)
+          plane.position.lerpVectors(safeStartPos, _tempTargetPos, t)
+          plane.quaternion.slerpQuaternions(safeStartQuat, _tempTargetQuat, t)
           const newScale = safeStartScale + (targetScale - safeStartScale) * t
           plane.scale.set(newScale, newScale, newScale)
 
-          const currentEuler = new THREE.Euler().setFromQuaternion(plane.quaternion)
-          const rotZ = currentEuler.z
+          _tempEuler.setFromQuaternion(plane.quaternion)
+          const rotZ = _tempEuler.z
 
           if (progress >= 0.2 && currentStage === 'expanding') {
             anim.phase = 'expanded'
@@ -1619,7 +1757,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           const dotsVisible = anim.phase === 'expanded'
           dotMeshesRef.current.forEach((dot, index) => {
             const dotMat = dot.material as THREE.MeshBasicMaterial
-            const targetOpacity = dotsVisible ? (dot.userData.targetOpacity as number) : 0
+            const targetOpacity = dotsVisible ? (dot.userData.targetOpacity as number) * swapFadeRef.current : 0
             dotMat.opacity += (targetOpacity - dotMat.opacity) * 0.15
 
             const isSelected = dot.userData.targetOpacity === 1
@@ -1647,7 +1785,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
             const glowMesh = dot.userData.glowMesh as THREE.Mesh
             if (glowMesh) {
               const glowMat = glowMesh.material as THREE.MeshBasicMaterial
-              const glowTarget = dotsVisible ? (glowMesh.userData.targetOpacity as number) : 0
+              const glowTarget = dotsVisible ? (glowMesh.userData.targetOpacity as number) * swapFadeRef.current : 0
               glowMat.opacity += (glowTarget - glowMat.opacity) * 0.15
             }
           })
@@ -1835,9 +1973,9 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
                   const positionVisible = distFromCenter <= visibleRange
 
                   if (introProgress < 1) {
-                    cardMaterial.uniforms.opacity.value = crossfadeProgressRef.current
+                    cardMaterial.uniforms.opacity.value = crossfadeProgressRef.current * swapFadeRef.current
                   } else {
-                    cardMaterial.uniforms.opacity.value = positionVisible ? crossfadeProgressRef.current : 0
+                    cardMaterial.uniforms.opacity.value = positionVisible ? crossfadeProgressRef.current * swapFadeRef.current : 0
                   }
                 } else {
                   cardMaterial.uniforms.opacity.value = 0
@@ -1852,7 +1990,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
             const arrowMat = arrow.material as THREE.MeshBasicMaterial
             const direction = arrow.userData.direction as 'left' | 'right'
             const isHovered = hoveredArrowRef.current === direction
-            const targetOpacity = dotsVisible ? (isHovered ? 1 : 0.5) : 0
+            const targetOpacity = dotsVisible ? (isHovered ? 1 : 0.5) * swapFadeRef.current : 0
             arrowMat.opacity += (targetOpacity - arrowMat.opacity) * 0.15
 
             const targetScale = isHovered ? 1.3 : 1.0
@@ -1907,7 +2045,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
 
           if (mat.uniforms.isExpanded) {
             const expandDiff = 0.0 - mat.uniforms.isExpanded.value
-            const expandSpeed = 0.04
+            const expandSpeed = 0.018
             if (Math.abs(expandDiff) > 0.001) {
               mat.uniforms.isExpanded.value += Math.sign(expandDiff) * Math.min(expandSpeed, Math.abs(expandDiff))
             }
@@ -1958,6 +2096,13 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
 
         if (isComplete) {
           cleanupPlaneAttachments(plane)
+
+          // Clean up any outgoing crossfade content (don't dispose - objects are pooled)
+          if (outgoingContainerRef.current) {
+            scene.remove(outgoingContainerRef.current)
+            outgoingContainerRef.current = null
+            swapFadeRef.current = 1
+          }
 
           anim.phase = 'idle'
           anim.activePlane = null
@@ -2034,15 +2179,25 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         contentTextures?.forEach(tex => tex?.dispose())
       })
       projectAssetsCache.clear()
-      if (dotGroupRef.current) {
-        dotGroupRef.current.children.forEach(child => {
-          if (child instanceof THREE.Mesh) {
-            child.geometry.dispose()
-            if (child.material instanceof THREE.Material) {
-              child.material.dispose()
-            }
-          }
-        })
+      // Dispose pooled objects
+      sharedImageGeometry.dispose()
+      imagePlanePool.forEach(p => {
+        p.material.dispose()
+      })
+      sharedDotGeometry.dispose()
+      sharedGlowGeometry.dispose()
+      dotPool.forEach(p => {
+        (p.dot.material as THREE.Material).dispose()
+        ;(p.glow.material as THREE.Material).dispose()
+      })
+      sharedArrowGeometry.dispose()
+      arrowPool.forEach(p => {
+        p.material.dispose()
+      })
+      Object.values(arrowTextures).forEach(tex => tex.dispose())
+      if (outgoingContainerRef.current) {
+        scene.remove(outgoingContainerRef.current)
+        outgoingContainerRef.current = null
       }
       renderer.dispose()
     }

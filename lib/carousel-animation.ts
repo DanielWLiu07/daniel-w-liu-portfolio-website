@@ -2,10 +2,13 @@ import { animationConstants } from '@/data/projects'
 
 const { WHEEL_ACCEL, FRICTION, MAX_VELOCITY, AUTO_SCROLL_VELOCITY, MIN_SCROLL_THRESHOLD } = animationConstants
 
+const AUTO_SCROLL_RESUME_DELAY = 2000 // ms of no input before auto-scroll resumes
+
 export function handleWheelScroll(
   event: WheelEvent,
   velocityRef: React.MutableRefObject<number>,
-  isManualScrollingRef: React.MutableRefObject<boolean>
+  isManualScrollingRef: React.MutableRefObject<boolean>,
+  lastInputTimeRef: React.MutableRefObject<number>
 ) {
   event.preventDefault()
 
@@ -22,12 +25,14 @@ export function handleWheelScroll(
 
   velocityRef.current = Math.max(-MAX_VELOCITY, Math.min(MAX_VELOCITY, velocityRef.current + impulse))
   isManualScrollingRef.current = true
+  lastInputTimeRef.current = performance.now()
 }
 
 export function updateScrollVelocity(
   isManualScrollingRef: React.MutableRefObject<boolean>,
   velocityRef: React.MutableRefObject<number>,
-  autoScrollDirectionRef: React.MutableRefObject<number>
+  autoScrollDirectionRef: React.MutableRefObject<number>,
+  lastInputTimeRef: React.MutableRefObject<number>
 ) {
   if (isManualScrollingRef.current) {
     if (Math.abs(velocityRef.current) > 0.01) {
@@ -36,8 +41,14 @@ export function updateScrollVelocity(
 
     velocityRef.current *= FRICTION
 
-    if (Math.abs(velocityRef.current) < AUTO_SCROLL_VELOCITY * 1.5) {
-      velocityRef.current = AUTO_SCROLL_VELOCITY * autoScrollDirectionRef.current
+    const timeSinceInput = performance.now() - lastInputTimeRef.current
+    const velocityStopped = Math.abs(velocityRef.current) < 0.005
+
+    if (velocityStopped) {
+      velocityRef.current = 0
+    }
+
+    if (timeSinceInput > AUTO_SCROLL_RESUME_DELAY && velocityStopped) {
       isManualScrollingRef.current = false
     }
   } else {
