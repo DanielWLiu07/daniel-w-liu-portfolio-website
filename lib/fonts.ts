@@ -19,7 +19,7 @@ export const mochiFont = localFont({
 })
 
 export const katieRozeFont = localFont({
-  src: '../public/shared/fonts/Katie Roze Watercolour Font - By Lef/KatieRoze.otf',
+  src: '../public/shared/fonts/Katie Roze Watercolour Font - By Lef/KatieRoze.woff2',
   display: 'swap',
 })
 

@@ -28,13 +28,6 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <link
-          rel="preload"
-          href="/shared/fonts/Katie Roze Watercolour Font - By Lef/KatieRoze.otf"
-          as="font"
-          type="font/otf"
-          crossOrigin="anonymous"
-        />
         {/* Preload white paper image for landing page SVG mask */}
         <link
           rel="preload"

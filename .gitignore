@@ -47,6 +47,9 @@ next-env.d.ts
 # original unoptimized assets (keep locally, don't deploy)
 public/_originals/
 
+# original full-size fonts (keep locally for re-subsetting)
+/fonts-original/
+
 # documentation (except README)
 *.md
 !README.md
