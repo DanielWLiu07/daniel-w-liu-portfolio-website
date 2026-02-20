@@ -187,20 +187,26 @@ export default function Home() {
       return () => clearTimeout(timeout)
     }
 
-    // Video is preloaded while quality selector shows, so it should be cached.
-    // canplay = browser has enough data to start playing
-    if (video.readyState >= 3) {
+    // Wait for video to actually render frames (not just buffer data).
+    // 'playing' event confirms the decoder is active and frames are rendering.
+    if (!video.paused && video.currentTime > 0) {
       doSignalReady()
       return
     }
 
-    const handleReady = () => doSignalReady()
-    video.addEventListener('canplay', handleReady)
-    video.addEventListener('error', handleReady)
+    const handlePlaying = () => doSignalReady()
+    video.addEventListener('playing', handlePlaying)
+    video.addEventListener('error', () => doSignalReady())
+
+    // If video has data but hasn't started, nudge it (autoPlay may be delayed)
+    if (video.readyState >= 3 && video.paused) {
+      video.play().catch(() => {})
+    }
+
     const timeout = setTimeout(doSignalReady, FALLBACK_TIMEOUT)
 
     return () => {
-      video.removeEventListener('canplay', handleReady)
+      video.removeEventListener('playing', handlePlaying)
       clearTimeout(timeout)
     }
   }, [mode, isLowPerformance, doSignalReady, transitionStage])

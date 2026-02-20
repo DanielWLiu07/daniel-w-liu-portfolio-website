@@ -197,14 +197,6 @@ export function ModeSelector() {
       entranceGsapContextRef.current = null
     }
 
-    // Set painted background on container (hidden behind paper initially)
-    // so that when paper fades, the cover SVG ink blot animation is visible
-    if (containerRef.current) {
-      containerRef.current.style.backgroundImage = 'url(/landing/images/white_paper.webp)'
-      containerRef.current.style.backgroundSize = 'cover'
-      containerRef.current.style.backgroundPosition = 'center'
-    }
-
     const exitTl = gsap.timeline({ defaults: { overwrite: true } })
     exitTimelineRef.current = exitTl
 
@@ -217,8 +209,6 @@ export function ModeSelector() {
       .to(sticky3Ref.current, { x: window.innerWidth < 768 ? 0 : -200, y: 0, rotation: 0, opacity: 0, duration: 0.5, ease: 'power2.in' }, 0)
       .to(sticky4Ref.current, { x: window.innerWidth < 768 ? 0 : 200, y: 0, rotation: 0, opacity: 0, duration: 0.5, ease: 'power2.in' }, 0)
       .to(waterlooRef.current, { x: 0, y: 100, rotation: 0, opacity: 0, duration: 0.5, ease: 'power2.in' }, 0)
-      // Fade paper background to reveal dark background for cover animation visibility
-      .to(paperBgRef.current, { opacity: 0, duration: 0.3, ease: 'power2.in' }, 0.2)
 
     setTimeout(() => {
       if (containerRef.current) {

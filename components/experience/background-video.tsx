@@ -65,19 +65,36 @@ export function BackgroundVideo({ onReady }: BackgroundVideoProps) {
       return () => clearTimeout(timeout)
     }
 
-    if (intro.readyState >= 3) {
+    // Pre-play the video to warm up the decoder, then pause.
+    // This ensures frames are decoded so play() on reveal is instant.
+    // Use { once: true } so the listener auto-removes and doesn't
+    // interfere when the reveal effect calls play() later.
+    const handlePlaying = () => {
+      intro.pause()
+      intro.currentTime = 0
+      handleLoaded()
+    }
+
+    // Already has decoded frames
+    if (!intro.paused && intro.currentTime > 0) {
+      intro.pause()
+      intro.currentTime = 0
       handleLoaded()
       clearTimeout(timeout)
       return
     }
 
-    const onReady = () => handleLoaded()
-    intro.addEventListener('canplay', onReady)
-    intro.addEventListener('loadeddata', onReady)
+    intro.addEventListener('playing', handlePlaying, { once: true })
+
+    // Trigger play to warm up decoder (will be paused immediately on 'playing')
+    if (intro.readyState >= 3) {
+      intro.play().catch(() => {})
+    } else {
+      intro.addEventListener('canplay', () => intro.play().catch(() => {}), { once: true })
+    }
 
     return () => {
-      intro.removeEventListener('canplay', onReady)
-      intro.removeEventListener('loadeddata', onReady)
+      intro.removeEventListener('playing', handlePlaying)
       clearTimeout(timeout)
     }
   }, [isLowPerformance, handleLoaded])

@@ -233,8 +233,8 @@ export const BackgroundLayers = memo(function BackgroundLayers() {
     if (isLowPerformance || (transitionStage !== 'revealing' && transitionStage !== 'hidden') || animationsStartedRef.current) return
     animationsStartedRef.current = true
 
-    rightColourRef.current?.play()
-    waterColourRef.current?.play()
+    // Background videos are already playing (pre-started during loading).
+    // Only start sparkle and trigger SVG mask animations here.
     waterColourSafariRef.current?.play()
     sparkleRef.current?.play()
 
@@ -263,25 +263,38 @@ export const BackgroundLayers = memo(function BackgroundLayers() {
     const waterColour = waterColourRef.current
     const rightColour = rightColourRef.current
 
-    if ((waterColour?.readyState ?? 0) >= 3 || (rightColour?.readyState ?? 0) >= 3) {
+    const timeout = setTimeout(handleLoaded, FALLBACK_TIMEOUT)
+
+    // Pre-play background videos during loading so frames are decoded.
+    // They play behind SVG masks (invisible until masks animate on reveal).
+    const handlePlaying = () => handleLoaded()
+
+    // Check if either is already playing
+    if ((waterColour && !waterColour.paused) || (rightColour && !rightColour.paused)) {
       handleLoaded()
+      clearTimeout(timeout)
       return
     }
 
-    const onReady = () => handleLoaded()
+    waterColour?.addEventListener('playing', handlePlaying, { once: true })
+    rightColour?.addEventListener('playing', handlePlaying, { once: true })
 
-    waterColour?.addEventListener('canplay', onReady)
-    waterColour?.addEventListener('loadeddata', onReady)
-    rightColour?.addEventListener('canplay', onReady)
-    rightColour?.addEventListener('loadeddata', onReady)
+    // Start playback to warm up decoders
+    const tryPlay = (video: HTMLVideoElement | null) => {
+      if (!video) return
+      if (video.readyState >= 3) {
+        video.play().catch(() => {})
+      } else {
+        video.addEventListener('canplay', () => video.play().catch(() => {}), { once: true })
+      }
+    }
 
-    const timeout = setTimeout(handleLoaded, FALLBACK_TIMEOUT)
+    tryPlay(waterColour)
+    tryPlay(rightColour)
 
     return () => {
-      waterColour?.removeEventListener('canplay', onReady)
-      waterColour?.removeEventListener('loadeddata', onReady)
-      rightColour?.removeEventListener('canplay', onReady)
-      rightColour?.removeEventListener('loadeddata', onReady)
+      waterColour?.removeEventListener('playing', handlePlaying)
+      rightColour?.removeEventListener('playing', handlePlaying)
       clearTimeout(timeout)
     }
   }, [isLowPerformance, handleLoaded])
