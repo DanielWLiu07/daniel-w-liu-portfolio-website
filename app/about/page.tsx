@@ -8,7 +8,7 @@ import { useBodyOverflow } from "@/hooks/use-body-overflow"
 import Image from 'next/image'
 import { useRef, useState, useEffect } from 'react'
 import { mochiFont } from '@/lib/fonts/mochi'
-import { katieRozeFont } from '@/lib/fonts/katie-roze'
+// import { katieRozeFont } from '@/lib/fonts/katie-roze'
 
 const INFO_ITEMS = [
   "- University of Waterloo - Computer Science and Finance Double Major (2025 - Present)",
@@ -56,7 +56,7 @@ export default function About() {
         className="relative z-[20] flex flex-col min-[1038px]:flex-row min-[1038px]:justify-end min-[1038px]:min-h-screen min-[1038px]:mt-0"
         style={{ marginTop: isMobile ? `calc(-${scrollHeight}vh - 4rem)` : '0' }}
       >
-        <div className={`w-[95%] mx-auto min-[1038px]:mx-0 min-[1038px]:w-1/2 px-2 min-[1038px]:pl-4 pb-0 flex flex-col justify-start min-[1038px]:min-h-0 pt-8 overflow-visible ${katieRozeFont.className}`}>
+        <div className={`w-[95%] mx-auto min-[1038px]:mx-0 min-[1038px]:w-1/2 px-2 min-[1038px]:pl-4 pb-0 flex flex-col justify-start min-[1038px]:min-h-0 pt-8 overflow-visible `}>
           <div className="bg-white/60 xl:bg-transparent p-3 xl:p-0 rounded-lg xl:rounded-none overflow-visible">
             <div className="overflow-visible -space-y-6 min-[1038px]:-space-y-8 w-full">
               <h1 className="font-black bg-gradient-to-r from-purple-700 via-pink-700 to-blue-700 bg-clip-text text-transparent drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)] leading-32 py-2 whitespace-nowrap">
