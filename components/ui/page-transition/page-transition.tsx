@@ -181,28 +181,28 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     isInitialLoadRef.current = false
     pageReadyRef.current = false
     revealTriggeredRef.current = false
+    setOverlayState('covering')
 
     const isSamePage = href === pathname
 
-    if (isSamePage) {
-      // Same-page: skip cover animation (invisible for white-on-white transitions
-      // like quality selector → landing) and go directly to loading → reveal
-      setOverlayState('loading')
+    navigationTimeoutRef.current = setTimeout(() => {
+      if (transitionIdRef.current !== currentTransitionId) return
 
-      if (onBeforeRevealRef.current) {
-        onBeforeRevealRef.current()
-        onBeforeRevealRef.current = null
-      }
+      if (isSamePage) {
+        setOverlayState('loading')
+        pageReadyRef.current = false
+        revealTriggeredRef.current = false
 
-      startWaitingForReady()
-    } else {
-      setOverlayState('covering')
+        if (onBeforeRevealRef.current) {
+          onBeforeRevealRef.current()
+          onBeforeRevealRef.current = null
+        }
 
-      navigationTimeoutRef.current = setTimeout(() => {
-        if (transitionIdRef.current !== currentTransitionId) return
+        startWaitingForReady()
+      } else {
         router.push(href)
-      }, NAVIGATION_DELAY)
-    }
+      }
+    }, NAVIGATION_DELAY)
   }, [pathname, router, startWaitingForReady, cleanupTimers])
 
   // Track mode changes
