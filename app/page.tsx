@@ -273,7 +273,7 @@ export default function Home() {
                 }}
               >
                 <div className="absolute inset-0 w-full h-full min-h-screen">
-                  <Image src="/landing/images/painted_bg.webp" alt="" fill className="object-cover z-0" priority />
+                  <Image src="/landing/images/painted_bg.webp" alt="" fill className="object-cover z-0" priority unoptimized />
                 </div>
                 <div
                   ref={sunGradientRef}
