@@ -15,6 +15,32 @@ import { AlphaVideo } from '@/components/ui/alpha-video'
 const FALLBACK_TIMEOUT = 10000
 const VIDEO_DURATION = 12.54
 
+// Preload composed background video while quality selector is showing
+// so it's already buffered when the landing page renders
+function usePreloadVideo() {
+  const preloadRef = useRef<HTMLVideoElement | null>(null)
+
+  useEffect(() => {
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
+    const video = document.createElement('video')
+    video.preload = 'auto'
+    video.muted = true
+    video.playsInline = true
+    const src = isSafari
+      ? '/landing/videos/landing_composite_24fps_hevc.mov?v=3'
+      : '/landing/videos/landing_composite_24fps.webm?v=3'
+    video.src = src
+    preloadRef.current = video
+    return () => {
+      video.src = ''
+      video.load()
+      preloadRef.current = null
+    }
+  }, [])
+
+  return preloadRef
+}
+
 export default function Home() {
   const [startMaskAnimation, setStartMaskAnimation] = useState(false)
 
@@ -34,6 +60,7 @@ export default function Home() {
   const isMobile = useMobile(768)
   const isSmallMobile = useMobile(550)
   const { signalReady, transitionStage, onIntroStart } = useTransitionState()
+  usePreloadVideo()
 
   useBodyOverflow('hidden')
 
@@ -160,26 +187,20 @@ export default function Home() {
       return () => clearTimeout(timeout)
     }
 
-    // Check if video is already progressing (currentTime > 0 means frames are rendering)
-    if (!video.paused && video.currentTime > 0) {
+    // Video is preloaded while quality selector shows, so it should be cached.
+    // canplay = browser has enough data to start playing
+    if (video.readyState >= 3) {
       doSignalReady()
       return
     }
 
-    // Wait for 'timeupdate' — fires when currentTime advances, meaning frames are
-    // actually being decoded and rendered (stronger signal than 'playing' which fires
-    // on the very first frame before any visible progress)
-    const handleTimeUpdate = () => {
-      if (video.currentTime > 0) {
-        doSignalReady()
-      }
-    }
-    video.addEventListener('timeupdate', handleTimeUpdate)
-    video.addEventListener('error', () => doSignalReady())
+    const handleReady = () => doSignalReady()
+    video.addEventListener('canplay', handleReady)
+    video.addEventListener('error', handleReady)
     const timeout = setTimeout(doSignalReady, FALLBACK_TIMEOUT)
 
     return () => {
-      video.removeEventListener('timeupdate', handleTimeUpdate)
+      video.removeEventListener('canplay', handleReady)
       clearTimeout(timeout)
     }
   }, [mode, isLowPerformance, doSignalReady, transitionStage])

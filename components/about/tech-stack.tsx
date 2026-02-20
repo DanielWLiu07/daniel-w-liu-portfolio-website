@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import { TechBadge } from "./tech-badge"
 import { techCategories } from "@/data/tech-stack"
 import { mochiFont } from '@/lib/fonts/mochi'
@@ -5,9 +6,13 @@ import { mochiFont } from '@/lib/fonts/mochi'
 export function TechStack() {
   return (
     <div className="overflow-visible -space-y-6 w-full mt-2">
-      <h1 className="text-6xl font-black bg-gradient-to-r from-purple-700 via-pink-700 to-blue-700 bg-clip-text text-transparent drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)] leading-tight py-2">
-        Tech Stack
-      </h1>
+      <Image
+        src="/about/images/katie_tech_stack.webp"
+        alt="Tech Stack"
+        width={1000}
+        height={312}
+        className="w-[200px] min-[1038px]:w-[220px] xl:w-[250px] h-auto drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)] py-2"
+      />
 
       <div className="pl-3 min-[1038px]:pl-2 text-gray-800 text-xl min-[1038px]:text-3xl drop-shadow-[0_1px_2px_rgba(0,0,0,0.2)] w-full">
         {techCategories.map((category) => (
