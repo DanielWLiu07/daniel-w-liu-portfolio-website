@@ -178,7 +178,7 @@ export function InkMaskSvg({ svgRef, maskType, onReady, triggerAnimation }: InkM
       >
         <defs>
           <filter id={filterId} x="-20%" y="-20%" width="140%" height="140%">
-            <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="4" result="noise" />
+            <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="3" result="noise" />
             <feDisplacementMap in="SourceGraphic" in2="noise" scale="200" xChannelSelector="R" yChannelSelector="G">
               <animate
                 attributeName="scale"

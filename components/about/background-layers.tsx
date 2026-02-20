@@ -26,7 +26,7 @@ function WaterColourMaskSvg({
     >
       <defs>
         <filter id="waterColourFilter">
-          <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="4" result="noise" />
+          <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="3" result="noise" />
           <feDisplacementMap in="SourceGraphic" in2="noise" scale="0" xChannelSelector="R" yChannelSelector="G">
             <animate attributeName="scale" values="200;490" dur="2s" begin="indefinite" calcMode="linear" fill="freeze" />
           </feDisplacementMap>
@@ -70,7 +70,7 @@ function RightGraphicsMaskSvg({
     >
       <defs>
         <filter id="aboutBgFilter">
-          <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="4" result="noise" />
+          <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="3" result="noise" />
           <feDisplacementMap in="SourceGraphic" in2="noise" scale="0" xChannelSelector="R" yChannelSelector="G">
             <animate attributeName="scale" values="200;490" dur="2.5s" begin="indefinite" calcMode="linear" fill="freeze" />
           </feDisplacementMap>

@@ -10,7 +10,7 @@ function MobileSvgMask() {
     <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" className="absolute inset-0 pointer-events-none">
       <defs>
         <filter id="mobileAboutBgFilter">
-          <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="4" result="noise" />
+          <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="3" result="noise" />
           <feDisplacementMap in="SourceGraphic" in2="noise" scale="0" xChannelSelector="R" yChannelSelector="G">
             <animate attributeName="scale" values="200;490" dur="2.5s" begin="0s" calcMode="linear" fill="freeze" />
           </feDisplacementMap>
