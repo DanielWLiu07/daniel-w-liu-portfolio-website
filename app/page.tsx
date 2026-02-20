@@ -12,7 +12,7 @@ import { useTransitionState } from '@/components/ui/page-transition'
 import { InkMaskSvg, TreeOverlays, NameDisplay } from '@/components/landing'
 import { AlphaVideo } from '@/components/ui/alpha-video'
 
-const FALLBACK_TIMEOUT = 2000
+const FALLBACK_TIMEOUT = 10000
 const VIDEO_DURATION = 12.54
 
 export default function Home() {
