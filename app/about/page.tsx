@@ -96,7 +96,7 @@ export default function About() {
       >
         <div className={`w-[95%] mx-auto min-[1038px]:mx-0 min-[1038px]:w-1/2 px-2 min-[1038px]:pl-4 pb-0 flex flex-col justify-start min-[1038px]:min-h-0 pt-8 overflow-visible `}>
           <div className="bg-white/60 xl:bg-transparent p-3 xl:p-0 rounded-lg xl:rounded-none overflow-visible">
-            <div className="overflow-visible -space-y-2 min-[1038px]:-space-y-4 w-full">
+            <div className="overflow-visible -space-y-0 min-[1038px]:-space-y-2 w-full">
               <Image
                 src="/about/images/katie_daniel_w_liu_v2.webp"
                 alt="Daniel W Liu"
@@ -115,7 +115,7 @@ export default function About() {
               />
             </div>
 
-            <div className="pl-3 min-[1038px]:pl-2 text-gray-800 text-xl min-[1038px]:text-3xl drop-shadow-[0_1px_2px_rgba(0,0,0,0.2)] w-full mt-2">
+            <div className="pl-3 min-[1038px]:pl-2 text-gray-800 text-xl min-[1038px]:text-3xl drop-shadow-[0_1px_2px_rgba(0,0,0,0.2)] w-full -mt-2">
               {INFO_ITEMS.map((info, index) => (
                 <p key={index} className={`text-2xl min-[1038px]:text-3xl min-[1038px]:max-w-lg text-stroke-white-xs ${mochiFont.className}`}>
                   {info}

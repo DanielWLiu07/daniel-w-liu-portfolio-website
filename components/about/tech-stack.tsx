@@ -5,7 +5,7 @@ import { mochiFont } from '@/lib/fonts/mochi'
 
 export function TechStack() {
   return (
-    <div className="overflow-visible -space-y-6 w-full mt-2">
+    <div className="overflow-visible -space-y-5 w-full mt-2">
       <Image
         src="/about/images/katie_tech_stack_v2.webp"
         alt="Tech Stack"
