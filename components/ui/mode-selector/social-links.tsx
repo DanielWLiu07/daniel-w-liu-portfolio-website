@@ -6,7 +6,7 @@ import { socialLinksImageData } from '@/data/social-links'
 
 export const SocialLinks = forwardRef<HTMLDivElement>((_, ref) => {
   return (
-    <div ref={ref} className="fixed bottom-20 md:bottom-4 right-4 z-[300] flex flex-col md:flex-row gap-4 opacity-0">
+    <div ref={ref} className="flex flex-row gap-4 opacity-0">
       {socialLinksImageData.map((link) => (
         <a
           key={link.label}

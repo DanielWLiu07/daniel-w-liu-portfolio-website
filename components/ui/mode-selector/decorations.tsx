@@ -43,7 +43,7 @@ export const PaperClipRight2 = forwardRef<HTMLDivElement>(function PaperClipRigh
 
 export const SelfiePhoto = forwardRef<HTMLDivElement>(function SelfiePhoto(_, ref) {
   return (
-    <div ref={ref} className="fixed left-0 top-0 h-screen opacity-0 overflow-visible pointer-events-none z-[1] -ml-80 md:-ml-0 md:left-[-20vw] lg:left-[-5%] -mt-5 will-change-[opacity]">
+    <div ref={ref} className="fixed left-0 top-0 h-screen opacity-0 overflow-visible pointer-events-none z-[50] -ml-80 md:-ml-0 md:left-[-20vw] lg:left-[-5%] -mt-5 will-change-[opacity]">
       <Image src="/quality/images/selfie_outline.webp" alt="Daniel W Liu" width={500} height={1750} className="h-full w-auto object-contain -scale-x-110 scale-y-110 rotate-[20deg] brightness-[1.05] saturate-[1.15] contrast-[1.05]" />
       <div className="absolute top-[20%] left-[50%] w-20 h-20 z-[200] pointer-events-none [transform:translate(-220px,150px)_rotate(0deg)_scale(1.4)] lg:[transform:translate(-220px,150px)_rotate(0deg)_scale(1.8)]">
         <Image src="/quality/images/pin_outline_1.webp" alt="" width={80} height={80} className="w-full h-full object-contain" />
@@ -57,7 +57,7 @@ export const SelfiePhoto = forwardRef<HTMLDivElement>(function SelfiePhoto(_, re
 
 export const CatPhoto = forwardRef<HTMLDivElement>(function CatPhoto(_, ref) {
   return (
-    <div ref={ref} className="fixed right-0 top-0 h-screen opacity-0 overflow-visible pointer-events-none z-[1] -mr-80 md:-mr-0 md:right-[-20vw] lg:right-[-5%] -mt-5 will-change-[opacity]">
+    <div ref={ref} className="fixed right-0 top-0 h-screen opacity-0 overflow-visible pointer-events-none z-[50] -mr-80 md:-mr-0 md:right-[-20vw] lg:right-[-5%] -mt-5 will-change-[opacity]">
       <Image src="/quality/images/cat_tongue_outline.webp" alt="Bongo" width={500} height={1750} className="h-full w-auto object-contain -scale-x-110 scale-y-110 rotate-[-20deg] brightness-[1.05] saturate-[1.15] contrast-[1.05]" />
       <div className="absolute top-[20%] right-[50%] w-20 h-20 z-[201] pointer-events-none [transform:translate(-50px,-150px)_rotate(-40deg)_scale(1.4)] lg:[transform:translate(-50px,-150px)_rotate(-40deg)_scale(1.8)]">
         <Image src="/quality/images/pin_outline_2.webp" alt="" width={80} height={80} className="w-full h-full object-contain" />
@@ -71,7 +71,7 @@ export const CatPhoto = forwardRef<HTMLDivElement>(function CatPhoto(_, ref) {
 
 export const WaterlooBadge = forwardRef<HTMLDivElement>(function WaterlooBadge(_, ref) {
   return (
-    <div ref={ref} className="fixed left-[0.5%] lg:left-0 bottom-15 lg:bottom-0 h-[18vh] lg:h-[30vh] opacity-0 overflow-visible z-[90] ml-2 mb-2 will-change-transform">
+    <div ref={ref} className="fixed left-[0.5%] lg:left-0 bottom-15 lg:bottom-0 h-[18vh] lg:h-[30vh] opacity-0 overflow-visible z-[200] ml-2 mb-2 will-change-transform">
       <a href="https://uwaterloo.ca" target="_blank" rel="noopener noreferrer" className="block h-full w-full group cursor-pointer" aria-label="University of Waterloo">
         <div className="relative h-full w-full transition-transform duration-300 ease-out group-hover:scale-110 -rotate-[35deg]">
           <Image src="/quality/images/waterloo_outline.webp" alt="Waterloo" width={300} height={1200} className="h-full w-auto object-contain brightness-105 saturate-[1.15] contrast-105" />

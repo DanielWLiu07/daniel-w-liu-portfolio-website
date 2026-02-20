@@ -160,20 +160,26 @@ export default function Home() {
       return () => clearTimeout(timeout)
     }
 
-    // Check if video is already playing (currentTime > 0 means frames are rendering)
+    // Check if video is already progressing (currentTime > 0 means frames are rendering)
     if (!video.paused && video.currentTime > 0) {
       doSignalReady()
       return
     }
 
-    // Wait for 'playing' event — fires when video actually starts rendering frames,
-    // not just when it *can* play (which is what 'canplay'/'loadeddata' indicate)
-    const handlePlaying = () => doSignalReady()
-    video.addEventListener('playing', handlePlaying)
+    // Wait for 'timeupdate' — fires when currentTime advances, meaning frames are
+    // actually being decoded and rendered (stronger signal than 'playing' which fires
+    // on the very first frame before any visible progress)
+    const handleTimeUpdate = () => {
+      if (video.currentTime > 0) {
+        doSignalReady()
+      }
+    }
+    video.addEventListener('timeupdate', handleTimeUpdate)
+    video.addEventListener('error', () => doSignalReady())
     const timeout = setTimeout(doSignalReady, FALLBACK_TIMEOUT)
 
     return () => {
-      video.removeEventListener('playing', handlePlaying)
+      video.removeEventListener('timeupdate', handleTimeUpdate)
       clearTimeout(timeout)
     }
   }, [mode, isLowPerformance, doSignalReady, transitionStage])

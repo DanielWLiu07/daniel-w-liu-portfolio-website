@@ -258,7 +258,7 @@ export function ModeSelector() {
         <PaperClipRight1 ref={paperClipRight1Ref} />
         <PaperClipRight2 ref={paperClipRight2Ref} />
 
-        <div className="relative flex flex-col items-center justify-center gap-16 lg:gap-16 w-full max-w-6xl mx-auto z-[300] will-change-auto">
+        <div className="relative flex flex-col items-center justify-center gap-16 lg:gap-16 w-full max-w-6xl mx-auto z-[100] will-change-auto">
           <div ref={titleRef} className="text-center space-y-2 opacity-0 relative -mt-15 lg:mt-0 z-[300]">
             <h2 className={`text-4xl md:text-6xl lg:text-7xl text-center tracking-wider md:text-stroke-white text-stroke-white-sm drop-shadow-lg relative whitespace-nowrap text-[#2c1810] ${frederickaFont.className}`}>
               Choose Your Journey
@@ -268,14 +268,19 @@ export function ModeSelector() {
             </p>
           </div>
 
-          <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-start justify-center px-4 md:px-8 overflow-visible">
+          <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-start justify-center px-4 md:px-8 overflow-visible z-[100]">
             <QualityOptionCard ref={highQualityRef} variant="high" onClick={() => handleModeSelect('high')} />
             <QualityOptionCard ref={lowQualityRef} variant="low" onClick={() => handleModeSelect('low')} />
           </div>
         </div>
 
-        <HelperText ref={helperTextRef} />
-        <SocialLinks ref={socialsRef} />
+        <div className="fixed bottom-6 md:bottom-8 left-0 right-0 z-[300] flex items-center px-4">
+          <div className="flex-1" />
+          <HelperText ref={helperTextRef} />
+          <div className="flex-1 flex justify-end">
+            <SocialLinks ref={socialsRef} />
+          </div>
+        </div>
       </div>
     </>
   )
