@@ -7,7 +7,7 @@ export function TechStack() {
   return (
     <div className="overflow-visible -space-y-6 w-full mt-2">
       <Image
-        src="/about/images/katie_tech_stack.webp"
+        src="/about/images/katie_tech_stack_v2.webp"
         alt="Tech Stack"
         width={1474}
         height={461}

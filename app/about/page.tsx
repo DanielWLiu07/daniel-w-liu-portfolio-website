@@ -59,7 +59,7 @@ export default function About() {
           <div className="bg-white/60 xl:bg-transparent p-3 xl:p-0 rounded-lg xl:rounded-none overflow-visible">
             <div className="overflow-visible -space-y-2 min-[1038px]:-space-y-4 w-full">
               <Image
-                src="/about/images/katie_daniel_w_liu.webp"
+                src="/about/images/katie_daniel_w_liu_v2.webp"
                 alt="Daniel W Liu"
                 width={1946}
                 height={459}
@@ -67,7 +67,7 @@ export default function About() {
                 priority
               />
               <Image
-                src="/about/images/katie_subtitle.webp"
+                src="/about/images/katie_subtitle_v2.webp"
                 alt="Software Engineer & ML Developer"
                 width={3297}
                 height={377}
