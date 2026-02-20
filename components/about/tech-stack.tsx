@@ -9,8 +9,8 @@ export function TechStack() {
       <Image
         src="/about/images/katie_tech_stack.webp"
         alt="Tech Stack"
-        width={1000}
-        height={312}
+        width={1474}
+        height={461}
         className="w-[200px] min-[1038px]:w-[220px] xl:w-[250px] h-auto drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)] py-2"
       />
 

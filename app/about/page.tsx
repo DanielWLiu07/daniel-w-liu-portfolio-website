@@ -61,16 +61,16 @@ export default function About() {
               <Image
                 src="/about/images/katie_daniel_w_liu.webp"
                 alt="Daniel W Liu"
-                width={1600}
-                height={383}
+                width={1946}
+                height={459}
                 className="w-[280px] min-[460px]:w-[420px] min-[1038px]:w-[360px] xl:w-[420px] h-auto drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]"
                 priority
               />
               <Image
                 src="/about/images/katie_subtitle.webp"
                 alt="Software Engineer & ML Developer"
-                width={2400}
-                height={271}
+                width={3297}
+                height={377}
                 className="w-[320px] min-[460px]:w-[450px] min-[1038px]:w-[400px] xl:w-[450px] h-auto drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]"
                 priority
               />
