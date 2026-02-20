@@ -370,10 +370,14 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
     const totalAssetsToLoad = projects.length * 2 + 1 // 1 thumbnail image + 1 frame per project + 1 flash bg
     let assetsLoadedCount = 0
 
+    const deferredVideoLoads: (() => void)[] = []
+
     const checkAllAssetsLoaded = () => {
       assetsLoadedCount++
       if (assetsLoadedCount >= totalAssetsToLoad) {
         setAllVideosLoaded(true)
+        // Start loading thumbnail videos after all static assets are ready
+        deferredVideoLoads.forEach(load => load())
       }
     }
 
@@ -429,47 +433,49 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
 
       projectAssetsCache.set(project.id, assets)
 
-      // High performance desktop: load video in background and swap when playing
+      // High performance desktop: queue video loading for after page reveals
       if (!isLowPerformance && !isMobileDevice) {
-        const video = document.createElement('video')
-        video.src = project.thumbnail
-        video.loop = true
-        video.muted = true
-        video.playsInline = true
-        video.autoplay = true
-        video.crossOrigin = 'anonymous'
-        video.preload = 'auto'
+        deferredVideoLoads.push(() => {
+          const video = document.createElement('video')
+          video.src = project.thumbnail
+          video.loop = true
+          video.muted = true
+          video.playsInline = true
+          video.autoplay = true
+          video.crossOrigin = 'anonymous'
+          video.preload = 'auto'
 
-        const videoTexture = new THREE.VideoTexture(video)
-        videoTexture.minFilter = THREE.LinearFilter
-        videoTexture.magFilter = THREE.LinearFilter
+          const videoTexture = new THREE.VideoTexture(video)
+          videoTexture.minFilter = THREE.LinearFilter
+          videoTexture.magFilter = THREE.LinearFilter
 
-        video.addEventListener('loadedmetadata', () => {
-          if (video.videoWidth && video.videoHeight) {
-            assets.videoAspectRatio = video.videoWidth / video.videoHeight
-          }
-        })
-
-        // Swap to video texture once actually playing
-        video.addEventListener('playing', () => {
-          assets.thumbnailVideo = video
-          assets.thumbnailTexture = videoTexture
-
-          // Update all planes that use this project's thumbnail
-          planes.forEach((plane) => {
-            if (plane.userData.projectId === project.id) {
-              const mat = plane.material as THREE.ShaderMaterial
-              mat.uniforms.contentTex.value = videoTexture
-              if (video.videoWidth && video.videoHeight) {
-                mat.uniforms.contentAspectRatio.value = video.videoWidth / video.videoHeight
-              }
-              plane.userData.thumbnailVideo = video
-              plane.userData.thumbnailTexture = videoTexture
+          video.addEventListener('loadedmetadata', () => {
+            if (video.videoWidth && video.videoHeight) {
+              assets.videoAspectRatio = video.videoWidth / video.videoHeight
             }
           })
-        })
 
-        video.play().catch(() => {})
+          // Swap to video texture once actually playing
+          video.addEventListener('playing', () => {
+            assets.thumbnailVideo = video
+            assets.thumbnailTexture = videoTexture
+
+            // Update all planes that use this project's thumbnail
+            planes.forEach((plane) => {
+              if (plane.userData.projectId === project.id) {
+                const mat = plane.material as THREE.ShaderMaterial
+                mat.uniforms.contentTex.value = videoTexture
+                if (video.videoWidth && video.videoHeight) {
+                  mat.uniforms.contentAspectRatio.value = video.videoWidth / video.videoHeight
+                }
+                plane.userData.thumbnailVideo = video
+                plane.userData.thumbnailTexture = videoTexture
+              }
+            })
+          })
+
+          video.play().catch(() => {})
+        })
       }
     })
 
