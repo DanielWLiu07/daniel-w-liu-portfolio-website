@@ -35,6 +35,13 @@ export default function RootLayout({
           as="image"
           fetchPriority="high"
         />
+        {/* Preload loading spinner image for page transitions */}
+        <link
+          rel="preload"
+          href="/images/cat_spin.webp"
+          as="image"
+          fetchPriority="high"
+        />
         {/* Safari detection script - runs before render to prevent flash */}
         <script
           dangerouslySetInnerHTML={{

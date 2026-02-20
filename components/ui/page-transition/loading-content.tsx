@@ -32,6 +32,7 @@ export function LoadingContent() {
             width={256}
             height={256}
             className="w-full h-full"
+            priority
           />
         </div>
         <p className={`text-5xl md:text-7xl text-center tracking-wider text-stroke-white text-[#2c1810] ${frederickaFont.className}`}>
