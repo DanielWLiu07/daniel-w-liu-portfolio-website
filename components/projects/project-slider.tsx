@@ -366,8 +366,8 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       videoAspectRatio: number
     }>()
 
-    // Track total UNIQUE assets to load: videos + frame textures + flash bg
-    const totalAssetsToLoad = projects.length * 2 + 1 // 1 video + 1 frame per project + 1 flash bg
+    // Track total UNIQUE assets to load: static thumbnails + frame textures + flash bg
+    const totalAssetsToLoad = projects.length * 2 + 1 // 1 thumbnail image + 1 frame per project + 1 flash bg
     let assetsLoadedCount = 0
 
     const checkAllAssetsLoaded = () => {
@@ -404,33 +404,33 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         })
       )
 
-      // Use static thumbnails on mobile devices or low performance mode
-      if (isLowPerformance || isMobileDevice) {
-        const thumbnailTexture = textureLoader.load(
-          project.thumbnailImage,
-          (texture) => {
-            if (texture.image && texture.image.width && texture.image.height) {
-              assets.videoAspectRatio = texture.image.width / texture.image.height
-            }
-            checkAllAssetsLoaded()
-          },
-          undefined,
-          () => checkAllAssetsLoaded()
-        )
-        thumbnailTexture.minFilter = THREE.LinearFilter
-        thumbnailTexture.magFilter = THREE.LinearFilter
+      // Always load static thumbnail first (counts toward page ready)
+      const thumbnailTexture = textureLoader.load(
+        project.thumbnailImage,
+        (texture) => {
+          if (texture.image && texture.image.width && texture.image.height) {
+            assets.videoAspectRatio = texture.image.width / texture.image.height
+          }
+          checkAllAssetsLoaded()
+        },
+        undefined,
+        () => checkAllAssetsLoaded()
+      )
+      thumbnailTexture.minFilter = THREE.LinearFilter
+      thumbnailTexture.magFilter = THREE.LinearFilter
 
-        const assets = {
-          frameTexture,
-          thumbnailVideo: null,
-          thumbnailTexture: thumbnailTexture as THREE.Texture | THREE.VideoTexture,
-          contentTextures,
-          videoAspectRatio: 1.0
-        }
+      const assets = {
+        frameTexture,
+        thumbnailVideo: null as HTMLVideoElement | null,
+        thumbnailTexture: thumbnailTexture as THREE.Texture | THREE.VideoTexture,
+        contentTextures,
+        videoAspectRatio: 1.0
+      }
 
-        projectAssetsCache.set(project.id, assets)
-      } else {
-        // High performance mode: use video thumbnails
+      projectAssetsCache.set(project.id, assets)
+
+      // High performance desktop: load video in background and swap when playing
+      if (!isLowPerformance && !isMobileDevice) {
         const video = document.createElement('video')
         video.src = project.thumbnail
         video.loop = true
@@ -440,47 +440,9 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         video.crossOrigin = 'anonymous'
         video.preload = 'auto'
 
-        let videoMarkedReady = false
-
-        const handleVideoReady = () => {
-          if (videoMarkedReady) return
-          videoMarkedReady = true
-          checkAllAssetsLoaded()
-        }
-
-        // Use canplaythrough - most reliable signal that video can play smoothly
-        video.addEventListener('canplaythrough', handleVideoReady)
-
-        // Also listen for loadeddata as backup (fires when first frame is available)
-        video.addEventListener('loadeddata', () => {
-          // Small delay to ensure frame is actually rendered
-          setTimeout(handleVideoReady, 100)
-        })
-
-        // Handle video errors - don't block loading if video fails
-        video.addEventListener('error', handleVideoReady)
-
-        // Fallback: if video already has data when we attach listeners
-        if (video.readyState >= 3) {
-          handleVideoReady()
-        }
-
-        // Final fallback timeout per video (15s)
-        setTimeout(handleVideoReady, 15000)
-
-        video.play().catch(() => {})
-
-        const thumbnailTexture = new THREE.VideoTexture(video)
-        thumbnailTexture.minFilter = THREE.LinearFilter
-        thumbnailTexture.magFilter = THREE.LinearFilter
-
-        const assets = {
-          frameTexture,
-          thumbnailVideo: video,
-          thumbnailTexture,
-          contentTextures,
-          videoAspectRatio: 1.0
-        }
+        const videoTexture = new THREE.VideoTexture(video)
+        videoTexture.minFilter = THREE.LinearFilter
+        videoTexture.magFilter = THREE.LinearFilter
 
         video.addEventListener('loadedmetadata', () => {
           if (video.videoWidth && video.videoHeight) {
@@ -488,7 +450,26 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
           }
         })
 
-        projectAssetsCache.set(project.id, assets)
+        // Swap to video texture once actually playing
+        video.addEventListener('playing', () => {
+          assets.thumbnailVideo = video
+          assets.thumbnailTexture = videoTexture
+
+          // Update all planes that use this project's thumbnail
+          planes.forEach((plane) => {
+            if (plane.userData.projectId === project.id) {
+              const mat = plane.material as THREE.ShaderMaterial
+              mat.uniforms.contentTex.value = videoTexture
+              if (video.videoWidth && video.videoHeight) {
+                mat.uniforms.contentAspectRatio.value = video.videoWidth / video.videoHeight
+              }
+              plane.userData.thumbnailVideo = video
+              plane.userData.thumbnailTexture = videoTexture
+            }
+          })
+        })
+
+        video.play().catch(() => {})
       }
     })
 
@@ -503,23 +484,14 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       const glowColor = extractGlowColor(project.titleGradient)
       const material = createCardMaterial(frameTexture, thumbnailTexture, sceneOptions.curve, 1.0, cardAspectRatio, false, frameAspectRatio, undefined, undefined, glowColor)
 
-      // Update aspect ratio from cached value or listen for updates
+      // Update aspect ratio from cached static image
       if (assets.videoAspectRatio !== 1.0) {
         material.uniforms.contentAspectRatio.value = assets.videoAspectRatio
-      }
-      if (thumbnailVideo) {
-        thumbnailVideo.addEventListener('loadedmetadata', () => {
-          if (thumbnailVideo.videoWidth && thumbnailVideo.videoHeight) {
-            material.uniforms.contentAspectRatio.value = thumbnailVideo.videoWidth / thumbnailVideo.videoHeight
-          }
-        })
       } else {
-        // For static images, check if already loaded or wait for load
         const img = thumbnailTexture.image as HTMLImageElement | undefined
         if (img && img.width && img.height) {
           material.uniforms.contentAspectRatio.value = img.width / img.height
         } else {
-          // Image not yet loaded, poll for it
           const checkImageLoaded = () => {
             const loadedImg = thumbnailTexture.image as HTMLImageElement | undefined
             if (loadedImg && loadedImg.width && loadedImg.height) {
