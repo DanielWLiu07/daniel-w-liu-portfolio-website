@@ -5,6 +5,9 @@ import { BackgroundLayers } from "@/components/about/background-layers"
 import { MobileBackground } from "@/components/about/mobile-background"
 import { SocialLinksImages } from "@/components/about/social-links-images"
 import { useBodyOverflow } from "@/hooks/use-body-overflow"
+import { useTransitionState } from "@/components/ui/page-transition"
+import { usePerformanceMode } from "@/contexts/performance-mode-context"
+import { triggerSvgAnimations } from "@/lib/svg-utils"
 import Image from 'next/image'
 import { useRef, useState, useEffect } from 'react'
 import { mochiFont } from '@/lib/fonts/mochi'
@@ -20,8 +23,44 @@ export default function About() {
   useBodyOverflow('auto');
 
   const contentRef = useRef<HTMLDivElement>(null);
+  const contentCoverSvgRef = useRef<SVGSVGElement>(null);
+  const contentCoverTriggeredRef = useRef(false);
   const [scrollHeight, setScrollHeight] = useState(300);
   const [isMobile, setIsMobile] = useState(false);
+  const [safariContentVisible, setSafariContentVisible] = useState(false);
+
+  const { transitionStage } = useTransitionState();
+  const { isLowPerformance } = usePerformanceMode();
+
+  const [isSafari] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+  });
+
+  // Reset on navigation
+  useEffect(() => {
+    if (transitionStage === 'loading') {
+      contentCoverTriggeredRef.current = false;
+      setSafariContentVisible(false);
+    }
+  }, [transitionStage]);
+
+  // Trigger content reveal animation (slightly delayed after backgrounds)
+  useEffect(() => {
+    if (isLowPerformance) return;
+    if (transitionStage !== 'revealing' && transitionStage !== 'hidden') return;
+    if (contentCoverTriggeredRef.current) return;
+    contentCoverTriggeredRef.current = true;
+
+    if (isSafari) {
+      setTimeout(() => setSafariContentVisible(true), 500);
+      return;
+    }
+
+    setTimeout(() => {
+      triggerSvgAnimations(contentCoverSvgRef.current);
+    }, 300);
+  }, [transitionStage, isSafari, isLowPerformance]);
 
   useEffect(() => {
     const updateHeight = () => {
@@ -100,6 +139,48 @@ export default function About() {
       </div>
 
       <SocialLinksImages />
+
+      {/* Content cover - dissolves with watercolor effect to reveal text */}
+      {!isLowPerformance && !isSafari && (
+        <svg
+          ref={contentCoverSvgRef}
+          width="100%"
+          height="100%"
+          xmlns="http://www.w3.org/2000/svg"
+          className="hidden min-[1038px]:block fixed inset-0 z-[25] pointer-events-none"
+        >
+          <defs>
+            <filter id="contentRevealFilter">
+              <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="3" result="noise" />
+              <feDisplacementMap in="SourceGraphic" in2="noise" scale="200" xChannelSelector="R" yChannelSelector="G">
+                <animate attributeName="scale" values="200;490" dur="2.5s" begin="indefinite" calcMode="linear" fill="freeze" />
+              </feDisplacementMap>
+            </filter>
+            <mask id="contentCoverMask">
+              <rect x="0" y="0" width="100%" height="100%" fill="white" />
+              <circle cx="30%" cy="50%" r="0%" fill="black" filter="url(#contentRevealFilter)">
+                <animate attributeName="r" values="0%;120%" dur="2.5s" begin="indefinite" calcMode="linear" fill="freeze" />
+              </circle>
+            </mask>
+          </defs>
+          <foreignObject width="100%" height="100%" mask="url(#contentCoverMask)" style={{ pointerEvents: 'none' }}>
+            <div className="relative w-full h-full pointer-events-none">
+              <Image src="/about/images/bg.webp" alt="" fill className="object-cover" />
+            </div>
+          </foreignObject>
+        </svg>
+      )}
+
+      {/* Safari fallback - opacity fade */}
+      {!isLowPerformance && isSafari && (
+        <div
+          className={`hidden min-[1038px]:block fixed inset-0 z-[25] pointer-events-none transition-opacity duration-[2s] ease-out ${
+            safariContentVisible ? 'opacity-0' : 'opacity-100'
+          }`}
+        >
+          <Image src="/about/images/bg.webp" alt="" fill className="object-cover" />
+        </div>
+      )}
     </div>
   );
 }
