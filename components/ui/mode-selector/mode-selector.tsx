@@ -56,8 +56,6 @@ export function ModeSelector() {
   useEffect(() => {
     const img = new window.Image()
     img.src = '/landing/images/white_paper.webp'
-    const img2 = new window.Image()
-    img2.src = '/landing/images/painted_bg.webp'
   }, [])
 
   // Reset state when returning to quality selector
@@ -202,7 +200,7 @@ export function ModeSelector() {
     // Set painted background on container (hidden behind paper initially)
     // so that when paper fades, the cover SVG ink blot animation is visible
     if (containerRef.current) {
-      containerRef.current.style.backgroundImage = 'url(/landing/images/painted_bg.webp)'
+      containerRef.current.style.backgroundImage = 'url(/landing/images/white_paper.webp)'
       containerRef.current.style.backgroundSize = 'cover'
       containerRef.current.style.backgroundPosition = 'center'
     }
