@@ -51,6 +51,7 @@ export default function ExperiencePage() {
     }
   }, [])
 
+  // Reset animations when navigating away
   useEffect(() => {
     if (transitionStage === 'loading') {
       animationsStartedRef.current = false
@@ -61,7 +62,11 @@ export default function ExperiencePage() {
   }, [transitionStage])
 
   useEffect(() => {
-    if ((transitionStage !== 'revealing' && transitionStage !== 'hidden') || animationsStartedRef.current) return
+    // Skip if not in revealing or hidden state (matches pattern from other pages)
+    if (transitionStage !== 'revealing' && transitionStage !== 'hidden') return
+    // Skip if animations already started
+    if (animationsStartedRef.current) return
+
     animationsStartedRef.current = true
 
     gsap.context(() => {

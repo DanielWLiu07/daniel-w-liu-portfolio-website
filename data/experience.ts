@@ -10,6 +10,14 @@ export interface Experience {
 
 export const experiences: Experience[] = [
   {
+    title: "SDE Intern",
+    company: "PlayStation",
+    period: "May 2026 - Aug 2026",
+    description: "Incoming S26",
+    logo: "/experience/images/playstation_logo.png",
+    logoScale: 1.0
+  },
+  {
     title: "Software Engineer Intern",
     company: "Wedge (YC S25)",
     period: "Jan 2026 - Present",
@@ -32,13 +40,6 @@ export const experiences: Experience[] = [
     description: "Developed real-time CV object detection algorithms for Bootle Blast, a gamified rehab platform used by clinicians across 3+ hospitals for child rehabilitation.",
     logo: "/experience/images/hollandbloorview_logo.webp",
     logoScale:1.1
-  },
-  {
-    title: "Coming Soon",
-    company: "Stay Tuned",
-    period: "2026",
-    description: "More exciting opportunities on the way!",
-    comingSoon: true
   },
   {
     title: "Coming Soon",

@@ -26,13 +26,13 @@ export function BillboardCard({ experience }: BillboardCardProps) {
         }}
       >
         <div className="flex items-center gap-3 lg:gap-4 w-full">
-          <div className="w-14 h-14 lg:w-20 lg:h-20 flex-shrink-0 relative">
+          <div className="w-14 h-14 lg:w-20 lg:h-20 flex-shrink-0 relative rounded-lg overflow-hidden bg-gray-50">
             {experience.logo && (
               <Image
                 src={experience.logo}
                 alt={`${experience.company} logo`}
                 fill
-                className="object-contain relative z-10"
+                className="object-contain relative z-10 p-1"
                 style={experience.logoScale ? { transform: `scale(${experience.logoScale})` } : undefined}
               />
             )}
