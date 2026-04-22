@@ -1,6 +1,6 @@
 'use client'
 
-import { forwardRef, useState, useEffect, useRef, useImperativeHandle } from 'react'
+import { forwardRef, useState } from 'react'
 
 interface AlphaVideoProps extends React.VideoHTMLAttributes<HTMLVideoElement> {
   /** Base path without extension, e.g., "/landing/videos/tree_right" */
@@ -9,6 +9,15 @@ interface AlphaVideoProps extends React.VideoHTMLAttributes<HTMLVideoElement> {
   query?: string
   /** Fallback image to show if video fails to load */
   fallbackImage?: string
+}
+
+// Detect Safari synchronously at module load time so <source> is present
+// on the very first render. Inserting <source> after mount requires calling
+// video.load(), which interrupts any pending autoplay promise with AbortError.
+function detectSafariSync(): boolean {
+  if (typeof navigator === 'undefined') return false
+  const ua = navigator.userAgent
+  return /^((?!chrome|android).)*safari/i.test(ua)
 }
 
 /**
@@ -20,48 +29,25 @@ interface AlphaVideoProps extends React.VideoHTMLAttributes<HTMLVideoElement> {
  */
 export const AlphaVideo = forwardRef<HTMLVideoElement, AlphaVideoProps>(
   function AlphaVideo({ src, query = '', fallbackImage, className, ...props }, ref) {
-    const [isSafari, setIsSafari] = useState(false)
-    const [browserDetected, setBrowserDetected] = useState(false)
-    const videoRef = useRef<HTMLVideoElement>(null)
-
-    // Expose video element to parent via forwarded ref
-    useImperativeHandle(ref, () => videoRef.current as HTMLVideoElement, [])
-
-    useEffect(() => {
-      // Detect Safari
-      const ua = navigator.userAgent
-      const safari = /^((?!chrome|android).)*safari/i.test(ua)
-      setIsSafari(safari)
-      setBrowserDetected(true)
-    }, [])
-
-    // When browser is detected and <source> is rendered, call video.load()
-    // so the browser picks up the newly inserted <source> child and starts
-    // loading/playing. Without this, autoPlay has nothing to play because
-    // the source was added after initial mount.
-    useEffect(() => {
-      if (!browserDetected || !videoRef.current) return
-      videoRef.current.load()
-    }, [browserDetected])
+    // Detect browser synchronously at mount to avoid a post-mount <source>
+    // insertion. On server (SSR) this returns false which renders a
+    // webm <source> — harmless because the video doesn't play on server.
+    const [isSafari] = useState(detectSafariSync)
 
     const webmSrc = `${src}.webm${query}`
     const hevcSrc = `${src}_hevc.mov${query}`
 
-    // Always render video element to preserve DOM for GSAP animations
-    // Use poster for fallback image, and only set source after browser detection
     return (
       <video
-        ref={videoRef}
+        ref={ref}
         className={className}
         poster={fallbackImage}
         {...props}
       >
-        {browserDetected && (
-          isSafari ? (
-            <source src={hevcSrc} type='video/quicktime; codecs="hvc1"' />
-          ) : (
-            <source src={webmSrc} type="video/webm" />
-          )
+        {isSafari ? (
+          <source src={hevcSrc} type='video/quicktime; codecs="hvc1"' />
+        ) : (
+          <source src={webmSrc} type="video/webm" />
         )}
       </video>
     )
