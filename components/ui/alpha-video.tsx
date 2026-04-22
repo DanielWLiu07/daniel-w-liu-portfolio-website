@@ -1,6 +1,6 @@
 'use client'
 
-import { forwardRef, useState, useEffect } from 'react'
+import { forwardRef, useState, useEffect, useRef, useImperativeHandle } from 'react'
 
 interface AlphaVideoProps extends React.VideoHTMLAttributes<HTMLVideoElement> {
   /** Base path without extension, e.g., "/landing/videos/tree_right" */
@@ -22,6 +22,10 @@ export const AlphaVideo = forwardRef<HTMLVideoElement, AlphaVideoProps>(
   function AlphaVideo({ src, query = '', fallbackImage, className, ...props }, ref) {
     const [isSafari, setIsSafari] = useState(false)
     const [browserDetected, setBrowserDetected] = useState(false)
+    const videoRef = useRef<HTMLVideoElement>(null)
+
+    // Expose video element to parent via forwarded ref
+    useImperativeHandle(ref, () => videoRef.current as HTMLVideoElement, [])
 
     useEffect(() => {
       // Detect Safari
@@ -31,6 +35,15 @@ export const AlphaVideo = forwardRef<HTMLVideoElement, AlphaVideoProps>(
       setBrowserDetected(true)
     }, [])
 
+    // When browser is detected and <source> is rendered, call video.load()
+    // so the browser picks up the newly inserted <source> child and starts
+    // loading/playing. Without this, autoPlay has nothing to play because
+    // the source was added after initial mount.
+    useEffect(() => {
+      if (!browserDetected || !videoRef.current) return
+      videoRef.current.load()
+    }, [browserDetected])
+
     const webmSrc = `${src}.webm${query}`
     const hevcSrc = `${src}_hevc.mov${query}`
 
@@ -38,7 +51,7 @@ export const AlphaVideo = forwardRef<HTMLVideoElement, AlphaVideoProps>(
     // Use poster for fallback image, and only set source after browser detection
     return (
       <video
-        ref={ref}
+        ref={videoRef}
         className={className}
         poster={fallbackImage}
         {...props}
