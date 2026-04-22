@@ -12,7 +12,7 @@ import type { OverlayState } from './types'
 export function PageTransition({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { mode, isHydrated } = usePerformanceMode()
+  const { mode, isHydrated, isLowPerformance } = usePerformanceMode()
 
   // Start as 'hidden' — no loading screen flash on fresh visits (mode === null)
   // Switch to 'loading' only when mode is already set (returning user with localStorage)
@@ -23,10 +23,22 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!isHydrated) return
     if (!isInitialLoadRef.current) return
+    // Instant mode: stay 'hidden', skip loading overlay entirely
+    if (isLowPerformance) {
+      isInitialLoadRef.current = false
+      // Fire registered intro callback on next tick after page mounts
+      Promise.resolve().then(() => {
+        if (onIntroStartRef.current) {
+          onIntroStartRef.current()
+          onIntroStartRef.current = null
+        }
+      })
+      return
+    }
     if (mode !== null) {
       setOverlayState('loading')
     }
-  }, [isHydrated, mode])
+  }, [isHydrated, mode, isLowPerformance])
   const [isNavigating, setIsNavigating] = useState(false)
 
   // Use ref for initial load tracking to avoid state timing issues
@@ -65,8 +77,13 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   }, [])
 
   const onIntroStart = useCallback((callback: () => void) => {
+    // Instant mode: fire immediately, no transition gate to wait for
+    if (isLowPerformance) {
+      callback()
+      return
+    }
     onIntroStartRef.current = callback
-  }, [])
+  }, [isLowPerformance])
 
   const doReveal = useCallback(() => {
     if (revealTriggeredRef.current) return
@@ -173,6 +190,30 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
       revealTimeoutRef.current = null
     }
 
+    // Instant mode: skip all transition states, navigate immediately
+    if (isLowPerformance) {
+      isInitialLoadRef.current = false
+      isFirstQualitySelectionRef.current = false
+      if (onBeforeReveal) onBeforeReveal()
+      const isSamePage = href === pathname
+      if (!isSamePage) {
+        // Pre-update prevPathname so the Navigation useEffect doesn't misfire
+        // on a later Animated navigation (it would otherwise see a stale
+        // mismatch between prevPathname and the current pathname and trigger
+        // a premature loading state before NAVIGATION_DELAY completes).
+        prevPathname.current = href
+        router.push(href)
+      }
+      // Fire intro animations on next tick after new page mounts
+      Promise.resolve().then(() => {
+        if (onIntroStartRef.current) {
+          onIntroStartRef.current()
+          onIntroStartRef.current = null
+        }
+      })
+      return
+    }
+
     const currentTransitionId = ++transitionIdRef.current
 
     onBeforeRevealRef.current = onBeforeReveal || null
@@ -203,7 +244,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
         router.push(href)
       }
     }, NAVIGATION_DELAY)
-  }, [pathname, router, startWaitingForReady, cleanupTimers])
+  }, [pathname, router, startWaitingForReady, cleanupTimers, isLowPerformance])
 
   // Track mode changes
   useEffect(() => {
@@ -330,6 +371,22 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
       revealTimeoutRef.current = null
     }
 
+    // Instant mode: skip all overlays, push immediately
+    if (isLowPerformance) {
+      isInitialLoadRef.current = false
+      // Pre-update prevPathname so the Navigation useEffect doesn't misfire
+      // on a later Animated navigation.
+      prevPathname.current = href
+      router.push(href)
+      Promise.resolve().then(() => {
+        if (onIntroStartRef.current) {
+          onIntroStartRef.current()
+          onIntroStartRef.current = null
+        }
+      })
+      return
+    }
+
     const currentTransitionId = ++transitionIdRef.current
 
     setIsNavigating(true)
@@ -344,7 +401,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
       if (transitionIdRef.current !== currentTransitionId) return
       router.push(href)
     }, NAVIGATION_DELAY)
-  }, [isNavigating, pathname, router, cleanupTimers])
+  }, [isNavigating, pathname, router, cleanupTimers, isLowPerformance])
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -368,7 +425,8 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   const isRevealed = overlayState === 'hidden'
   // Show overlays for navigation OR for initial load when mode is already set (page reload)
   // Only show after context hydration to avoid SSR mismatch
-  const showOverlays = isHydrated && (!isInitialLoadRef.current || mode !== null)
+  // Instant mode: never show overlays
+  const showOverlays = isHydrated && !isLowPerformance && (!isInitialLoadRef.current || mode !== null)
 
   return (
     <TransitionContext.Provider value={{ transitionStage: overlayState, signalReady, isRevealed, isInitialLoad: isInitialLoadRef.current, navigateWithTransition, onIntroStart }}>
