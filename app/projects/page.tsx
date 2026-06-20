@@ -160,7 +160,7 @@ export default function ProjectsPage() {
   }, [])
 
   // Show carousel only when both flash has triggered AND slider is ready
-  // In low performance mode, show immediately when slider is ready (no flash)
+  // In low performance mode, fade in all at once when slider is ready (no flash)
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (isLowPerformance && sliderReady) {
@@ -230,7 +230,7 @@ export default function ProjectsPage() {
         className={`relative w-full bg-black ${expandedProject !== null ? 'overflow-visible md:overflow-hidden md:min-h-0 md:h-screen' : 'max-[865px]:overflow-visible overflow-hidden h-screen'}`}
         style={{ minHeight: isMobileExpanded ? mobileContainerHeight : undefined }}
       >
-        <BackgroundVideos visible={introFinished} isExpanded={expandedProject !== null} />
+        <BackgroundVideos visible={isLowPerformance || introFinished} isExpanded={expandedProject !== null} />
 
         {!introVideoEnded && !isLowPerformance && (
           <IntroVideo
@@ -270,17 +270,26 @@ export default function ProjectsPage() {
         <SocialLinks className="projects-social-links" />
       </div>
 
-      {/* Hidden preload for flash background - ensures browser caches image for CSS */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/projects/images/flash_bg.webp"
-        alt=""
-        className="fixed -top-[9999px] -left-[9999px] w-1 h-1 pointer-events-none opacity-0"
-        aria-hidden="true"
-      />
+      {/* Preload carousel textures so the browser caches them in parallel with Three.js bundle */}
+      {projects.map(p => (
+        <link key={`pl-thumb-${p.id}`} rel="preload" as="image" href={p.thumbnailImage} />
+      ))}
+      {projects.map(p => (
+        <link key={`pl-frame-${p.id}`} rel="preload" as="image" href={p.frame} />
+      ))}
+      {/* Flash background only needed in animated mode */}
+      {!isLowPerformance && (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img
+          src="/projects/images/flash_bg.webp"
+          alt=""
+          className="fixed -top-[9999px] -left-[9999px] w-1 h-1 pointer-events-none opacity-0"
+          aria-hidden="true"
+        />
+      )}
 
-      {/* Loading overlay - shows until all assets are loaded */}
-      {showLoadingOverlay && (
+      {/* Loading overlay - shows until all assets are loaded. Skipped entirely in Instant mode. */}
+      {showLoadingOverlay && !isLowPerformance && (
         <div className="fixed inset-0 z-[10000]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img

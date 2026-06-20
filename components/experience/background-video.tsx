@@ -21,7 +21,8 @@ export function BackgroundVideo({ onReady }: BackgroundVideoProps) {
   const [objectPosition, setObjectPosition] = useState('50% 50%')
   const animationFrameRef = useRef<number | null>(null)
 
-  const { isLowPerformance } = usePerformanceMode()
+  const { mode, isLowPerformance, isHydrated } = usePerformanceMode()
+  const isHighMode = mode === 'high'
   const { signalReady, transitionStage } = useTransitionState()
 
   const handleLoaded = useCallback(() => {
@@ -39,10 +40,10 @@ export function BackgroundVideo({ onReady }: BackgroundVideoProps) {
   }, [transitionStage])
 
   useEffect(() => {
-    if (isLowPerformance || (transitionStage !== 'revealing' && transitionStage !== 'hidden') || videoStartedRef.current) return
+    if (!isHydrated || !isHighMode || (transitionStage !== 'revealing' && transitionStage !== 'hidden') || videoStartedRef.current) return
     videoStartedRef.current = true
     introRef.current?.play()
-  }, [isLowPerformance, transitionStage])
+  }, [isHydrated, isHighMode, transitionStage])
 
   // Low performance mode: signal ready immediately
   // Include transitionStage in deps so this re-runs after navigation resets readyCalledRef
@@ -54,7 +55,7 @@ export function BackgroundVideo({ onReady }: BackgroundVideoProps) {
   }, [isLowPerformance, transitionStage, signalReady, onReady])
 
   useEffect(() => {
-    if (isLowPerformance) return
+    if (!isHydrated || !isHighMode) return
 
     const intro = introRef.current
 
@@ -97,7 +98,7 @@ export function BackgroundVideo({ onReady }: BackgroundVideoProps) {
       intro.removeEventListener('playing', handlePlaying)
       clearTimeout(timeout)
     }
-  }, [isLowPerformance, handleLoaded])
+  }, [isHydrated, isHighMode, handleLoaded])
 
   const handleIntroEnded = () => {
     setShowLoop(true)
@@ -135,7 +136,7 @@ export function BackgroundVideo({ onReady }: BackgroundVideoProps) {
     }
   }, [])
 
-  if (isLowPerformance) {
+  if (!isHydrated || !isHighMode) {
     return (
       <Image
         src="/animation_frames/experience/bg_anime/your_name_scene_.png0300.webp"

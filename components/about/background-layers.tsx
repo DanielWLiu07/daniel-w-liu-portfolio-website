@@ -201,7 +201,8 @@ function LowPerformanceBackgrounds() {
 export const BackgroundLayers = memo(function BackgroundLayers() {
   const [showSparkleLoop, setShowSparkleLoop] = useState(false)
   const [safariAnimating, setSafariAnimating] = useState(false)
-  const { isLowPerformance } = usePerformanceMode()
+  const { mode, isLowPerformance, isHydrated } = usePerformanceMode()
+  const isHighMode = mode === 'high'
   const { signalReady, transitionStage } = useTransitionState()
 
   const rightColourRef = useRef<HTMLVideoElement>(null)
@@ -230,7 +231,7 @@ export const BackgroundLayers = memo(function BackgroundLayers() {
   }, [transitionStage])
 
   useEffect(() => {
-    if (isLowPerformance || (transitionStage !== 'revealing' && transitionStage !== 'hidden') || animationsStartedRef.current) return
+    if (!isHydrated || !isHighMode || (transitionStage !== 'revealing' && transitionStage !== 'hidden') || animationsStartedRef.current) return
     animationsStartedRef.current = true
 
     // Background videos are already playing (pre-started during loading).
@@ -242,7 +243,7 @@ export const BackgroundLayers = memo(function BackgroundLayers() {
     triggerSvgAnimations(aboutBgSvgRef.current)
 
     setSafariAnimating(true)
-  }, [isLowPerformance, transitionStage])
+  }, [isHydrated, isHighMode, transitionStage])
 
   const handleSparkleIntroEnded = useCallback(() => {
     setShowSparkleLoop(true)
@@ -258,7 +259,7 @@ export const BackgroundLayers = memo(function BackgroundLayers() {
   }, [isLowPerformance, transitionStage, signalReady])
 
   useEffect(() => {
-    if (isLowPerformance) return
+    if (!isHydrated || !isHighMode) return
 
     const waterColour = waterColourRef.current
     const rightColour = rightColourRef.current
@@ -297,7 +298,7 @@ export const BackgroundLayers = memo(function BackgroundLayers() {
       rightColour?.removeEventListener('playing', handlePlaying)
       clearTimeout(timeout)
     }
-  }, [isLowPerformance, handleLoaded])
+  }, [isHydrated, isHighMode, handleLoaded])
 
   return (
     <>
@@ -305,7 +306,7 @@ export const BackgroundLayers = memo(function BackgroundLayers() {
         <Image src="/about/images/bg.webp" alt="" fill className="object-cover" priority />
       </div>
 
-      {isLowPerformance ? (
+      {!isHydrated || !isHighMode ? (
         <LowPerformanceBackgrounds />
       ) : (
         <>

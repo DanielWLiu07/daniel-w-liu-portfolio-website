@@ -5,12 +5,14 @@ import gsap from 'gsap'
 import { BackgroundVideo, ExperienceHeader, ExperienceList, SocialLinks, experiences } from '@/components/experience'
 import { useBodyOverflow } from '@/hooks/use-body-overflow'
 import { useTransitionState } from '@/components/ui/page-transition'
+import { usePerformanceMode } from '@/contexts/performance-mode-context'
 
 const ANIMATION_DELAY = 1.2
 
 export default function ExperiencePage() {
   const mainRef = useRef<HTMLElement>(null)
   const { transitionStage } = useTransitionState()
+  const { isLowPerformance } = usePerformanceMode()
   const animationsStartedRef = useRef(false)
   const gsapContextRef = useRef<gsap.Context | null>(null)
   const timelineRef = useRef<gsap.core.Timeline | null>(null)
@@ -40,6 +42,7 @@ export default function ExperiencePage() {
   }
 
   useLayoutEffect(() => {
+    if (isLowPerformance) return
     if (!mainRef.current) return
     gsapContextRef.current = gsap.context(() => {
       setInitialStates()
@@ -49,19 +52,21 @@ export default function ExperiencePage() {
       timelineRef.current?.kill()
       gsapContextRef.current?.revert()
     }
-  }, [])
+  }, [isLowPerformance])
 
   // Reset animations when navigating away
   useEffect(() => {
+    if (isLowPerformance) return
     if (transitionStage === 'loading') {
       animationsStartedRef.current = false
       timelineRef.current?.kill()
       timelineRef.current = null
       setInitialStates()
     }
-  }, [transitionStage])
+  }, [transitionStage, isLowPerformance])
 
   useEffect(() => {
+    if (isLowPerformance) return
     // Skip if not in revealing or hidden state (matches pattern from other pages)
     if (transitionStage !== 'revealing' && transitionStage !== 'hidden') return
     // Skip if animations already started
@@ -107,7 +112,7 @@ export default function ExperiencePage() {
         clearProps: 'willChange'
       }, '-=1.2')
     }, mainRef)
-  }, [transitionStage])
+  }, [transitionStage, isLowPerformance])
 
   return (
     <main ref={mainRef} className="flex h-screen relative overflow-hidden">

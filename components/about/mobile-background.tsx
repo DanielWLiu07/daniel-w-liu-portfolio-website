@@ -111,14 +111,14 @@ function HighPerformanceMobile({ scrollHeight }: { scrollHeight: number }) {
 }
 
 export function MobileBackground({ scrollHeight = 300 }: { scrollHeight?: number }) {
-  const { isLowPerformance } = usePerformanceMode()
+  const { mode, isHydrated } = usePerformanceMode()
 
   return (
     <>
       <div className="min-[1038px]:hidden fixed inset-0 z-0 pointer-events-none">
         <Image src="/about/images/bg.webp" alt="" fill className="object-cover" priority />
       </div>
-      {isLowPerformance ? <LowPerformanceMobile scrollHeight={scrollHeight} /> : <HighPerformanceMobile scrollHeight={scrollHeight} />}
+      {!isHydrated || mode !== 'high' ? <LowPerformanceMobile scrollHeight={scrollHeight} /> : <HighPerformanceMobile scrollHeight={scrollHeight} />}
     </>
   )
 }

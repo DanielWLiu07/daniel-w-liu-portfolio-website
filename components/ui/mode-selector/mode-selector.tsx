@@ -190,12 +190,21 @@ export function ModeSelector() {
       exitTimelineRef.current.kill()
     }
 
-    const EXIT_DURATION = 500
-
     if (entranceGsapContextRef.current) {
       entranceGsapContextRef.current.kill()
       entranceGsapContextRef.current = null
     }
+
+    // Instant mode: skip exit animation and page transition entirely
+    if (selectedMode === 'low') {
+      if (containerRef.current) {
+        containerRef.current.style.zIndex = '0'
+      }
+      setMode(selectedMode)
+      return
+    }
+
+    const EXIT_DURATION = 500
 
     const exitTl = gsap.timeline({ defaults: { overwrite: true } })
     exitTimelineRef.current = exitTl

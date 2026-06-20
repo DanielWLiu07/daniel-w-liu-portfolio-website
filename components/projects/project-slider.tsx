@@ -106,7 +106,9 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
   const onNextProjectRef = useRef(onNextProject)
   const onReadyRef = useRef(onReady)
 
-  const { isLowPerformance } = usePerformanceMode()
+  const { isLowPerformance, isHydrated } = usePerformanceMode()
+  const isLowPerformanceRef = useRef(isLowPerformance)
+  useEffect(() => { isLowPerformanceRef.current = isLowPerformance }, [isLowPerformance])
 
   useEffect(() => {
     onProjectClickRef.current = onProjectClick
@@ -321,12 +323,13 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
   }, [])
 
   useEffect(() => {
-    if (!containerRef.current || !containerReady || initializedRef.current) {
+    if (!containerRef.current || !containerReady || !isHydrated || initializedRef.current) {
       return
     }
 
     const container = containerRef.current
     initializedRef.current = true
+    const isLowPerformance = isLowPerformanceRef.current
 
     const scene = new THREE.Scene()
     sceneRef.current = scene
@@ -366,8 +369,8 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       videoAspectRatio: number
     }>()
 
-    // Track total UNIQUE assets to load: static thumbnails + frame textures + flash bg
-    const totalAssetsToLoad = projects.length * 2 + 1 // 1 thumbnail image + 1 frame per project + 1 flash bg
+    // Track total UNIQUE assets to load: static thumbnails + frame textures (+ flash bg in animated mode only)
+    const totalAssetsToLoad = projects.length * 2 + (isLowPerformance ? 0 : 1)
     let assetsLoadedCount = 0
 
     const deferredVideoLoads: (() => void)[] = []
@@ -381,11 +384,13 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       }
     }
 
-    // Preload flash background image
-    const flashBgImg = new Image()
-    flashBgImg.onload = checkAllAssetsLoaded
-    flashBgImg.onerror = checkAllAssetsLoaded // Count even on error to not block forever
-    flashBgImg.src = '/projects/images/flash_bg.webp'
+    // Preload flash background image (only needed in animated mode)
+    if (!isLowPerformance) {
+      const flashBgImg = new Image()
+      flashBgImg.onload = checkAllAssetsLoaded
+      flashBgImg.onerror = checkAllAssetsLoaded // Count even on error to not block forever
+      flashBgImg.src = '/projects/images/flash_bg.webp'
+    }
 
     // Detect mobile devices for static thumbnails (videos are heavy on phones)
     const isMobileDevice = container.clientWidth < MD_BREAKPOINT
@@ -2179,12 +2184,12 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       }
       renderer.dispose()
     }
-  }, [containerReady, isLowPerformance])
+  }, [containerReady, isHydrated])
 
   return (
     <div
       ref={containerRef}
-      className={`absolute inset-x-0 top-0 h-screen z-[55] overflow-visible transition-opacity [&>canvas]:absolute [&>canvas]:inset-0 [&>canvas]:w-full [&>canvas]:h-full [&>canvas]:overflow-visible ${!visible ? 'opacity-0 pointer-events-none [&>canvas]:pointer-events-none' : 'opacity-100 pointer-events-auto [&>canvas]:pointer-events-auto'}`}
+      className={`absolute inset-x-0 top-0 h-screen z-[55] overflow-visible transition-opacity duration-700 ease-out [&>canvas]:absolute [&>canvas]:inset-0 [&>canvas]:w-full [&>canvas]:h-full [&>canvas]:overflow-visible ${!visible ? 'opacity-0 pointer-events-none [&>canvas]:pointer-events-none' : 'opacity-100 pointer-events-auto [&>canvas]:pointer-events-auto'}`}
       onTouchStart={handleCarouselTouchStart}
       onTouchEnd={handleCarouselTouchEnd}
       onMouseDown={handleCarouselTouchStart}

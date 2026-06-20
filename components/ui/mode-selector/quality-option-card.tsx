@@ -28,15 +28,15 @@ export const QualityOptionCard = forwardRef<HTMLDivElement, QualityOptionCardPro
         >
           <Image
             src={isHigh ? '/quality/images/sticky_quality_outline_1.webp' : '/quality/images/sticky_quality_outline_2.webp'}
-            alt={isHigh ? 'High Quality' : 'Low Quality'}
+            alt={isHigh ? 'Animated' : 'Instant'}
             width={420}
             height={420}
             className="overflow-visible absolute inset-0 w-full h-full object-cover brightness-[1.05] saturate-[1.2] contrast-[1.05]"
             priority
           />
           <div className={`absolute inset-0 flex flex-col items-center justify-center px-6 md:px-10 py-10 md:py-16 text-gray-800 ${frederickaFont.className} leading-relaxed pointer-events-none z-10`}>
-            <div className="text-2xl md:text-[2.4rem] lg:text-[2.75rem] font-bold mb-3 md:mb-6 tracking-wider md:text-stroke-white text-stroke-white-sm drop-shadow-lg text-[#2c1810] whitespace-nowrap">
-              {isHigh ? 'High Quality' : 'Low Quality'}
+            <div className="text-2xl md:text-[2.4rem] lg:text-[3.5rem] font-bold mb-3 md:mb-6 tracking-wider md:text-stroke-white text-stroke-white-sm drop-shadow-lg text-[#2c1810] whitespace-nowrap">
+              {isHigh ? 'Animated' : 'Instant'}
             </div>
             <div className="text-base md:text-lg lg:text-lg text-center space-y-1 md:space-y-2 tracking-wider text-stroke-white-xs drop-shadow-lg text-[#2c1810]">
               {isHigh ? (
