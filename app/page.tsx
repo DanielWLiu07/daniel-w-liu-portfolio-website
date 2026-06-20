@@ -27,8 +27,8 @@ function usePreloadVideo() {
     video.muted = true
     video.playsInline = true
     const src = isSafari
-      ? '/landing/videos/landing_composite_24fps_hevc.mov?v=3'
-      : '/landing/videos/landing_composite_24fps.webm?v=3'
+      ? '/landing/videos/landing_composite_24fps_hevc.mov?v=4'
+      : '/landing/videos/landing_composite_24fps.webm?v=4'
     video.src = src
     preloadRef.current = video
     return () => {
@@ -294,7 +294,7 @@ export default function Home() {
                     <AlphaVideo
                       ref={compositeVideoRef}
                       src="/landing/videos/landing_composite_24fps"
-                      query="?v=3"
+                      query="?v=4"
                       fallbackImage="/animation_frames/landing/composed_bg/composed_bg0300.webp"
                       className="absolute inset-0 w-full h-full object-cover"
                       autoPlay
