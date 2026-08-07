@@ -4,6 +4,7 @@ import "./globals.css";
 import Navbar from "@/components/ui/navbar";
 import { PerformanceModeProvider } from "@/contexts/performance-mode-context";
 import { PageTransition } from "@/components/ui/page-transition";
+import { Analytics } from "@vercel/analytics/next";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -70,6 +71,9 @@ export default function RootLayout({
             {children}
           </PageTransition>
         </PerformanceModeProvider>
+        {/* Vercel Web Analytics: injects the pageview beacon. Also needs
+            Analytics enabled for this project in the Vercel dashboard. */}
+        <Analytics />
       </body>
     </html>
   );
