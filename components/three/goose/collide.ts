@@ -1,5 +1,5 @@
 /**
- * Stop the goose walking through the scenery.
+ * Stop the goose walking through the scenery — but not over it.
  */
 import type { Collider } from "../environment";
 
@@ -15,11 +15,13 @@ export function penetration(
   radius: number,
   boxes: readonly Collider[],
   out: { x: number; z: number },
+  y = -Infinity,
 ): boolean {
   out.x = 0;
   out.z = 0;
   let hit = false;
   for (const b of boxes) {
+    if (y > b.top) continue;
     const nx = Math.min(Math.max(x, b.x - b.hx), b.x + b.hx);
     const nz = Math.min(Math.max(z, b.z - b.hz), b.z + b.hz);
     const dx = x - nx;
@@ -82,12 +84,15 @@ export function resolveCollisions(
   boxes: readonly Collider[],
   bounds = 0,
   out: Resolved = { x: 0, z: 0, hit: false },
+  y = -Infinity,
 ): Resolved {
   let px = x;
   let pz = z;
   let hit = false;
 
   for (const b of boxes) {
+    // Above it: the goose is clearing it, so there is nothing to resolve.
+    if (y > b.top) continue;
     // Nearest point on the box to the goose's centre.
     const nx = Math.min(Math.max(px, b.x - b.hx), b.x + b.hx);
     const nz = Math.min(Math.max(pz, b.z - b.hz), b.z + b.hz);

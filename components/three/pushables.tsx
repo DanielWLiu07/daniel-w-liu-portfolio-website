@@ -145,12 +145,13 @@ export default function Pushables({
       b.pos.z = THREE.MathUtils.clamp(b.pos.z, -bounds, bounds);
 
       if (colliders?.current) {
-        const c = (colliders.current[i] ??= { x: 0, z: 0, hx: 0, hz: 0 });
+        const c = (colliders.current[i] ??= { x: 0, z: 0, hx: 0, hz: 0, top: 0 });
         c.x = b.pos.x;
         c.z = b.pos.z;
         // Square footprint: the crate spins, and a rotating AABB would pop.
         c.hx = b.size;
         c.hz = b.size;
+        c.top = b.size * 2;
       }
 
       const m = meshes.current[i];

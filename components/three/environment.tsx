@@ -61,6 +61,8 @@ export interface Collider {
   z: number;
   hx: number;
   hz: number;
+  /** Height of the top face. Anything above this passes over. */
+  top: number;
 }
 
 const HEDGES = [
@@ -80,9 +82,11 @@ export const COLLIDERS: Collider[] = [
     z: h.p[2],
     hx: h.s[0] / 2,
     hz: h.s[2] / 2,
+    // Centre plus half the height: the same box the mesh draws.
+    top: h.p[1] + h.s[1] / 2,
   })),
   // The low stone wall.
-  { x: 0, z: -12, hx: (LAWN_HALF * 1.4) / 2, hz: 0.25 },
+  { x: 0, z: -12, hx: (LAWN_HALF * 1.4) / 2, hz: 0.25, top: 0.6 },
 ];
 
 export interface EnvironmentProps {

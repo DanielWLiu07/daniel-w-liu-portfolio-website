@@ -63,7 +63,10 @@ const LEG_STRETCH = 1.28;
  * an initial velocity is a number you tune blind until the arc looks right.
  *   v = sqrt(2 * g * h)
  */
-const JUMP_HEIGHT = 0.62;
+// Clears the 0.7 hedges and the 0.6 wall with margin. At 0.62 the goose
+// topped out below every one of them, so height-aware collision made no
+// visible difference — it was still stopped, just for the right reason.
+const JUMP_HEIGHT = 0.95;
 const JUMP_GRAVITY = 11.5;
 const JUMP_SPEED = Math.sqrt(2 * JUMP_GRAVITY * JUMP_HEIGHT);
 /**
@@ -297,7 +300,9 @@ export default function GooseActor({
   const hitResult = useRef<Resolved>({ x: 0, z: 0, hit: false });
   const headPush = useRef({ x: 0, z: 0 });
   const solidScratch = useRef<Collider[]>([]);
-  const neckOffsets = useRef<{ dx: number; dz: number; r: number }[]>([]);
+  const neckOffsets = useRef<
+    { dx: number; dz: number; y: number; r: number }[]
+  >([]);
   const ikSolution = useRef<TwoBoneSolution>({
     knee: new THREE.Vector3(),
     stretched: false,
@@ -719,6 +724,7 @@ export default function GooseActor({
           neckOffsets.current.push({
             dx: headNow.x - g.position.x,
             dz: headNow.z - g.position.z,
+            y: headNow.y,
             r: cap.radius,
           });
         }
