@@ -23,7 +23,7 @@ const RUN_CLEARANCE = 0.022;
  * Extra clearance once the legs are cycling. Tuned to standing alone, the walk
  * clipped on 87% of frames; tuned to the walk, the idle goose floated.
  */
-const WALK_CLEARANCE = 0.024;
+const WALK_CLEARANCE = 0.029;
 
 /** How far the feet tuck up toward the body in mid-air, world units. */
 const TUCK = 0.045;
@@ -34,6 +34,18 @@ const TUCK_RESPONSE = 11;
  * them 0.11 against 0.019 while walking, and that spike is the visible snap.
  */
 const RECOVER = 0.18;
+/**
+ * Fastest a foot may move, world units per second.
+ *
+ * A speed limit, not a smoother. Everything here is meant to be continuous,
+ * but the phase can step over the end of a swing on a long frame, and the
+ * re-plant then lands as a jump — measured at 0.13 in a single frame against
+ * 0.036 while walking, with a matching dip of the sole through the lawn.
+ *
+ * 4.0 is well above anything the gait legitimately asks for (the run peaks
+ * near 1.5), so this only ever catches discontinuities.
+ */
+const MAX_FOOT_SPEED = 4;
 /**
  * How far ahead to plant, as a fraction of stride. DERIVED.
  */
@@ -63,6 +75,8 @@ export interface FootAnchor {
 
 interface Foot {
   pos: THREE.Vector3;
+  /** Where it was last frame, for the speed limit. */
+  prev: THREE.Vector3;
   from: THREE.Vector3;
   to: THREE.Vector3;
   planted: boolean;
@@ -98,6 +112,7 @@ export class FootPlanner {
   constructor(anchors: { L: FootAnchor; R: FootAnchor }, groundY: number) {
     const mk = (anchor: FootAnchor): Foot => ({
       pos: new THREE.Vector3(),
+      prev: new THREE.Vector3(),
       from: new THREE.Vector3(),
       to: new THREE.Vector3(),
       planted: true,
@@ -184,7 +199,7 @@ export class FootPlanner {
         f.to.copy(f.pos);
       }
       this.wasAirborne = true;
-      return { L: this.feet.L, R: this.feet.R, hipDrop: 0 };
+      return this.limit();
     }
 
     if (this.wasAirborne) {
@@ -231,7 +246,7 @@ export class FootPlanner {
         const f = this.feet[key];
         f.pos.lerpVectors(f.from, f.to, e);
       }
-      return { L: this.feet.L, R: this.feet.R, hipDrop: 0 };
+      return this.limit();
     }
 
     for (const key of ["L", "R"] as const) {
@@ -296,6 +311,25 @@ export class FootPlanner {
         f.pos.x = this.scratch.want.x + dx * k;
         f.pos.z = this.scratch.want.z + dz * k;
       }
+    }
+
+    return this.limit();
+  }
+
+  /** Speed-limit both feet, whatever produced the movement. */
+  private limit(): FootPlan {
+    for (const key of ["L", "R"] as const) {
+      const f = this.feet[key];
+      const dx = f.pos.x - f.prev.x;
+      const dy = f.pos.y - f.prev.y;
+      const dz = f.pos.z - f.prev.z;
+      const step = Math.hypot(dx, dy, dz);
+      const cap = MAX_FOOT_SPEED * this.lastDt;
+      if (step > cap && step > 1e-6) {
+        const k = cap / step;
+        f.pos.set(f.prev.x + dx * k, f.prev.y + dy * k, f.prev.z + dz * k);
+      }
+      f.prev.copy(f.pos);
     }
 
     return {
