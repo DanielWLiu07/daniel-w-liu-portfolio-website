@@ -25,6 +25,8 @@ export interface RunTunerProps {
   beakAngle: number;
   headAhead: number;
   headAbove: number;
+  /** Bones currently pinned against a joint limit. */
+  clamped: string[];
   onReset: () => void;
 }
 
@@ -55,7 +57,7 @@ function Row({
         onChange={(e) => onChange(Number(e.target.value))}
         className="w-28 accent-neutral-700"
       />
-      <b className="w-10 shrink-0 tabular-nums">{value.toFixed(2)}</b>
+      <b className="w-12 shrink-0 tabular-nums">{value.toFixed(2)}</b>
     </label>
   );
 }
@@ -66,6 +68,7 @@ export default function RunTuner({
   beakAngle,
   headAhead,
   headAbove,
+  clamped,
   onReset,
 }: RunTunerProps) {
   const [open, setOpen] = useState(false);
@@ -116,19 +119,19 @@ neck: [${value.neck.map((n) => n.toFixed(2)).join(', ')}]`;
         />
         <span className="text-neutral-600">hold the run pose while standing</span>
       </label>
-      <Row label="speed" value={value.speed} min={0.6} max={3} onChange={(v) => set({ speed: v })} />
+      <Row label="speed" value={value.speed} min={0.2} max={6} onChange={(v) => set({ speed: v })} />
       <Row
         label="body"
         value={value.bodyPitch}
-        min={0}
-        max={1.2}
+        min={-1.2}
+        max={2.5}
         onChange={(v) => set({ bodyPitch: v })}
       />
       <Row
         label="head"
         value={value.headTilt}
-        min={0}
-        max={2.8}
+        min={-3}
+        max={6}
         onChange={(v) => set({ headTilt: v })}
       />
       {value.neck.map((n, i) => (
@@ -136,8 +139,8 @@ neck: [${value.neck.map((n) => n.toFixed(2)).join(', ')}]`;
           key={i}
           label={`neck${i + 1}`}
           value={n}
-          min={0}
-          max={0.9}
+          min={-1.6}
+          max={1.9}
           onChange={(v) => setNeck(i, v)}
         />
       ))}
@@ -146,6 +149,12 @@ neck: [${value.neck.map((n) => n.toFixed(2)).join(', ')}]`;
         beak {beakAngle >= 0 ? '+' : ''}
         {beakAngle.toFixed(0)}&deg; &middot; head {headAhead.toFixed(2)} ahead,{' '}
         {headAbove.toFixed(2)} above hips
+        {clamped.length > 0 && (
+          <div className="text-amber-700">
+            at joint limit: {clamped.join(', ')} — further slider movement on
+            these does nothing
+          </div>
+        )}
       </div>
       <pre className="mt-1 overflow-x-auto text-[10px] leading-snug text-neutral-500">{snippet}</pre>
     </div>

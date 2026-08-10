@@ -163,7 +163,12 @@ function Scene({
 }: {
   onGraph: (g: GraphNode) => void;
   tuning: RunTuning;
-  onPose: (p: { beak: number; ahead: number; above: number }) => void;
+  onPose: (p: {
+    beak: number;
+    ahead: number;
+    above: number;
+    clamped: string[];
+  }) => void;
 }) {
   const [target, setTarget] = useState<THREE.Vector3 | null>(null);
   const [honk, setHonk] = useState(false);
@@ -231,7 +236,9 @@ function Scene({
           onMove={onMove}
           onGraph={onGraph}
           tuning={tuning}
-          onBeakAngle={(beak, ahead, above) => onPose({ beak, ahead, above })}
+          onBeakAngle={(beak, ahead, above, clamped) =>
+            onPose({ beak, ahead, above, clamped })
+          }
           crates={crateColliders}
         />
       </Suspense>
@@ -251,7 +258,12 @@ export default function PlayPage() {
   // own — the head inherits the whole neck before this term is applied, so the
   // same number means different things walking and running.
   const [tuning, setTuning] = useState<RunTuning>(RUN_DEFAULTS);
-  const [pose, setPose] = useState({ beak: 0, ahead: 0, above: 0 });
+  const [pose, setPose] = useState<{
+    beak: number;
+    ahead: number;
+    above: number;
+    clamped: string[];
+  }>({ beak: 0, ahead: 0, above: 0, clamped: [] });
 
   return (
     <div className="w-full h-screen bg-[#cfe3ef] relative select-none">
@@ -296,6 +308,7 @@ export default function PlayPage() {
           beakAngle={pose.beak}
           headAhead={pose.ahead}
           headAbove={pose.above}
+          clamped={pose.clamped}
           onReset={() => setTuning(RUN_DEFAULTS)}
         />
         <button

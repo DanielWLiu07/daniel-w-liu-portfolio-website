@@ -20,7 +20,7 @@ import {
 import { FootPlanner, solveTwoBone, type TwoBoneSolution } from "./foot-ik";
 import { applyWalk, Spring } from "./goose-walk";
 import { gooseMaterial } from "./goose-shading";
-import { assertBones, usePoseDriver } from "./use-pose-driver";
+import { assertBones, GOOSE_LIMITS, usePoseDriver } from "./use-pose-driver";
 
 const SRC = "/models/goose-rigged.draco.glb";
 /**
@@ -148,8 +148,9 @@ export interface GooseActorProps {
   tuning?: RunTuning;
   /** Run head-tilt coefficient. See WalkInput.runHeadTilt. */
   headTilt?: number;
-  /** Live pose readout, throttled: beak angle plus where the head sits. */
-  onBeakAngle?: (deg: number, ahead: number, above: number) => void;
+  /** Live pose readout, throttled: beak angle, head placement, and which
+   * bones are pinned against their joint limits. */
+  onBeakAngle?: (deg: number, ahead: number, above: number, clamped: string[]) => void;
 }
 
 export default function GooseActor({
@@ -888,7 +889,16 @@ export default function GooseActor({
           ahead = Math.hypot(headNow.x - capA.x, headNow.z - capA.z);
           above = headNow.y - capA.y;
         }
-        if (flat > 1e-5) onBeakAngle((Math.atan2(dy, flat) * 180) / Math.PI, ahead, above);
+        // Anything sitting on its stop is ignoring further input from the
+        // sliders, which is worth saying out loud.
+        const clamped: string[] = [];
+        for (const n of ["neck1", "neck2", "neck3", "neck4", "head", "spine", "chest"]) {
+          const lim = GOOSE_LIMITS[n];
+          if (lim && pose.restDeviation(n) > lim * 0.97) clamped.push(n);
+        }
+        if (flat > 1e-5) {
+          onBeakAngle((Math.atan2(dy, flat) * 180) / Math.PI, ahead, above, clamped);
+        }
       }
     }
 

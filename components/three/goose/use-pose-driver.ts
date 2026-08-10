@@ -109,28 +109,25 @@ export const GOOSE_DAMPING: Damping = {
 export type Limits = Record<string, number>;
 
 export const GOOSE_LIMITS: Limits = {
-  neck1: 42,
-  neck2: 42,
-  neck3: 45,
-  neck4: 45,
-  // Head opened up from 40: with the neck straightened out for a run, the head
-  // has to swing back through most of that to stay level, and 40 clamped it.
-  // 88, because the running head uses 53 degrees just to cancel the neck it is
-  // sitting on, before any of the nose-up tilt is applied. At 64 the tilt was
-  // computed correctly and then clipped straight back off, which looks exactly
-  // like the change not working.
-  // 125. Raised twice now, for the same reason each time: the running head
-  // spends ~53 degrees just cancelling the straightened neck it sits on, before
-  // any nose-up tilt is applied. Whatever is left is the tilt's budget, so the
-  // limit has to be the neck cancellation PLUS the tilt wanted, not the tilt
-  // alone. At 88 the slider saturated around +30 degrees of beak.
-  head: 125,
+  /**
+   * Wide, because these are driven by hand from the tuning panel.
+   *
+   * A limit that fires mid-drag looks exactly like the slider not working: the
+   * number changes, the picture does not, and nothing says why. The head in
+   * particular spends most of its budget just cancelling the straightened neck
+   * it sits on, so the limit has to cover cancellation PLUS the tilt wanted.
+   */
+  neck1: 150,
+  neck2: 150,
+  neck3: 155,
+  neck4: 155,
+  head: 175,
   jaw: 65,
   beak: 30,
   tail: 32,
-  hips: 28,
-  spine: 26,
-  chest: 26,
+  hips: 55,
+  spine: 70,
+  chest: 70,
   root: 22,
   wingL: 45,
   wingR: 45,
