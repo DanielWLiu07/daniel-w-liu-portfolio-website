@@ -53,3 +53,14 @@ public/_originals/
 # documentation (except README)
 *.md
 !README.md
+
+# --- 3D working files -------------------------------------------------------
+# Local scratch that must never enter git history: Blender sources, archived
+# model experiments, and the uncompressed video original whose ~4 MB shipped
+# version already lives in public/landing/videos.
+.archive/
+blender-bridge/
+*.blend
+*.blend1
+*.orig.webm
+*.orig.mov
