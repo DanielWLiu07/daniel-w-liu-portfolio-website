@@ -84,6 +84,8 @@ export class FootPlanner {
     want: new THREE.Vector3(),
   };
   private wasAirborne = false;
+  /** Whether the goose was moving last frame, for the settle-to-stance ease. */
+  private wasMoving = false;
   /** Seconds left of the post-landing ease. */
   private recover = 0;
   private lastDt = 1 / 60;
@@ -198,6 +200,27 @@ export class FootPlanner {
         f.planted = true;
       }
     }
+    /**
+     * Coming to a stop settles into a stance; it does not freeze the pose.
+     *
+     * Holding the feet wherever they happen to be is fine if both are down and
+     * wrong if one was mid-swing — it stays lifted and tucked under the body
+     * indefinitely, which reads as the foot being inside the goose. Walking
+     * into a wall is the usual way to hit it, because the goose stops at
+     * whatever point in the stride the wall happens to arrive.
+     */
+    if (!moving && this.wasMoving) {
+      this.wasMoving = false;
+      this.recover = RECOVER;
+      for (const key of ["L", "R"] as const) {
+        const f = this.feet[key];
+        f.from.copy(f.pos);
+        this.plantSpot(f, bodyPos, heading, 0, f.to);
+        f.planted = true;
+      }
+    }
+    if (moving) this.wasMoving = true;
+
     if (this.recover > 0) {
       this.recover = Math.max(0, this.recover - this.lastDt);
       const t = 1 - this.recover / RECOVER;
@@ -218,8 +241,8 @@ export class FootPlanner {
       const phase = mod1(cycle + (key === "R" ? 0.5 : 0));
 
       if (!moving) {
-        // Standing: hold whatever ground the foot is already on. Re-planting a
-        // stationary goose makes it shuffle on the spot.
+        // Settled. Hold the stance rather than re-planting, or a stationary
+        // goose shuffles on the spot.
         f.planted = true;
         continue;
       }
