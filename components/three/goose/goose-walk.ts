@@ -104,6 +104,8 @@ export interface WalkInput {
    * forward, which works on a model whose bill cannot open.
    */
   honk?: number;
+  /** 0..1, whether the bill is carrying something. Weighs the head down. */
+  carrying?: number;
   /**
    * 0 = walking, 1 = running.
    */
@@ -137,6 +139,7 @@ export function applyWalk(
     runNeck = RUN_NECK,
     runBodyPitch = 0.46,
     honk = 0,
+    carrying = 0,
   }: WalkInput,
 ): void {
   const p = (distance / STRIDE) * TAU;
@@ -219,7 +222,9 @@ export function applyWalk(
         lag * 0.13 * trail +
         r * (runNeck[i] ?? 0) -
         // Neck stretches up on a honk, base leading.
-        honk * 0.12 * (1.2 - trail * 0.4),
+        honk * 0.12 * (1.2 - trail * 0.4) +
+        // A full bill pulls the neck down, most at the tip.
+        carrying * 0.06 * trail,
       // yaw
       turn * 0.05 * k,
       // roll

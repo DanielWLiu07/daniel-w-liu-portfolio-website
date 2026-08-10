@@ -128,6 +128,14 @@ function MoveMarker({ at }: { at: THREE.Vector3 | null }) {
 }
 
 /** Scattered where the goose will run into them on the way to anywhere. */
+/**
+ * Crates to shove, and small props to steal.
+ *
+ * The size split is the mechanic: anything under GRAB_MAX is small enough to
+ * carry in the bill, and everything above it can only be pushed. A crate held
+ * up at head height is 0.7 across against a 1.3 goose — it fills the camera
+ * and hides the bird entirely, which is the whole subject.
+ */
 const CRATES: Pushable[] = [
   { position: [2.4, 0.35, -2.2], size: 0.35, rotation: 0.4 },
   { position: [3.3, 0.35, -3.1], size: 0.35, rotation: -0.2 },
@@ -144,6 +152,11 @@ const CRATES: Pushable[] = [
     rotation: -0.9,
     color: [0.74, 0.4, 0.34],
   },
+  // Steal-ables. Small enough to carry in the bill.
+  { position: [1.1, 0.09, 1.4], size: 0.09, color: [0.86, 0.28, 0.24] },
+  { position: [-2.2, 0.08, -1.1], size: 0.08, color: [0.95, 0.84, 0.32] },
+  { position: [0.4, 0.1, 3.1], size: 0.1, rotation: 0.6, color: [0.28, 0.4, 0.72] },
+  { position: [-3.4, 0.085, -3.6], size: 0.085, color: [0.2, 0.2, 0.22] },
 ];
 
 function RenderProbe() {
@@ -160,7 +173,9 @@ function Scene({
   onGraph,
   tuning,
   onPose,
+  onGrab,
 }: {
+  onGrab: (holding: boolean) => void;
   onGraph: (g: GraphNode) => void;
   tuning: RunTuning;
   onPose: (p: {
@@ -176,6 +191,9 @@ function Scene({
   // Shared between the crates (which write it) and the goose (which is blocked
   // by it), so pushing and colliding always agree about where a crate is.
   const crateColliders = useRef<Collider[]>([]);
+  // Shared bill position and what it is holding, so the crates can follow it.
+  const beakPos = useRef(new THREE.Vector3());
+  const grabbed = useRef<number | null>(null);
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -226,7 +244,13 @@ function Scene({
 
       <MoveMarker at={target} />
       <GooseShadow subject={pos} />
-      <Pushables items={CRATES} goose={pos} colliders={crateColliders} />
+      <Pushables
+        items={CRATES}
+        goose={pos}
+        colliders={crateColliders}
+        grabbed={grabbed}
+        beak={beakPos}
+      />
 
       <Suspense fallback={null}>
         <GooseActor
@@ -240,6 +264,9 @@ function Scene({
             onPose({ beak, ahead, above, clamped })
           }
           crates={crateColliders}
+          beak={beakPos}
+          grabbed={grabbed}
+          onGrab={onGrab}
         />
       </Suspense>
 
@@ -253,6 +280,7 @@ export default function PlayPage() {
   // The graph the goose's material was compiled from, handed back by the actor.
   const [graph, setGraph] = useState<GraphNode | null>(null);
   const [showGraph, setShowGraph] = useState(false);
+  const [holding, setHolding] = useState(false);
   // Run head tilt, live-adjustable. The readout is the beak's ACTUAL angle
   // rather than the coefficient, because the coefficient is meaningless on its
   // own — the head inherits the whole neck before this term is applied, so the
@@ -282,7 +310,12 @@ export default function PlayPage() {
           return renderer as unknown as never;
         }}
       >
-        <Scene onGraph={setGraph} tuning={tuning} onPose={setPose} />
+        <Scene
+          onGraph={setGraph}
+          tuning={tuning}
+          onPose={setPose}
+          onGrab={setHolding}
+        />
       </Canvas>
 
       <div className="absolute top-24 left-6 font-mono text-[11px] text-neutral-700 bg-white/70 rounded px-3 py-2 leading-relaxed">
@@ -300,6 +333,9 @@ export default function PlayPage() {
         </div>
         <div>
           <b>H</b> — honk
+        </div>
+        <div>
+          <b>E</b> — {holding ? 'drop it' : 'grab with your bill'}
         </div>
         <div className="text-neutral-500 mt-1">walk into the crates</div>
         <RunTuner

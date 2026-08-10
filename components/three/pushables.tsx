@@ -26,6 +26,16 @@ interface Body {
   size: number;
 }
 
+/**
+ * How far a dragged crate trails behind the bill.
+ *
+ * Only small props can be grabbed at all (see GRAB_MAX_SIZE), so a carried
+ * item rides just under the bill without hiding the bird behind it.
+ */
+const DRAG_BEHIND = 0.12;
+/** How quickly a crate reaches the bill when grabbed. Not instant. */
+const CARRY_SNAP = 14;
+
 /** How close the goose has to be to shove something, beyond the crate's size. */
 const REACH = 0.42;
 /** Ground friction. Crates should stop soon after you stop pushing. */
@@ -35,6 +45,10 @@ const PUSH = 7.5;
 
 export interface PushablesProps {
   items: Pushable[];
+  /** Index of the crate currently in the goose's bill, or null. */
+  grabbed?: React.RefObject<number | null>;
+  /** Live bill position, written by the goose. */
+  beak?: React.RefObject<THREE.Vector3>;
   /**
    * Written every frame with each crate's live footprint, so the goose can be
    * BLOCKED by the same boxes it shoves. Published rather than recomputed:
@@ -52,6 +66,8 @@ export default function Pushables({
   items,
   goose,
   colliders,
+  grabbed,
+  beak,
   bounds = 24,
 }: PushablesProps) {
   const meshes = useRef<(THREE.Mesh | null)[]>([]);
@@ -99,6 +115,53 @@ export default function Pushables({
 
     for (let i = 0; i < list.length; i++) {
       const b = list[i];
+
+      /**
+       * Carried crates follow the bill instead of being simulated.
+       *
+       * Eased rather than snapped, so picking something up looks like the goose
+       * closing its bill on it. The velocity is kept up to date from the actual
+       * movement, so letting go throws the crate at whatever speed the head was
+       * already travelling — which is most of the fun.
+       */
+      if (grabbed?.current === i && beak?.current) {
+        const bp = beak.current;
+        const k = Math.min(1, CARRY_SNAP * dt);
+        const px = b.pos.x;
+        const pz = b.pos.z;
+        // Trail slightly toward the goose, so it reads as being pulled rather
+        // than pushed along by an invisible hand.
+        const gx = goose.current?.x ?? bp.x;
+        const gz = goose.current?.z ?? bp.z;
+        const away = Math.hypot(bp.x - gx, bp.z - gz) || 1;
+        const tx = bp.x - ((bp.x - gx) / away) * DRAG_BEHIND;
+        const tz = bp.z - ((bp.z - gz) / away) * DRAG_BEHIND;
+        b.pos.x += (tx - b.pos.x) * k;
+        // Held just under the bill: small props ride in the mouth.
+        b.pos.y += (Math.max(b.size, bp.y - b.size - 0.02) - b.pos.y) * k;
+        b.pos.z += (tz - b.pos.z) * k;
+        b.vel.set((b.pos.x - px) / dt, 0, (b.pos.z - pz) / dt);
+        b.spin *= Math.exp(-SPIN_FRICTION * dt);
+        b.angle += b.spin * dt;
+        const m0 = meshes.current[i];
+        if (m0) {
+          m0.position.copy(b.pos);
+          m0.rotation.y = b.angle;
+        }
+        // Not a collider while carried, or the goose shoulders its own cargo.
+        if (colliders?.current) {
+          const c = (colliders.current[i] ??= { x: 0, z: 0, hx: 0, hz: 0, top: 0 });
+          c.hx = 0;
+          c.hz = 0;
+          c.top = -1;
+        }
+        continue;
+      }
+
+      // Dropped: fall back to the ground before resuming normal shoving.
+      if (b.pos.y > b.size + 1e-3) {
+        b.pos.y = Math.max(b.size, b.pos.y - 4 * dt);
+      }
 
       // --- the goose shoves it -------------------------------------------
       if (g) {

@@ -97,6 +97,28 @@ const JUMP_SPEED = Math.sqrt(2 * JUMP_GRAVITY * JUMP_HEIGHT);
  * Anticipation before the push, in seconds.
  */
 const ANTICIPATION = 0.07;
+/**
+ * How close the BILL has to be to something to take hold of it.
+ *
+ * Measured from the bill rather than the body, because that is what the player
+ * is aiming: the goose reaches for things with its head, and a body-centred
+ * grab radius picks up whatever is nearest the feet instead of what is in
+ * front of the face.
+ *
+ * And measured to the crate's SURFACE, not its centre. A crate is 0.7 across,
+ * so walking up to one leaves the bill touching it while still being most of a
+ * metre from the middle — a centre test just refuses to pick up something the
+ * goose is visibly nose-to-nose with.
+ */
+const GRAB_REACH = 0.34;
+/**
+ * Biggest half-extent the bill will take hold of.
+ *
+ * Crates are 0.35 and stay shove-only. Carrying one is not a nice moment: held
+ * at head height it is half the goose's own height and completely fills the
+ * camera, and dragged along the ground it still hides the bird behind it.
+ */
+const GRAB_MAX_SIZE = 0.16;
 /** Ground level for the body. The lawn is flat, so this is a constant. */
 const GROUND_Y = 0;
 
@@ -146,6 +168,12 @@ export interface GooseActorProps {
   crates?: React.RefObject<Collider[]>;
   /** Live run-gait tuning. See the sliders on the play page. */
   tuning?: RunTuning;
+  /** Written each frame with the bill's world position. */
+  beak?: React.RefObject<THREE.Vector3>;
+  /** Index of the crate in the bill, or null. Written on grab and release. */
+  grabbed?: React.RefObject<number | null>;
+  /** Called when the grab state changes, for the HUD. */
+  onGrab?: (holding: boolean) => void;
   /** Run head-tilt coefficient. See WalkInput.runHeadTilt. */
   headTilt?: number;
   /** Live pose readout, throttled: beak angle, head placement, and which
@@ -163,6 +191,9 @@ export default function GooseActor({
   onBeakAngle,
   crates,
   tuning,
+  beak,
+  grabbed,
+  onGrab,
 }: GooseActorProps) {
   const group = useRef<THREE.Group>(null);
   const { scene } = useGLTF(SRC, DRACO);
@@ -312,6 +343,8 @@ export default function GooseActor({
     run: 0,
     /** Seconds since the beak angle was last reported. */
     beakTick: 0,
+    /** Grab key held last frame, so holding it does not drop and re-grab. */
+    grabHeld: false,
   });
 
   /**
@@ -760,6 +793,44 @@ export default function GooseActor({
       }
     }
 
+    /**
+     * Grab and release, on the rising edge of E.
+     *
+     * Nearest to the BILL, not to the body — and only things actually in front
+     * of the goose, so backing into a crate does not scoop it up.
+     */
+    if (bones.beak && beak?.current) {
+      bones.beak.updateWorldMatrix(true, false);
+      bones.beak.getWorldPosition(beak.current);
+    }
+    const wantGrab = Boolean(k.KeyE);
+    if (wantGrab && !st.grabHeld && grabbed) {
+      if (grabbed.current !== null) {
+        grabbed.current = null;
+        onGrab?.(false);
+      } else if (beak?.current && crates?.current?.length) {
+        const bp = beak.current;
+        let best = -1;
+        let bestD = GRAB_REACH;
+        crates.current.forEach((c, i) => {
+          if (c.hx <= 0) return; // already carried
+          if (c.hx > GRAB_MAX_SIZE) return; // too big for a bill
+          const nx = Math.min(Math.max(bp.x, c.x - c.hx), c.x + c.hx);
+          const nz = Math.min(Math.max(bp.z, c.z - c.hz), c.z + c.hz);
+          const d = Math.hypot(bp.x - nx, bp.z - nz);
+          if (d < bestD) {
+            bestD = d;
+            best = i;
+          }
+        });
+        if (best >= 0) {
+          grabbed.current = best;
+          onGrab?.(true);
+        }
+      }
+    }
+    st.grabHeld = wantGrab;
+
     pose.reset();
     // Jaw goes through the driver like every other bone.
     //
@@ -804,6 +875,8 @@ export default function GooseActor({
       runNeck: tuning?.neck,
       runBodyPitch: tuning?.bodyPitch,
       honk: st.jaw,
+      // Something in the bill weighs the head down a little.
+      carrying: grabbed?.current !== null && grabbed?.current !== undefined ? 1 : 0,
     });
 
     // --- foot IK -------------------------------------------------------------
