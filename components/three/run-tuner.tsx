@@ -107,6 +107,15 @@ neck: [${value.neck.map((n) => n.toFixed(2)).join(', ')}]`;
         </span>
       </div>
 
+      <label className="mb-1 flex items-center gap-2">
+        <input
+          type="checkbox"
+          checked={value.hold}
+          onChange={(e) => set({ hold: e.target.checked })}
+          className="accent-neutral-700"
+        />
+        <span className="text-neutral-600">hold the run pose while standing</span>
+      </label>
       <Row label="speed" value={value.speed} min={0.6} max={3} onChange={(v) => set({ speed: v })} />
       <Row
         label="body"

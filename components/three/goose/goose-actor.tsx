@@ -40,6 +40,14 @@ const SPEED_RUN = 1.45;
 
 /** Everything about the run that is worth tuning against the picture. */
 export interface RunTuning {
+  /**
+   * Hold the running pose while standing still.
+   *
+   * Tuning the run otherwise means holding shift, running, and dragging a
+   * slider at the same time — which is not possible one-handed, and the goose
+   * reaches a hedge before you have adjusted anything.
+   */
+  hold: boolean;
   speed: number;
   headTilt: number;
   bodyPitch: number;
@@ -47,6 +55,7 @@ export interface RunTuning {
 }
 
 export const RUN_DEFAULTS: RunTuning = {
+  hold: false,
   speed: SPEED_RUN,
   headTilt: 2.0,
   bodyPitch: 0.46,
@@ -763,7 +772,8 @@ export default function GooseActor({
 
     applyWalk(pose, {
       distance: st.distance,
-      gait: Math.min(1, speed / SPEED_WALK),
+      // Held, the pose shows at full strength with the goose standing still.
+      gait: tuning?.hold ? 1 : Math.min(1, speed / SPEED_WALK),
       time: st.time,
       turn: st.turn,
       lag,
@@ -788,7 +798,7 @@ export default function GooseActor({
       landImpact: st.landed,
       // Only counts as running if it is actually moving that fast — holding
       // shift while stationary should not restyle a standing goose.
-      run: st.run * Math.min(1, speed / runSpeed),
+      run: tuning?.hold ? 1 : st.run * Math.min(1, speed / runSpeed),
       runHeadTilt: tuning?.headTilt ?? headTilt,
       runNeck: tuning?.neck,
       runBodyPitch: tuning?.bodyPitch,
