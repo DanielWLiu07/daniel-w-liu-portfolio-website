@@ -95,6 +95,10 @@ export interface WalkInput {
    * a slider than with a rebuild.
    */
   runHeadTilt?: number;
+  /** Per-segment run neck pitch, overriding RUN_NECK. Four entries. */
+  runNeck?: readonly number[];
+  /** Body forward pitch when running, radians at full run. */
+  runBodyPitch?: number;
   /**
    * 0..1 honk envelope. Drives POSTURE, not the mouth: head thrown up and
    * forward, which works on a model whose bill cannot open.
@@ -130,6 +134,8 @@ export function applyWalk(
     landImpact = 0,
     run = 0,
     runHeadTilt = 2.0,
+    runNeck = RUN_NECK,
+    runBodyPitch = 0.46,
     honk = 0,
   }: WalkInput,
 ): void {
@@ -149,7 +155,7 @@ export function applyWalk(
   const fold = crouch * 0.16 + landImpact * 0.2;
   const r = Math.max(0, Math.min(1, run)) * g;
   // Extreme, not a lean — a half-measure just reads as walking faster.
-  const runPitch = r * 0.46;
+  const runPitch = r * runBodyPitch;
 
   // Roll is the whole gait; the yaw swings the body toward the planted foot.
   pose.rotate("hips", 0, step * 0.07 * g, step * 0.28 * g);
@@ -211,7 +217,7 @@ export function applyWalk(
       dbl * 0.016 * g * k * (1 - r * 0.8) +
         idle * k * (1 - r) +
         lag * 0.13 * trail +
-        r * (RUN_NECK[i] ?? 0) -
+        r * (runNeck[i] ?? 0) -
         // Neck stretches up on a honk, base leading.
         honk * 0.12 * (1.2 - trail * 0.4),
       // yaw

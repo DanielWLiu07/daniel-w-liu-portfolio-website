@@ -24,6 +24,11 @@ import { WebGPURenderer } from "three/webgpu";
 import Environment from "@/components/three/environment";
 import GooseActor from "@/components/three/goose/goose-actor";
 import NodeGraphView from "@/components/three/node-graph-view";
+import RunTuner from "@/components/three/run-tuner";
+import {
+  RUN_DEFAULTS,
+  type RunTuning,
+} from "@/components/three/goose/goose-actor";
 import type { Collider } from "@/components/three/environment";
 import Pushables, { type Pushable } from "@/components/three/pushables";
 import type { GraphNode } from "blender-to-threejs";
@@ -153,12 +158,12 @@ function RenderProbe() {
 
 function Scene({
   onGraph,
-  headTilt,
-  onBeakAngle,
+  tuning,
+  onPose,
 }: {
   onGraph: (g: GraphNode) => void;
-  headTilt: number;
-  onBeakAngle: (deg: number) => void;
+  tuning: RunTuning;
+  onPose: (p: { beak: number; ahead: number; above: number }) => void;
 }) {
   const [target, setTarget] = useState<THREE.Vector3 | null>(null);
   const [honk, setHonk] = useState(false);
@@ -225,8 +230,8 @@ function Scene({
           onArrive={() => setTarget(null)}
           onMove={onMove}
           onGraph={onGraph}
-          headTilt={headTilt}
-          onBeakAngle={onBeakAngle}
+          tuning={tuning}
+          onBeakAngle={(beak, ahead, above) => onPose({ beak, ahead, above })}
           crates={crateColliders}
         />
       </Suspense>
@@ -245,8 +250,8 @@ export default function PlayPage() {
   // rather than the coefficient, because the coefficient is meaningless on its
   // own — the head inherits the whole neck before this term is applied, so the
   // same number means different things walking and running.
-  const [headTilt, setHeadTilt] = useState(2.0);
-  const [beakAngle, setBeakAngle] = useState(0);
+  const [tuning, setTuning] = useState<RunTuning>(RUN_DEFAULTS);
+  const [pose, setPose] = useState({ beak: 0, ahead: 0, above: 0 });
 
   return (
     <div className="w-full h-screen bg-[#cfe3ef] relative select-none">
@@ -265,11 +270,7 @@ export default function PlayPage() {
           return renderer as unknown as never;
         }}
       >
-        <Scene
-          onGraph={setGraph}
-          headTilt={headTilt}
-          onBeakAngle={setBeakAngle}
-        />
+        <Scene onGraph={setGraph} tuning={tuning} onPose={setPose} />
       </Canvas>
 
       <div className="absolute top-24 left-6 font-mono text-[11px] text-neutral-700 bg-white/70 rounded px-3 py-2 leading-relaxed">
@@ -289,23 +290,14 @@ export default function PlayPage() {
           <b>H</b> — honk
         </div>
         <div className="text-neutral-500 mt-1">walk into the crates</div>
-        <label className="mt-2 block">
-          <span className="text-neutral-500">run head tilt</span>{" "}
-          <b>{headTilt.toFixed(2)}</b>{" "}
-          <span className="text-neutral-500">
-            &middot; beak {beakAngle >= 0 ? "+" : ""}
-            {beakAngle.toFixed(0)}&deg;
-          </span>
-          <input
-            type="range"
-            min={0}
-            max={2.8}
-            step={0.01}
-            value={headTilt}
-            onChange={(e) => setHeadTilt(Number(e.target.value))}
-            className="mt-1 w-40 block accent-neutral-700"
-          />
-        </label>
+        <RunTuner
+          value={tuning}
+          onChange={setTuning}
+          beakAngle={pose.beak}
+          headAhead={pose.ahead}
+          headAbove={pose.above}
+          onReset={() => setTuning(RUN_DEFAULTS)}
+        />
         <button
           type="button"
           onClick={() => setShowGraph((v) => !v)}

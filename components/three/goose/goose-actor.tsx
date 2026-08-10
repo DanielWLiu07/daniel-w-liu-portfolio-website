@@ -37,6 +37,21 @@ const DRACO = "/draco/";
  */
 const SPEED_WALK = 0.95;
 const SPEED_RUN = 1.45;
+
+/** Everything about the run that is worth tuning against the picture. */
+export interface RunTuning {
+  speed: number;
+  headTilt: number;
+  bodyPitch: number;
+  neck: number[];
+}
+
+export const RUN_DEFAULTS: RunTuning = {
+  speed: SPEED_RUN,
+  headTilt: 2.0,
+  bodyPitch: 0.46,
+  neck: [0.45, 0.34, 0.1, 0.04],
+};
 const ACCEL = 9;
 const DRAG = 7;
 /** Heading spring. Damping below 1 is what lets a hard turn overshoot. */
@@ -120,10 +135,12 @@ export interface GooseActorProps {
   onGraph?: (out: GraphNode) => void;
   /** Live crate footprints, so the goose cannot walk through them. */
   crates?: React.RefObject<Collider[]>;
+  /** Live run-gait tuning. See the sliders on the play page. */
+  tuning?: RunTuning;
   /** Run head-tilt coefficient. See WalkInput.runHeadTilt. */
   headTilt?: number;
-  /** Live beak angle in degrees, throttled. Positive is nose-up. */
-  onBeakAngle?: (deg: number) => void;
+  /** Live pose readout, throttled: beak angle plus where the head sits. */
+  onBeakAngle?: (deg: number, ahead: number, above: number) => void;
 }
 
 export default function GooseActor({
@@ -135,6 +152,7 @@ export default function GooseActor({
   headTilt = 2.0,
   onBeakAngle,
   crates,
+  tuning,
 }: GooseActorProps) {
   const group = useRef<THREE.Group>(null);
   const { scene } = useGLTF(SRC, DRACO);
@@ -381,7 +399,8 @@ export default function GooseActor({
     // the goose leaning into it instead of snapping between two rigs.
     const wantRun = Boolean(k.ShiftLeft || k.ShiftRight);
     st.run += ((wantRun ? 1 : 0) - st.run) * Math.min(1, 6 * dt);
-    const speedNow = SPEED_WALK + (SPEED_RUN - SPEED_WALK) * st.run;
+    const runSpeed = tuning?.speed ?? SPEED_RUN;
+    const speedNow = SPEED_WALK + (runSpeed - SPEED_WALK) * st.run;
 
     const manual = want.lengthSq() > 0;
     if (manual) {
@@ -769,8 +788,10 @@ export default function GooseActor({
       landImpact: st.landed,
       // Only counts as running if it is actually moving that fast — holding
       // shift while stationary should not restyle a standing goose.
-      run: st.run * Math.min(1, speed / SPEED_RUN),
-      runHeadTilt: headTilt,
+      run: st.run * Math.min(1, speed / runSpeed),
+      runHeadTilt: tuning?.headTilt ?? headTilt,
+      runNeck: tuning?.neck,
+      runBodyPitch: tuning?.bodyPitch,
       honk: st.jaw,
     });
 
@@ -844,12 +865,20 @@ export default function GooseActor({
       st.beakTick += dt;
       if (st.beakTick > 0.15) {
         st.beakTick = 0;
-        const { headNow, beakNow } = scratch;
+        const { headNow, beakNow, capA } = scratch;
         bones.head.getWorldPosition(headNow);
         bones.beak.getWorldPosition(beakNow);
         const dy = beakNow.y - headNow.y;
         const flat = Math.hypot(beakNow.x - headNow.x, beakNow.z - headNow.z);
-        if (flat > 1e-5) onBeakAngle((Math.atan2(dy, flat) * 180) / Math.PI);
+        const hips = bones.hips;
+        let ahead = 0;
+        let above = 0;
+        if (hips) {
+          hips.getWorldPosition(capA);
+          ahead = Math.hypot(headNow.x - capA.x, headNow.z - capA.z);
+          above = headNow.y - capA.y;
+        }
+        if (flat > 1e-5) onBeakAngle((Math.atan2(dy, flat) * 180) / Math.PI, ahead, above);
       }
     }
 
