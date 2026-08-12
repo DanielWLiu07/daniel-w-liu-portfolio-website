@@ -21,18 +21,29 @@ export interface Pushable {
 interface Body {
   pos: THREE.Vector3;
   vel: THREE.Vector3;
+  /** Vertical velocity. Only non-zero while a dropped prop is falling. */
+  vy: number;
   spin: number;
   angle: number;
   size: number;
 }
 
+/** Gravity for dropped props, world units per second squared. */
+const GRAVITY = 11;
+/** How much of the impact speed a prop keeps on each bounce. */
+const BOUNCE = 0.32;
+/** Below this landing speed it stops bouncing and settles. */
+const SETTLE = 0.35;
+
 /**
- * How far a dragged crate trails behind the bill.
+ * How far a carried prop sits BEYOND the bill anchor, plus its own size.
  *
- * Only small props can be grabbed at all (see GRAB_MAX_SIZE), so a carried
- * item rides just under the bill without hiding the bird behind it.
+ * This used to pull the prop 0.12 back TOWARD the goose, left over from when
+ * crates were dragged along the ground. From a bill anchor that is backwards:
+ * it pulls the prop into the neck, and the neck moves, so it grinds through
+ * it. Measured, a 0.09 prop sat 0.083 from neck4 — overlapping.
  */
-const DRAG_BEHIND = 0.12;
+const BILL_CLEAR = 0.06;
 /** How quickly a crate reaches the bill when grabbed. Not instant. */
 const CARRY_SNAP = 14;
 
@@ -47,7 +58,11 @@ export interface PushablesProps {
   items: Pushable[];
   /** Index of the crate currently in the goose's bill, or null. */
   grabbed?: React.RefObject<number | null>;
-  /** Live bill position, written by the goose. */
+  /**
+   * Where a carried prop should sit — just in FRONT of the bill tip, not at
+   * the beak bone, which sits back inside the head and drags the prop through
+   * the neck.
+   */
   beak?: React.RefObject<THREE.Vector3>;
   /**
    * Written every frame with each crate's live footprint, so the goose can be
@@ -86,6 +101,7 @@ export default function Pushables({
     items.map((it) => ({
       pos: new THREE.Vector3(...it.position),
       vel: new THREE.Vector3(),
+      vy: 0,
       spin: 0,
       angle: it.rotation ?? 0,
       size: it.size,
@@ -129,13 +145,13 @@ export default function Pushables({
         const k = Math.min(1, CARRY_SNAP * dt);
         const px = b.pos.x;
         const pz = b.pos.z;
-        // Trail slightly toward the goose, so it reads as being pulled rather
-        // than pushed along by an invisible hand.
+        // Held clear of the head, along the line from the body out to the bill.
         const gx = goose.current?.x ?? bp.x;
         const gz = goose.current?.z ?? bp.z;
         const away = Math.hypot(bp.x - gx, bp.z - gz) || 1;
-        const tx = bp.x - ((bp.x - gx) / away) * DRAG_BEHIND;
-        const tz = bp.z - ((bp.z - gz) / away) * DRAG_BEHIND;
+        const lead = BILL_CLEAR + b.size;
+        const tx = bp.x + ((bp.x - gx) / away) * lead;
+        const tz = bp.z + ((bp.z - gz) / away) * lead;
         b.pos.x += (tx - b.pos.x) * k;
         // Held just under the bill: small props ride in the mouth.
         b.pos.y += (Math.max(b.size, bp.y - b.size - 0.02) - b.pos.y) * k;
@@ -158,9 +174,28 @@ export default function Pushables({
         continue;
       }
 
-      // Dropped: fall back to the ground before resuming normal shoving.
-      if (b.pos.y > b.size + 1e-3) {
-        b.pos.y = Math.max(b.size, b.pos.y - 4 * dt);
+      /**
+       * Dropped props fall, bounce and settle.
+       *
+       * This used to lower them at a constant 4 units/s and stop dead on
+       * contact, which is a lift descending rather than a thing being dropped —
+       * no acceleration on the way down and no acknowledgement of the landing.
+       * Gravity plus a lossy bounce costs three lines and reads completely
+       * differently.
+       */
+      if (b.pos.y > b.size + 1e-4 || b.vy !== 0) {
+        b.vy -= GRAVITY * dt;
+        b.pos.y += b.vy * dt;
+        if (b.pos.y <= b.size) {
+          b.pos.y = b.size;
+          if (-b.vy > SETTLE) {
+            b.vy = -b.vy * BOUNCE;
+            // A bounce scuffs it sideways and sets it spinning.
+            b.spin += (b.vel.x - b.vel.z) * 0.4;
+          } else {
+            b.vy = 0;
+          }
+        }
       }
 
       // --- the goose shoves it -------------------------------------------
