@@ -25,6 +25,7 @@ import Environment from "@/components/three/environment";
 import GooseActor from "@/components/three/goose/goose-actor";
 import NodeGraphView from "@/components/three/node-graph-view";
 import RunTuner from "@/components/three/run-tuner";
+import BoneOverlay from "@/components/three/bone-overlay";
 import {
   RUN_DEFAULTS,
   type RunTuning,
@@ -174,8 +175,10 @@ function Scene({
   tuning,
   onPose,
   onGrab,
+  showBones,
 }: {
   onGrab: (holding: boolean) => void;
+  showBones: boolean;
   onGraph: (g: GraphNode) => void;
   tuning: RunTuning;
   onPose: (p: {
@@ -188,6 +191,7 @@ function Scene({
   const [target, setTarget] = useState<THREE.Vector3 | null>(null);
   const [honk, setHonk] = useState(false);
   const pos = useRef(new THREE.Vector3());
+  const boneMap = useRef<Record<string, THREE.Object3D | undefined> | null>(null);
   // Shared between the crates (which write it) and the goose (which is blocked
   // by it), so pushing and colliding always agree about where a crate is.
   const crateColliders = useRef<Collider[]>([]);
@@ -261,6 +265,9 @@ function Scene({
           onArrive={() => setTarget(null)}
           onMove={onMove}
           onGraph={onGraph}
+          onBones={(b) => {
+            boneMap.current = b;
+          }}
           tuning={tuning}
           onBeakAngle={(beak, ahead, above, clamped) =>
             onPose({ beak, ahead, above, clamped })
@@ -273,6 +280,7 @@ function Scene({
         />
       </Suspense>
 
+      <BoneOverlay bones={boneMap} show={showBones} />
       <FollowCamera subject={pos} />
       <RenderProbe />
     </>
@@ -284,6 +292,7 @@ export default function PlayPage() {
   const [graph, setGraph] = useState<GraphNode | null>(null);
   const [showGraph, setShowGraph] = useState(false);
   const [holding, setHolding] = useState(false);
+  const [showBones, setShowBones] = useState(false);
   // Run head tilt, live-adjustable. The readout is the beak's ACTUAL angle
   // rather than the coefficient, because the coefficient is meaningless on its
   // own — the head inherits the whole neck before this term is applied, so the
@@ -318,6 +327,7 @@ export default function PlayPage() {
           tuning={tuning}
           onPose={setPose}
           onGrab={setHolding}
+          showBones={showBones}
         />
       </Canvas>
 
@@ -348,6 +358,8 @@ export default function PlayPage() {
           headAhead={pose.ahead}
           headAbove={pose.above}
           clamped={pose.clamped}
+          showBones={showBones}
+          onShowBones={setShowBones}
           onReset={() => setTuning(RUN_DEFAULTS)}
         />
         <button

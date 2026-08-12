@@ -200,6 +200,8 @@ export interface GooseActorProps {
   beakYaw?: React.RefObject<number>;
   /** Called when the grab state changes, for the HUD. */
   onGrab?: (holding: boolean) => void;
+  /** Handed the live bone map once resolved, for the skeleton overlay. */
+  onBones?: (bones: Record<string, THREE.Object3D | undefined>) => void;
   /** Run head-tilt coefficient. See WalkInput.runHeadTilt. */
   headTilt?: number;
   /** Live pose readout, throttled: beak angle, head placement, and which
@@ -221,6 +223,7 @@ export default function GooseActor({
   beakYaw,
   grabbed,
   onGrab,
+  onBones,
 }: GooseActorProps) {
   const group = useRef<THREE.Group>(null);
   const { scene } = useGLTF(SRC, DRACO);
@@ -420,6 +423,10 @@ export default function GooseActor({
     const g = shownGraph.current;
     if (g) onGraph?.(g.out);
   }, [root, onGraph]);
+
+  useEffect(() => {
+    onBones?.(bones);
+  }, [bones, onBones]);
 
   // Dev handle: the PD controllers can only be verified by watching a bone LAG
   // its target over successive frames, which needs access to the live bones.

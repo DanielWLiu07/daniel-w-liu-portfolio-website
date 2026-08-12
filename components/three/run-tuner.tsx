@@ -27,6 +27,8 @@ export interface RunTunerProps {
   headAbove: number;
   /** Bones currently pinned against a joint limit. */
   clamped: string[];
+  showBones: boolean;
+  onShowBones: (v: boolean) => void;
   onReset: () => void;
 }
 
@@ -69,6 +71,8 @@ export default function RunTuner({
   headAhead,
   headAbove,
   clamped,
+  showBones,
+  onShowBones,
   onReset,
 }: RunTunerProps) {
   const [open, setOpen] = useState(false);
@@ -118,6 +122,15 @@ neck: [${value.neck.map((n) => n.toFixed(2)).join(', ')}]`;
           className="accent-neutral-700"
         />
         <span className="text-neutral-600">hold the run pose while standing</span>
+      </label>
+      <label className="mb-1 flex items-center gap-2">
+        <input
+          type="checkbox"
+          checked={showBones}
+          onChange={(e) => onShowBones(e.target.checked)}
+          className="accent-neutral-700"
+        />
+        <span className="text-neutral-600">show the skeleton</span>
       </label>
       <Row label="speed" value={value.speed} min={0.2} max={6} onChange={(v) => set({ speed: v })} />
       <Row
