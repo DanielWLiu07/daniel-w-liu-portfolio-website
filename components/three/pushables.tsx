@@ -23,6 +23,10 @@ interface Body {
   vel: THREE.Vector3;
   /** Vertical velocity. Only non-zero while a dropped prop is falling. */
   vy: number;
+  /** Unit vector from the grip point down to the centre, while carried. */
+  tilt: THREE.Vector3;
+  /** Seconds left of the pickup ease before the prop locks to the bill. */
+  attach: number;
   spin: number;
   angle: number;
   size: number;
@@ -56,8 +60,31 @@ const SETTLE = 0.35;
  * it. Measured, a 0.09 prop sat 0.083 from neck4 — overlapping.
  */
 const BILL_CLEAR = 0.06;
-/** How quickly a crate reaches the bill when grabbed. Not instant. */
-const CARRY_SNAP = 14;
+/**
+ * Seconds spent closing on the bill when first grabbed.
+ *
+ * Only covers the pickup itself, so it is not a teleport. After that the GRIP
+ * POINT is exact and the rest of the prop hangs off it.
+ */
+const ATTACH_TIME = 0.12;
+/**
+ * How much of the prop's own size the grip is offset from its centre.
+ *
+ * The bill holds an edge, not the middle, so the centre of mass hangs below
+ * the grip and the prop swings from it — which is what makes a carried thing
+ * look carried rather than welded to the face.
+ */
+const GRIP_ARM = 1.15;
+/** Damping on the swing. Too little and it never settles. */
+const SWING_DAMP = 4.5;
+/**
+ * How far off straight-down the prop may swing, in radians.
+ *
+ * Unclamped it reached fully horizontal — a 90 degree flail that reads as the
+ * prop being flung around rather than hanging from a bill. A real grip has
+ * friction and the bill has a jaw; this stands in for both.
+ */
+const MAX_SWING = 0.6;
 
 /** How close the goose has to be to shove something, beyond the crate's size. */
 const REACH = 0.42;
@@ -76,6 +103,8 @@ export interface PushablesProps {
    * the neck.
    */
   beak?: React.RefObject<THREE.Vector3>;
+  /** Which way the bill points, so a carried prop turns with the head. */
+  beakYaw?: React.RefObject<number>;
   /**
    * Written every frame with each crate's live footprint, so the goose can be
    * BLOCKED by the same boxes it shoves. Published rather than recomputed:
@@ -95,6 +124,7 @@ export default function Pushables({
   colliders,
   grabbed,
   beak,
+  beakYaw,
   bounds = 24,
 }: PushablesProps) {
   const meshes = useRef<(THREE.Mesh | null)[]>([]);
@@ -114,10 +144,24 @@ export default function Pushables({
       pos: new THREE.Vector3(...it.position),
       vel: new THREE.Vector3(),
       vy: 0,
+      tilt: new THREE.Vector3(0, -1, 0),
+      attach: 0,
       spin: 0,
       angle: it.rotation ?? 0,
       size: it.size,
     })),
+  );
+
+  const carry = useMemo(
+    () => ({
+      grip: new THREE.Vector3(),
+      hang: new THREE.Vector3(),
+      up: new THREE.Vector3(),
+      spinQ: new THREE.Quaternion(),
+      tiltQ: new THREE.Quaternion(),
+      UP: new THREE.Vector3(0, 1, 0),
+    }),
+    [],
   );
 
   const scratch = useMemo(
@@ -140,6 +184,7 @@ export default function Pushables({
     const g = goose.current;
     const list = bodies.current;
     const { away, sep } = scratch;
+    const { grip, hang, up, spinQ, tiltQ, UP } = carry;
 
     for (let i = 0; i < list.length; i++) {
       const b = list[i];
@@ -154,7 +199,9 @@ export default function Pushables({
        */
       if (grabbed?.current === i && beak?.current) {
         const bp = beak.current;
-        const k = Math.min(1, CARRY_SNAP * dt);
+        // Ease only for the first moment, then lock on.
+        b.attach = Math.min(ATTACH_TIME, b.attach + dt);
+        const k = b.attach >= ATTACH_TIME ? 1 : Math.min(1, dt / ATTACH_TIME);
         const px = b.pos.x;
         const pz = b.pos.z;
         // Held clear of the head, along the line from the body out to the bill.
@@ -164,17 +211,59 @@ export default function Pushables({
         const lead = BILL_CLEAR + b.size;
         const tx = bp.x + ((bp.x - gx) / away) * lead;
         const tz = bp.z + ((bp.z - gz) / away) * lead;
-        b.pos.x += (tx - b.pos.x) * k;
-        // Held just under the bill: small props ride in the mouth.
-        b.pos.y += (Math.max(b.size, bp.y - b.size - 0.02) - b.pos.y) * k;
-        b.pos.z += (tz - b.pos.z) * k;
-        b.vel.set((b.pos.x - px) / dt, 0, (b.pos.z - pz) / dt);
-        b.spin *= Math.exp(-SPIN_FRICTION * dt);
-        b.angle += b.spin * dt;
+        /**
+         * The grip is exact; the prop is a pendulum hanging off it.
+         *
+         * Free-fall the centre of mass, then project it back onto the sphere of
+         * radius `arm` around the grip and remove the radial velocity — a rigid
+         * rod, solved by position rather than by force, so it cannot explode
+         * however hard the head is thrown about.
+         */
+        const arm = b.size * GRIP_ARM;
+        const target = grip.set(tx, Math.max(b.size, bp.y), tz);
+        if (b.attach < ATTACH_TIME) {
+          // Closing on it: ease the whole prop in, no swing yet.
+          b.pos.lerp(target, k);
+          b.vel.set(0, 0, 0);
+        } else {
+          b.vel.y -= GRAVITY * dt;
+          b.pos.addScaledVector(b.vel, dt);
+          hang.copy(b.pos).sub(target);
+          const len = hang.length();
+          if (len < 1e-5) hang.set(0, -arm, 0);
+          else hang.multiplyScalar(arm / len);
+          // Keep it below the grip and inside the swing cone.
+          const flat = Math.hypot(hang.x, hang.z);
+          const maxFlat = arm * Math.sin(MAX_SWING);
+          if (flat > maxFlat && flat > 1e-6) {
+            const squeeze = maxFlat / flat;
+            hang.x *= squeeze;
+            hang.z *= squeeze;
+          }
+          hang.y = -Math.sqrt(Math.max(0, arm * arm - hang.x * hang.x - hang.z * hang.z));
+          b.pos.copy(target).add(hang);
+          // Remove motion along the rod; a rigid arm cannot stretch.
+          const radial = b.vel.dot(hang) / (arm * arm);
+          b.vel.addScaledVector(hang, -radial);
+          b.vel.multiplyScalar(Math.exp(-SWING_DAMP * dt));
+        }
+        // Face the way the bill faces, and tip with the swing.
+        if (beakYaw) {
+          let d = beakYaw.current - b.angle;
+          while (d > Math.PI) d -= Math.PI * 2;
+          while (d < -Math.PI) d += Math.PI * 2;
+          b.angle += d * Math.min(1, 12 * dt);
+        }
+        b.tilt.copy(b.pos).sub(target).normalize();
+        void px;
+        void pz;
         const m0 = meshes.current[i];
         if (m0) {
           m0.position.copy(b.pos);
-          m0.rotation.y = b.angle;
+          // Hang from the grip: the prop's own up-axis points back at the bill.
+          spinQ.setFromAxisAngle(UP, b.angle);
+          tiltQ.setFromUnitVectors(UP, up.copy(b.tilt).negate());
+          m0.quaternion.copy(tiltQ).multiply(spinQ);
         }
         // Not a collider while carried, or the goose shoulders its own cargo.
         if (colliders?.current) {
@@ -195,6 +284,8 @@ export default function Pushables({
        * Gravity plus a lossy bounce costs three lines and reads completely
        * differently.
        */
+      b.attach = 0;
+
       if (b.pos.y > b.size + 1e-4 || b.vy !== 0) {
         b.vy -= GRAVITY * dt;
         b.pos.y += b.vy * dt;
@@ -279,7 +370,7 @@ export default function Pushables({
       const m = meshes.current[i];
       if (m) {
         m.position.set(b.pos.x, b.pos.y, b.pos.z);
-        m.rotation.y = b.angle;
+        m.rotation.set(0, b.angle, 0);
       }
     }
   });

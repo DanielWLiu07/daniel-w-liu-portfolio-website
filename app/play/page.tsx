@@ -194,6 +194,7 @@ function Scene({
   // Shared bill position and what it is holding, so the crates can follow it.
   const beakPos = useRef(new THREE.Vector3());
   const grabbed = useRef<number | null>(null);
+  const beakYaw = useRef(0);
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -250,6 +251,7 @@ function Scene({
         colliders={crateColliders}
         grabbed={grabbed}
         beak={beakPos}
+        beakYaw={beakYaw}
       />
 
       <Suspense fallback={null}>
@@ -265,6 +267,7 @@ function Scene({
           }
           crates={crateColliders}
           beak={beakPos}
+          beakYaw={beakYaw}
           grabbed={grabbed}
           onGrab={onGrab}
         />

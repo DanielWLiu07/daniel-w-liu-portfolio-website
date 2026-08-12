@@ -181,6 +181,8 @@ export interface GooseActorProps {
   beak?: React.RefObject<THREE.Vector3>;
   /** Index of the crate in the bill, or null. Written on grab and release. */
   grabbed?: React.RefObject<number | null>;
+  /** Written each frame with the bill's facing, for carried props. */
+  beakYaw?: React.RefObject<number>;
   /** Called when the grab state changes, for the HUD. */
   onGrab?: (holding: boolean) => void;
   /** Run head-tilt coefficient. See WalkInput.runHeadTilt. */
@@ -201,6 +203,7 @@ export default function GooseActor({
   crates,
   tuning,
   beak,
+  beakYaw,
   grabbed,
   onGrab,
 }: GooseActorProps) {
@@ -827,6 +830,7 @@ export default function GooseActor({
       beak.current
         .copy(headNow)
         .addScaledVector(beakNow, (len + BILL_LEAD) / len);
+      if (beakYaw) beakYaw.current = Math.atan2(beakNow.x, beakNow.z);
     }
     const wantGrab = Boolean(k.KeyE);
     if (wantGrab && !st.grabHeld && grabbed) {
