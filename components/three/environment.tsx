@@ -32,6 +32,32 @@ function flatMaterial(r: number, gr: number, b: number) {
   return compileMaterial(g.rgb(r, gr, b));
 }
 
+/**
+ * Pond water: two blues in slow concentric rings.
+ *
+ * Distance from the pond's centre through fract() gives the rings, and Time
+ * drifts them outward. A Color Ramp with EASE keeps the banding soft, where
+ * CONSTANT would give the hard stripes the lawn wants — same three nodes as
+ * the grass, reading completely differently because of the interpolation mode.
+ */
+function waterMaterial() {
+  const g = graph();
+  const px = g.subtract(g.separate(g.position("world"), "x"), POND.x);
+  const pz = g.subtract(g.separate(g.position("world"), "z"), POND.z);
+  const dist = g.sqrt(g.add(g.multiply(px, px), g.multiply(pz, pz)));
+  const rings = g.fract(g.subtract(g.divide(dist, 0.55), g.multiply(g.time(), 0.12)));
+  return compileMaterial(
+    g.colorRamp(
+      rings,
+      [
+        { position: 0.0, color: [0.36, 0.55, 0.68, 1] },
+        { position: 0.55, color: [0.44, 0.63, 0.74, 1] },
+      ],
+      "EASE",
+    ),
+  );
+}
+
 /** A dirt path: a band in world Z, eased at the edges so it is not a hard line. */
 function pathMaterial() {
   const g = graph();
@@ -76,6 +102,14 @@ const HEDGES = [
 /** Half-extent of the lawn, matching the default prop below. */
 export const LAWN_HALF = 26;
 
+/**
+ * The pond. Exported so the goose knows when it is swimming.
+ *
+ * A circle rather than a mesh test: the water is a disc, and asking "is the
+ * goose inside this radius" is the whole of it.
+ */
+export const POND = { x: -9, z: 3, radius: 2.6, surface: 0.006 };
+
 export const COLLIDERS: Collider[] = [
   ...HEDGES.map((h) => ({
     x: h.p[0],
@@ -99,7 +133,7 @@ export default function Environment({ size = 26 }: EnvironmentProps) {
   const path = useMemo(() => pathMaterial(), []);
   const hedge = useMemo(() => flatMaterial(0.24, 0.4, 0.22), []);
   const stone = useMemo(() => flatMaterial(0.8, 0.79, 0.74), []);
-  const water = useMemo(() => flatMaterial(0.44, 0.62, 0.72), []);
+  const water = useMemo(() => waterMaterial(), []);
 
   // Laid out by hand rather than randomly: a village green wants deliberate
   // sight-lines and somewhere to chase things around, not scatter.
@@ -121,8 +155,11 @@ export default function Environment({ size = 26 }: EnvironmentProps) {
         <primitive object={path} attach="material" />
       </mesh>
 
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[-9, 0.006, 3]}>
-        <circleGeometry args={[2.6, 40]} />
+      <mesh
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[POND.x, POND.surface, POND.z]}
+      >
+        <circleGeometry args={[POND.radius, 48]} />
         <primitive object={water} attach="material" />
       </mesh>
 
