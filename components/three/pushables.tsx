@@ -28,6 +28,18 @@ interface Body {
   size: number;
 }
 
+/**
+ * Biggest half-extent that counts as light.
+ *
+ * Light things are kicked, heavy things are solid — and the same threshold
+ * decides what the bill can pick up, because the two rules are really one:
+ * whether the goose can push it around with its face.
+ *
+ * Without this the goose was stopped dead 0.44 away by a 0.09 prop, standing
+ * half a metre from something the size of an egg with a visible gap.
+ */
+export const LIGHT_MAX_SIZE = 0.16;
+
 /** Gravity for dropped props, world units per second squared. */
 const GRAVITY = 11;
 /** How much of the impact speed a prop keeps on each bounce. */
@@ -205,8 +217,17 @@ export default function Pushables({
         const contact = b.size + REACH;
         if (d < contact && d > 1e-4) {
           away.multiplyScalar(1 / d);
-          const strength = (1 - d / contact) * PUSH;
+          /**
+           * Lighter things go further. The impulse is the same kick; dividing
+           * by size stands in for mass, so an egg-sized prop skitters away and
+           * a crate barely shifts — which is the difference between the two
+           * being legible at all.
+           */
+          const mass = Math.max(0.25, b.size / 0.35);
+          const strength = ((1 - d / contact) * PUSH) / mass;
           b.vel.addScaledVector(away, strength * dt);
+          // Light props also hop, so a kick reads as a kick.
+          if (b.size <= LIGHT_MAX_SIZE) b.vy += strength * dt * 0.5;
           // Off-centre contact spins it. Without this crates slide like they
           // are on rails, which reads as scenery rather than as objects.
           const offset = away.x * 0.6 - away.z * 0.6;
@@ -247,9 +268,12 @@ export default function Pushables({
         c.x = b.pos.x;
         c.z = b.pos.z;
         // Square footprint: the crate spins, and a rotating AABB would pop.
-        c.hx = b.size;
-        c.hz = b.size;
-        c.top = b.size * 2;
+        // Light props publish a zero footprint — they are still listed so the
+        // bill can find them to grab, but nothing blocks the goose.
+        const solid = b.size > LIGHT_MAX_SIZE;
+        c.hx = solid ? b.size : 0;
+        c.hz = solid ? b.size : 0;
+        c.top = solid ? b.size * 2 : -1;
       }
 
       const m = meshes.current[i];

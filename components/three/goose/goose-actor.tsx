@@ -18,6 +18,7 @@ import {
   type Resolved,
 } from "./collide";
 import { FootPlanner, solveTwoBone, type TwoBoneSolution } from "./foot-ik";
+import { LIGHT_MAX_SIZE } from "../pushables";
 import { applyWalk, Spring } from "./goose-walk";
 import { gooseMaterial } from "./goose-shading";
 import { assertBones, GOOSE_LIMITS, usePoseDriver } from "./use-pose-driver";
@@ -112,13 +113,11 @@ const ANTICIPATION = 0.07;
  */
 const GRAB_REACH = 0.24;
 /**
- * Biggest half-extent the bill will take hold of.
- *
- * Crates are 0.35 and stay shove-only. Carrying one is not a nice moment: held
- * at head height it is half the goose's own height and completely fills the
- * camera, and dragged along the ground it still hides the bird behind it.
+ * Biggest half-extent the bill will take hold of. Shared with Pushables, where
+ * the same threshold decides what is light enough to kick rather than be
+ * blocked by — the two rules are the same question asked twice.
  */
-const GRAB_MAX_SIZE = 0.16;
+const GRAB_MAX_SIZE = LIGHT_MAX_SIZE;
 /** How far beyond the bill tip a carried prop rides. */
 const BILL_LEAD = 0.1;
 /**
@@ -841,8 +840,11 @@ export default function GooseActor({
         const fx = Math.sin(st.heading);
         const fz = Math.cos(st.heading);
         crates.current.forEach((c, i) => {
-          if (c.hx <= 0) return; // already carried
-          if (c.hx > GRAB_MAX_SIZE) return; // too big for a bill
+          // hx is 0 for light props (they are not solid) and 0 for whatever is
+          // already carried, so size cannot come from the collider. The grab
+          // radius is generous enough to cover a light prop's own extent.
+          if (grabbed.current === i) return;
+          if (c.hx > GRAB_MAX_SIZE) return; // solid and too big for a bill
           const nx = Math.min(Math.max(bp.x, c.x - c.hx), c.x + c.hx);
           const nz = Math.min(Math.max(bp.z, c.z - c.hz), c.z + c.hz);
           const d = Math.hypot(bp.x - nx, bp.z - nz);
