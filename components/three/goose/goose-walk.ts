@@ -107,6 +107,15 @@ export interface WalkInput {
   /** 0..1, whether the bill is carrying something. Weighs the head down. */
   carrying?: number;
   /**
+   * 0 = on land, 1 = afloat.
+   *
+   * Swimming is not walking in water. The legs stop carrying the body and go
+   * to paddling underneath it, the body sits level because it is held up by
+   * the water rather than balanced over two feet, and the neck comes up — a
+   * swimming goose is the tall S, not the running stretch.
+   */
+  swim?: number;
+  /**
    * 0 = walking, 1 = running.
    */
   run?: number;
@@ -140,8 +149,10 @@ export function applyWalk(
     runBodyPitch = 0.46,
     honk = 0,
     carrying = 0,
+    swim = 0,
   }: WalkInput,
 ): void {
+  const sw = Math.max(0, Math.min(1, swim));
   const p = (distance / STRIDE) * TAU;
   const step = Math.sin(p);
   const dbl = Math.sin(p * 2);
@@ -156,12 +167,17 @@ export function applyWalk(
   const flare = air * 0.62 + crouch * 0.22 + falling * 0.3;
   const airPitch = (rising * -0.16 + falling * 0.2) * Math.max(air, crouch);
   const fold = crouch * 0.16 + landImpact * 0.2;
-  const r = Math.max(0, Math.min(1, run)) * g;
+  // Running and swimming are opposite postures, so the run blend is cut on
+  // water rather than added to it.
+  const r = Math.max(0, Math.min(1, run)) * g * (1 - sw);
   // Extreme, not a lean — a half-measure just reads as walking faster.
   const runPitch = r * runBodyPitch;
 
   // Roll is the whole gait; the yaw swings the body toward the planted foot.
-  pose.rotate("hips", 0, step * 0.07 * g, step * 0.28 * g);
+  // The waddle is weight shifting from foot to foot. Afloat there is no
+  // weight on the feet, so it goes.
+  const land = 1 - sw;
+  pose.rotate("hips", 0, step * 0.07 * g * land, step * 0.28 * g * land);
   // Lean rides on spine/chest, not hips: the thighs are children of hips, so
   // leaning there lifts the feet off the grass.
   pose.rotate(
@@ -192,11 +208,22 @@ export function applyWalk(
   // Legs, half a cycle apart. Names have no dot — the exporter flattens
   // `thigh.L` to `thighL`, and an unresolved name animates nothing.
   if (legs) {
-    pose.rotate("thighL", step * 0.5 * g, 0, 0);
-    pose.rotate("thighR", -step * 0.5 * g, 0, 0);
+    /**
+     * Paddling, when afloat.
+     *
+     * Alternating and further back than a stride, because a paddle pushes
+     * water behind rather than planting ground below. Never seen directly —
+     * the pond surface is drawn over it — but it drives what little of the
+     * legs shows at the waterline.
+     */
+    // Modest: a big swing throws the foot far enough back that it clears the
+    // pond's own edge and shows on the grass beyond it.
+    const paddle = sw * 0.28;
+    pose.rotate("thighL", step * 0.5 * g * land + step * paddle, 0, 0);
+    pose.rotate("thighR", -step * 0.5 * g * land - step * paddle, 0, 0);
     // Knee folds only on the lift, so the swinging leg clears the ground.
-    pose.rotate("shinL", -Math.max(0, step) * 0.6 * g, 0, 0);
-    pose.rotate("shinR", -Math.max(0, -step) * 0.6 * g, 0, 0);
+    pose.rotate("shinL", -Math.max(0, step) * 0.6 * g * land - Math.max(0, -step) * paddle, 0, 0);
+    pose.rotate("shinR", -Math.max(0, -step) * 0.6 * g * land - Math.max(0, step) * paddle, 0, 0);
     pose.rotate("footL", (-step * 0.22 + Math.max(0, step) * 0.45) * g, 0, 0);
     pose.rotate("footR", (step * 0.22 + Math.max(0, -step) * 0.45) * g, 0, 0);
   }
@@ -222,7 +249,9 @@ export function applyWalk(
         lag * 0.13 * trail +
         r * (runNeck[i] ?? 0) -
         // Neck stretches up on a honk, base leading.
-        honk * 0.12 * (1.2 - trail * 0.4) +
+        honk * 0.12 * (1.2 - trail * 0.4) -
+        // Neck lifts into a taller S afloat.
+        sw * 0.07 * (1.3 - trail * 0.5) +
         // A full bill pulls the neck down, most at the tip.
         carrying * 0.06 * trail,
       // yaw

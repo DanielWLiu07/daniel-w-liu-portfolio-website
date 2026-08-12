@@ -9,7 +9,7 @@ import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { GraphNode } from "blender-to-threejs";
 
-import { COLLIDERS, LAWN_HALF, type Collider } from "../environment";
+import { COLLIDERS, LAWN_HALF, POND, type Collider } from "../environment";
 import {
   GOOSE_RADIUS,
   penetration,
@@ -130,6 +130,21 @@ const BILL_LEAD = 0.1;
 const GRAB_AIM = 0.2;
 /** Ground level for the body. The lawn is flat, so this is a constant. */
 const GROUND_Y = 0;
+/**
+ * How deep the goose floats, in world units.
+ *
+ * Deep enough that the waterline crosses the belly and the legs pass below the
+ * pond's own surface — which is what hides them, since the water disc is
+ * opaque and drawn above them. No separate "hide the legs" step needed.
+ *
+ * Sized from the rig, not by eye: afloat at 0.13 the ankles sat at 0.045 and
+ * the water is at 0.006, so the feet paddled visibly on top of the pond.
+ */
+const FLOAT_DEPTH = 0.21;
+/** Swimming is slower than walking, and turns lazier. */
+const SWIM_SPEED = 0.62;
+/** How fast the goose transitions in and out of the water. */
+const SWIM_BLEND = 3.2;
 
 /** Shared world up. Allocated once; this is read every frame. */
 const UP = new THREE.Vector3(0, 1, 0);
@@ -353,6 +368,8 @@ export default function GooseActor({
     crouchT: 0,
     /** 0..1 walk-to-run blend. */
     run: 0,
+    /** 0..1 land-to-water blend. */
+    swim: 0,
     /** Seconds since the beak angle was last reported. */
     beakTick: 0,
     /** Grab key held last frame, so holding it does not drop and re-grab. */
@@ -454,8 +471,15 @@ export default function GooseActor({
     // the goose leaning into it instead of snapping between two rigs.
     const wantRun = Boolean(k.ShiftLeft || k.ShiftRight);
     st.run += ((wantRun ? 1 : 0) - st.run) * Math.min(1, 6 * dt);
+    // In the pond? Blended, so wading in and out is a transition rather than a
+    // switch — the goose settles into the water over about a third of a second.
+    const inPond =
+      Math.hypot(g.position.x - POND.x, g.position.z - POND.z) < POND.radius - 0.15;
+    st.swim += ((inPond ? 1 : 0) - st.swim) * Math.min(1, SWIM_BLEND * dt);
+
     const runSpeed = tuning?.speed ?? SPEED_RUN;
-    const speedNow = SPEED_WALK + (runSpeed - SPEED_WALK) * st.run;
+    const walkSpeed = SPEED_WALK + (runSpeed - SPEED_WALK) * st.run;
+    const speedNow = walkSpeed + (SWIM_SPEED - walkSpeed) * st.swim;
 
     const manual = want.lengthSq() > 0;
     if (manual) {
@@ -619,7 +643,8 @@ export default function GooseActor({
     // --- jump ----------------------------------------------------------------
     // Edge-triggered: a held Space should not machine-gun jumps, and checking
     // the transition rather than the state is the whole of that.
-    const wantJump = Boolean(k.Space);
+    // Cannot leap off water.
+    const wantJump = Boolean(k.Space) && st.swim < 0.5;
     if (wantJump && !st.jumpHeld && !st.airborne && st.crouchT <= 0) {
       // Crouch first, launch when it finishes.
       st.crouchT = ANTICIPATION;
@@ -648,7 +673,9 @@ export default function GooseActor({
         st.airborne = false;
       }
     } else {
-      g.position.y = GROUND_Y;
+      // Floats when swimming, stands otherwise, with a slow bob on the water.
+      const bob = Math.sin(st.time * 1.4) * 0.012 * st.swim;
+      g.position.y = GROUND_Y - FLOAT_DEPTH * st.swim + bob;
       st.landed *= Math.exp(-9 * dt);
     }
 
@@ -749,8 +776,10 @@ export default function GooseActor({
         bones.thighL.getWorldPosition(scratch.hipW).y - rig.groundY,
       );
     }
+    // Afloat there is no ground to plant on, so the planner stands down and
+    // the gait drives the legs directly as a paddle.
     const plan =
-      rig && planner.current
+      rig && planner.current && st.swim <= 0.5
         ? planner.current.update(
             g.position,
             st.heading,
@@ -901,7 +930,10 @@ export default function GooseActor({
        * the neck and body angle, not from the hips dropping.
        */
       bounce: bounce - (plan ? CROUCH / (fit || 1) : 0),
-      legs: !plan,
+      // Afloat there is no ground to solve against, so the IK stands down and
+      // the gait drives the legs directly as a paddle.
+      legs: !plan || st.swim > 0.5,
+      swim: st.swim,
       crouch: crouchAmount,
       airborne: st.airborne,
       vertical: THREE.MathUtils.clamp(st.vy / JUMP_SPEED, -1, 1),
