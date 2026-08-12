@@ -110,7 +110,7 @@ const ANTICIPATION = 0.07;
  * metre from the middle — a centre test just refuses to pick up something the
  * goose is visibly nose-to-nose with.
  */
-const GRAB_REACH = 0.34;
+const GRAB_REACH = 0.24;
 /**
  * Biggest half-extent the bill will take hold of.
  *
@@ -119,6 +119,16 @@ const GRAB_REACH = 0.34;
  * camera, and dragged along the ground it still hides the bird behind it.
  */
 const GRAB_MAX_SIZE = 0.16;
+/** How far beyond the bill tip a carried prop rides. */
+const BILL_LEAD = 0.1;
+/**
+ * How far in front the bill must be pointing for a grab to count.
+ *
+ * A radius alone lets the goose scoop up something beside or behind its own
+ * head, which feels arbitrary — you aim a bill, so the grab should respect
+ * where it is aimed. 0.2 is generous enough not to be fussy.
+ */
+const GRAB_AIM = 0.2;
 /** Ground level for the body. The lawn is flat, so this is a constant. */
 const GROUND_Y = 0;
 
@@ -799,9 +809,25 @@ export default function GooseActor({
      * Nearest to the BILL, not to the body — and only things actually in front
      * of the goose, so backing into a crate does not scoop it up.
      */
-    if (bones.beak && beak?.current) {
+    /**
+     * Publish the point a carried prop should occupy: ahead of the bill TIP.
+     *
+     * The beak bone is the base of the bill, tucked back against the head, so
+     * anchoring there buries the prop in the neck — and the neck moves, so it
+     * grinds through it. Extending along head->beak puts it out in front of
+     * the face where a goose would actually hold something.
+     */
+    if (bones.beak && bones.head && beak?.current) {
+      const { headNow, beakNow } = scratch;
       bones.beak.updateWorldMatrix(true, false);
-      bones.beak.getWorldPosition(beak.current);
+      bones.head.updateWorldMatrix(true, false);
+      bones.beak.getWorldPosition(beakNow);
+      bones.head.getWorldPosition(headNow);
+      beakNow.sub(headNow);
+      const len = beakNow.length() || 1;
+      beak.current
+        .copy(headNow)
+        .addScaledVector(beakNow, (len + BILL_LEAD) / len);
     }
     const wantGrab = Boolean(k.KeyE);
     if (wantGrab && !st.grabHeld && grabbed) {
@@ -812,16 +838,22 @@ export default function GooseActor({
         const bp = beak.current;
         let best = -1;
         let bestD = GRAB_REACH;
+        const fx = Math.sin(st.heading);
+        const fz = Math.cos(st.heading);
         crates.current.forEach((c, i) => {
           if (c.hx <= 0) return; // already carried
           if (c.hx > GRAB_MAX_SIZE) return; // too big for a bill
           const nx = Math.min(Math.max(bp.x, c.x - c.hx), c.x + c.hx);
           const nz = Math.min(Math.max(bp.z, c.z - c.hz), c.z + c.hz);
           const d = Math.hypot(bp.x - nx, bp.z - nz);
-          if (d < bestD) {
-            bestD = d;
-            best = i;
-          }
+          if (d >= bestD) return;
+          // Must be roughly where the bill is pointing, not merely nearby.
+          const ax = c.x - bp.x;
+          const az = c.z - bp.z;
+          const alen = Math.hypot(ax, az);
+          if (alen > 1e-4 && (ax * fx + az * fz) / alen < GRAB_AIM) return;
+          bestD = d;
+          best = i;
         });
         if (best >= 0) {
           grabbed.current = best;
