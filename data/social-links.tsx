@@ -16,6 +16,9 @@ export const SOCIAL_URLS = {
   github: "https://github.com/DanielWLiu07",
   linkedin: "https://www.linkedin.com/in/danielliu2007/",
   email: "https://docs.google.com/forms/d/e/1FAIpQLSdsaj2nXuReGTo1Fu9PaW7jsxUZPpPAiCMuf0gBvmZBYFe1nw/viewform?usp=dialog",
+  // X: put the profile URL here and the token on the resume folder's leaf goes live. Left empty rather
+  // than guessed, so it cannot send anyone to the wrong account.
+  x: "",
 }
 
 export const socialLinksImageData: SocialLinkImage[] = [

@@ -48,7 +48,7 @@ function ImageModal({
   )
 }
 
-export default function Resume() {
+export default function LegacyResumePage() {
   const [videoEnded, setVideoEnded] = useState(false)
   const [hoveredButton, setHoveredButton] = useState<string | null>(null)
   const [showImageModal, setShowImageModal] = useState<string | null>(null)

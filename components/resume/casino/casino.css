@@ -1,0 +1,327 @@
+/* Casino resume page. The canvas is the print; the DOM is the type. */
+
+.casino-root {
+  position: relative;
+  background: #f5f0e0;
+  color: #121212;
+}
+
+.casino-stage {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+}
+
+.casino-stage canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.casino-copy {
+  position: absolute;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 420ms ease, transform 520ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+.casino-copy.is-on {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.casino-copy h1,
+.casino-copy h2 {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 0.95;
+  margin: 0;
+  color: #121212;
+  text-shadow:
+    2px 2px 0 #f5f0e0,
+    -2px -2px 0 #f5f0e0,
+    2px -2px 0 #f5f0e0,
+    -2px 2px 0 #f5f0e0;
+}
+
+.casino-copy h1 {
+  font-size: clamp(3.4rem, 9vw, 8rem);
+}
+
+/* Katie Roze is a colour watercolour font: it paints its own tone and
+   ignores CSS color, so no outline shadow, just the wash on the paper */
+.casino-title {
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  line-height: 1.02;
+  text-shadow: none;
+  font-size: clamp(3.2rem, 8vw, 7.2rem);
+}
+
+.casino-copy h2 {
+  font-size: clamp(2.2rem, 5vw, 4.4rem);
+}
+
+.casino-kicker {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.78rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #b8181c;
+  margin: 0 0 0.6rem;
+}
+
+.casino-sub,
+.casino-desc {
+  font-size: 1.05rem;
+  line-height: 1.5;
+  max-width: 34ch;
+  margin: 0.9rem 0 0;
+  background: rgba(245, 240, 224, 0.82);
+  padding: 0.35rem 0.55rem;
+  display: inline-block;
+}
+
+.casino-marquee {
+  left: 6vw;
+  top: 16vh;
+}
+
+.casino-hand {
+  right: 6vw;
+  top: 14vh;
+  width: min(38vw, 440px);
+}
+
+.casino-hand article {
+  background: rgba(245, 240, 224, 0.9);
+  border: 2px solid #121212;
+  box-shadow: 6px 6px 0 #121212;
+  padding: 1.2rem 1.3rem 1.3rem;
+  animation: casino-card-in 380ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.casino-hand h2 {
+  font-size: clamp(1.8rem, 3.4vw, 2.8rem);
+  text-shadow: none;
+}
+
+.casino-company {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+  margin: 0.4rem 0 0;
+}
+
+.casino-cashout {
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.casino-cashout button {
+  font: inherit;
+  cursor: pointer;
+  border: 0;
+  text-transform: uppercase;
+}
+
+.casino-hand .casino-desc {
+  background: none;
+  padding: 0;
+}
+
+@keyframes casino-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) rotate(-1.5deg);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.casino-tech {
+  list-style: none;
+  padding: 0;
+  margin: 0.9rem 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.casino-tech li {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  border: 1.5px solid #121212;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+}
+
+.casino-links {
+  margin-top: 1rem;
+  display: flex;
+  gap: 0.6rem;
+}
+
+.casino-links a,
+.casino-links button,
+.casino-lite {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #f5f0e0;
+  background: #121212;
+  padding: 0.45rem 0.8rem;
+  text-decoration: none;
+  transition: background 160ms ease, transform 160ms ease;
+}
+
+.casino-links a:hover,
+.casino-links button:hover,
+.casino-lite:hover {
+  background: #b8181c;
+  transform: translateY(-1px);
+}
+
+.casino-chips {
+  left: 6vw;
+  bottom: 14vh;
+}
+
+.casino-sign {
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -40%);
+  text-align: center;
+}
+
+.casino-sign.is-on {
+  transform: translate(-50%, -50%);
+}
+
+.casino-sign .casino-lite {
+  display: inline-block;
+  margin-top: 1.4rem;
+}
+
+@media (max-width: 768px) {
+  .casino-hand {
+    right: 4vw;
+    left: 4vw;
+    width: auto;
+    top: auto;
+    bottom: 6vh;
+  }
+  .casino-marquee {
+    left: 5vw;
+    top: 12vh;
+  }
+  .casino-chips {
+    left: 5vw;
+    bottom: 8vh;
+  }
+}
+
+/* ---- the open file: two panes over the table ---- */
+.casino-file {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 2vw;
+  padding: 7vh 5vw 5vh;
+  background: linear-gradient(180deg, rgba(8, 10, 9, 0.35), rgba(8, 10, 9, 0.82));
+  color: #f5f0e0;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(4vh);
+  transition: opacity 420ms ease, transform 520ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+/* let the cover swing open in the scene before the panes come up */
+.casino-file.is-open {
+  transition-delay: 700ms;
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+.casino-file-close {
+  position: fixed;
+  z-index: 41;
+  top: 2.2vh;
+  right: 5vw;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 300ms ease 700ms;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #f5f0e0;
+  background: #121212;
+  padding: 0.45rem 0.8rem;
+  border: 0;
+  cursor: pointer;
+}
+.casino-file-close.is-open { opacity: 1; pointer-events: auto; }
+.casino-file-close:hover { background: #b8181c; }
+.casino-file-left {
+  background: #f5f0e0;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.55);
+  min-height: 0;
+}
+.casino-file-pdf {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+.casino-file-right {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  min-height: 0;
+  overflow: auto;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+.casino-file-right h2 {
+  font-size: clamp(2.2rem, 4.5vw, 4rem);
+  line-height: 1;
+  color: #6cf59a;
+}
+.casino-file-hand {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+.casino-file-hand li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.2rem 1rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid rgba(245, 240, 224, 0.18);
+}
+.casino-file-company { font-weight: 600; }
+.casino-file-role { grid-column: 1; opacity: 0.8; font-size: 0.95rem; }
+.casino-file-period {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  opacity: 0.7;
+}
+@media (max-width: 860px) {
+  .casino-file { grid-template-columns: 1fr; grid-template-rows: 1fr auto; padding: 8vh 4vw 4vh; }
+}
