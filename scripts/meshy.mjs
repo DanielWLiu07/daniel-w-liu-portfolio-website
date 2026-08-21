@@ -136,12 +136,20 @@ if (cmd === 'balance') {
   // assets". A goose is bipedal but not humanoid, so this is an experiment, not
   // a plan — worth one attempt because the empirical answer beats the hedge,
   // but budget for doing the rig in Blender regardless.
-  const [id] = rest;
-  if (!id) throw new Error('usage: meshy.mjs rig <textured-task-id>');
+  // usage: meshy.mjs rig <task-id> [--height 1.8] [--out name]
+  const args = [...rest];
+  let height = 0.8;
+  let outName = 'goose';
+  const hi = args.indexOf('--height');
+  if (hi !== -1) { height = Number(args[hi + 1]); args.splice(hi, 2); }
+  const oi = args.indexOf('--out');
+  if (oi !== -1) { outName = args[oi + 1]; args.splice(oi, 2); }
+  const [id] = args;
+  if (!id) throw new Error('usage: meshy.mjs rig <task-id> [--height m] [--out name]');
   console.log('submitting rig…');
   const { result: rigId } = await call(RIG_API, {
     method: 'POST',
-    body: JSON.stringify({ input_task_id: id, height_meters: 0.8 }),
+    body: JSON.stringify({ input_task_id: id, height_meters: height }),
   });
   console.log(`  task ${rigId}`);
 
@@ -156,11 +164,11 @@ if (cmd === 'balance') {
       process.stdout.write('\n');
       const url = task.result?.rigged_character_glb_url;
       if (!url) throw new Error(`no rigged glb: ${JSON.stringify(task.result ?? {}).slice(0, 400)}`);
-      await download({ model_urls: { glb: url } }, 'goose-rigged.glb');
+      await download({ model_urls: { glb: url } }, `${outName}-rigged.glb`);
       const anims = task.result?.basic_animations ?? {};
       for (const [k, v] of Object.entries(anims)) {
         if (typeof v === 'string' && v.startsWith('http')) {
-          await download({ model_urls: { glb: v } }, `goose-${k.replace(/_glb_url$/, '')}.glb`);
+          await download({ model_urls: { glb: v } }, `${outName}-${k.replace(/_glb_url$/, '')}.glb`);
         }
       }
       break;
