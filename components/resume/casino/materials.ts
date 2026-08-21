@@ -133,6 +133,30 @@ export const LAMP = { position: [0, 7.5, 0] as [number, number, number], cone: 3
 export function lamp(g: Graph, normal?: [number, number, number], override: Partial<typeof LAMP> & { twoSided?: boolean } = {}) {
   return spotLamp(g, { ...LAMP, ...override, normal }).light
 }
+/**
+ * Materials that can be PRESENTED: lifted off the table and held up to the camera. The lamp is a spot over
+ * the felt, so anything that leaves the table leaves its pool and goes dark (measured: the folder lost 38
+ * percent of its brightness on the way up). These carry a `present` uniform that crossfades their lighting
+ * to an even front light, so a presented object reads as lit by the act of being held up.
+ */
+export const PRESENT_MATERIALS = new Set<{ userData: Record<string, unknown> }>()
+export function trackPresent<T extends { userData: Record<string, unknown> }>(m: T): T {
+  PRESENT_MATERIALS.add(m)
+  return m
+}
+export function drivePresent(v: number) {
+  for (const m of PRESENT_MATERIALS) {
+    const u = (m.userData.uniforms as Record<string, { value: number }> | undefined) ?? {}
+    if (u.present) u.present.value = v
+  }
+}
+
+/** the lamp term crossfaded to an even front light as the object is presented */
+function litOrPresented(g: Graph, col: GraphNode, litCol: GraphNode) {
+  const p = g.uniform('present', 0)
+  return g.blend(p, litCol, g.multiplyColor(1, col, g.rgb(1.08, 1.06, 1.02)))
+}
+
 /** every compiled material carrying the lamp term, so one driver can move the lamp (uniforms by name) */
 export const LIT_MATERIALS = new Set<{ userData: Record<string, unknown> }>()
 export function trackLit<T extends { userData: Record<string, unknown> }>(m: T): T {
@@ -257,7 +281,9 @@ export function folderMaterial(kind: 'body' | 'tab' | 'sheet' | 'ink') {
   const col = g.multiplyColor(1, g.rgb(...base), g.combine(fibre, fibre, fibre))
   // two-sided lighting: the cover's inside faces have flipped normals once it opens, and a one-sided
   // Lambert term made them read as the texture breaking up
-  const m = trackLit(compileMaterial(register(`folder:${kind}`, lit(g, col, lamp(g, undefined, { twoSided: true })))))
+  const m = trackPresent(
+    trackLit(compileMaterial(register(`folder:${kind}`, litOrPresented(g, col, lit(g, col, lamp(g, undefined, { twoSided: true })))))),
+  )
   // the cover flips over when it opens, so its inside faces have to render (single-sided showed the slab's
   // interior and read as the texture breaking up)
   m.side = DoubleSide
@@ -322,9 +348,10 @@ export function sheetMaterial(map: Texture, opts: { flipU?: boolean; flipV?: boo
  */
 export function markMaterial(map: Texture, mask: Texture, key: string) {
   const g = graph()
-  const col = lit(g, g.texture(map, g.uv()), lamp(g, [0, 1, 0]))
+  const art = g.texture(map, g.uv())
+  const col = litOrPresented(g, art, lit(g, art, lamp(g, [0, 1, 0])))
   const a = g.separate(g.texture(mask, g.uv()), 'x')
-  return trackLit(compileMaterial(register(`mark:${key}`, col), { opacity: a, alphaTest: 0.5 }))
+  return trackPresent(trackLit(compileMaterial(register(`mark:${key}`, col), { opacity: a, alphaTest: 0.5 })))
 }
 
 /** the printed art on a playing card (face or back), lit by the lamp; the card lies flat, so a flat up normal */

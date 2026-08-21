@@ -18,6 +18,7 @@ import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import { bakedSpin, contactPlane, planeAt, planeTilt, unbakeSpin } from 'blender-to-threejs'
 import { claimPointer } from './cursor'
+import { drivePresent } from './materials'
 import FolderLeaf, { RESUME_PDF, type LeafFace } from './folder-leaf'
 import { folderMaterial, sheetMaterial } from './materials'
 import type { ImpactFx } from './hero-chip'
@@ -535,6 +536,10 @@ export default function ResumeFolder({
     } else {
       g.rotation.y = yaw + (readYaw.current ?? 0) * a
     }
+
+    // the folder leaves the lamp's pool on the way up, so its own materials crossfade to an even front
+    // light as it presents: without this it darkens by nearly 40 percent exactly as it becomes the subject
+    drivePresent(a)
 
     // PRESENTED: rather than flying the camera down to the folder, the folder comes up to the camera. It
     // lifts off the felt, turns its spread to face the viewer and settles at the distance that frames it,
