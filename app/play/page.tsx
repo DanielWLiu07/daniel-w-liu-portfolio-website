@@ -25,13 +25,22 @@ import Environment from "@/components/three/environment";
 import GooseActor from "@/components/three/goose/goose-actor";
 import NodeGraphView from "@/components/three/node-graph-view";
 import RunTuner from "@/components/three/run-tuner";
+import WaterTuner from "@/components/three/water-tuner";
 import BoneOverlay from "@/components/three/bone-overlay";
 import {
   RUN_DEFAULTS,
+  WATER_DEFAULTS,
   type RunTuning,
+  type WaterTuning,
 } from "@/components/three/goose/goose-actor";
 import type { Collider } from "@/components/three/environment";
 import Pushables, { type Pushable } from "@/components/three/pushables";
+import HonkLines, {
+  HONK_DEFAULTS,
+  type HonkTuning,
+} from "@/components/three/honk-lines";
+import HonkTuner from "@/components/three/honk-tuner";
+import GrabRing from "@/components/three/grab-ring";
 import type { GraphNode } from "blender-to-threejs";
 
 /** Where the camera sits relative to the goose. Fixed angle, like the game. */
@@ -156,7 +165,12 @@ const CRATES: Pushable[] = [
   // Steal-ables. Small enough to carry in the bill.
   { position: [1.1, 0.09, 1.4], size: 0.09, color: [0.86, 0.28, 0.24] },
   { position: [-2.2, 0.08, -1.1], size: 0.08, color: [0.95, 0.84, 0.32] },
-  { position: [0.4, 0.1, 3.1], size: 0.1, rotation: 0.6, color: [0.28, 0.4, 0.72] },
+  {
+    position: [0.4, 0.1, 3.1],
+    size: 0.1,
+    rotation: 0.6,
+    color: [0.28, 0.4, 0.72],
+  },
   { position: [-3.4, 0.085, -3.6], size: 0.085, color: [0.2, 0.2, 0.22] },
 ];
 
@@ -173,6 +187,9 @@ function RenderProbe() {
 function Scene({
   onGraph,
   tuning,
+  honk: honkTuning,
+  water,
+  onWater,
   onPose,
   onGrab,
   showBones,
@@ -181,17 +198,23 @@ function Scene({
   showBones: boolean;
   onGraph: (g: GraphNode) => void;
   tuning: RunTuning;
+  honk: HonkTuning;
+  water: WaterTuning;
+  onWater: (v: { waterline: number; swim: number }) => void;
   onPose: (p: {
     beak: number;
     ahead: number;
     above: number;
     clamped: string[];
+    drag: number;
   }) => void;
 }) {
   const [target, setTarget] = useState<THREE.Vector3 | null>(null);
   const [honk, setHonk] = useState(false);
   const pos = useRef(new THREE.Vector3());
-  const boneMap = useRef<Record<string, THREE.Object3D | undefined> | null>(null);
+  const boneMap = useRef<Record<string, THREE.Object3D | undefined> | null>(
+    null,
+  );
   // Shared between the crates (which write it) and the goose (which is blocked
   // by it), so pushing and colliding always agree about where a crate is.
   const crateColliders = useRef<Collider[]>([]);
@@ -199,13 +222,19 @@ function Scene({
   const beakPos = useRef(new THREE.Vector3());
   const grabbed = useRef<number | null>(null);
   const beakYaw = useRef(0);
+  const beakDir = useRef(new THREE.Vector3(0, 0, 1));
+  const beakMouth = useRef(new THREE.Vector3());
+  // What E would pick up right now, or has:false when nothing is in reach.
+  const grabHint = useRef({ has: false, x: 0, y: 0, z: 0 });
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.code !== "KeyH") return;
       e.preventDefault();
       setHonk(true);
-      window.setTimeout(() => setHonk(false), 260);
+      // How long the mouth is held OPEN. The game's honk is a bark, not a
+      // note: 260ms read as sustaining it, 130ms still read as holding it.
+      window.setTimeout(() => setHonk(false), 70);
     };
     window.addEventListener("keydown", down, { passive: false });
     return () => window.removeEventListener("keydown", down);
@@ -269,16 +298,33 @@ function Scene({
             boneMap.current = b;
           }}
           tuning={tuning}
-          onBeakAngle={(beak, ahead, above, clamped) =>
-            onPose({ beak, ahead, above, clamped })
+          water={water}
+          onWater={onWater}
+          onBeakAngle={(beak, ahead, above, clamped, drag) =>
+            onPose({ beak, ahead, above, clamped, drag })
           }
           crates={crateColliders}
           beak={beakPos}
           beakYaw={beakYaw}
+          beakDir={beakDir}
+          beakMouth={beakMouth}
+          grabHint={grabHint}
           grabbed={grabbed}
           onGrab={onGrab}
         />
       </Suspense>
+
+      {/* Outside the Suspense boundary: the strokes are procedural geometry and
+          have nothing to wait for, and the bill refs they read are written by
+          the actor above whether or not its model has landed yet. */}
+      <HonkLines
+        mouth={beakMouth}
+        dir={beakDir}
+        honk={honk}
+        tuning={honkTuning}
+      />
+
+      <GrabRing hint={grabHint} />
 
       <BoneOverlay bones={boneMap} show={showBones} />
       <FollowCamera subject={pos} />
@@ -298,12 +344,16 @@ export default function PlayPage() {
   // own — the head inherits the whole neck before this term is applied, so the
   // same number means different things walking and running.
   const [tuning, setTuning] = useState<RunTuning>(RUN_DEFAULTS);
+  const [honkTuning, setHonkTuning] = useState<HonkTuning>(HONK_DEFAULTS);
+  const [water, setWater] = useState<WaterTuning>(WATER_DEFAULTS);
+  const [wet, setWet] = useState({ waterline: 0, swim: 0 });
   const [pose, setPose] = useState<{
     beak: number;
     ahead: number;
     above: number;
     clamped: string[];
-  }>({ beak: 0, ahead: 0, above: 0, clamped: [] });
+    drag: number;
+  }>({ beak: 0, ahead: 0, above: 0, clamped: [], drag: 0 });
 
   return (
     <div className="w-full h-screen bg-[#cfe3ef] relative select-none">
@@ -325,6 +375,9 @@ export default function PlayPage() {
         <Scene
           onGraph={setGraph}
           tuning={tuning}
+          honk={honkTuning}
+          water={water}
+          onWater={setWet}
           onPose={setPose}
           onGrab={setHolding}
           showBones={showBones}
@@ -342,15 +395,20 @@ export default function PlayPage() {
           <b>shift</b> — run
         </div>
         <div>
+          <b>C</b> — sneak, walking or still
+        </div>
+        <div>
           <b>space</b> — jump
         </div>
         <div>
           <b>H</b> — honk
         </div>
         <div>
-          <b>E</b> — {holding ? 'drop it' : 'grab with your bill'}
+          <b>E</b> — {holding ? "drop it" : "grab what the rings mark"}
         </div>
-        <div className="text-neutral-500 mt-1">walk into the crates</div>
+        <div className="text-neutral-500 mt-1">
+          walk into the crates &middot; only small things fit in a bill
+        </div>
         <RunTuner
           value={tuning}
           onChange={setTuning}
@@ -358,9 +416,22 @@ export default function PlayPage() {
           headAhead={pose.ahead}
           headAbove={pose.above}
           clamped={pose.clamped}
+          drag={pose.drag}
           showBones={showBones}
           onShowBones={setShowBones}
           onReset={() => setTuning(RUN_DEFAULTS)}
+        />
+        <HonkTuner
+          value={honkTuning}
+          onChange={setHonkTuning}
+          onReset={() => setHonkTuning(HONK_DEFAULTS)}
+        />
+        <WaterTuner
+          value={water}
+          onChange={setWater}
+          waterline={wet.waterline}
+          swim={wet.swim}
+          onReset={() => setWater(WATER_DEFAULTS)}
         />
         <button
           type="button"
