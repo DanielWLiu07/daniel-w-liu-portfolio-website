@@ -63,10 +63,12 @@ const BILL_CLEAR = 0.06;
 /**
  * Seconds spent closing on the bill when first grabbed.
  *
- * Only covers the pickup itself, so it is not a teleport. After that the GRIP
- * POINT is exact and the rest of the prop hangs off it.
+ * Short enough to read as the prop snapping to the mouth rather than flying to
+ * it. Not zero: a single-frame jump from the ground to head height reads as a
+ * glitch, and three frames reads as fast. After this the GRIP POINT is exact
+ * and the rest of the prop hangs off it.
  */
-const ATTACH_TIME = 0.12;
+const ATTACH_TIME = 0.05;
 /**
  * How much of the prop's own size the grip is offset from its centre.
  *
@@ -240,7 +242,9 @@ export default function Pushables({
             hang.x *= squeeze;
             hang.z *= squeeze;
           }
-          hang.y = -Math.sqrt(Math.max(0, arm * arm - hang.x * hang.x - hang.z * hang.z));
+          hang.y = -Math.sqrt(
+            Math.max(0, arm * arm - hang.x * hang.x - hang.z * hang.z),
+          );
           b.pos.copy(target).add(hang);
           // Remove motion along the rod; a rigid arm cannot stretch.
           const radial = b.vel.dot(hang) / (arm * arm);
@@ -267,7 +271,13 @@ export default function Pushables({
         }
         // Not a collider while carried, or the goose shoulders its own cargo.
         if (colliders?.current) {
-          const c = (colliders.current[i] ??= { x: 0, z: 0, hx: 0, hz: 0, top: 0 });
+          const c = (colliders.current[i] ??= {
+            x: 0,
+            z: 0,
+            hx: 0,
+            hz: 0,
+            top: 0,
+          });
           c.hx = 0;
           c.hz = 0;
           c.top = -1;
@@ -306,7 +316,23 @@ export default function Pushables({
         away.set(b.pos.x - g.x, 0, b.pos.z - g.z);
         const d = away.length();
         const contact = b.size + REACH;
-        if (d < contact && d > 1e-4) {
+        /**
+         * From BESIDE it, never from on top of it.
+         *
+         * This test threw the height away — `away` zeroes y — so it only ever
+         * asked how far the goose was horizontally. Standing on a crate is a
+         * horizontal distance of about zero, which is not "no contact", it is
+         * the STRONGEST possible contact: strength scales with 1 - d/contact.
+         * So the moment the goose landed on a crate it shoved it out from under
+         * itself at full force, which is why you cannot stand or walk on one.
+         *
+         * A goose above a crate's top face is standing on it or clearing it;
+         * either way it is not barging it. Below that, it is beside it, and
+         * shoving is exactly right.
+         */
+        const topY = b.size * 2;
+        const beside = g.y < topY - 1e-3;
+        if (beside && d < contact && d > 1e-4) {
           away.multiplyScalar(1 / d);
           /**
            * Lighter things go further. The impulse is the same kick; dividing
@@ -355,16 +381,23 @@ export default function Pushables({
       b.pos.z = THREE.MathUtils.clamp(b.pos.z, -bounds, bounds);
 
       if (colliders?.current) {
-        const c = (colliders.current[i] ??= { x: 0, z: 0, hx: 0, hz: 0, top: 0 });
+        const c = (colliders.current[i] ??= {
+          x: 0,
+          z: 0,
+          hx: 0,
+          hz: 0,
+          top: 0,
+        });
         c.x = b.pos.x;
         c.z = b.pos.z;
-        // Square footprint: the crate spins, and a rotating AABB would pop.
-        // Light props publish a zero footprint — they are still listed so the
-        // bill can find them to grab, but nothing blocks the goose.
+        // Square footprint, turned to match the mesh. Light props publish a
+        // zero footprint — they are still listed so the bill can find them to
+        // grab, but nothing blocks the goose.
         const solid = b.size > LIGHT_MAX_SIZE;
         c.hx = solid ? b.size : 0;
         c.hz = solid ? b.size : 0;
         c.top = solid ? b.size * 2 : -1;
+        c.angle = b.angle;
       }
 
       const m = meshes.current[i];
