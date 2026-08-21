@@ -531,10 +531,13 @@ export default function ResumeFolder({
         position[1],
         deal.from[1] + (position[2] - deal.from[1]) * e,
       )
-      g.rotation.y = yaw + (1 - e) * turns * Math.PI * 2 + (readYaw.current ?? 0) * a
+      // the WHOLE rotation, not just y: presenting slerps a full quaternion onto this group, and writing
+      // only rotation.y afterwards leaves the x and z the slerp put there, so the folder came back to the
+      // table still standing on its edge and half sunk into the felt
+      g.rotation.set(0, yaw + (1 - e) * turns * Math.PI * 2 + (readYaw.current ?? 0) * a, 0)
       g.visible = ia >= deal.at
     } else {
-      g.rotation.y = yaw + (readYaw.current ?? 0) * a
+      g.rotation.set(0, yaw + (readYaw.current ?? 0) * a, 0)
     }
 
     // the folder leaves the lamp's pool on the way up, so its own materials crossfade to an even front
@@ -564,6 +567,11 @@ export default function ResumeFolder({
       const e = a * a * (3 - 2 * a)
       g.position.lerp(p.tgt, e)
       g.quaternion.slerp(p.q, e)
+      if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('fdbg')) {
+        const w = window as unknown as { __fd?: number[][] }
+        if (!w.__fd) w.__fd = []
+        if (w.__fd.length < 1200) w.__fd.push([a, e, g.position.x, g.position.y, g.position.z, g.rotation.x, g.rotation.z])
+      }
     }
   })
 
