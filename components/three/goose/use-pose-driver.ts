@@ -38,9 +38,56 @@ export const GOOSE_SOFTNESS: Softness = {
   neck2: 95,
   neck3: 75,
   neck4: 60,
-  head: 45,
-  jaw: 200,
-  beak: 200,
+  /**
+   * Raised from 45, which was causing an INVERSE RESPONSE at the start of a run.
+   *
+   * The run pose straightens the neck (runNeck, up to 0.45 rad at the base) and
+   * tips the head back hard to compensate (runHeadTilt, 2.0 rad). Those are the
+   * same motion in opposite directions, and they were arriving at different
+   * times: neck1-4 are stiff (120..60) and got there first, dragging the head
+   * down with them, while the head's own counter-rotation crawled in behind on
+   * the softest spring on the bird.
+   *
+   * Measured at the moment shift goes down, the head pitched 9.4 degrees the
+   * WRONG WAY before travelling to its -35 degree run pose, and took 1.85 s to
+   * settle. A head that ducks before it lifts does not read as floppy, it reads
+   * as a mistake. At 120 the wrong-way excursion is 0.0 degrees and it settles
+   * in 1.13 s.
+   *
+   * This is only affordable now because the head no longer needs to be soft.
+   * The note below about stiffness making the wiggle worse was about steadying
+   * the head against the WADDLE, and the waddle is now cancelled at spine and
+   * chest before it ever gets here — so the head's softness stopped being
+   * load-bearing for that and was only costing the run its handover.
+   */
+  head: 120,
+  /**
+   * Raised from 200 to make the honk land as an impulse rather than a yawn.
+   *
+   * A honk is punctuation — it wants to be open on the frame you asked for it.
+   * At k=200 (2.25 Hz) the spring alone took ~156ms to rise, and stacked on top
+   * of the envelope ramp feeding it, the mouth peaked 362ms after the keypress
+   * with 104ms of dead air before anything moved at all. Measured, not guessed.
+   *
+   * At k=6000 (12.3 Hz) it rises in about 28ms — under two frames. Damping
+   * stays 0.9, so it still arrives without ringing, and the note below about a
+   * ringing jaw reading as chewing is the constraint that matters here:
+   * near-critical damping is what protects it, not softness.
+   *
+   * The climb was measured at each step: k=1000 gave 100ms, k=2500 gave 66ms.
+   * Both were still readable as a swing rather than a snap. The integrator
+   * sub-steps at 240Hz and the legs already run k=20000, so there is a great
+   * deal of headroom left above this if it is still not sharp enough.
+   */
+  jaw: 6000,
+  /**
+   * Matched to the jaw, because the two mandibles open together.
+   *
+   * At 200 (2.25 Hz) against the jaw's 6000 the upper bill would still be on
+   * its way up while the lower had already snapped down and started closing.
+   * Two halves of one gape cannot be on different springs.
+   */
+  beak: 6000,
   // Body carries weight: firmer, but still lagging enough to feel like mass.
   // Hip roll is the primary read of the whole gait, and it is driven at stride
   // frequency like the legs, so it needs the same treatment: at k=220 it was
@@ -53,8 +100,22 @@ export const GOOSE_SOFTNESS: Softness = {
   // behind that the error stayed large, pumped in energy every frame and sent
   // it over the top. Stiff enough to follow, loose enough to overshoot.
   tail: 95,
-  wingL: 70,
-  wingR: 70,
+  /**
+   * Stiff enough to actually beat.
+   *
+   * At 70 the wing's natural frequency is 1.33 Hz and the airborne flap drives
+   * it at 2.4, so it returned 14.8 degrees of a 39-degree stroke — and 7.6 at
+   * the 3.2 Hz a real goose cruises at. A wing that far behind its own command
+   * does not read as loose, it reads as a shiver. At 150 the same command comes
+   * back as 37.6 degrees, which is the stroke that was asked for.
+   *
+   * Still among the loosest bones on the bird, and well under the body's
+   * 320-380, so it keeps the swing and overshoot that make a wing a wing. On
+   * the ground the pose never asks for more than 17.8 degrees anyway, so this
+   * costs the walk nothing.
+   */
+  wingL: 150,
+  wingR: 150,
   /**
    * Legs are stiff because of FREQUENCY, not taste.
    */
@@ -129,8 +190,21 @@ export const GOOSE_LIMITS: Limits = {
   spine: 70,
   chest: 70,
   root: 22,
-  wingL: 45,
-  wingR: 45,
+  /**
+   * Wide enough for a wingbeat, which 45 was not.
+   *
+   * At 45 the descent pose alone asked for 52.7 degrees, so the wings were
+   * already pinned against the stop on every landing — invisible, because a
+   * held pose pinned at its limit looks like a held pose. Adding the airborne
+   * flap made it visible immediately: the beat asks for 74.5 degrees at the
+   * top of a stroke and would have spent most of the stroke jammed, which
+   * reads as a broken rig rather than as a bird.
+   *
+   * Walking never comes near this — 17.8 degrees at the very worst — so the
+   * extra range only exists where it is needed.
+   */
+  wingL: 85,
+  wingR: 85,
   /**
    * Generous: IK bounds these anyway, and this rig RESTS with a straight leg but
    * walks with one bent to ~103 degrees, so large deviation is normal here.

@@ -7,6 +7,16 @@ import type { Collider } from "../environment";
 export const GOOSE_RADIUS = 0.34;
 
 /**
+ * Slack on "is the goose above this box", in world units.
+ *
+ * Standing ON something puts the goose at exactly the box's top, and a strict
+ * `y > top` is false at exactly equal — so the resolver saw the box it was
+ * standing on, and pushed it out sideways. Landing on a crate slid you off it
+ * one frame later. Being level with the top has to count as being above it.
+ */
+const STAND_EPS = 1e-3;
+
+/**
  * How far a point is pushed out of the scenery, if at all.
  */
 export function penetration(
@@ -16,27 +26,98 @@ export function penetration(
   boxes: readonly Collider[],
   out: { x: number; z: number },
   y = -Infinity,
+  /** See resolveCollisions. */
+  ignore: Collider | null = null,
 ): boolean {
   out.x = 0;
   out.z = 0;
   let hit = false;
   for (const b of boxes) {
-    if (y > b.top) continue;
-    const nx = Math.min(Math.max(x, b.x - b.hx), b.x + b.hx);
-    const nz = Math.min(Math.max(z, b.z - b.hz), b.z + b.hz);
-    const dx = x - nx;
-    const dz = z - nz;
+    if (b === ignore) continue;
+    if (y >= b.top - STAND_EPS) continue;
+    /**
+     * Solved in the BOX's frame, not the world's.
+     *
+     * Turning the query point into the box's own rotation makes an oriented
+     * box the same problem as an axis-aligned one — the nearest-point clamp
+     * below is unchanged — and only the resulting push has to be turned back.
+     * The alternative, growing an axis-aligned box to cover a rotated one,
+     * blocks the goose in the empty diagonal corners.
+     */
+    const a = b.angle ?? 0;
+    const ca = a === 0 ? 1 : Math.cos(a);
+    const sa = a === 0 ? 0 : Math.sin(a);
+    const rx = x - b.x;
+    const rz = z - b.z;
+    const lx = rx * ca + rz * sa;
+    const lz = -rx * sa + rz * ca;
+    const nx = Math.min(Math.max(lx, -b.hx), b.hx);
+    const nz = Math.min(Math.max(lz, -b.hz), b.hz);
+    const dx = lx - nx;
+    const dz = lz - nz;
     const d2 = dx * dx + dz * dz;
     if (d2 > radius * radius) continue;
     hit = true;
     if (d2 > 1e-8) {
       const d = Math.sqrt(d2);
       const push = (radius - d) / d;
-      out.x += dx * push;
-      out.z += dz * push;
+      // Back to world: the inverse rotation of the one applied above.
+      out.x += (dx * ca - dz * sa) * push;
+      out.z += (dx * sa + dz * ca) * push;
     }
   }
   return hit;
+}
+
+/**
+ * Height of the highest thing that can be stood on at (x, z).
+ *
+ * Without this there was nothing to land ON. The only floor was the lawn, so a
+ * goose that jumped onto a crate kept falling once it was below the crate's
+ * top — and the moment it was below, resolveCollisions saw the box again and
+ * pushed it out sideways. Landing on something ejected you off it, which reads
+ * as the jump being broken rather than as the floor being missing.
+ *
+ * Tested against the box's own footprint plus `margin`, NOT the footprint grown
+ * by the whole goose radius the way collision is. Those are different
+ * questions: you collide with a box while beside it, and you stand on it only
+ * while over it. Growing this by a full radius would let the goose stand on
+ * thin air alongside a crate.
+ *
+ * But zero margin is unlandable in practice. A crate is 0.70 across, so with no
+ * margin the goose has to bring its centre down inside a 0.70 pad — while
+ * collision shoves it away from anywhere within a radius of the box. Measured,
+ * four run-ups at sensible take-off distances landed on the crate exactly zero
+ * times. A small tolerance is what makes "jump on that" a thing you can do
+ * rather than a thing you can theoretically do.
+ */
+export function supportHeight(
+  x: number,
+  z: number,
+  boxes: readonly Collider[],
+  ground = 0,
+  margin = 0,
+  /** Filled with the box being stood on, if any. See the `ignore` param below. */
+  out?: { box: Collider | null },
+): number {
+  let top = ground;
+  if (out) out.box = null;
+  for (const b of boxes) {
+    if (b.top <= top) continue;
+    // Same change of frame as penetration(): an oriented box is only an
+    // axis-aligned one asked in the right coordinates.
+    const a = b.angle ?? 0;
+    const ca = a === 0 ? 1 : Math.cos(a);
+    const sa = a === 0 ? 0 : Math.sin(a);
+    const rx = x - b.x;
+    const rz = z - b.z;
+    const lx = rx * ca + rz * sa;
+    const lz = -rx * sa + rz * ca;
+    if (Math.abs(lx) > b.hx + margin || Math.abs(lz) > b.hz + margin) continue;
+    top = b.top;
+    if (out) out.box = b;
+  }
+  return top;
 }
 
 /**
@@ -85,14 +166,26 @@ export function resolveCollisions(
   bounds = 0,
   out: Resolved = { x: 0, z: 0, hit: false },
   y = -Infinity,
+  /**
+   * A box to leave alone — the one the goose was standing on as it fell off.
+   *
+   * Standing on a ledge, the goose's BODY overhangs it; that is what a bird
+   * does and it is not a collision. The overhang only becomes visible to this
+   * resolver once the goose drops below the top, and resolving it then is a
+   * shove sideways at the exact moment of stepping off. Rate-limiting it made
+   * the shove slower, not absent — measured 2.60 m/s off a face and 2.18 off a
+   * corner, against a 0.95 m/s walk. It was never a collision to resolve.
+   */
+  ignore: Collider | null = null,
 ): Resolved {
   let px = x;
   let pz = z;
   let hit = false;
 
   for (const b of boxes) {
-    // Above it: the goose is clearing it, so there is nothing to resolve.
-    if (y > b.top) continue;
+    if (b === ignore) continue;
+    // Above it, or standing on it: nothing to resolve either way.
+    if (y >= b.top - STAND_EPS) continue;
     // Nearest point on the box to the goose's centre.
     const nx = Math.min(Math.max(px, b.x - b.hx), b.x + b.hx);
     const nz = Math.min(Math.max(pz, b.z - b.hz), b.z + b.hz);
