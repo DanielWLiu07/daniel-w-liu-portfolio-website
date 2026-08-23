@@ -17,6 +17,7 @@ import { SocialLinks } from '@/components/ui/social-links'
 import { katieRozeFont } from '@/lib/fonts/katie-roze'
 import CasinoScene, { BEATS, HAND, CHIP_STACKS, type ScrollState } from './casino-scene'
 import TunePanel from './tune-panel'
+import { FOLDER_KEYS } from './tune'
 import type { ImpactFx } from './hero-chip'
 import './casino.css'
 
@@ -114,6 +115,8 @@ export default function CasinoResume() {
 
   // ?tune shows the live layout sliders (values also readable straight from the URL, see tune.ts)
   const showTune = useMemo(() => (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).has('tune') : false), [])
+  // ?fld: just the presented folder's own knobs, for dialling the open file in place on the site itself
+  const showFolderTune = useMemo(() => (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).has('fld') : false), [])
 
   return (
     <div className="casino-root" style={{ height: `${PAGE_HEIGHT_VH}vh` }}>
@@ -134,6 +137,7 @@ export default function CasinoResume() {
           <CasinoScene armed={armed} folderOpen={fileOpen} onFolderOpen={openFile} scroll={scroll} fx={fx} report={report} onReady={onReady} uniformsRef={uniforms} />
         </Canvas>
         {showTune && <TunePanel />}
+        {!showTune && showFolderTune && <TunePanel only={FOLDER_KEYS} title="the open folder" />}
 
         {/* the open file lives in the scene (pages inside the folder); only a close control here */}
         <button type="button" className={`casino-file-close ${fileOpen ? 'is-open' : ''}`} onClick={closeFile} aria-label="Close the file">
