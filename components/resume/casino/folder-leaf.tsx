@@ -175,26 +175,37 @@ export default function FolderLeaf({ face, mount, active }: { face: LeafFace; mo
   const hover = useRef<number>(-1)
   const swell = useRef<number[]>([])
 
-  // the reading camera frames the PAGE, so only the inboard part of this leaf is on screen: everything
-  // sits between the crease and about two thirds of the way out
-  const across = face.cx * 0.62
-  const qrSide = Math.min(face.w * 0.44, face.h * 0.34)
-  const btnW = qrSide * 1.25
+  // Centred on the leaf, both ways. `across` used to be face.cx * 0.62 because the reading camera framed
+  // the PAGE and cut the outer third of this leaf off screen; the whole spread is framed now, so that
+  // leftover simply parked everything a fifth of a leaf inboard of where it belongs.
+  const across = face.cx
+  const qrSide = Math.min(face.w * 0.5, face.h * 0.38)
+  const btnW = qrSide * 1.5
   const btnH = qrSide * 0.27
   const logoSide = btnW / (LOGOS.length + (LOGOS.length - 1) * 0.2)
   const gap = logoSide * 0.2
 
   const items = useMemo<(Item & { w: number; h: number; x: number; y: number })[]>(() => {
     const row = LOGOS.length * logoSide + (LOGOS.length - 1) * gap
+    const btn = btnH * 1.5
+    // stacked from a block that is itself centred on the leaf, rather than three offsets measured off the
+    // middle and hoped to balance
+    const g1 = qrSide * 0.15
+    const g2 = qrSide * 0.13
+    const stack = qrSide + g1 + btn + g2 + logoSide
+    const top = face.cy + stack / 2
+    const qrY = top - qrSide / 2
+    const btnY = qrY - qrSide / 2 - g1 - btn / 2
+    const rowY = btnY - btn / 2 - g2 - logoSide / 2
     return [
-      { key: 'qr', kind: 'qr', label: 'Scan for resume', image: QR_IMAGE, w: qrSide, h: qrSide, x: across, y: face.cy + qrSide * 0.5 },
-      { key: 'download', kind: 'button', label: 'Download', w: btnH * 1.25, h: btnH * 1.25, x: across, y: face.cy - qrSide * 0.24 },
+      { key: 'qr', kind: 'qr', label: 'Scan for resume', image: QR_IMAGE, w: qrSide, h: qrSide, x: across, y: qrY },
+      { key: 'download', kind: 'button', label: 'Download', w: btn, h: btn, x: across, y: btnY },
       ...LOGOS.map((l, k) => ({
         ...l,
         w: logoSide,
         h: logoSide,
         x: across - row / 2 + logoSide / 2 + k * (logoSide + gap),
-        y: face.cy - qrSide * 0.62,
+        y: rowY,
       })),
     ]
   }, [across, face.cy, qrSide, btnH, logoSide, gap])
@@ -292,7 +303,8 @@ export default function FolderLeaf({ face, mount, active }: { face: LeafFace; mo
           userData={it.kind === 'qr' ? { compOverlay: true } : { compNoPosition: true }}
           onPointerOver={(e) => {
             if (!active) return
-            e.stopPropagation()
+            // not stopped: the folder underneath has its own hover, and swallowing it here left the
+            // spread dead while the pointer was on any of its own furniture
             hover.current = i
             claimPointer('leaf', true)
           }}
