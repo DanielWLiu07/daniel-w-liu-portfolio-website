@@ -151,11 +151,50 @@ export function drivePresent(v: number) {
   }
 }
 
-/** the lamp term crossfaded to an even front light as the object is presented */
-function litOrPresented(g: Graph, col: GraphNode, litCol: GraphNode) {
-  const p = g.uniform('present', 0)
-  return g.blend(p, litCol, g.multiplyColor(1, col, g.rgb(1.08, 1.06, 1.02)))
+/**
+ * How much a surface faces `d`, mapped into a lighting band. `from` is deliberately a narrow slice near
+ * the top of the dot's range rather than the full [-1, 1]: an open folder is two nearly parallel planes a
+ * few degrees apart, and over the full range that difference comes out at about one percent, which is to
+ * say invisible. Narrowing the slice spends the whole band on the angles that actually occur.
+ */
+function facing(g: Graph, d: [number, number, number], from: [number, number], to: [number, number]) {
+  const n = g.normal('world')
+  const dot = g.add(
+    g.add(g.multiply(g.separate(n, 'x'), d[0]), g.multiply(g.separate(n, 'y'), d[1])),
+    g.multiply(g.separate(n, 'z'), d[2]),
+  )
+  return g.mapRange(dot, { from, to, clamp: true })
 }
+
+/**
+ * The lamp term crossfaded to a front light as the object is presented.
+ *
+ * The front light is DIRECTIONAL, not flat. A flat multiply was the first version and it lit both leaves of
+ * the open folder identically, which erased the crease: the fold stopped reading and the presented folder
+ * looked like one printed board rather than a folder holding a page. The direction is fixed in world space,
+ * which is sound here because the camera holds still while anything is presented.
+ */
+function litOrPresented(g: Graph, col: GraphNode, litCol: GraphNode, band = PRESENT_BAND) {
+  const p = g.uniform('present', 0)
+  const front = g.multiplyColor(1, col, g.rgb(1.1, 1.08, 1.03))
+  return g.blend(p, litCol, g.multiplyColor(1, front, facing(g, PRESENT_LIGHT, band[0], band[1])))
+}
+
+/**
+ * The default band, narrow on purpose: it is what makes the folder's CREASE read, since an open folder is
+ * two nearly parallel planes and over the full dot range their difference is about one percent.
+ */
+const PRESENT_BAND: [[number, number], [number, number]] = [[0.55, 1], [0.8, 1.14]]
+/**
+ * Paper gets a much gentler one. The same narrow band that separates two flat leaves by a useful amount
+ * turns a CURVED sheet into a gradient: measured on the render, the middle of the resume came out at 190
+ * against 235 at its edges, which reads as the print and the paper being two different materials rather
+ * than as one page catching the light, and reads as too dark besides.
+ */
+const PAPER_BAND: [[number, number], [number, number]] = [[0.1, 1], [0.94, 1.05]]
+
+/** where the light comes from while something is held up: over the viewer's left shoulder */
+const PRESENT_LIGHT: [number, number, number] = [-0.61, 0.41, 0.68]
 
 /** every compiled material carrying the lamp term, so one driver can move the lamp (uniforms by name) */
 export const LIT_MATERIALS = new Set<{ userData: Record<string, unknown> }>()
@@ -291,9 +330,42 @@ export function folderMaterial(kind: 'body' | 'tab' | 'sheet' | 'ink') {
 }
 
 /**
+ * The sheet stock: ONE value for the paper's faces, its cut edges, the sheets underneath it and the paper
+ * the resume is printed on. Both sides of that split read it, so the printed face and the solid it rides on
+ * can never drift apart. White, so the brightest part of a sheet is the paper itself and the baked curl
+ * shade only ever takes light away from it.
+ */
+export const PAPER_STOCK: [number, number, number] = [1, 1, 1]
+export const PAPER_STOCK_HEX = '#ffffff'
+
+/**
  * the sheet inside the folder: paper white with the resume image WRITTEN onto it under a wobbly brush wipe
  * (uniform 'reveal' 0..1, driven by the folder's open amount). Blender: Image Texture, Noise, Math, Mix.
  */
+/**
+ * Paper, lit like everything else in the room. The stock and the printed face BOTH go through this, so a
+ * point on the print and the paper directly under it can never be different colours: same fibre, same baked
+ * curl shade, same lamp, same presented front light.
+ *
+ * PAPER_GAIN sets the paper's level and its warmth, and both were solved on the render rather than picked.
+ * The paint pass has a compressive shoulder: dropping the gain from 1.005 to 0.778 only moved the paper's
+ * 99th percentile from about 255 to 228, so there is no gain that is both as bright as paper should be and
+ * free of clipping in red and green. This sits at the bright end, where the sheet reads as lit paper, and
+ * spends the headroom on warmth instead: cast +30 against manila at +67, so a white sheet does not read
+ * grey beside it.
+ */
+const PAPER_GAIN: [number, number, number] = [0.99, 0.962, 0.918]
+function paperLit(g: Graph, base: GraphNode): GraphNode {
+  // keyed off object position, so the grain runs continuously from the printed face around the cut edge
+  const f = g.mapRange(g.noise(g.position('object'), { scale: 55, detail: 2 }), { from: [0, 1], to: [0.955, 1.03], clamp: true })
+  const gained = g.multiplyColor(1, base, g.rgb(...PAPER_GAIN))
+  const fibred = g.multiplyColor(1, gained, g.combine(f, f, f))
+  // the sheet is a BENT solid (see paperSheet) drawn without the paint pass, so the shade baked into its
+  // colour attribute is what tells the eye it is curved. Absent on a flat mesh the node reads white.
+  const col = g.multiplyColor(1, fibred, g.vertexColor())
+  return litOrPresented(g, col, lit(g, col, lamp(g, undefined, { twoSided: true })), PAPER_BAND)
+}
+
 export function sheetMaterial(map: Texture, opts: { flipU?: boolean; flipV?: boolean; rotate?: boolean; printed?: boolean; border?: number; fit?: number } = {}) {
   const g = graph()
   const uv = g.uv()
@@ -330,13 +402,36 @@ export function sheetMaterial(map: Texture, opts: { flipU?: boolean; flipV?: boo
   const line = g.add(g.subtract(1, v), wob) // 0 at the top edge .. 1 at the bottom
   const t = g.math('DIVIDE', g.subtract(front, line), 0.1, 0, { clamp: true })
   const mask = g.multiply(g.multiply(t, t), g.subtract(3, g.multiply(t, 2)))
-  const col = opts.printed ? img : g.blend(mask, paper, img)
-  const m = compileMaterial(register('sheet', col))
+  // The print and the sheet it is printed on must be INDISTINGUISHABLE, or the resume reads as a decal laid
+  // on a card rather than as one piece of paper. Three things do it: both take their paper colour from the
+  // one PAPER_STOCK constant, so they cannot drift; the scan's own paper is lifted the measured 0.2 percent
+  // that separates it from white (sampled off the file at 254.5/255, neutral); and both carry the same
+  // fibre the folder body has, keyed off object position, so the grain runs continuously from the printed
+  // face around the cut edge. The ink is untouched, since multiplying black by anything is still black.
+  const stock = g.multiplyColor(1, g.rgb(...PAPER_STOCK), g.rgb(1.0021, 1.0021, 1.0021))
+  const base = opts.printed ? g.multiplyColor(1, img, stock) : g.blend(mask, paper, img)
+  const m = trackPresent(trackLit(compileMaterial(register('sheet', paperLit(g, base)))))
   // the modelled page is a single plane: it must show whichever way its normal points
   m.side = DoubleSide
   m.polygonOffset = true
   m.polygonOffsetFactor = -2
   m.polygonOffsetUnits = -2
+  return m
+}
+
+/**
+ * The paper's own stock as a graph material, for the sheet's faces, its cut edges and the sheets under it.
+ *
+ * It used to be a plain MeshBasicMaterial, which is UNLIT, and the printed side was unlit too. Measured on
+ * the render, that left the resume the one dead-neutral surface in the room: every other white in the shot
+ * picks up the light's warmth (the manila reads +68 red over blue, a white playing card +7) and the paper
+ * read exactly 0, flat, at a brightness owing nothing to the lamp or to the fold it was lying in. That is
+ * what kept it looking laid ON the scene rather than in it, whatever the geometry did.
+ */
+export function stockMaterial() {
+  const g = graph()
+  const m = trackPresent(trackLit(compileMaterial(register('paperStock', paperLit(g, g.rgb(...PAPER_STOCK))))))
+  m.side = DoubleSide
   return m
 }
 
