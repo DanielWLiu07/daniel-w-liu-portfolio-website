@@ -38,46 +38,59 @@ import { Vector3 } from 'three'
 import { compileMaterial, graph, type Graph, type GraphNode } from 'blender-to-threejs'
 
 /**
- * His rig, read out of the .blend: four points (41.4, 28.6, 12.6, 10.0), a spot
- * (21.0), three suns (10.0, 1.0, 0.1) and a 0.08 world.
+ * His rig, as it actually RENDERS.
  *
- * It is here rather than buried in a default because the ramps downstream are
- * calibrated against what THIS rig produces. Two stand-ins proved a single key
- * cannot do it: a normalised dot product put every surface above the 0.4773 cut
- * and printed pure white, and aiming one key at his sun alone dropped every
- * camera-facing surface to N.L = 0 and printed solid ink.
+ * Five of his eight lights have hide_render set, which I missed the first time
+ * and encoded anyway. Only three contribute: image_target_sun (SUN, irradiance
+ * 10.0), Sun.001 (SUN, 1.0) and better_frame_light (POINT, 41.4 W, which at its
+ * 6.11 m from the shader ball works out to 0.088 by inverse square). Directions
+ * are toward the light, computed at the ball's own position for the point.
  *
- * The point and spot energies are scaled well down from their raw Blender
- * values, because a point light's energy falls off with distance and a
- * directional term has no distance to fall off over.
+ * Total irradiance at the ball is 11.09, and that number is the whole reason
+ * LIGHT_GAIN exists below.
  */
-const HIS_LIGHTS = [
-  { dir: new Vector3(-1, 0.019, 0.003).normalize(), energy: 1.6 }, // image_target_sun
-  { dir: new Vector3(-0.967, -0.101, -0.233).normalize(), energy: 0.5 }, // Spot
-  { dir: new Vector3(-0.371, 0.9, 0.227).normalize(), energy: 0.1 }, // Sun
-  { dir: new Vector3(0, 0, 1).normalize(), energy: 0.9 }, // Sun.001
-  { dir: new Vector3(0.25, 0.5, 1).normalize(), energy: 1.1 }, // the point rig, toward the subject
-  { dir: new Vector3(-0.35, 0.4, 1).normalize(), energy: 0.7 },
+export const HIS_LIGHTS = [
+  { dir: new Vector3(1, -0.019, -0.003).normalize(), energy: 10.0 }, // image_target_sun
+  { dir: new Vector3(0, 0, 1).normalize(), energy: 1.0 }, // Sun.001
+  { dir: new Vector3(-0.103, 0.995, 0.018).normalize(), energy: 0.088 }, // better_frame_light
 ] as const
 
 /**
- * The one free parameter, and it is SOLVED rather than eyeballed.
+ * The rig this PAGE uses, and the reason it is not his.
  *
- * eeveeLighting gives diffuse = sum(N.L * energy) / PI + ambient, and the ramp
- * above it turns white at 0.3. His raw energies sum to 4.9, which puts diffuse
- * over 0.3 for every N.L above 0.14: hatch then appears only in the last eight
- * degrees before the terminator, which is the thin crescent that showed up. For
- * the hatch to cover half the lit side the band has to reach N.L = 0.5, so
- * E * 0.5 / PI = 0.3 - 0.08, giving E = 1.38 and a gain of 1.38 / 4.9.
+ * A shader's look is inseparable from the rig it was authored for, and porting a
+ * shader is not porting a scene. His key lights along +X because that is where
+ * his shader balls sit; the cards here face the camera at +Z, so under his rig
+ * they receive almost nothing and print as solid ink. Rendered it that way to be
+ * sure, and that is exactly what happens.
  *
- * This exists because his point and spot lights fall off with distance and a
- * directional term does not. Their raw energies are correct for Blender and
- * meaningless here without the distance that divides them.
+ * So the graph is his and the rig is this scene's: the same three lights at the
+ * same relative strengths, turned to face the subject the page actually has.
+ * Pass HIS_LIGHTS to see it under his.
  */
-const LIGHT_GAIN = 0.28
+const PAGE_LIGHTS = [
+  { dir: new Vector3(-0.4, 0.5, 0.77).normalize(), energy: 10.0 }, // stands in for image_target_sun
+  { dir: new Vector3(0, 0.2, 1).normalize(), energy: 1.0 }, // Sun.001
+  { dir: new Vector3(0.6, 0.3, 0.74).normalize(), energy: 0.088 }, // better_frame_light
+] as const
 
 /** his World background: 0.08 at strength 1.0 */
 const WORLD_AMBIENT = 0.08
+
+/**
+ * A DELIBERATE DEPARTURE from his scene, not a fudge and not a fit.
+ *
+ * His rig delivers 11.09 of irradiance at the shader ball. Through eeveeLighting
+ * that is sum(N.L * E) / PI = 3.53 at full facing, which clamps to 1 and leaves
+ * the ramp above it white for every N.L over about 0.04. Physically faithful,
+ * and it means his shader hatches only in the last two degrees before the
+ * terminator: a thin dark rim on an otherwise white ball.
+ *
+ * So this trades fidelity for legibility, knowingly. E * 0.5 / PI = 0.3 - 0.08
+ * puts the hatch band at N.L = 0.5, half the lit side, which needs a total of
+ * 1.38 against his 11.09. Set it to 1 to get his scene exactly.
+ */
+const LIGHT_GAIN = 1.38 / 11.09
 /** his Diffuse BSDF's own Color input */
 const ALBEDO: [number, number, number, number] = [0.8, 0.8, 0.8, 1]
 
@@ -95,6 +108,8 @@ export interface HatchOptions {
   gamma?: number
   /** Group input "Ofset": the Mapping location the waves are sampled through */
   offset?: number
+  /** the rig to shade against; defaults to this page's, pass HIS_LIGHTS for his */
+  lights?: readonly { dir: Vector3; energy: number }[]
 }
 
 /** ColorRamp(0.1955 grey -> 0.5545 black -> 1 white), on the wobbly waves */
@@ -147,7 +162,7 @@ export function hatchMaterial(opts: HatchOptions = {}): THREE.Material {
   // both nodes exist rather than being stood in for
   const diffuse = g.diffuseBsdf(ALBEDO, {
     roughness: 0,
-    lights: HIS_LIGHTS.map((l) => ({ dir: l.dir, energy: l.energy * LIGHT_GAIN })),
+    lights: (opts.lights ?? PAGE_LIGHTS).map((l) => ({ dir: l.dir, energy: l.energy * LIGHT_GAIN })),
     worldAmbient: WORLD_AMBIENT,
   })
   const toned = g.colorRamp(g.separate(g.shaderToRgb(diffuse), 'x'), [
