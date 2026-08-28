@@ -872,6 +872,11 @@ export default function ResumeFolder({
       const e = a
       g.position.lerp(p.tgt, e)
       g.quaternion.slerp(p.q, e)
+      // and it travels on an ARC: a bulge up and across that peaks halfway and is exactly zero at both
+      // ends, so the folder swings up to the reader instead of sliding along a line between two poses
+      const arc = Math.sin(Math.PI * a) * ls.z
+      g.position.addScaledVector(p.up, arc * 0.1)
+      g.position.addScaledVector(p.x, arc * 0.05)
       if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('fdbg')) {
         const w = window as unknown as { __fd?: number[][]; __fp?: Record<string, number[]>; __fp2?: Record<string, number[]> }
         if (!w.__fd) w.__fd = []
