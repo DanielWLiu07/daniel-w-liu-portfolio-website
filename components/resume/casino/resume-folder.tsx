@@ -360,14 +360,22 @@ export default function ResumeFolder({
     // how far the free corner lifts at full curl. Scaled off the SHEET, not the stock: paper is thin, so
     // tying the curl to the thickness makes it vanish (measured, it came out at 1.3 percent of the page).
     // The cap is only there so a freak aspect cannot turn a sheet into a roof tile.
-    const rise = Math.min(pw * 0.075, thick * 30)
+    // The rise is what tips the page's free edge away from the leaf's, and that is the corner that reads as
+    // not lining up with the folder: measured, the two edges sit within 0.26 degrees of each other at the
+    // fold and 3.06 degrees apart at the free end, and cutting only the CORNER term moved that to 2.55, so
+    // the plain lift is carrying it. At this rise the divergence is under a degree. The sheet's depth comes
+    // from its stock and its contact shadow rather than from a big curl, which is the right trade: paper
+    // that lifts far enough to read as curled also stops reading as being IN the folder.
+    const rise = Math.min(pw * 0.028, thick * 30)
     const sheets: Sheet[] = []
     // the shadow the leaf cannot receive: a soft patch on the leaf's own plane, just under the stack
     const shadow = new THREE.Mesh(
       new THREE.PlaneGeometry(pw * 1.16, ph * 1.16),
       new THREE.MeshBasicMaterial({ map: contactShadowTexture(), transparent: true, opacity: 0.5, depthWrite: false }),
     )
-    shadow.position.set(cx + pw * 0.012, cy - ph * 0.012, lift(0.06))
+    // barely offset: a directional shadow left the corner it pointed away from with nothing under it at
+    // all, and that was exactly the corner that read as not being on the folder
+    shadow.position.set(cx + pw * 0.004, cy - ph * 0.004, lift(0.06))
     shadow.rotation.y = tilt
     shadow.renderOrder = -1
     root.add(shadow)
