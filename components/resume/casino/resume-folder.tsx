@@ -329,11 +329,12 @@ export default function ResumeFolder({
     // its printed face are one piece of paper lit by one thing
     const edge = stockMaterial()
     // the page fills the modelled sheet's footprint, clipped inside the cover so no corner peeks out when
-    // the folder is shut. The inset has to clear the leaf's ROUNDED corners, not just its bounding box:
-    // at 2 percent the page ran flush to the leaf's edge and its free corner hung out over the felt as
-    // soon as the presented folder took any tilt at all. It also gives the paper a manila margin, which
-    // is what a document in a folder actually looks like.
-    const inset = (cb.max.x - cb.min.x) * 0.045
+    // the folder is shut. The inset has to clear the leaf's ROUNDED corners AND the curl: at 2 percent the
+    // page ran flush and its free corner hung out over the felt on any tilt, and even at 4.5 the top margin
+    // measured 2 to 3 px against 16 down the middle, because the lifted free corners are nearer the camera
+    // and so project larger. Measured round the whole page rather than set by eye. It also gives the paper
+    // a manila margin, which is what a document in a folder actually looks like.
+    const inset = (cb.max.x - cb.min.x) * 0.068
     const px0 = Math.max(sb.min.x, cb.min.x + inset)
     const px1 = Math.min(sb.max.x, cb.max.x - inset)
     const py0 = Math.max(sb.min.y, cb.min.y + inset)
