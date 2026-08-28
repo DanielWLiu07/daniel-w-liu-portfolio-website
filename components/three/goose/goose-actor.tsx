@@ -861,6 +861,15 @@ export interface GooseActorProps {
   }>;
   /** Called when the grab state changes, for the HUD. */
   onGrab?: (holding: boolean) => void;
+  /**
+   * How hard to nod along, and where the beat is.
+   *
+   * 0..1 so the scene can fade the goose into and out of the music by
+   * distance; the beat is the song position, negative when nothing is playing.
+   * Refs rather than props because both change every frame.
+   */
+  grooveAmount?: React.RefObject<number>;
+  grooveBeat?: React.RefObject<number>;
   /** Handed the live bone map once resolved, for the skeleton overlay. */
   onBones?: (bones: Record<string, THREE.Object3D | undefined>) => void;
   /** Run head-tilt coefficient. See WalkInput.runHeadTilt. */
@@ -896,6 +905,8 @@ export default function GooseActor({
   grabHint,
   grabbed,
   onGrab,
+  grooveAmount,
+  grooveBeat,
   onBones,
 }: GooseActorProps) {
   const group = useRef<THREE.Group>(null);
@@ -2305,6 +2316,32 @@ export default function GooseActor({
       carrying:
         grabbed?.current !== null && grabbed?.current !== undefined ? 1 : 0,
     });
+
+    /**
+     * Nodding along to the radio.
+     *
+     * Layered AFTER applyWalk on purpose, which is what makes it nearly free:
+     * pose.rotate accumulates onto the target the walk just built, so the goose
+     * carries on waddling, sneaking or running underneath and the nod rides on
+     * top instead of fighting it for the same bones.
+     *
+     * Peaked on the beat rather than sinusoidal. A sine spends as long rising
+     * as falling, which reads as a neck swaying; a head bob is a drop ON the
+     * beat and a slower recovery, and the exponent is what buys that snap. The
+     * offset re-centres it so the head averages out near where it already was
+     * rather than nodding from a permanent stoop.
+     */
+    const groove = grooveAmount?.current ?? 0;
+    const songBeat = grooveBeat?.current ?? -1;
+    if (groove > 0.001 && songBeat >= 0) {
+      const t = songBeat - Math.floor(songBeat);
+      const nod = Math.pow((1 + Math.cos(t * Math.PI * 2)) * 0.5, 1.7) - 0.35;
+      pose.rotate("neck3", nod * 0.1 * groove, 0, 0);
+      pose.rotate("neck4", nod * 0.14 * groove, 0, 0);
+      pose.rotate("head", nod * 0.16 * groove, 0, 0);
+      // The tail keeps time underneath at half speed, side to side.
+      pose.rotate("tail", 0, Math.sin(songBeat * Math.PI) * 0.16 * groove, 0);
+    }
 
     // --- foot IK -------------------------------------------------------------
     if (rig && plan) {

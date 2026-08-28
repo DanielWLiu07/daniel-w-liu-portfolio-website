@@ -425,6 +425,8 @@ function Scene({
           grabHint={grabHint}
           grabbed={grabbed}
           onGrab={onGrab}
+          grooveAmount={grooveAmount}
+          grooveBeat={grooveBeat}
         />
       </Suspense>
 
