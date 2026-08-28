@@ -670,6 +670,7 @@ export default function ResumeFolder({
     lc: new THREE.Vector3(),
     ls: new THREE.Vector3(),
     ndc: new THREE.Vector3(),
+    crease: new THREE.Vector3(),
     m: new THREE.Matrix4(),
     q: new THREE.Quaternion(),
     qa: new THREE.Quaternion(),
@@ -848,9 +849,18 @@ export default function ResumeFolder({
       const lb = localBounds(parts.current.root, g, p.bounds)
       const lc = lb.getCenter(p.lc)
       const ls = lb.getSize(p.ls)
+      // The FOLD goes on the screen's centre line, not the spread's middle. The two leaves are not equal
+      // (the tab is on one of them), so centring the bounding box puts the crease off to one side, and the
+      // crease is the thing the eye reads an open folder by. p.bounds.mi is already the inverse of the
+      // group's world matrix from localBounds, so the hinge lands in the same frame as the bounds.
+      const hinge = parts.current.pivot
+      hinge.updateWorldMatrix(true, false)
+      p.crease.setFromMatrixPosition(hinge.matrixWorld).applyMatrix4(p.bounds.mi)
+      // and the fit has to be measured FROM the crease, or the wider leaf runs off the edge
+      const armX = Math.max(p.crease.x - lb.min.x, lb.max.x - p.crease.x) * 2
       const half = Math.tan(THREE.MathUtils.degToRad(cam.fov) / 2)
       // fit BOTH extents: local x runs across the screen, local z up it
-      const dist = Math.max(ls.z / 2 / half, ls.x / 2 / (half * cam.aspect)) * tn.fldFit * (1 - 0.035 * h.amt)
+      const dist = Math.max(ls.z / 2 / half, armX / 2 / (half * cam.aspect)) * tn.fldFit * (1 - 0.035 * h.amt)
       const t = clock.elapsedTime
       p.tgt.copy(cam.position).addScaledVector(p.fwd, dist)
       // a slow breath and a drift after the pointer, so a held document is not a frozen one
@@ -863,8 +873,11 @@ export default function ResumeFolder({
       const bob = Math.sin(t * (0.9 + 0.55 * h.amt)) * ls.z * tn.fldFloat * (1 + 1.8 * h.amt)
       p.tgt.addScaledVector(p.up, ls.z * (tn.fldUp + tn.fldRise * h.amt) + bob)
       p.tgt.addScaledVector(p.x, -ls.x * tn.fldSide)
-      // put the SPREAD on the camera's axis, not the group's origin
-      p.tgt.sub(p.off.copy(lc).applyQuaternion(p.q))
+      // put the CREASE on the camera's axis horizontally, and the spread's middle on it vertically
+      // the crease's OWN depth, not the spread's: the folder is leaned, so putting the fold's x on the axis
+      // at the wrong depth still leaves it off centre in projection (measured, 20 px of 1280)
+      p.off.set(p.crease.x, p.crease.y, lc.z).applyQuaternion(p.q)
+      p.tgt.sub(p.off)
 
       // e is the master curve itself now, not a second easing stacked on top of it. Smoothing an already
       // smoothed value flattens both ends so hard that the middle has to race, which is the other half of
