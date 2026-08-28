@@ -328,9 +328,89 @@ const DUCK_DROP = 0;
  */
 const SNEAK_STRIDE = 0;
 /**
- * Lengthen the leg bones at load.
+ * How close to dead straight the leg may go, as a fraction of its length.
+ *
+ * Was a bare 0.9 inline. It is a guard: at exactly straight the bend plane is
+ * undefined and the knee can flip. But it is also the thing that decides how
+ * much horizontal reach a leg has, and 10% is expensive here — the whole
+ * budget is sqrt((m*L)^2 - h^2), so with h/L near 0.85 the margin is most of
+ * what is left. Raising it to 0.95 roughly doubles the reach at that ratio,
+ * which is what buys a shank that stands up instead of lying forward.
+ *
+ * 0.95 is still 5% short of the singularity, and the pole keeps the bend plane
+ * defined besides.
  */
-const LEG_STRETCH = 1.28;
+const REACH_MARGIN = 0.96;
+/**
+ * Lengthen the leg bones at load.
+ *
+ * This does nothing on its own — it lowers the ankle relative to the hip, and
+ * the plant then puts the sole back on the lawn, so the leg just folds up more.
+ * It exists to buy the reach STAND_TALL spends. Keep the two in step.
+ */
+const LEG_STRETCH = 1.56;
+/**
+ * How far the whole bird is lifted off its root, world units.
+ *
+ * The source model is a real goose: a deep body on very short legs, with only
+ * about 6% of its height in bare leg. The game's goose is a stylised one that
+ * stands well clear of the ground, and no amount of gait tuning makes the
+ * first read as the second — with the belly that close to the grass there is
+ * nowhere for a stride to happen and nothing to see happening.
+ *
+ * Lifting the body is the only lever: the root sits on the lawn and the rig
+ * fixes the hips 0.473 above it, so the standing height is otherwise baked in.
+ * The legs then have to reach back down, which is what LEG_STRETCH is for:
+ *
+ *   span needed  = 0.28 + STAND_TALL          (hip to planted ankle)
+ *   leg length   = 0.2805 * LEG_STRETCH
+ *   reach left   = sqrt((0.9 * leg)^2 - span^2)   for the stride
+ *
+ * At 0.10 and 1.78 that is a span of 0.38 against a leg of 0.499, with 0.22 of
+ * horizontal reach — more than the 0.187 the short-legged stance had.
+ *
+ * LEG_STRETCH is NOT free to raise, and this is the whole balance of the gait.
+ *
+ * At mid-stance the foot is under the hip, so the leg only has to span the hip
+ * height. Any length beyond that has to go somewhere, and it goes into a fold
+ * at the knee that lays the visible shank forward. Measured, standing:
+ *
+ *   LEG_STRETCH  1.50   1.56   1.78   2.10
+ *   shank        31deg  40deg  54deg  67deg
+ *   foot slide   105%   7.2%   6.5%   1.3%
+ *
+ * The tension is that a SHORT leg cannot reach a long stride, and the guard
+ * then drags the planted foot to make up the difference, which is skating:
+ *
+ *   reach = sqrt((REACH_MARGIN * L)^2 - h^2)   must cover half the excursion
+ *   fold  = h / L                              wants to be near 1 for an
+ *                                              upright shank
+ *
+ * Those pull opposite ways and the stride sets which wins. At the old stride
+ * of 0.5 (0.8 running) nothing under 1.78 could reach, so the shank sat at 54
+ * degrees — the goose walked on its hocks. Shortening the stride to 0.44 (0.58
+ * running) is what buys a 1.56 leg, and with it a shank at 35-41 degrees.
+ *
+ * Raising REACH_MARGIN from the old inline 0.9 to 0.96 paid for most of that,
+ * so the stride only had to come down 12% rather than 40%.
+ *
+ * Do not expect to do much better by tuning. A truly upright shank needs
+ * h/L near 0.86, and at a +/-0.27 excursion that needs a leg of 1.02 with the
+ * hip 0.88 off the ground, on a goose 1.3 tall. Getting there needs a hock
+ * joint in the mesh, which this sculpt does not have: `shin` is one rigid
+ * segment spanning the whole visible leg.
+ */
+/*
+ * Briefly 0.16, with LEG_STRETCH at 1.82, as an attempt at the run's foot
+ * clipping — on the theory that the run crouch had pulled the belly down into
+ * the swing path. It did clear the belly, and it broke the WALK: the walk has
+ * no crouch, so the whole 60mm went into standing height, the legs straightened
+ * to reach the ground, and the goose stilted along with its feet out in front.
+ *
+ * The clipping was never the belly. It was the skin tearing at the ankle — see
+ * ANKLE_BAND in the re-weighting. Height reverted, mesh fix kept.
+ */
+const STAND_TALL = 0.1;
 /**
  * How far OUT the knee is pushed, as a fraction of straight-backward.
  *
@@ -579,8 +659,14 @@ const GROUND_Y = 0;
  * surface and the goose hovered on the pond with only its legs wet.
  *
  * 0.006 = 0.097 - drop + 0.40 * 0.466  =>  drop = 0.277 further down.
+ *
+ * Carries STAND_TALL, because this is an absolute sink of the body root and
+ * the torso heights above were measured before the bird was stood up. Left at
+ * a bare 0.49 the goose would ride exactly STAND_TALL high on the water — the
+ * same hovering this constant was raised to fix, reintroduced from the other
+ * side.
  */
-const FLOAT_DEPTH = 0.49;
+const FLOAT_DEPTH = 0.49 + STAND_TALL;
 /** Swimming is a shade slower than walking, not a crawl. */
 const SWIM_SPEED = 1.05;
 /**
@@ -1856,15 +1942,14 @@ export default function GooseActor({
             st.heading,
             speed,
             st.phase,
-            // Horizontal reach left over once the leg has spanned the hip height:
-            // sqrt(L^2 - h^2), kept at 90% so the knee never locks dead straight
-            // (the bend plane is undefined there and the joint can flip).
+            // Horizontal reach left over once the leg has spanned the hip
+            // height: sqrt((REACH_MARGIN * L)^2 - h^2).
             Math.sqrt(
               Math.max(
                 1e-4,
                 (rig.upper + rig.lower) *
-                  0.9 *
-                  ((rig.upper + rig.lower) * 0.9) -
+                  REACH_MARGIN *
+                  ((rig.upper + rig.lower) * REACH_MARGIN) -
                   hipHeight * hipHeight,
               ),
             ),
@@ -2413,7 +2498,7 @@ export default function GooseActor({
 
   return (
     <group ref={group}>
-      <group scale={fit}>
+      <group scale={fit} position-y={STAND_TALL}>
         <primitive object={root} />
       </group>
     </group>

@@ -15,9 +15,17 @@ const TAU = Math.PI * 2;
 const RUN_NECK = [0.45, 0.34, 0.1, 0.04];
 
 /**
- * Metres of travel per complete two-step cycle.
+ * Metres of ground per step. Speed / STRIDE is the step frequency.
+ *
+ * Was 0.5, and came down because the LEG could not cover it. Horizontal reach
+ * is sqrt((REACH_MARGIN * legLength)^2 - hipHeight^2), and a leg long enough to
+ * cover a 0.5 stride is so much longer than the goose stands that it folds
+ * double at mid-stance and lays the visible shank 54 degrees forward — the bird
+ * walks on its hocks. At 0.44 a 1.56 leg reaches, and the shank sits at 35-41.
+ *
+ * See LEG_STRETCH in goose-actor for the full trade; the two are one setting.
  */
-export const STRIDE = 0.5;
+export const STRIDE = 0.44;
 
 /**
  * Fraction of the cycle a foot spends on the ground.
