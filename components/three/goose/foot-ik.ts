@@ -136,6 +136,69 @@ const LOST = 1.0;
 const STANCE_MID = 0.295;
 const reachAhead = (stance: number) => STANCE_MID + stance / 2;
 
+/**
+ * World height of the lowest point of each foot, right now, off the posed skin.
+ *
+ * Measured, not assumed, and for the usual reason: the number that decides
+ * whether the goose touches the ground is a property of the mesh, and the mesh
+ * is a sculpt. The plant height used to be derived from the ankle BONE and
+ * corrected by an algebraic term for the leg stretch — the two cancelled
+ * exactly, which is why raising LEG_STRETCH never made the goose any taller.
+ *
+ * Returns null if the rig has no skinned foot geometry to measure, so the
+ * caller can fall back rather than plant the goose at zero.
+ */
+export function measureSoleY(
+  root: THREE.Object3D,
+  ankles: { L?: THREE.Object3D; R?: THREE.Object3D },
+): { L: number; R: number } | null {
+  if (!ankles.L || !ankles.R) return null;
+  const meshes: THREE.SkinnedMesh[] = [];
+  root.traverse((o) => {
+    if ((o as THREE.SkinnedMesh).isSkinnedMesh)
+      meshes.push(o as THREE.SkinnedMesh);
+  });
+  if (!meshes.length) return null;
+
+  const v = new THREE.Vector3();
+  const lowest: Record<"L" | "R", number> = {
+    L: Infinity,
+    R: Infinity,
+  };
+  for (const mesh of meshes) {
+    const skel = mesh.skeleton;
+    // Which slot in THIS mesh's skeleton each ankle occupies. A mesh that does
+    // not bind the feet at all simply has neither, and is skipped.
+    const slot: Record<number, "L" | "R"> = {};
+    for (const side of ["L", "R"] as const) {
+      const i = skel.bones.indexOf(ankles[side] as THREE.Bone);
+      if (i >= 0) slot[i] = side;
+    }
+    if (!Object.keys(slot).length) continue;
+    const geo = mesh.geometry;
+    const pos = geo.attributes.position;
+    const si = geo.attributes.skinIndex;
+    const sw = geo.attributes.skinWeight;
+    if (!si || !sw) continue;
+    for (let i = 0; i < pos.count; i++) {
+      // Dominant bone only. A vertex the ankle merely shares is somewhere up
+      // the leg, and the sole is the part nothing else owns.
+      const w = [sw.getX(i), sw.getY(i), sw.getZ(i), sw.getW(i)];
+      const ix = [si.getX(i), si.getY(i), si.getZ(i), si.getW(i)];
+      let best = 0;
+      for (let k = 1; k < 4; k++) if (w[k] > w[best]) best = k;
+      const side = slot[ix[best]];
+      if (!side || w[best] < 0.5) continue;
+      v.fromBufferAttribute(pos, i);
+      mesh.applyBoneTransform(i, v);
+      mesh.localToWorld(v);
+      if (v.y < lowest[side]) lowest[side] = v.y;
+    }
+  }
+  if (!Number.isFinite(lowest.L) || !Number.isFinite(lowest.R)) return null;
+  return lowest;
+}
+
 export interface FootState {
   /** Live world position of the foot. */
   readonly pos: THREE.Vector3;
@@ -166,7 +229,24 @@ interface Foot {
   to: THREE.Vector3;
   planted: boolean;
   anchor: FootAnchor;
+  /**
+   * Where this foot's ANKLE belongs when the foot is down — the surface plus
+   * this foot's own sole offset.
+   */
   groundY: number;
+  /**
+   * How far the sole sits below the ankle bone, measured off the skin.
+   *
+   * Per foot, because the two are not the same. This is a sculpted asset, not
+   * a mirrored one: footL carries 8501 vertices and footR 6577, and their
+   * soles sit at slightly different heights under their ankles — measured
+   * -18 mm and -11 mm against the lawn when both ankles were planted at one
+   * height. Small, but it is a lean, and it costs nothing to be rid of.
+   *
+   * Not readonly: it starts as a rest-pose estimate and is trimmed once the
+   * foot has actually been planted. See trimSole.
+   */
+  sole: number;
   /** Live plant-height bias; grows with gait speed. */
   clearance: number;
   /** Airborne offset from the body. Smoothed instead of the world position. */
@@ -259,20 +339,29 @@ export class FootPlanner {
     if (Number.isFinite(dt) && dt > 0) this.lastDt = Math.min(dt, 0.05);
   }
 
-  constructor(anchors: { L: FootAnchor; R: FootAnchor }, groundY: number) {
-    const mk = (anchor: FootAnchor): Foot => ({
+  /**
+   * @param surfaceY  height of the thing being stood on — the lawn, here.
+   * @param sole      per foot, how far its sole hangs below its ankle bone.
+   */
+  constructor(
+    anchors: { L: FootAnchor; R: FootAnchor },
+    surfaceY: number,
+    sole: { L: number; R: number },
+  ) {
+    const mk = (anchor: FootAnchor, drop: number): Foot => ({
       pos: new THREE.Vector3(),
       prev: new THREE.Vector3(),
       from: new THREE.Vector3(),
       to: new THREE.Vector3(),
       planted: true,
       anchor,
-      groundY,
+      groundY: surfaceY + drop,
+      sole: drop,
       clearance: GROUND_CLEARANCE,
       tuck: new THREE.Vector3(),
     });
-    this.feet = { L: mk(anchors.L), R: mk(anchors.R) };
-    this.restGround = groundY;
+    this.feet = { L: mk(anchors.L, sole.L), R: mk(anchors.R, sole.R) };
+    this.restGround = surfaceY + (sole.L + sole.R) / 2;
   }
 
   /**
@@ -281,7 +370,7 @@ export class FootPlanner {
    * down the slope, instead of the body sinking onto feet still planted on
    * the lawn behind it.
    */
-  setGround(y: number): void {
+  setGround(surfaceY: number): void {
     /**
      * Carry the feet with the ground, including ones already planted.
      *
@@ -292,7 +381,7 @@ export class FootPlanner {
      * dropped all at once to catch up. Shifting the stored positions by the
      * same delta keeps a planted foot on the bed between steps.
      */
-    const d = y - this.feet.L.groundY;
+    const d = surfaceY - (this.feet.L.groundY - this.feet.L.sole);
     if (d !== 0) {
       for (const key of ["L", "R"] as const) {
         const f = this.feet[key];
@@ -302,8 +391,10 @@ export class FootPlanner {
         f.prev.y += d;
       }
     }
-    this.feet.L.groundY = y;
-    this.feet.R.groundY = y;
+    // Each ankle rides its own sole above the new surface, so the asymmetry
+    // survives wading and climbing rather than being flattened out by them.
+    this.feet.L.groundY = surfaceY + this.feet.L.sole;
+    this.feet.R.groundY = surfaceY + this.feet.R.sole;
   }
 
   /** Place both feet under the body. Call once the body position is known. */

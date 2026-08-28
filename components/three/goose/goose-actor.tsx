@@ -27,6 +27,7 @@ import {
 import {
   STEP_LIFT,
   FootPlanner,
+  measureSoleY,
   solveTwoBone,
   type TwoBoneSolution,
 } from "./foot-ik";
@@ -1681,14 +1682,42 @@ export default function GooseActor({
         bones.footR?.updateWorldMatrix(true, false);
         bones.footR?.getWorldPosition(footR);
         /**
-         * Plant height, corrected for the leg stretch.
+         * Where each sole hangs below its ankle — the whole plant height.
+         *
+         * This used to be an algebraic correction for the leg stretch:
+         *
+         *   added  = (hip.y - foot.y) * (1 - 1 / LEG_STRETCH)
+         *   plantY = foot.y + added
+         *
+         * which reduces to the UNSTRETCHED ankle height exactly. The stretch
+         * lengthened the leg and the plant folded it straight back up again,
+         * so LEG_STRETCH could never make the goose stand any taller — the two
+         * cancelled, which is why a previous attempt at longer legs was
+         * reverted as having no effect. STAND_TALL is only possible once this
+         * is gone.
+         *
+         * The sole's offset from the ankle is a fact about the mesh, so read
+         * it off the mesh. Falls back to the old expression if there is no
+         * skinned foot geometry to measure.
          */
-        /**
-         * How far the stretch pushed the ankle DOWN — the vertical drop, not
-         * the leg's length.
-         */
-        const added = (hip.y - foot.y) * (1 - 1 / LEG_STRETCH);
-        const plantY = foot.y + added;
+        const soleY = measureSoleY(root, {
+          L: bones.footL,
+          R: bones.footR,
+        });
+        const measured = soleY && {
+          L: foot.y - soleY.L,
+          R: footR.y - soleY.R,
+        };
+        const soles = measured ?? {
+          L: foot.y - GROUND_Y,
+          R: footR.y - GROUND_Y,
+        };
+        const plantY = GROUND_Y + (soles.L + soles.R) / 2;
+        if (process.env.NODE_ENV !== "production" && !measured) {
+          console.warn(
+            "[goose] no skinned foot geometry — plant height guessed from the ankle bones",
+          );
+        }
         /**
          * Which way is OUT, per leg, measured rather than assumed.
          *
@@ -1721,10 +1750,11 @@ export default function GooseActor({
             L: { x: foot.x - g.position.x, z: foot.z - g.position.z },
             R: { x: footR.x - g.position.x, z: footR.z - g.position.z },
           },
-          // The CORRECTED plant height, not the raw rest position — the
-          // planner and the IK have to agree on where the ground is, and this
-          // was quietly passing the uncorrected one while legRig had the fix.
-          plantY,
+          // The surface, plus each foot's own sole offset. The planner and the
+          // IK have to agree on where the ground is; passing the surface and
+          // letting the planner add the sole keeps one definition of each.
+          GROUND_Y,
+          soles,
         );
         planner.current.reset(g.position, st.heading);
       }
@@ -1801,9 +1831,10 @@ export default function GooseActor({
       // the body dropped 0.250 while the ground command dropped 0.153, so the
       // leg quietly compressed by 10cm on the way in. One of them has to be
       // the source of truth, and it should be the one you can see.
-      planner.current.setGround(
-        legRig.current.groundY + (g.position.y - GROUND_Y),
-      );
+      // The SURFACE, not the ankle plane. The planner raises each ankle by its
+      // own sole offset, so handing it the plant height as well counted that
+      // offset twice.
+      planner.current.setGround(g.position.y);
     }
     if (ikOn && st.ikOff && planner.current) {
       planner.current.reset(g.position, st.heading);
