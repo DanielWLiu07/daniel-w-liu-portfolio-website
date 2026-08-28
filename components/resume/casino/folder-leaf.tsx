@@ -304,7 +304,10 @@ export default function FolderLeaf({ face, mount, active }: { face: LeafFace; mo
       const o = g.children[i + 1]
       if (!o) continue
       o.scale.setScalar(1 + 0.1 * s)
-      o.position.z = face.z + qrSide * 0.012 + s * qrSide * 0.05
+      // a mark is printed ON the leaf and has to stay on it: the old hover popped it 0.05 of the QR's own
+      // width off the surface, which at this framing is enough to read as a sticker floating in front of
+      // the folder rather than as ink turning with it
+      o.position.z = face.z + qrSide * 0.012 + s * qrSide * 0.006
     }
   })
 
