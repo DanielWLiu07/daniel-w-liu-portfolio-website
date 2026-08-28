@@ -33,6 +33,58 @@ export function contactShadowTexture(): THREE.CanvasTexture {
 }
 
 /**
+ * A strip of tape: warm, translucent, with the slightly ragged ends and the shine down the middle that is
+ * what actually reads as tape rather than a coloured rectangle. Transparent, so the compositor treats it
+ * as a decal and it never stamps its quad into the position buffer.
+ */
+export function tapeTexture(): THREE.CanvasTexture {
+  const W = 512
+  const H = 160
+  const c = document.createElement('canvas')
+  c.width = W
+  c.height = H
+  const x = c.getContext('2d')!
+  x.clearRect(0, 0, W, H)
+  // the body, with the ends torn rather than cut
+  const tear = (at: number, dir: number) => {
+    x.beginPath()
+    x.moveTo(at, 0)
+    for (let i = 0; i <= 10; i++) {
+      const t = i / 10
+      const wob = Math.sin(t * 7.3 + at) * 5 + Math.sin(t * 19 + at) * 2.5
+      x.lineTo(at + dir * (3 + wob), t * H)
+    }
+    x.lineTo(at + dir * W, H)
+    x.lineTo(at + dir * W, 0)
+    x.closePath()
+  }
+  // strong enough to survive the painterly pass, which washed the first version out to a faint streak
+  x.fillStyle = 'rgba(218, 196, 142, 0.86)'
+  x.fillRect(0, 0, W, H)
+  // a sheen along the middle, and a little dirt at the edges, so it is not a flat wash
+  const g = x.createLinearGradient(0, 0, 0, H)
+  g.addColorStop(0, 'rgba(150,126,74,0.22)')
+  g.addColorStop(0.34, 'rgba(255,252,238,0.42)')
+  g.addColorStop(0.58, 'rgba(255,250,232,0.16)')
+  g.addColorStop(1, 'rgba(120,98,54,0.30)')
+  x.fillStyle = g
+  x.fillRect(0, 0, W, H)
+  // bite the torn ends back out
+  x.globalCompositeOperation = 'destination-out'
+  x.fillStyle = '#000'
+  tear(0, -1)
+  x.fill()
+  tear(W, 1)
+  x.fill()
+  x.globalCompositeOperation = 'source-over'
+  const t = new THREE.CanvasTexture(c)
+  t.colorSpace = THREE.SRGBColorSpace
+  t.anisotropy = 8
+  t.needsUpdate = true
+  return t
+}
+
+/**
  * The bend of a sheet of paper lying in a folder, in units of its rise at the free corner. Paper in a
  * folder is never flat: it springs up off the wedge away from the fold, the free corners lift most, and
  * the middle sags between them. `skew` is a per-sheet lean so no two sheets in the stack sit the same.

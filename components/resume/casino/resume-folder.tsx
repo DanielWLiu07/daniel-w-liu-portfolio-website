@@ -18,7 +18,7 @@ import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import { bakedSpin, contactPlane, planeAt, planeTilt, unbakeSpin } from 'blender-to-threejs'
 import { claimPointer } from './cursor'
-import { contactShadowTexture, paperSheet, type Sheet } from './paper'
+import { contactShadowTexture, paperSheet, tapeTexture, type Sheet } from './paper'
 import { getTune } from './tune'
 import { drivePresent } from './materials'
 import FolderLeaf, { RESUME_PDF, type LeafFace } from './folder-leaf'
@@ -429,6 +429,35 @@ export default function ResumeFolder({
     }
     page.userData.sheet = true
     root.add(page)
+
+    // Taped down. Two strips across opposite corners, each sitting ON the paper's corner and pitching down
+    // onto the manila, which is what makes it read as HOLDING the sheet rather than decorating it.
+    //
+    // The height is not a guess and the first attempt was wrong: the tape went 2.35 stock-thicknesses above
+    // the leaf's plane and vanished, because the page's own CURL lifts its corners far higher than its
+    // thickness does (the rise is about seven times the stock). It rides the corner's real height now, and
+    // pitches by the angle that carries its outboard end down to the leaf.
+    {
+      // DoubleSide, and that is why the first two attempts drew nothing at all: a plane faces +z, the page's
+      // printed side faces -z here, so the strips were presenting their backs to the camera and being culled
+      const tapeMat = new THREE.MeshBasicMaterial({ map: tapeTexture(), transparent: true, depthWrite: false, toneMapped: false, side: THREE.DoubleSide })
+      const len = pw * 0.26
+      const cornerH = 0.94 * rise + 3.35 * thick // paper's corner above the leaf's plane, curl and stock
+      const pitch = Math.atan2(cornerH, len / 2)
+      const AXY = new THREE.Vector3(0, 1, 0)
+      const AXZ = new THREE.Vector3(0, 0, 1)
+      for (const [sx, sy] of [[-1, 1], [1, -1]] as const) {
+        const strip = new THREE.Mesh(new THREE.PlaneGeometry(len, len * 0.3), tapeMat)
+        strip.position.set(cx + sx * (pw / 2) * 0.96, cy + sy * (ph / 2) * 0.97, lift(0) - cornerH - thick * 0.5)
+        const spin = (sx * sy > 0 ? 1 : -1) * (Math.PI / 4) + sx * 0.05
+        strip.quaternion
+          .setFromAxisAngle(AXY, tilt)
+          .multiply(new THREE.Quaternion().setFromAxisAngle(AXZ, spin))
+          .multiply(new THREE.Quaternion().setFromAxisAngle(AXY, -pitch))
+        strip.renderOrder = 2
+        root.add(strip)
+      }
+    }
 
     // hinge: the fold is the leaf edge away from the tab, on the face the two leaves share (measured
     // above, since the sheets have to bend away from it)
