@@ -154,7 +154,9 @@ function PageLink({ page, mount, active, size, lift }: { page: THREE.Mesh; mount
     return () => {
       mount.remove(m)
     }
-  }, [mount])
+    // `active` is here because the mesh is KEYED on it (below): without it this ran once, so after the
+    // remount hit.current pointed at a mesh that had never been parented and the page lost its click
+  }, [mount, active])
   useFrame(() => {
     const m = hit.current
     if (!m) return
@@ -168,6 +170,12 @@ function PageLink({ page, mount, active, size, lift }: { page: THREE.Mesh; mount
   })
   return (
     <mesh
+      // Remounted when the folder opens, and that is about EVENTS not drawing. This plane sits in front of
+      // the whole folder, so while it was still shut it took a pointerOver that its own handler dropped on
+      // !active. r3f had recorded it as hovered by then, so once open no fresh pointerOver ever arrived and
+      // the resume showed no pointer cursor until the mouse visited something else and came back. Found by
+      // logging in the handler, since the CLICK worked throughout and only the hover was dead.
+      key={active ? 'open' : 'shut'}
       ref={hit}
       onPointerOver={(e) => {
         if (!active) return
