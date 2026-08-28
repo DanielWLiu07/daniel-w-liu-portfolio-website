@@ -38,6 +38,7 @@ import Pushables, {
   type Body,
   type Pushable,
 } from "@/components/three/pushables";
+import { useRadio, type Radio } from "@/components/three/rickroll/use-radio";
 import HonkLines, {
   HONK_DEFAULTS,
   type HonkTuning,
@@ -179,6 +180,83 @@ const CRATES: Pushable[] = [
   { position: [-1.5, 0.14, -2.6], size: 0.14, rotation: 0.5, kind: "radio" },
 ];
 
+/** Which of the props above is the radio. */
+const RADIO = CRATES.findIndex((c) => c.kind === "radio");
+/** How close the bill has to be for a honk to reach the switch. */
+const RADIO_REACH = 1.15;
+/** Distances over which the radio fades from full volume to silence. */
+const HEARD_NEAR = 1.2;
+const HEARD_FAR = 11;
+
+/**
+ * Everything the radio needs to know each frame, and everything that needs to
+ * know about the radio.
+ *
+ * One component so it is one `useFrame`: the speaker's world position, the
+ * distance fade, the stereo placement, the cone's loudness and how hard the
+ * goose is nodding are all the same three numbers read off the same body.
+ */
+function RadioDriver({
+  radio,
+  bodies,
+  goose,
+  speaker: speakerRef,
+  level: levelRef,
+  on: onRef,
+  grooveAmount: grooveAmountRef,
+  grooveBeat: grooveBeatRef,
+}: {
+  radio: Radio;
+  bodies: React.RefObject<Body[]>;
+  goose: React.RefObject<THREE.Vector3>;
+  speaker: React.RefObject<THREE.Vector3>;
+  level: React.RefObject<number>;
+  on: React.RefObject<boolean>;
+  grooveAmount: React.RefObject<number>;
+  grooveBeat: React.RefObject<number>;
+}) {
+  const { camera } = useThree();
+  const ndc = useMemo(() => new THREE.Vector3(), []);
+  // Audio params are a scheduled timeline, not a variable. Writing one every
+  // frame piles up automation events for changes nobody can hear.
+  const last = useRef({ vol: -1, pan: -2 });
+
+  useFrame(() => {
+    const b = bodies.current?.[RADIO];
+    if (!b) return;
+    const playing = radio.playing();
+    speakerRef.current.set(b.pos.x, b.pos.y + b.size * 1.1, b.pos.z);
+    onRef.current = playing;
+    levelRef.current = radio.level();
+
+    const g = goose.current;
+    const d = Math.hypot(b.pos.x - g.x, b.pos.z - g.z);
+    const near = THREE.MathUtils.clamp(
+      1 - (d - HEARD_NEAR) / (HEARD_FAR - HEARD_NEAR),
+      0,
+      1,
+    );
+    // Squared, because linear falloff reads as the radio staying loud right up
+    // until it snaps off.
+    const vol = near * near;
+    if (Math.abs(vol - last.current.vol) > 0.01) {
+      radio.setVolume(vol);
+      last.current.vol = vol;
+    }
+
+    ndc.copy(speakerRef.current).project(camera);
+    const pan = THREE.MathUtils.clamp(ndc.x, -1, 1) * 0.7;
+    if (Math.abs(pan - last.current.pan) > 0.02) {
+      radio.setPan(pan);
+      last.current.pan = pan;
+    }
+
+    grooveAmountRef.current = playing ? near : 0;
+    grooveBeatRef.current = radio.beat();
+  });
+  return null;
+}
+
 function RenderProbe() {
   const { gl, scene } = useThree();
   useEffect(() => {
@@ -190,6 +268,7 @@ function RenderProbe() {
 }
 
 function Scene({
+  radio,
   onGraph,
   tuning,
   honk: honkTuning,
@@ -199,6 +278,7 @@ function Scene({
   onGrab,
   showBones,
 }: {
+  radio: Radio;
   onGrab: (holding: boolean) => void;
   showBones: boolean;
   onGraph: (g: GraphNode) => void;
@@ -231,11 +311,35 @@ function Scene({
   const beakMouth = useRef(new THREE.Vector3());
   // What E would pick up right now, or has:false when nothing is in reach.
   const grabHint = useRef({ has: false, x: 0, y: 0, z: 0 });
+  // Live prop bodies, so the radio can be followed while it is being carried.
+  const bodies = useRef<Body[]>([]);
+  const speaker = useRef(new THREE.Vector3());
+  const radioLevel = useRef(0);
+  const radioOn = useRef(false);
+  // One ref per number rather than one ref holding an object: writing
+  // `ref.current = x` on a prop is fine, mutating a field of the object it
+  // holds is not.
+  const grooveAmount = useRef(0);
+  const grooveBeat = useRef(-1);
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.code !== "KeyH") return;
       e.preventDefault();
+      /**
+       * A keypress is a user gesture, which is the only place an AudioContext
+       * may be created. Doing it here rather than lazily in the frame loop is
+       * the difference between the radio working and it silently staying
+       * suspended forever.
+       */
+      radio.unlock();
+      // Honk AT the radio to work the switch. The goose has one verb and this
+      // is it; there is no separate "use" button to discover.
+      const b = bodies.current?.[RADIO];
+      if (b) {
+        const d = Math.hypot(b.pos.x - pos.current.x, b.pos.z - pos.current.z);
+        if (d < RADIO_REACH) radio.toggle();
+      }
       setHonk(true);
       // How long the mouth is held OPEN. The game's honk is a bark, not a
       // note: 260ms read as sustaining it, 130ms still read as holding it.
@@ -243,7 +347,7 @@ function Scene({
     };
     window.addEventListener("keydown", down, { passive: false });
     return () => window.removeEventListener("keydown", down);
-  }, []);
+  }, [radio]);
 
   const onGroundClick = useCallback((e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
@@ -290,6 +394,9 @@ function Scene({
         grabbed={grabbed}
         beak={beakPos}
         beakYaw={beakYaw}
+        bodies={bodies}
+        radioLevel={radioLevel}
+        radioOn={radioOn}
       />
 
       <Suspense fallback={null}>
@@ -331,6 +438,16 @@ function Scene({
 
       <GrabRing hint={grabHint} />
 
+      <RadioDriver
+        radio={radio}
+        bodies={bodies}
+        goose={pos}
+        speaker={speaker}
+        level={radioLevel}
+        on={radioOn}
+        grooveAmount={grooveAmount}
+        grooveBeat={grooveBeat}
+      />
       <BoneOverlay bones={boneMap} show={showBones} />
       <FollowCamera subject={pos} />
       <RenderProbe />
@@ -339,6 +456,7 @@ function Scene({
 }
 
 export default function PlayPage() {
+  const radio = useRadio();
   // The graph the goose's material was compiled from, handed back by the actor.
   const [graph, setGraph] = useState<GraphNode | null>(null);
   const [showGraph, setShowGraph] = useState(false);
@@ -378,6 +496,7 @@ export default function PlayPage() {
         }}
       >
         <Scene
+          radio={radio}
           onGraph={setGraph}
           tuning={tuning}
           honk={honkTuning}
@@ -413,6 +532,7 @@ export default function PlayPage() {
         </div>
         <div className="text-neutral-500 mt-1">
           walk into the crates &middot; only small things fit in a bill
+          &middot; honk at the radio
         </div>
         <RunTuner
           value={tuning}
