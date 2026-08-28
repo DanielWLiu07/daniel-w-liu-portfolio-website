@@ -817,7 +817,18 @@ export function applyWalk(
       // it and the body sinking because a sine wave said so at the same moment.
       // The first cannot desynchronise from the feet; the second is a second
       // schedule that has to be kept in step by hand, and repeatedly was not.
-      runCompress * r * (0.5 - (load ?? stanceLoad))) *
+      // VAULT, not compress. The sign here used to be inverted, on the
+      // reasoning below that a run is mechanically spring-mass and so should
+      // sit LOWEST at mid-stance. That is true of the mechanics and wrong for
+      // the read: measured, it put the body's peak at 25% of the step and its
+      // trough at 75%, so the body was falling INTO each touchdown and rising
+      // just after it — the opposite of stepping onto a foot. Against the same
+      // measurement the walk peaks at 58%, right over the supporting foot, and
+      // the walk is the one that reads.
+      //
+      // So the run vaults too, just harder: same phase as the walk, bigger
+      // travel. Up over the loaded leg, down onto the next one.
+      runCompress * r * (load ?? stanceLoad)) *
     g *
     land;
   const wake = Math.sin(time * 1.1) * 0.008 * sw;

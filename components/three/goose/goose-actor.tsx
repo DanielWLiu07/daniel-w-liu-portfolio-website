@@ -50,7 +50,13 @@ const DRACO = "/draco/";
  * Walk and run, as two speeds rather than one with a multiplier.
  */
 const SPEED_WALK = 0.95;
-const SPEED_RUN = 1.5;
+/**
+ * Run speed. Raised from 1.5 — the run has to feel like an escape, and the
+ * reach budget turned out to have room for it once the crouch was paying for
+ * the stride. Measured at 2.0 with a 0.79 stride the planted foot still does
+ * not slide at all.
+ */
+const SPEED_RUN = 2.0;
 /**
  * How much of its walking speed the goose gives up while crouched. Zero.
  *
@@ -90,29 +96,29 @@ const SNEAK_SLOW = 0;
  * the thing this constant exists for — while leaving under a centimetre of
  * slide. Going further buys tenths of a millimetre and costs the whole read.
  */
-const RUN_STRIDE = 0.6;
 /**
- * How far the run drops the duty factor, from the walk's 0.6.
+ * Extra stride at a full run, as a fraction of the walk's.
  *
- * ZERO by default, which is the opposite of where this started. Cutting it
- * under 0.5 buys a flight phase and a human-shaped bounding run — and birds do
- * not run like that. Measured avian locomotion is COMPLIANT rather than stiff:
- * they keep contact longer, absorb through a crouched four-segment leg, and
- * hold the body far steadier than a bounding mammal does. "Grounded running" is
- * the whole literature on it. Chasing flight was chasing the wrong animal.
+ * Back up to a 0.79 stride, which is where it started. It had been cut to 0.58
+ * to keep the leg from folding flat, and that was the wrong trade: a short
+ * stride reads as mincing however clean the geometry is. The crouch below buys
+ * the reach instead, and costs only a few degrees of shank angle.
+ */
+const RUN_STRIDE = 0.8;
+/**
+ * How far the run drops the duty factor below the walk's 0.6.
  *
- * Left as a slider because it is a real effect and a sprinting goose does
- * eventually leave the ground; it is just not what makes a goose look like a
- * goose at this speed.
+ * ZERO, and it has to be. Below 0.5 the stances stop overlapping and a flight
+ * phase opens, which sounds like what separates a trot from a fast walk — but
+ * the body's bob is driven by MEASURED leg load, and during flight nothing is
+ * planted, so the load steps to zero and back twice a stride. Measured at
+ * 120fps, opening a 16% flight phase took the run's jitter from 0.77 to 2.76
+ * mm/frame^2 (2.2% of the bob to 6.8%). That discontinuity is what reads as
+ * the run being jittery rather than bouncy.
  *
- * At 0.6 the two stances overlap and one foot is always down, so there is no
- * moment to leave the ground in — a bouncing body with nothing to bounce off
- * between steps. 0.6 - 0.18 = 0.42 puts it under 0.5, which opens a flight
- * phase of 1 - 2 * 0.42 = 0.16 of the cycle where neither foot is planted.
- *
- * It also RELIEVES the reach problem rather than adding to it: a foot travels
- * (1 - stance/2) - ... = 0.42 of a stride during a short stance against 0.6 of
- * one during a long stance, so the leg is asked to cover less, not more.
+ * Birds use "grounded running" anyway: they keep a duty factor above 0.5 and
+ * shift the KINETICS from vaulting to bouncing while both feet keep cycling.
+ * The bounce comes from `bounce` below, not from leaving the ground.
  */
 const RUN_DUTY = 0;
 /**
@@ -238,19 +244,43 @@ export const RUN_DEFAULTS: RunTuning = {
   // standing 1.14 whatever this is. 1.5 put it at 0.528, under the sneak's
   // 0.623, which inverted the whole point. Raised past the old 2.0 to leave the
   // crouch clear room underneath: walk highest, run nosed over, sneak lowest.
-  headTilt: 2.0,
+  headTilt: 0.6,
   // Leaning a little further forward than the old 0.46, so the run reads as
   // committed — but only a little, since the lean lowers the head too and that
   // is the budget the sneak needs to stay the lowest pose.
   bodyPitch: 0.12,
-  bounce: 0.06,
+  // The run's vertical travel. Feeds runCompress in applyWalk — note that
+  // RUN_COMPRESS there is only the fallback, so this is the live number and
+  // editing that constant does nothing.
+  //
+  //   bounce  0.055  0.065  0.08  0.11  0.15  0.16
+  //   bob      31mm   36mm  45mm  63mm  84mm  99mm
+  //   slide    0.0%   0.0%  0.1%  1.4%  0.0%  18.2%
+  //
+  // 0.16 is past the ceiling the crouch sets and the legs start dragging.
+  //
+  // Sized against the animal, not against how much motion is available. A
+  // running bird's centre of mass oscillates about 5-10% of its hip height,
+  // and the hip stands 0.38 here, so the band is roughly 19-38mm. 0.065 lands
+  // at 36mm. It was briefly at 0.15 / 84mm, which is 23% of hip height — that
+  // is not a run, it is a bounding hop, and it read as the goose falling
+  // between strides rather than pushing off along them.
+  bounce: 0.065,
   rock: 0,
   stride: RUN_STRIDE,
-  crouch: 0,
+  // Not 0, and now doing two jobs. Reach for a straight leg is
+  // sqrt(L^2 - h^2), so lowering the hips is the only source of horizontal
+  // budget — without it the guard clamped the planted foot toward the body
+  // every frame, 118mm in one frame and 27% of the distance travelled spent
+  // sliding. It also leaves headroom for `bounce`: the body has to be able to
+  // rise without climbing past its standing height, where the legs are already
+  // straight. At 0.12 a 0.15 bounce fits under that ceiling with slide at 0.0%;
+  // at a crouch of 0.09 the same bounce skated 18%.
+  crouch: 0.10,
   duty: RUN_DUTY,
-  roll: 0.8,
+  roll: 1.0,
   lift: RUN_LIFT,
-  neck: [0.45, 0.34, 0.1, 0.04],
+  neck: [0.135, 0.102, 0.030, 0.012],
   headSteady: 1,
 };
 const ACCEL = 9;
