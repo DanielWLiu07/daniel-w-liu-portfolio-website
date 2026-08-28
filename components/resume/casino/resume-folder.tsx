@@ -199,6 +199,16 @@ function PageLink({ page, mount, active, size, lift }: { page: THREE.Mesh; mount
   )
 }
 
+/**
+ * Exponential smoothing that does not care about the frame rate. `1 - exp(-rate * dt)` is the real thing;
+ * the `min(1, dt * rate)` shorthand it replaces is its first-order approximation and it BREAKS on a long
+ * frame: traced across a hover, one 50 ms frame took the hover a third of the way in a single step and
+ * moved the folder 0.027 in ndc at once, which is the snap that read as buggy. This is exact for any dt.
+ */
+function ease(rate: number, dt: number): number {
+  return 1 - Math.exp(-rate * dt)
+}
+
 /** the screen's own axes in the presented pose: local +x runs across the shot, local +z up it */
 const AX = new THREE.Vector3(1, 0, 0)
 const AZ = new THREE.Vector3(0, 0, 1)
@@ -764,8 +774,8 @@ export default function ResumeFolder({
     if (a > 0.001) {
       const p = pv.current
       const cam = camera as THREE.PerspectiveCamera
-      p.mx += (pointer.x - p.mx) * Math.min(1, d * 5)
-      p.my += (pointer.y - p.my) * Math.min(1, d * 5)
+      p.mx += (pointer.x - p.mx) * ease(4.5, d)
+      p.my += (pointer.y - p.my) * ease(4.5, d)
 
       // face it at the camera: the spread's normal is the group's +y, its up is the group's +z
       cam.getWorldDirection(p.fwd)
