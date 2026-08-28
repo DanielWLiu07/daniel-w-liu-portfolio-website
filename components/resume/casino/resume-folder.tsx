@@ -679,6 +679,8 @@ export default function ResumeFolder({
     /** the pointer, eased: the raw value steps with the mouse and would snap the folder about */
     mx: 0,
     my: 0,
+    /** the float's own integrated phase (see the frame loop) */
+    phase: 0,
   })
   useEffect(() => {
     openState.current = open
@@ -870,9 +872,20 @@ export default function ResumeFolder({
       // The only thing that moves it is its own float: a slow rise and fall that deepens and quickens while
       // it is hovered, on top of a lift. Held documents are not still, and a bob the viewer's own hand
       // brings on reads as the object noticing them.
-      const bob = Math.sin(t * (0.9 + 0.55 * h.amt)) * ls.z * tn.fldFloat * (1 + 1.8 * h.amt)
-      p.tgt.addScaledVector(p.up, ls.z * (tn.fldUp + tn.fldRise * h.amt) + bob)
-      p.tgt.addScaledVector(p.x, -ls.x * tn.fldSide)
+      // THE FLOAT'S PHASE IS INTEGRATED, never sin(t * w). The hover changes the frequency, and multiplying
+      // a CHANGING frequency by an absolute clock jumps the argument by t * dw: a minute into the page that
+      // is tens of radians, so the float snapped every time the pointer arrived or left.
+      p.phase += d * (0.9 + 0.55 * h.amt)
+      // The hover shows itself as a LIFT far more than as a bigger bob. At 2.8x the swing measured 0.137 in
+      // ndc, about 55 screen px, wider than a link mark: the furniture swims out from under the pointer and
+      // the marks become genuinely hard to hit. The lift costs nothing to aim at.
+      const bob = Math.sin(p.phase) * ls.z * tn.fldFloat * (1 + 0.7 * h.amt)
+      // and it MOVES with the pointer in all three axes: across and up the screen toward it, and pushed
+      // back as it goes, so the parallax is a real one and not a slide across a flat plane
+      const away = (p.mx * p.mx + p.my * p.my) * tn.fldMove * 0.9
+      p.tgt.addScaledVector(p.up, ls.z * (tn.fldUp + tn.fldRise * h.amt) + bob + p.my * ls.z * tn.fldMove)
+      p.tgt.addScaledVector(p.x, -ls.x * (tn.fldSide + p.mx * tn.fldMove))
+      p.tgt.addScaledVector(p.n, -ls.x * away)
       // put the CREASE on the camera's axis horizontally, and the spread's middle on it vertically
       // the crease's OWN depth, not the spread's: the folder is leaned, so putting the fold's x on the axis
       // at the wrong depth still leaves it off centre in projection (measured, 20 px of 1280)

@@ -12,6 +12,7 @@ const LABEL: Partial<Record<keyof Tune, string>> = {
   fldSpin: 'turn left / right',
   fldTurn: 'how far it opens',
   fldTilt: 'mouse aim',
+  fldMove: 'mouse move',
   fldFloat: 'float',
   fldRise: 'hover lift',
 }

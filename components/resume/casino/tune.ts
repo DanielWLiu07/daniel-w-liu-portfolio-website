@@ -63,9 +63,11 @@ export interface Tune {
   fldFloat: number
   /** how far hovering lifts it, as a fraction of its own height */
   fldRise: number
+  /** how far the pointer MOVES it in 3d, as a fraction of its own size (across, up, and back) */
+  fldMove: number
 }
 
-export const TUNE_DEFAULTS: Tune = { chip: 1.6, table: 24, rail: 0.7, chord: -4.5, camY: 4.6, camZ: 12.5, lookY: 1.4, lampH: 7.5, lampCone: 33, revealNoise: 0.3, revealRadial: 2.2, revealSoft: 0.3, titleR: 6.5, titleSpan: 2.1, titleSize: 2.0, titleY: -2.6, titleGap: 1.4, titleSpacing: 0.62, titleWeight: 6, fldFit: 1.18, fldUp: -0.05, fldSide: 0, fldLean: -0.28, fldSpin: 0, fldTurn: 0.945, fldTilt: 0.09, fldFloat: 0.014, fldRise: 0.035 }
+export const TUNE_DEFAULTS: Tune = { chip: 1.6, table: 24, rail: 0.7, chord: -4.5, camY: 4.6, camZ: 12.5, lookY: 1.4, lampH: 7.5, lampCone: 33, revealNoise: 0.3, revealRadial: 2.2, revealSoft: 0.3, titleR: 6.5, titleSpan: 2.1, titleSize: 2.0, titleY: -2.6, titleGap: 1.4, titleSpacing: 0.62, titleWeight: 6, fldFit: 1.18, fldUp: -0.05, fldSide: 0, fldLean: -0.28, fldSpin: 0, fldTurn: 0.945, fldTilt: 0.09, fldFloat: 0.014, fldRise: 0.055, fldMove: 0.035 }
 
 export const TUNE_RANGES: Record<keyof Tune, [number, number, number]> = {
   chip: [0.5, 4, 0.05],
@@ -96,10 +98,11 @@ export const TUNE_RANGES: Record<keyof Tune, [number, number, number]> = {
   fldTilt: [0, 0.4, 0.005],
   fldFloat: [0, 0.08, 0.002],
   fldRise: [0, 0.2, 0.005],
+  fldMove: [0, 0.2, 0.005],
 }
 
 /** just the presented folder, for the slim panel on the site itself (?fld) */
-export const FOLDER_KEYS: (keyof Tune)[] = ['fldFit', 'fldUp', 'fldSide', 'fldLean', 'fldSpin', 'fldTurn', 'fldTilt', 'fldFloat', 'fldRise']
+export const FOLDER_KEYS: (keyof Tune)[] = ['fldFit', 'fldUp', 'fldSide', 'fldLean', 'fldSpin', 'fldTurn', 'fldTilt', 'fldMove', 'fldFloat', 'fldRise']
 
 function fromUrl(): Tune {
   const t = { ...TUNE_DEFAULTS }
