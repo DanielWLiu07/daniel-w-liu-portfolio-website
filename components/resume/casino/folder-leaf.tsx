@@ -13,7 +13,8 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { SOCIAL_URLS } from '@/data/social-links'
 import { claimPointer, releasePointer } from './cursor'
-import { markMaterial } from './materials'
+import { markMaterial, sheetMaterial } from './materials'
+import { contactShadowTexture } from './paper'
 import { planarUV } from './playing-cards'
 
 const INK = '#1f1b16'
@@ -185,6 +186,34 @@ export default function FolderLeaf({ face, mount, active }: { face: LeafFace; mo
   const logoSide = btnW / (LOGOS.length + (LOGOS.length - 1) * 0.2)
   const gap = logoSide * 0.2
 
+
+  // The paper the QR sits on. Flat on purpose: a CURLED patch lifts its own surface above a flat code and
+  // hides it, which is what happened the first time this existed. It is painted like the resume's sheet, so
+  // now that the print is painted too the two papers are the same surface.
+  const patch = useMemo(() => {
+    const w = qrSide * 1.24
+    // The SAME material path as the resume's own paper: sheetMaterial's printed branch fed a plain white
+    // pixel, so the two sheets go through identical maths rather than two materials tuned to look alike.
+    const white = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1)
+    white.colorSpace = THREE.SRGBColorSpace
+    white.needsUpdate = true
+    const mat = sheetMaterial(white, { printed: true, painted: true })
+    const shadow = new THREE.Mesh(
+      new THREE.PlaneGeometry(w * 1.15, w * 1.15),
+      new THREE.MeshBasicMaterial({ map: contactShadowTexture(), transparent: true, opacity: 0.45, depthWrite: false }),
+    )
+    shadow.renderOrder = -1
+    // and a flat shade to stand in for the curl the resume's page has and this flat patch does not. Without
+    // it the patch sits at the page's BRIGHTEST value everywhere while the page is shaded across its bend,
+    // which measured 253 against 225 and is what reads as two different papers.
+    const geo = new THREE.PlaneGeometry(w, w)
+    const n = geo.attributes.position.count
+    const col = new Float32Array(n * 3).fill(0.94)
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3))
+    const mesh = new THREE.Mesh(geo, mat)
+    return { w, mat, shadow, geo, mesh }
+  }, [qrSide])
+
   const items = useMemo<(Item & { w: number; h: number; x: number; y: number })[]>(() => {
     const row = LOGOS.length * logoSide + (LOGOS.length - 1) * gap
     const btn = btnH * 1.5
@@ -228,9 +257,10 @@ export default function FolderLeaf({ face, mount, active }: { face: LeafFace; mo
           t.needsUpdate = true
         }
         const geo = planarUV(new THREE.PlaneGeometry(it.w, it.h))
-        // the QR has to SCAN, and the painterly pass (chromatic edges, bleed, paper grain) destroys it:
-        // verified with a barcode detector on the rendered pixels, not just on the source image. So it is
-        // drawn plainly in the overlay pass, exactly like the resume page, which is the same problem.
+        // The QR is BLACK ON NOTHING: its light modules are transparent, so the folder's own leaf shows
+        // through them and the code sits on the scene rather than on a white patch added under it. It is
+        // still drawn in the overlay pass, because the painterly pass destroys QR modules at any size
+        // (measured with a barcode detector on the rendered pixels, not on the source image).
         const mat =
           it.kind === 'qr'
             ? new THREE.MeshBasicMaterial({ map: tex, transparent: true, toneMapped: false })
@@ -270,7 +300,8 @@ export default function FolderLeaf({ face, mount, active }: { face: LeafFace; mo
       const cur = swell.current[i] ?? 0
       const s = cur + (want - cur) * Math.min(1, d * (want ? 12 : 5))
       swell.current[i] = s
-      const o = g.children[i]
+      // +1: the QR's paper is this group's FIRST child, so the marks start at index 1
+      const o = g.children[i + 1]
       if (!o) continue
       o.scale.setScalar(1 + 0.1 * s)
       o.position.z = face.z + qrSide * 0.012 + s * qrSide * 0.05
@@ -286,20 +317,31 @@ export default function FolderLeaf({ face, mount, active }: { face: LeafFace; mo
   }
 
   if (off) return null
+  const qr = items.find((i) => i.kind === 'qr')!
   return (
     <group ref={group}>
+      {/* one group, so the hover loop above can go on counting the marks from index 1 */}
+      <group>
+        <primitive object={patch.shadow} position={[qr.x + patch.w * 0.01, qr.y - patch.w * 0.01, face.z + qrSide * 0.001]} />
+        <primitive object={patch.mesh} position={[qr.x, qr.y, face.z + qrSide * 0.005]} />
+      </group>
       {built.map(({ it, geo, mat }, i) => (
         <mesh
           key={it.key}
           geometry={geo}
           material={mat}
-          position={[it.x, it.y, face.z + qrSide * 0.012]}
+          position={[it.x, it.y, face.z + qrSide * (it.kind === 'qr' ? 0.05 : 0.012)]}
           rotation={[0, 0, (i % 2 === 0 ? 1 : -1) * 0.012]}
           // A mark is printed ON the leaf, so the LEAF is the surface: the position pass renders through one
           // override material that cannot see alphaTest, so a mark would stamp its whole QUAD into the
           // position buffer. Even a hair's offset there is a discontinuity, and the pass's grain and edge
           // terms amplify it into a visible rectangle around every mark. compNoPosition keeps it out (the
           // QR is an overlay, which is excluded already).
+          // The QR is the ONE thing here that cannot go through the painterly pass. Tried it: it stops
+          // decoding at every scale, and enlarging it to 0.78 of the leaf did not rescue it either, so the
+          // pass's brushwork breaks the modules whatever size they are. It is lit and warmed by the same
+          // presented light as the rest (markMaterial), it just is not painted. A QR that does not scan is
+          // not a QR.
           userData={it.kind === 'qr' ? { compOverlay: true } : { compNoPosition: true }}
           onPointerOver={(e) => {
             if (!active) return
