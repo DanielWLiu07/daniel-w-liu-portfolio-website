@@ -203,6 +203,12 @@ function PageLink({ page, mount, active, size, lift, onHover }: { page: THREE.Me
   )
 }
 
+/** the master shape of the whole move: smootherstep, zero slope AND zero acceleration at both ends */
+function smoother(x: number): number {
+  const t = Math.min(1, Math.max(0, x))
+  return t * t * t * (t * (t * 6 - 15) + 10)
+}
+
 /**
  * Exponential smoothing that does not care about the frame rate. `1 - exp(-rate * dt)` is the real thing;
  * the `min(1, dt * rate)` shorthand it replaces is its first-order approximation and it BREAKS on a long
@@ -689,10 +695,16 @@ export default function ResumeFolder({
     const dur = openState.current ? FOLDER_TIME.open : FOLDER_TIME.shut
     openLin.current = Math.min(1, Math.max(0, openLin.current + (openState.current ? d / dur : -d / dur)))
     const l = openLin.current
-    const a = l * l * l * (l * (l * 6 - 15) + 10)
+    // ONE gesture, not two at once. Both the travel and the cover swing used to run off the same value, so
+    // they started together, peaked together and stopped together: two different kinds of motion perfectly
+    // synchronised, which is exactly what reads as two things happening rather than one movement. The
+    // folder now leaves the table first and the cover FOLLOWS THROUGH, finishing a beat after it settles,
+    // and on the way back the cover shuts before the folder has finished going down. Same total time.
+    const a = smoother(l / 0.84)
+    const swing = smoother((l - 0.16) / 0.84)
     const tn = getTune()
-    if (parts.current.openAxis === 'y') parts.current.pivot.rotation.y = parts.current.openSign * Math.PI * tn.fldTurn * a
-    else parts.current.pivot.rotation.x = parts.current.openSign * Math.PI * tn.fldTurn * a
+    if (parts.current.openAxis === 'y') parts.current.pivot.rotation.y = parts.current.openSign * Math.PI * tn.fldTurn * swing
+    else parts.current.pivot.rotation.x = parts.current.openSign * Math.PI * tn.fldTurn * swing
 
     // the paper relaxes as the cover comes clear: pressed flat under a shut cover, fully curled once it is
     // open. Driving it rather than baking it is what makes the curl safe, since nothing can bend up into a
@@ -854,7 +866,10 @@ export default function ResumeFolder({
       // put the SPREAD on the camera's axis, not the group's origin
       p.tgt.sub(p.off.copy(lc).applyQuaternion(p.q))
 
-      const e = a * a * (3 - 2 * a)
+      // e is the master curve itself now, not a second easing stacked on top of it. Smoothing an already
+      // smoothed value flattens both ends so hard that the middle has to race, which is the other half of
+      // why the move read as two beats rather than one.
+      const e = a
       g.position.lerp(p.tgt, e)
       g.quaternion.slerp(p.q, e)
       if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('fdbg')) {
