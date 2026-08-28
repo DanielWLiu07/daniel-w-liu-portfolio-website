@@ -38,6 +38,8 @@ import Pushables, {
   type Body,
   type Pushable,
 } from "@/components/three/pushables";
+import Lyrics from "@/components/three/rickroll/lyrics";
+import NotePuffs from "@/components/three/rickroll/note-puffs";
 import { useRadio, type Radio } from "@/components/three/rickroll/use-radio";
 import HonkLines, {
   HONK_DEFAULTS,
@@ -448,6 +450,8 @@ function Scene({
         grooveAmount={grooveAmount}
         grooveBeat={grooveBeat}
       />
+      <NotePuffs from={speaker} beat={radio.beat} active={radioOn} />
+
       <BoneOverlay bones={boneMap} show={showBones} />
       <FollowCamera subject={pos} />
       <RenderProbe />
@@ -576,6 +580,8 @@ export default function PlayPage() {
           <NodeGraphView root={graph} />
         </div>
       )}
+
+      <Lyrics beat={radio.beat} />
 
       <div className="absolute bottom-5 left-6 font-mono text-[11px] text-neutral-700">
         lawn + path shaded through the node system · model by stickbone (CC-BY)
