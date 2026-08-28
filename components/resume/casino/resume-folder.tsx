@@ -799,7 +799,18 @@ export default function ResumeFolder({
       // camera AND folder every frame, open or shut: telling "the folder did not come back" apart from
       // "the camera did not go back" needs both, and the presented block only runs while it is open
       const w = window as unknown as { __st?: Record<string, number[]> }
+      // is the page RIGIDLY part of the folder? Not asserted: its parent chain is WALKED up to the folder's
+      // own root, and its position in that root's frame is published so it can be watched for drift while
+      // the folder moves, opens and takes the pointer's tilt.
+      let anc: THREE.Object3D | null = parts.current.page
+      let depth = 0
+      while (anc && anc !== parts.current.root) {
+        anc = anc.parent
+        depth++
+      }
       w.__st = {
+        rigid: [anc === parts.current.root ? 1 : 0, depth],
+        pageLocal: [parts.current.page.position.x, parts.current.page.position.y, parts.current.page.position.z],
         cam: [camera.position.x, camera.position.y, camera.position.z],
         pos: [g.position.x, g.position.y, g.position.z],
         rot: [g.rotation.x, g.rotation.y, g.rotation.z],
@@ -925,7 +936,12 @@ export default function ResumeFolder({
         const tl = pj(lb.min.x, my2, lb.max.z), tr = pj(lb.max.x, my2, lb.max.z)
         const bl = pj(lb.min.x, my2, lb.min.z), br = pj(lb.max.x, my2, lb.min.z)
         w.__fp2 = { tl, tr, bl, br, topW: [tr[0] - tl[0]], botW: [br[0] - bl[0]] }
-        w.__fp = { a: [a], ndc: [x0, y0, x1, y1], centre: [(x0 + x1) / 2, (y0 + y1) / 2], size: [ls.x, ls.y, ls.z], dist: [dist], pointer: [pointer.x, pointer.y, p.mx, p.my], hover: [h.amt] }
+        p.ndc.copy(lc).applyMatrix4(g.matrixWorld).project(cam)
+        const midXY = [p.ndc.x, p.ndc.y]
+        // where the FOLD actually lands, so the centring can be checked against the maths rather than
+        // against a pixel hunt through the pass's brushwork
+        p.ndc.set(p.crease.x, p.crease.y, lc.z).applyMatrix4(g.matrixWorld).project(cam)
+        w.__fp = { creaseNdc: [p.ndc.x, p.ndc.y], mid: midXY, a: [a], ndc: [x0, y0, x1, y1], centre: [(x0 + x1) / 2, (y0 + y1) / 2], size: [ls.x, ls.y, ls.z], dist: [dist], pointer: [pointer.x, pointer.y, p.mx, p.my], hover: [h.amt] }
       }
     }
   })
