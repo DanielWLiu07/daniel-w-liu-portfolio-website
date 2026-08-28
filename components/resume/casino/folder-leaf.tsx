@@ -168,7 +168,7 @@ function downloadResume() {
   a.remove()
 }
 
-export default function FolderLeaf({ face, mount, active }: { face: LeafFace; mount: THREE.Object3D | null; active: boolean }) {
+export default function FolderLeaf({ face, mount, active, onHover }: { face: LeafFace; mount: THREE.Object3D | null; active: boolean; onHover?: (on: boolean) => void }) {
   // ?noleaf renders the leaf bare: capture with and without, diff, and whatever the furniture does to what
   // is behind it shows up as itself
   const off = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('noleaf')
@@ -352,10 +352,12 @@ export default function FolderLeaf({ face, mount, active }: { face: LeafFace; mo
             // spread dead while the pointer was on any of its own furniture
             hover.current = i
             claimPointer('leaf', true)
+            onHover?.(true)
           }}
           onPointerOut={() => {
             if (hover.current === i) hover.current = -1
             claimPointer('leaf', false)
+            onHover?.(false)
           }}
           onClick={(e) => {
             if (!active) return

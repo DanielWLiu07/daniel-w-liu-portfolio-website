@@ -12,7 +12,7 @@
  *
  * A fully generated folder stays behind ?folder=gen as a fallback.
  */
-import { useEffect, useLayoutEffect, useMemo, useRef, type MutableRefObject, type Ref } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, type MutableRefObject, type Ref } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
@@ -145,7 +145,7 @@ function coverLabelTexture(): THREE.CanvasTexture {
  * imperatively, so the handler lives on a transparent plane that tracks it (r3f only routes events to
  * objects it created). Transparent, so it is a decal to the compositor passes and occludes nothing.
  */
-function PageLink({ page, mount, active, size, lift }: { page: THREE.Mesh; mount: THREE.Object3D | null; active: boolean; size: { w: number; h: number }; lift: number }) {
+function PageLink({ page, mount, active, size, lift, onHover }: { page: THREE.Mesh; mount: THREE.Object3D | null; active: boolean; size: { w: number; h: number }; lift: number; onHover?: (on: boolean) => void }) {
   const hit = useRef<THREE.Mesh>(null)
   useLayoutEffect(() => {
     const m = hit.current
@@ -179,12 +179,16 @@ function PageLink({ page, mount, active, size, lift }: { page: THREE.Mesh; mount
       ref={hit}
       onPointerOver={(e) => {
         if (!active) return
-        // deliberately NOT stopped: this plane sits in front of the whole folder, so swallowing the hover
-        // here meant hovering the resume did nothing at all, since the folder's own hover never fired.
-        // Only the CLICK is stopped, which is what actually needs to not reach the folder underneath.
+        // stopped, so this plane owns the cursor; the folder's hover is handed UP instead, because letting
+        // the event through to reach it cost this plane its own claim
+        e.stopPropagation()
         claimPointer('page', true)
+        onHover?.(true)
       }}
-      onPointerOut={() => claimPointer('page', false)}
+      onPointerOut={() => {
+        claimPointer('page', false)
+        onHover?.(false)
+      }}
       onClick={(e) => {
         if (!active) return
         e.stopPropagation()
@@ -625,7 +629,26 @@ export default function ResumeFolder({
 
   const outer = useRef<THREE.Group>(null)
   const swell = useRef<THREE.Group>(null)
-  const hover = useRef({ on: false, amt: 0 })
+  const hover = useRef({ on: false, amt: 0, off: 0 })
+  /**
+   * The hover is CLAIM-COUNTED, not a boolean, and that is the fidget.
+   *
+   * The page, the leaf's furniture and the folder itself each stop their own pointer events and report the
+   * hover up here. Moving the pointer from the page onto a link mark fires an out and an over from two
+   * different objects, and r3f does not promise the order: on the wrong order a boolean goes false and the
+   * folder drops its whole 0.055 lift for a frame before the over puts it back. Crossing the furniture, or
+   * leaving the folder and coming back, made it twitch every time. With claims, one source releasing while
+   * another still holds changes nothing.
+   */
+  const claimHover = useCallback((id: string, on: boolean) => {
+    const c = hoverClaims.current
+    if (on) c.add(id)
+    else c.delete(id)
+    hover.current.on = c.size > 0
+  }, [])
+  const hoverClaims = useRef<Set<string>>(new Set())
+  const pageHover = useCallback((on: boolean) => claimHover('page', on), [claimHover])
+  const leafHover = useCallback((on: boolean) => claimHover('leaf', on), [claimHover])
   const openLin = useRef(0)
   const openState = useRef(false)
   const readYaw = useRef<number | null>(null)
@@ -657,6 +680,7 @@ export default function ResumeFolder({
     // pointerOut ever arrives, so the hover sticks on and the folder sits back down on the felt swollen,
     // lifted and still showing a pointer cursor. That is the "it does not go back to its spot" on exit.
     // It re-engages the moment the pointer actually moves, which is the correct source for it anyway.
+    hoverClaims.current.clear()
     hover.current.on = false
   }, [open])
 
@@ -681,7 +705,15 @@ export default function ResumeFolder({
     }
 
     const h = hover.current
-    h.amt += ((h.on ? 1 : 0) - h.amt) * Math.min(1, d * (h.on ? 10 : 4))
+    // and a short grace on RELEASE, on top of the claims: a pointer crossing a gap between two of the
+    // folder's own pieces can leave every claim briefly unheld, and without this that still reads as a
+    // twitch. Re-entering inside the grace costs nothing at all.
+    if (h.on) h.off = 0
+    else h.off += d
+    const held = h.on || h.off < 0.1
+    // slower than it was, both ways: the lift is 0.055 of the spread's height and arriving in a tenth of a
+    // second reads as a pop rather than as the folder noticing the pointer
+    h.amt += ((held ? 1 : 0) - h.amt) * ease(held ? 6 : 3.5, d)
     if (swell.current) {
       // faded out as it presents: a scale INSIDE the group is invisible there, since the framing measures
       // what is actually in the group and simply settles further back. The presented pose runs its own
@@ -859,10 +891,10 @@ export default function ResumeFolder({
         onPointerOver={(e) => {
           if (!interactive) return
           e.stopPropagation()
-          hover.current.on = true
+          claimHover('folder', true)
         }}
         onPointerOut={() => {
-          hover.current.on = false
+          claimHover('folder', false)
         }}
         onClick={(e) => {
           if (!interactive) return
@@ -873,9 +905,9 @@ export default function ResumeFolder({
         <group ref={groupRef}>
           <primitive object={model} />
           {/* the links, printed on the cover's inner face: they ride it open */}
-          <FolderLeaf face={built.coverFace} mount={built.pivot} active={open} />
+          <FolderLeaf face={built.coverFace} mount={built.pivot} active={open} onHover={leafHover} />
           {/* the page opens the resume itself */}
-          <PageLink page={built.page} mount={built.root} active={open} size={built.pageSize} lift={built.pageLift} />
+          <PageLink page={built.page} mount={built.root} active={open} size={built.pageSize} lift={built.pageLift} onHover={pageHover} />
         </group>
       </group>
     </group>
