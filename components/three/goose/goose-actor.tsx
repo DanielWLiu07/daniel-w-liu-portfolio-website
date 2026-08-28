@@ -327,6 +327,25 @@ const DUCK_DROP = 0;
  * close steps, and that reads even with the body at full height.
  */
 const SNEAK_STRIDE = 0;
+/** Vertical component of the foot's aim while it carries weight. */
+const FOOT_UP_PLANTED = 0.4;
+/** ...and while it swings. Negative = toes folded down, trailing. */
+const FOOT_UP_SWING = -0.35;
+/**
+ * Fraction of the swing arc, measured up from the plant height, over which the
+ * foot is held FLAT rather than folded. The last stretch of the descent.
+ */
+const FOOT_FLAT_BAND = 0.25;
+/**
+ * NOT a knob any more, and the reason is worth keeping.
+ *
+ * Bowing the swinging foot outward looks like the obvious fix for a foot that
+ * passes under the belly, and it does nothing: measured at 0.05 and 0.09 the
+ * run's foot-in-body stayed at 26-28%. The foot is not clipping the belly, it
+ * is clipping the feathered thigh of its OWN leg — which bows out with it, so
+ * the two never separate. Fixing that needs the thigh geometry lifted in
+ * Blender, not a runtime offset.
+ */
 /**
  * How close to dead straight the leg may go, as a fraction of its length.
  *
@@ -984,6 +1003,15 @@ export default function GooseActor({
     time: 0,
     turn: 0,
     jaw: 0,
+    /**
+     * How much each foot is folded toes-down, 0..1. Eased, per foot.
+     *
+     * A planted foot lies flat; a swinging one folds its toes down and trails.
+     * Switching between the two outright would pop — footL is one of the
+     * stiffest bones on the rig at 45000, so the spring will not smooth it for
+     * us — hence easing it here.
+     */
+    footFold: { L: 0, R: 0 },
     /** 0..1 crouch, eased from the C key. Held through walking. */
     duck: 0,
     /** Seconds left of the leg extension. See LAUNCH_TIME. */
@@ -2271,6 +2299,32 @@ export default function GooseActor({
         if (!hipBone) continue;
         hipBone.updateWorldMatrix(true, false);
         hipBone.getWorldPosition(hipW);
+
+        // How far off the ground this foot is, 0..1 across its swing arc.
+        //
+        // Driven by HEIGHT, not by the planted flag. The flag flips at
+        // touchdown, which is far too late to start flattening: the swing arc
+        // returns to plant height at its very end, so a foot still folded when
+        // the flag flips puts its toe through the lawn — measured, the walk's
+        // sole reached -140mm against a -14mm target on 6% of frames. Held
+        // flat over the bottom FOOT_FLAT_BAND of the arc as well, because
+        // reaching flat exactly at ground level still left the toe low through
+        // the last few centimetres of the descent.
+        //
+        // Measured against the foot's OWN plant point, which the planner
+        // publishes. See FootState.groundY for why not legRig.
+        const plantY = plan[side].groundY + plan[side].clearance;
+        const span = Math.max(1e-4, planner.current?.lift ?? STEP_LIFT);
+        const flatBy = span * FOOT_FLAT_BAND;
+        st.footFold[side] = Math.max(
+          0,
+          Math.min(
+            1,
+            (plan[side].pos.y - plantY - flatBy) /
+              Math.max(1e-4, span - flatBy),
+          ),
+        );
+
         footW.copy(plan[side].pos);
 
         const sol = solveTwoBone(
@@ -2304,14 +2358,25 @@ export default function GooseActor({
         pose.aimWorld(thigh, aim.copy(sol.knee).sub(hipW));
         pose.aimWorld(shin, aim.copy(footW).sub(sol.knee));
         /**
-         * Foot flat to the ground, and slightly toe-up.
-         */
-        /**
-         * Toes up. NOT level, and not aimed flat either.
+         * Toes up while the foot carries weight, folded down while it swings.
+         *
+         * Aimed flat-and-slightly-up is right for a planted foot and wrong for
+         * a swinging one. Held at +0.4 through the swing, the paddle rides up
+         * to 230mm ABOVE its own ankle — it stands on end and ploughs through
+         * the feathered thigh. Measured, the webbed foot was inside the body on
+         * 50% of run frames; folding it to -0.35 through the swing halves that
+         * to 26%, and it is what a bird's foot actually does between steps.
+         *
+         * Eased rather than switched: see st.footFold.
          */
         pose.aimWorld(
           foot,
-          aim.set(Math.sin(st.heading), 0.4, Math.cos(st.heading)),
+          aim.set(
+            Math.sin(st.heading),
+            FOOT_UP_PLANTED +
+              (FOOT_UP_SWING - FOOT_UP_PLANTED) * st.footFold[side],
+            Math.cos(st.heading),
+          ),
         );
       }
     }

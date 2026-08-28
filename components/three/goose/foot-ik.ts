@@ -218,6 +218,22 @@ export interface FootState {
   readonly pos: THREE.Vector3;
   /** True while the foot is on the ground and owns its position. */
   planted: boolean;
+  /**
+   * World height this foot's ankle sits at when it is DOWN — surface plus its
+   * own sole offset. With `clearance`, gives the caller the foot's height
+   * above its own plant point, which is 0 in stance and the arc while it
+   * swings.
+   *
+   * Exposed because the alternative was reconstructing it from legRig, and
+   * that reconstruction was wrong: legRig.groundY read -0.143 against a real
+   * plant of +0.043, so a swing-height test built on it saw 186mm of lift for
+   * a foot standing still and folded the toes down permanently. The goose
+   * walked on tiptoe. The planner is the only thing that knows where it put a
+   * foot, so ask it.
+   */
+  readonly groundY: number;
+  /** Live plant-height bias; grows with gait speed. */
+  readonly clearance: number;
 }
 
 export interface FootPlan {
