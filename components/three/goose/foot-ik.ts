@@ -16,13 +16,27 @@ const MOVING = 0.12;
 const GROUND_CLEARANCE = -0.014;
 /**
  * Extra clearance at a full run — follower error grows with cadence.
+ *
+ * These are not fudge: the IK trails its target while the legs cycle, and on
+ * this rig that lag sinks the sole about 30 mm below where it was asked to go.
+ * Without a bias the foot spends the whole gait buried.
+ *
+ * They were still wrong, because they were tuned against a plant height that
+ * was itself wrong — derived from the ankle BONE by an expression that
+ * cancelled the leg stretch exactly (see measureSoleY). Set that way they
+ * landed the moving sole at a MEDIAN of 0 to +5 mm: the foot skimmed the
+ * surface instead of pressing into it, which is what a gait with no weight in
+ * it looks like.
+ *
+ * Now the plant is read off the sole and settles to within a millimetre, so
+ * these are set to put the moving median on the same -14 mm the standing goose
+ * holds — the foot in the grass, by the same amount, whatever it is doing.
+ *
+ *   median sole:  stand -14   walk -14   run -14   sneak -12
  */
-const RUN_CLEARANCE = 0.022;
-/**
- * Extra clearance once the legs are cycling. Tuned to standing alone, the walk
- * clipped on 87% of frames; tuned to the walk, the idle goose floated.
- */
-const WALK_CLEARANCE = 0.029;
+const RUN_CLEARANCE = 0.005;
+/** Extra clearance once the legs are cycling. See RUN_CLEARANCE. */
+const WALK_CLEARANCE = 0.023;
 
 /** How far the feet tuck up toward the body in mid-air, world units. */
 const TUCK = 0.018;
@@ -362,6 +376,47 @@ export class FootPlanner {
     });
     this.feet = { L: mk(anchors.L, sole.L), R: mk(anchors.R, sole.R) };
     this.restGround = surfaceY + (sole.L + sole.R) / 2;
+  }
+
+  /**
+   * Correct one foot's sole offset by what the planted foot actually measured.
+   *
+   * The rest-pose estimate is taken with the foot lying as the artist modelled
+   * it; the IK then plants it aimed 0.4 toe-up, which drops the heel about
+   * 15 mm further. Rather than duplicate the plant orientation here and keep
+   * the two in step by hand, the caller measures the sole once the foot is
+   * down and hands back the error. Shift the stored positions with it so the
+   * correction does not read as a step.
+   */
+  /**
+   * Mean sole offset — how far the ankles sit above whatever is underfoot.
+   *
+   * The caller keeps its own copy of this for the reach maths, and the trim
+   * moves it, so there has to be a way to read it back. Not doing that was a
+   * real bug: the reach budget went on using the pre-trim estimate, which was
+   * 140mm out, and sqrt(leg^2 - hipHeight^2) collapsed from 0.387 to 0.089.
+   * Both feet were then dragged along under the body every frame — planted
+   * flags still true, positions tracking the body exactly. The goose skated.
+   */
+  get plantHeight(): number {
+    return (this.feet.L.sole + this.feet.R.sole) / 2;
+  }
+
+  trimSole(side: "L" | "R", measuredSoleY: number, surfaceY: number): number {
+    const f = this.feet[side];
+    // Where the sole BELONGS: on the surface, biased by whatever clearance is
+    // in effect. Targeting the bare surface instead would silently cancel
+    // GROUND_CLEARANCE, since the measurement was taken with it applied.
+    const delta = surfaceY + f.clearance - measuredSoleY;
+    if (!Number.isFinite(delta) || delta === 0) return 0;
+    f.sole += delta;
+    f.groundY += delta;
+    f.pos.y += delta;
+    f.from.y += delta;
+    f.to.y += delta;
+    f.prev.y += delta;
+    // The residual the caller just took out, so it can stop once it is small.
+    return delta;
   }
 
   /**

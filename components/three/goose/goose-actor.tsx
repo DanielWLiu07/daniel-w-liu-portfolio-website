@@ -950,6 +950,18 @@ export default function GooseActor({
   } | null>(null);
 
   const planner = useRef<FootPlanner | null>(null);
+  /**
+   * Settling the plant height against where the soles actually land.
+   *
+   * `wait` counts frames until the next measurement, `left` how many
+   * corrections remain. A single shot was not enough: the planner eases the
+   * feet in over RECOVER and the IK needs a frame to follow, so the first
+   * measurement catches a foot still on its way down and under-corrects — it
+   * left the soles 46mm low. Correcting repeatedly until the residual is under
+   * a millimetre converges in two or three passes and cannot be fooled by when
+   * it happened to fire.
+   */
+  const soleTrim = useRef({ wait: 14, left: 6 });
   const hitResult = useRef<Resolved>({ x: 0, z: 0, hit: false });
   const headPush = useRef({ x: 0, z: 0 });
   /** Torso vertical extent, relative to the body. Measured once. */
@@ -1735,15 +1747,11 @@ export default function GooseActor({
           outward: { L: outL, R: -outL },
         };
         if (process.env.NODE_ENV !== "production") {
-          (window as unknown as Record<string, unknown>).__legRig = {
-            upper,
-            lower,
-            pole: pole.toArray(),
-            restBend: toKnee.length(),
-            span: foot.distanceTo(hip),
-            groundY: plantY,
-            straightness: foot.distanceTo(hip) / (upper + lower),
-          };
+          // The LIVE object, not a copy. A snapshot here read groundY -0.143 long
+          // after the sole trim had moved it to +0.036, and two probes were
+          // written against that stale number before anyone noticed.
+          (window as unknown as Record<string, unknown>).__legRig =
+            legRig.current;
         }
         planner.current = new FootPlanner(
           {
@@ -2223,6 +2231,64 @@ export default function GooseActor({
       }
     }
     pose.commit(dt);
+
+    /**
+     * Put the soles on the grass, once, by looking at where they ended up.
+     *
+     * The plant height starts as a rest-pose estimate of how far each sole
+     * hangs below its ankle. That estimate is taken with the foot lying as it
+     * was modelled, and the IK then plants it aimed 0.4 toe-up — which swings
+     * the heel about 15 mm lower and put the goose's feet that far under the
+     * lawn. Rather than restate the plant orientation here and hope the two
+     * stay in step, measure the sole where it actually lands and take the
+     * difference out.
+     *
+     * Once, on the ground, standing still: the residual is a property of the
+     * rig, not of the frame, and re-measuring it while the goose is moving
+     * would chase the swing.
+     */
+    const trim = soleTrim.current;
+    if (
+      trim.left > 0 &&
+      plan &&
+      planner.current &&
+      st.swim < 0.5 &&
+      !st.airborne &&
+      plan.L.planted &&
+      plan.R.planted
+    ) {
+      if (--trim.wait <= 0) {
+        trim.wait = 8;
+        trim.left--;
+        // commit() moved the bones; nothing has re-derived their world
+        // matrices yet, and applyBoneTransform reads them directly.
+        root.updateMatrixWorld(true);
+        const soleY = measureSoleY(root, { L: bones.footL, R: bones.footR });
+        if (soleY) {
+          const surface = g.position.y;
+          const worst = Math.max(
+            Math.abs(planner.current.trimSole("L", soleY.L, surface)),
+            Math.abs(planner.current.trimSole("R", soleY.R, surface)),
+          );
+          // The reach maths reads the plant height from HERE, not from the
+          // planner, so it has to move with it. Leaving it behind inflated
+          // hipHeight by the whole correction and the reach budget collapsed,
+          // which drags both planted feet along under the body — skating.
+          if (legRig.current)
+            legRig.current.groundY = GROUND_Y + planner.current.plantHeight;
+          if (worst < 0.001) trim.left = 0;
+          if (process.env.NODE_ENV !== "production") {
+            console.info(
+              `[goose] sole trim: L ${((soleY.L - surface) * 1000).toFixed(1)}mm ` +
+                `R ${((soleY.R - surface) * 1000).toFixed(1)}mm off the surface` +
+                (trim.left === 0 ? " — settled" : ""),
+            );
+          }
+        } else {
+          trim.left = 0;
+        }
+      }
+    }
 
     /**
      * Dev telemetry, read after commit() so the bones are where they ended up
