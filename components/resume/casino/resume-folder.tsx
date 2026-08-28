@@ -271,9 +271,22 @@ export default function ResumeFolder({
     const by = (n: string) => meshes.find((m) => m.name.startsWith(n)) ?? null
     // unrotate the baked in-plane angle so local x is the folder's width, local y its length, and the
     // crease an axis. Measured off the back leaf, then applied to every piece so they stay registered.
-    const backRaw = by('folder_back')
-    if (!backRaw) return null
-    const spin = bakedSpin(backRaw.geometry)
+    // Measured off the COVER, which is a clean rounded rectangle, rather than the back leaf, which carries
+    // the tab. That was a guess at why the page's edges came out 1.38 degrees off the folder's and it was
+    // WRONG: measured, the two agree exactly (both 77.470 degrees), so the tab does not drag the fit at all.
+    // The cover is still the better reference on principle, and ?fdbg prints all three so the next person
+    // does not have to guess either.
+    const spinRef = by('folder_cover') ?? by('folder_back')
+    if (!spinRef) return null
+    const spin = bakedSpin(spinRef.geometry)
+    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('fdbg')) {
+      const backRaw = by('folder_back')
+      const sheetRaw = by('folder_sheet')
+      const deg = (r: number) => ((r * 180) / Math.PI).toFixed(3)
+      console.log('FOLDER spin from cover', deg(spin),
+        'back', backRaw ? deg(bakedSpin(backRaw.geometry)) : '-',
+        'sheet', sheetRaw ? deg(bakedSpin(sheetRaw.geometry)) : '-')
+    }
     unbakeSpin(meshes.map((m) => m.geometry), spin)
     const back = by('folder_back')
     const cover = by('folder_cover')
