@@ -354,7 +354,19 @@ export const PAPER_STOCK_HEX = '#ffffff'
  * spends the headroom on warmth instead: cast +30 against manila at +67, so a white sheet does not read
  * grey beside it.
  */
-const PAPER_GAIN: [number, number, number] = [0.99, 0.962, 0.918]
+const PAPER_GAIN: [number, number, number] = [0.9, 0.875, 0.835]
+/**
+ * What the PRINT's paper has to be multiplied by to become the paper it is printed on.
+ *
+ * The two are the same stock and the same graph, but one is drawn THROUGH the painterly pass and the other
+ * deliberately is not, and the pass does not leave a white alone. Scanned across the page's edge with the
+ * paper held out of clipping, the painted margin reads 247/241/231 and the print's own paper 246/235/214:
+ * the same red, six less green, seventeen less blue, so the print is markedly the warmer of the two and a
+ * sheet carries two different whites, its own margin against its own face. These are those two readings
+ * divided, nothing else. It has to be measured out of clipping to mean anything: at the old gain both were
+ * pinned at 255 in red and green and the whole difference hid in one channel.
+ */
+const PRINT_MATCH: [number, number, number] = [1.004, 1.026, 1.079]
 function paperLit(g: Graph, base: GraphNode): GraphNode {
   // keyed off object position, so the grain runs continuously from the printed face around the cut edge
   const f = g.mapRange(g.noise(g.position('object'), { scale: 55, detail: 2 }), { from: [0, 1], to: [0.955, 1.03], clamp: true })
