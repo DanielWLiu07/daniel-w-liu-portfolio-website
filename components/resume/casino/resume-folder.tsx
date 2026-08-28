@@ -343,7 +343,12 @@ export default function ResumeFolder({
     const ph = py1 - py0
     // world up is model -z here (the cover sits at lower z than the leaf), so the print goes on the box's
     // -z face, looking up out of the folder
-    const printMat = sheetMaterial(tex, { printed: true })
+    // Printed straight ONTO the sheet, so the painterly pass runs over the resume with everything else and
+    // the page is one material throughout. The cost is not small and is worth knowing: the pass smears 8pt
+    // type to the point that the resume cannot be read at all, only its name survives. ?sharp puts the
+    // print back on its own plane outside the pass, which is legible but is a print laid on a painting.
+    const sharp = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('sharp')
+    const printMat = sheetMaterial(tex, { printed: true, painted: !sharp })
     // world up is model -z here, so the leaf's inner face is its low-z side
     const plane = contactPlane(back.geometry, { along: 'x', at: 'z', side: 'min' })
     const cx = (px0 + px1) / 2
@@ -394,17 +399,26 @@ export default function ResumeFolder({
     }
     // the stock is plain cream on every face and goes through the painterly pass with the folder; the
     // PRINT rides on its own bent plane and stays out of it (see paperSheet)
-    const top = paperSheet({ w: pw, h: ph, t: thick }, edge, { across: 'x', foldAt, up: -1, rise, skew: 0.05 })
+    const top = paperSheet(
+      { w: pw, h: ph, t: thick },
+      sharp ? edge : [edge, edge, edge, edge, edge, printMat],
+      { across: 'x', foldAt, up: -1, rise, skew: 0.05, faceInset: sharp ? 0.05 : 0 },
+    )
     const page = top.mesh
-    top.face.material = printMat
-    top.face.userData.compOverlay = true
+    if (sharp) {
+      top.face.material = printMat
+      top.face.userData.compOverlay = true
+    }
     sheets.push(top)
     page.name = 'folder_page'
     page.position.set(cx, cy, lift(1.95))
     page.rotation.y = tilt
-    top.face.position.copy(page.position)
-    top.face.rotation.copy(page.rotation)
-    root.add(top.face)
+    // the face plane is only added in ?sharp: otherwise the print lives on the sheet itself
+    if (sharp) {
+      top.face.position.copy(page.position)
+      top.face.rotation.copy(page.rotation)
+      root.add(top.face)
+    }
     if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('fdbg')) {
       const f = (v: number) => v.toFixed(4)
       console.log('FOLDER spin', f(spin), 'tilt', f(tilt))

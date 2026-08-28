@@ -88,6 +88,13 @@ export function paperSheet(
     /** how far the free corner rises at full curl, in the model's units */
     rise: number
     skew?: number
+    /**
+     * How far in from the sheet's edge the PRINTED face stops, as a fraction of the sheet. Above zero the
+     * stock shows as a margin all round the print, and that margin goes through the painterly pass while
+     * the print does not: the sheet gets a soft painted border that belongs to the folder rather than a
+     * razor-sharp rectangle laid over it, which is what made the page read as pasted on at its corners.
+     */
+    faceInset?: number
   },
 ): Sheet {
   const along = o.across === 'x' ? size.w : size.h
@@ -152,7 +159,10 @@ export function paperSheet(
   // part of the painting and the print is still a print.
   const fw = o.across === 'x' ? na : nb
   const fh = o.across === 'x' ? nb : na
-  const fgeo = new THREE.PlaneGeometry(size.w, size.h, fw, fh)
+  // Concentric with the slab, so a face vertex's own coordinate IS its coordinate on the slab: the bend
+  // below is still evaluated against the SLAB's width, and the print lies exactly on the paper it is on.
+  const fk = 1 - (o.faceInset ?? 0)
+  const fgeo = new THREE.PlaneGeometry(size.w * fk, size.h * fk, fw, fh)
   const fpos = fgeo.attributes.position as THREE.BufferAttribute
   const farr = fpos.array as Float32Array
   const fflat = new Float32Array(farr)
