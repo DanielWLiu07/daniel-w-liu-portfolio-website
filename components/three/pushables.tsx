@@ -9,6 +9,7 @@ import * as THREE from "three";
 import { compileMaterial, graph } from "blender-to-threejs";
 
 import type { Collider } from "./environment";
+import RadioMesh from "./rickroll/radio-mesh";
 
 export interface Pushable {
   position: [number, number, number];
@@ -16,9 +17,16 @@ export interface Pushable {
   size: number;
   rotation?: number;
   color?: [number, number, number];
+  /**
+   * What to draw. Everything behaves identically — the radio is a prop the
+   * goose can shove, steal and drop like any other, and gets carry physics,
+   * grab rings and collision for free by being one of these rather than a
+   * component of its own.
+   */
+  kind?: "crate" | "radio";
 }
 
-interface Body {
+export interface Body {
   pos: THREE.Vector3;
   vel: THREE.Vector3;
   /** Vertical velocity. Only non-zero while a dropped prop is falling. */
@@ -88,6 +96,10 @@ const SWING_DAMP = 4.5;
  */
 const MAX_SWING = 0.6;
 
+/** Stand-ins, so a radio still renders in a scene that is not driving one. */
+const FLAT = { current: 0 } as React.RefObject<number>;
+const OFF = { current: false } as React.RefObject<boolean>;
+
 /** How close the goose has to be to shove something, beyond the crate's size. */
 const REACH = 0.42;
 /** Ground friction. Crates should stop soon after you stop pushing. */
@@ -118,6 +130,15 @@ export interface PushablesProps {
   goose: React.RefObject<THREE.Vector3>;
   /** Keeps crates on the green. */
   bounds?: number;
+  /**
+   * Published live bodies, so the scene can follow a prop that is being
+   * CARRIED. The collider list cannot answer that: a carried prop publishes an
+   * empty footprint on purpose, so nothing shoulders its own cargo.
+   */
+  bodies?: React.RefObject<Body[]>;
+  /** Loudness and on/off for the radio, if there is one. */
+  radioLevel?: React.RefObject<number>;
+  radioOn?: React.RefObject<boolean>;
 }
 
 export default function Pushables({
@@ -128,12 +149,16 @@ export default function Pushables({
   beak,
   beakYaw,
   bounds = 24,
+  bodies,
+  radioLevel,
+  radioOn,
 }: PushablesProps) {
-  const meshes = useRef<(THREE.Mesh | null)[]>([]);
+  const meshes = useRef<(THREE.Object3D | null)[]>([]);
 
   const materials = useMemo(
     () =>
       items.map((it) => {
+        if (it.kind === "radio") return null;
         const g = graph();
         const [r, gr, b] = it.color ?? [0.6, 0.45, 0.3];
         return compileMaterial(g.rgb(r, gr, b));
@@ -141,7 +166,7 @@ export default function Pushables({
     [items],
   );
 
-  const bodies = useRef<Body[]>(
+  const list = useRef<Body[]>(
     items.map((it) => ({
       pos: new THREE.Vector3(...it.position),
       vel: new THREE.Vector3(),
@@ -176,20 +201,21 @@ export default function Pushables({
   // during render — writing to a hook value on the render path is exactly the
   // thing that makes a component behave differently on a re-render.
   useEffect(() => {
+    if (bodies) bodies.current = list.current;
     if (process.env.NODE_ENV === "production") return;
-    (window as unknown as Record<string, unknown>).__crates = bodies.current;
-  }, []);
+    (window as unknown as Record<string, unknown>).__crates = list.current;
+  }, [bodies]);
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05);
     if (!(dt > 0)) return;
     const g = goose.current;
-    const list = bodies.current;
+    const bodyList = list.current;
     const { away, sep } = scratch;
     const { grip, hang, up, spinQ, tiltQ, UP } = carry;
 
-    for (let i = 0; i < list.length; i++) {
-      const b = list[i];
+    for (let i = 0; i < bodyList.length; i++) {
+      const b = bodyList[i];
 
       /**
        * Carried crates follow the bill instead of being simulated.
@@ -356,8 +382,8 @@ export default function Pushables({
       // Cheap positional separation, no impulse exchange. With four boxes the
       // difference is invisible, and it cannot explode the way a badly tuned
       // impulse solver can.
-      for (let j = i + 1; j < list.length; j++) {
-        const o = list[j];
+      for (let j = i + 1; j < bodyList.length; j++) {
+        const o = bodyList[j];
         sep.set(b.pos.x - o.pos.x, 0, b.pos.z - o.pos.z);
         const d = sep.length();
         const min = b.size + o.size;
@@ -410,18 +436,34 @@ export default function Pushables({
 
   return (
     <group>
-      {items.map((it, i) => (
-        <mesh
-          key={i}
-          ref={(m) => {
-            meshes.current[i] = m;
-          }}
-          position={it.position}
-        >
-          <boxGeometry args={[it.size * 2, it.size * 2, it.size * 2]} />
-          <primitive object={materials[i]} attach="material" />
-        </mesh>
-      ))}
+      {items.map((it, i) =>
+        it.kind === "radio" ? (
+          <group
+            key={i}
+            ref={(m) => {
+              meshes.current[i] = m;
+            }}
+            position={it.position}
+          >
+            <RadioMesh
+              size={it.size}
+              level={radioLevel ?? FLAT}
+              on={radioOn ?? OFF}
+            />
+          </group>
+        ) : (
+          <mesh
+            key={i}
+            ref={(m) => {
+              meshes.current[i] = m;
+            }}
+            position={it.position}
+          >
+            <boxGeometry args={[it.size * 2, it.size * 2, it.size * 2]} />
+            <primitive object={materials[i]!} attach="material" />
+          </mesh>
+        ),
+      )}
     </group>
   );
 }

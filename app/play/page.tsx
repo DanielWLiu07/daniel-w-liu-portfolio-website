@@ -34,7 +34,10 @@ import {
   type WaterTuning,
 } from "@/components/three/goose/goose-actor";
 import type { Collider } from "@/components/three/environment";
-import Pushables, { type Pushable } from "@/components/three/pushables";
+import Pushables, {
+  type Body,
+  type Pushable,
+} from "@/components/three/pushables";
 import HonkLines, {
   HONK_DEFAULTS,
   type HonkTuning,
@@ -172,6 +175,8 @@ const CRATES: Pushable[] = [
     color: [0.28, 0.4, 0.72],
   },
   { position: [-3.4, 0.085, -3.6], size: 0.085, color: [0.2, 0.2, 0.22] },
+  // Steal-able like the rest of them, and it plays something.
+  { position: [-1.5, 0.14, -2.6], size: 0.14, rotation: 0.5, kind: "radio" },
 ];
 
 function RenderProbe() {
