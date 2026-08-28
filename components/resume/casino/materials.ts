@@ -378,7 +378,7 @@ function paperLit(g: Graph, base: GraphNode): GraphNode {
   return litOrPresented(g, col, lit(g, col, lamp(g, undefined, { twoSided: true })), PAPER_BAND)
 }
 
-export function sheetMaterial(map: Texture, opts: { flipU?: boolean; flipV?: boolean; rotate?: boolean; printed?: boolean; border?: number; fit?: number } = {}) {
+export function sheetMaterial(map: Texture, opts: { flipU?: boolean; flipV?: boolean; rotate?: boolean; printed?: boolean; border?: number; fit?: number; painted?: boolean } = {}) {
   const g = graph()
   const uv = g.uv()
   let u = g.separate(uv, 'x'), v = g.separate(uv, 'y')
@@ -420,8 +420,29 @@ export function sheetMaterial(map: Texture, opts: { flipU?: boolean; flipV?: boo
   // that separates it from white (sampled off the file at 254.5/255, neutral); and both carry the same
   // fibre the folder body has, keyed off object position, so the grain runs continuously from the printed
   // face around the cut edge. The ink is untouched, since multiplying black by anything is still black.
-  const stock = g.multiplyColor(1, g.rgb(...PAPER_STOCK), g.rgb(1.0021, 1.0021, 1.0021))
-  const base = opts.printed ? g.multiplyColor(1, img, stock) : g.blend(mask, paper, img)
+  // `painted` means this print goes THROUGH the painterly pass with the paper it is on. Both corrections
+  // below exist only to fake what the pass does for a print drawn outside it, so when the pass is really
+  // doing it they have to come off, or the sheet is compensated twice.
+  const match: [number, number, number] = opts.painted ? [1, 1, 1] : PRINT_MATCH
+  const stock = g.multiplyColor(1, g.multiplyColor(1, g.rgb(...PAPER_STOCK), g.rgb(1.0021, 1.0021, 1.0021)), g.rgb(...match))
+  // The print cannot go THROUGH the painterly pass (it turns 8pt type to mush), but it can carry the
+  // pass's own surface. Measured on the render, the painted stock runs sd 4.1 with a neighbour delta of
+  // 1.11 against the print's 1.75 and 0.53: the paper around the print is broken up about two and a half
+  // times as much, and that difference in TEXTURE is what still read as two materials once their colours
+  // matched. This is a second, much finer grain than the fibre, at the spatial scale the pass works at,
+  // and it goes on the printed path only, since the stock already gets the real thing.
+  // two octaves, because the pass works at two scales: a fine tooth for the paper's own grain and a much
+  // broader wash for the brush. Matching only the fine one left the print smooth in the large (sd 2.36
+  // against the stock's 4.64) even once its per-pixel grain was right.
+  const tooth = g.mapRange(g.noise(g.position('object'), { scale: 210, detail: 3 }), { from: [0, 1], to: [0.968, 1.032], clamp: true })
+  const wash = g.mapRange(g.noise(g.position('object'), { scale: 24, detail: 2 }), { from: [0, 1], to: [0.972, 1.028], clamp: true })
+  const grain = g.multiply(tooth, wash)
+  const inked = opts.printed
+    ? opts.painted
+      ? g.multiplyColor(1, img, stock)
+      : g.multiplyColor(1, g.multiplyColor(1, img, stock), g.combine(grain, grain, grain))
+    : null
+  const base = inked ?? g.blend(mask, paper, img)
   const m = trackPresent(trackLit(compileMaterial(register('sheet', paperLit(g, base)))))
   // the modelled page is a single plane: it must show whichever way its normal points
   m.side = DoubleSide
