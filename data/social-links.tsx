@@ -14,11 +14,14 @@ export interface SocialLinkImage {
 
 export const SOCIAL_URLS = {
   github: "https://github.com/DanielWLiu07",
-  linkedin: "https://www.linkedin.com/in/danielliu2007/",
+  linkedin: "https://www.linkedin.com/in/danielwliu/",
   email: "https://docs.google.com/forms/d/e/1FAIpQLSdsaj2nXuReGTo1Fu9PaW7jsxUZPpPAiCMuf0gBvmZBYFe1nw/viewform?usp=dialog",
   // X: put the profile URL here and the token on the resume folder's leaf goes live. Left empty rather
   // than guessed, so it cannot send anyone to the wrong account.
   x: "",
+  // Devpost: the repo only carries per project software URLs, never a profile one. Same rule as X: the
+  // card prints either way, and its link stays inert until this is filled in.
+  devpost: "",
 }
 
 export const socialLinksImageData: SocialLinkImage[] = [
