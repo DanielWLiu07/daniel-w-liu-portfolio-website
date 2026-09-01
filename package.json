@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "check:shuffle": "tsx scripts/check-shuffle.ts 600",
+    "check:dice": "tsx scripts/check-dice.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",

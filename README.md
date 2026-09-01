@@ -42,5 +42,5 @@ The site has a quality selector - high quality loads all videos and animations, 
 ## Links
 
 - Live: [danielwliu.com](https://danielwliu.com)
-- LinkedIn: [/in/danielliu2007](https://linkedin.com/in/danielliu2007)
+- LinkedIn: [/in/danielwliu](https://linkedin.com/in/danielwliu)
 - GitHub: [@DanielWLiu07](https://github.com/DanielWLiu07)

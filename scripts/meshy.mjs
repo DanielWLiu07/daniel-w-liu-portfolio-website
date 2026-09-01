@@ -22,6 +22,8 @@ import { fileURLToPath } from 'node:url';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const API = 'https://api.meshy.ai/openapi/v2/text-to-3d';
 const RIG_API = 'https://api.meshy.ai/openapi/v1/rigging';
+/** Meshy's own cap, enforced here so a too long prompt fails before it costs a call */
+const PROMPT_MAX = 800;
 
 function apiKey() {
   const env = readFileSync(resolve(ROOT, '.env.local'), 'utf8');
@@ -91,14 +93,36 @@ if (cmd === 'balance') {
   // Optional --out <name> so several variants can be generated and compared
   // side by side rather than overwriting each other.
   let name = 'goose-preview';
+  // The goose defaults, kept: quads and 8k because THAT mesh gets rigged. A
+  // hard-surface prop wants neither, so they are flags now rather than facts.
+  let topology = 'quad';
+  let polycount = 8000;
+  let symmetry = 'on';
   const args = [...rest];
-  const flag = args.indexOf('--out');
-  if (flag !== -1) {
-    name = args[flag + 1];
-    args.splice(flag, 2);
-  }
+  const take = (flag, apply) => {
+    const i = args.indexOf(flag);
+    if (i !== -1) {
+      apply(args[i + 1]);
+      args.splice(i, 2);
+    }
+  };
+  take('--out', (v) => { name = v; });
+  take('--topology', (v) => { topology = v; });
+  take('--polycount', (v) => { polycount = Number(v); });
+  take('--symmetry', (v) => { symmetry = v; });
   const prompt = args.join(' ');
-  if (!prompt) throw new Error('usage: meshy.mjs preview [--out <name>] "<prompt>"');
+  if (!prompt) {
+    throw new Error(
+      'usage: meshy.mjs preview [--out <name>] [--topology quad|triangle] [--polycount n] [--symmetry on|off|auto] "<prompt>"',
+    );
+  }
+  // Meshy caps the prompt at 800 characters and only says so after the round
+  // trip. Checking here says WHICH prompt and by how much, before spending one.
+  if (prompt.length > PROMPT_MAX) {
+    throw new Error(`prompt is ${prompt.length} characters, ${prompt.length - PROMPT_MAX} over the ${PROMPT_MAX} Meshy allows`);
+  }
+  console.log(`  prompt ${prompt.length}/${PROMPT_MAX} characters`);
+  console.log(`  topology ${topology}  polycount ${polycount}  symmetry ${symmetry}`);
   console.log('submitting preview…');
   const { result: id } = await call(API, {
     method: 'POST',
@@ -108,11 +132,13 @@ if (cmd === 'balance') {
       // Quads, because this mesh is going to be RIGGED. Triangle soup from an
       // implicit-surface extraction has no edge loops to bend around, and no
       // amount of weight painting rescues a neck without loops.
-      topology: 'quad',
-      target_polycount: 8000,
+      topology,
+      target_polycount: polycount,
       // A goose is bilaterally symmetric; forcing it costs nothing and stops
-      // one wing coming out subtly different from the other.
-      symmetry_mode: 'on',
+      // one wing coming out subtly different from the other. A die is symmetric
+      // on three axes but its FACES all differ, so symmetry there is a hazard,
+      // not a freebie: pass --symmetry off for one.
+      symmetry_mode: symmetry,
       should_remesh: true,
     }),
   });
@@ -121,8 +147,8 @@ if (cmd === 'balance') {
   await download(task, `${name}.glb`);
   console.log(`\nshape look right? then:  node scripts/meshy.mjs refine ${id}`);
 } else if (cmd === 'refine') {
-  const [id] = rest;
-  if (!id) throw new Error('usage: meshy.mjs refine <preview-task-id>');
+  const id = rest.find((a) => !a.startsWith('--') && rest[rest.indexOf(a) - 1] !== '--out');
+  if (!id) throw new Error('usage: meshy.mjs refine <preview-task-id> [--out <name>]');
   console.log('submitting refine…');
   const { result: refineId } = await call(API, {
     method: 'POST',
@@ -130,7 +156,9 @@ if (cmd === 'balance') {
   });
   console.log(`  task ${refineId}`);
   const task = await poll(refineId);
-  await download(task, 'goose.glb');
+  // --out so a refine does not always land on goose.glb
+  const oi = rest.indexOf('--out');
+  await download(task, `${oi !== -1 ? rest[oi + 1] : 'goose'}.glb`);
 } else if (cmd === 'rig') {
   // Meshy's docs say rigging "only works well with standard humanoid (bipedal)
   // assets". A goose is bipedal but not humanoid, so this is an experiment, not

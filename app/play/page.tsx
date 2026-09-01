@@ -25,6 +25,16 @@ import Environment from "@/components/three/environment";
 import GooseActor from "@/components/three/goose/goose-actor";
 import NodeGraphView from "@/components/three/node-graph-view";
 import RunTuner from "@/components/three/run-tuner";
+import type { PanelValue } from "blender-to-threejs";
+import PopOut from "@/components/panels/pop-out";
+import { usePanelHost } from "@/components/panels/use-panels";
+import {
+  RUN_PANEL,
+  applyRunValue,
+  runReadouts,
+  runSnippet,
+  runValues,
+} from "@/components/three/goose/run-panel";
 import WaterTuner from "@/components/three/water-tuner";
 import BoneOverlay from "@/components/three/bone-overlay";
 import {
@@ -370,8 +380,12 @@ function Scene({
       pos: pos.current,
       getHeading: () => heading.current,
       getTarget: () => target,
+      // Exposed so a probe can check that an edit made in a torn-off panel
+      // window actually reached the scene, rather than only round-tripping
+      // inside the panel.
+      getTuning: () => tuning,
     };
-  }, [target]);
+  }, [target, tuning]);
 
   return (
     <>
@@ -484,6 +498,49 @@ export default function PlayPage() {
     drag: number;
   }>({ beak: 0, ahead: 0, above: 0, clamped: [], drag: 0 });
 
+  /**
+   * Panels live in their own windows, on whichever monitor you park them.
+   *
+   * The scene page deliberately stays a full-bleed viewport: the run is the one
+   * pose you cannot judge with a panel sitting on top of the goose, because
+   * what you are reading is the whole silhouette moving.
+   */
+  const panelHost = usePanelHost();
+  const runBinding = {
+    get: () => runValues(tuning, showBones),
+    set: (key: string, value: PanelValue) => {
+      if (key === "showBones") {
+        setShowBones(Boolean(value));
+        return;
+      }
+      const next = applyRunValue(tuning, key, value);
+      if (next) setTuning(next);
+    },
+    press: (key: string) => {
+      if (key === "reset") setTuning(RUN_DEFAULTS);
+    },
+    snippets: () => ({ source: runSnippet(tuning) }),
+  };
+  // Measured values, pushed as they change. The host coalesces and throttles,
+  // so an effect keyed on the pose is cheap enough.
+  useEffect(() => {
+    panelHost?.readouts(
+      RUN_PANEL.id,
+      runReadouts(tuning, {
+        beak: pose.beak,
+        ahead: pose.ahead,
+        above: pose.above,
+        drag: pose.drag,
+        clamped: pose.clamped.length,
+      }),
+    );
+  }, [panelHost, tuning, pose]);
+  // The panel window must see edits the PAGE makes too — a reset from the
+  // in-page tuner, say — or it keeps showing what it last sent.
+  useEffect(() => {
+    panelHost?.refresh(RUN_PANEL.id);
+  }, [panelHost, tuning, showBones]);
+
   return (
     <div className="w-full h-screen bg-[#cfe3ef] relative select-none">
       <Canvas
@@ -539,6 +596,14 @@ export default function PlayPage() {
         <div className="text-neutral-500 mt-1">
           walk into the crates &middot; only small things fit in a bill
           &middot; honk at the radio
+        </div>
+        <div className="mt-2">
+          <PopOut
+            host={panelHost}
+            schema={RUN_PANEL}
+            binding={runBinding}
+            label="pop out the run panel"
+          />
         </div>
         <RunTuner
           value={tuning}
