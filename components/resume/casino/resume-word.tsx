@@ -13,6 +13,9 @@ import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { MutableRefObject } from 'react'
 import type { ChipWordState } from './hero-chip'
+import { loadRansomFaces, ransomPick, ransomScrap } from './ransom'
+import type { WordMotion, WordShot } from './stop-motion'
+import { SM_DEFAULTS, WORD_DEFAULTS, boilAt, slideAt, smFrame, smTime, wordAt, wordGroups, wordOf, wordShot } from './stop-motion'
 
 const KFONT = "'KatieRoze', 'Marker Felt', 'Bradley Hand', 'Comic Sans MS', cursive"
 const FONT_URL = '/shared/fonts/Katie%20Roze%20Watercolour%20Font%20-%20By%20Lef/KatieRoze.woff2'
@@ -32,6 +35,11 @@ interface Letter {
 }
 
 let fontLoad: Promise<void> | null = null
+/** the KatieRoze face, shared with anything else that draws script type on canvas */
+export function ensureKatieRoze(): Promise<void> {
+  return ensureFont()
+}
+
 function ensureFont(): Promise<void> {
   if (!fontLoad) {
     fontLoad = (async () => {
@@ -61,7 +69,41 @@ function fitFont(ch: string, targetH: number, probe: CanvasRenderingContext2D): 
   return h > 1 ? Math.min(190, (130 * targetH) / h) : 130
 }
 
-function makeLetter(ch: string, ink: string, size: number, probe: CanvasRenderingContext2D, weight = 2, outline = 0): Letter {
+/**
+ * A ransom scrap fitted into the letter's own box.
+ *
+ * The arcs keep every one of their letters on the same plane size, so the scrap is fitted INTO that box
+ * rather than the box being fitted to the scrap. It costs a little of the per-letter size variance the
+ * flat lockup has and keeps everything else the arc does - the curve, the tangent rotation, the sway, the
+ * staggered brush wipe - working untouched. The scrap's own tilt is drawn into the canvas rather than
+ * applied to the mesh, for the same reason: the mesh's rotation already belongs to the arc.
+ */
+function drawRansom(ax: CanvasRenderingContext2D, ch: string, W: number, H: number, seed: number, word: number, i: number, prev: { f: number; s: number }) {
+  const { faceI, stockI } = ransomPick(ch, seed, word, i, prev.f, prev.s)
+  prev.f = faceI
+  prev.s = stockI
+  const sc = ransomScrap(ch, seed, word, i, 0, faceI, stockI)
+  /**
+   * Fitted by HEIGHT, not by whichever dimension is tighter.
+   *
+   * min() of both meant a wide letter was shrunk until it fitted the box's width, so W came out visibly
+   * smaller and thinner than the E beside it - and a W that is already losing its middle vertex to the
+   * paint pass cannot afford to be the smallest thing on the line. Letters in a ransom note overlap anyway,
+   * so a wide one is allowed past the box, capped so it cannot swallow its neighbours whole.
+   */
+  const k = Math.min((H * 0.92) / sc.H, (W * 1.35) / sc.W)
+  // half what the flat lockup uses: the arc ALREADY turns every letter along its own tangent, so the
+  // scrap's tilt compounds with it, and a capital that is both slanted and rotated stops being readable -
+  // the W in DANIEL W LIU was arriving as an N
+  const tilt = (((Math.sin(seed * 12.9 + word * 78.2 + i * 43.7) * 43758.5453) % 1) - 0.5) * 0.14
+  ax.save()
+  ax.translate(W / 2, H / 2)
+  ax.rotate(tilt)
+  ax.drawImage(sc.canvas, (-sc.W * k) / 2, (-sc.H * k) / 2, sc.W * k, sc.H * k)
+  ax.restore()
+}
+
+function makeLetter(ch: string, ink: string, size: number, probe: CanvasRenderingContext2D, weight = 2, outline = 0, ransom?: { seed: number; word: number; i: number; prev: { f: number; s: number } }): Letter {
   const W = 200, H = 240
   const c = document.createElement('canvas')
   c.width = W
@@ -126,6 +168,13 @@ function makeLetter(ch: string, ink: string, size: number, probe: CanvasRenderin
     ax2.drawImage(halo, 0, 0)
   }
   ax2.drawImage(c, 0, 0)
+  if (ransom) {
+    // replace the art entirely: the KatieRoze glyph above was built and thrown away, which costs one
+    // canvas per letter once and keeps this branch to three lines instead of threading a flag through
+    // the whole builder
+    ax2.clearRect(0, 0, W, H)
+    drawRansom(ax2, ch, W, H, ransom.seed, ransom.word, ransom.i, ransom.prev)
+  }
   const tex = new THREE.CanvasTexture(c)
   tex.colorSpace = THREE.SRGBColorSpace
   const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0, depthWrite: false, fog: false })
@@ -196,6 +245,7 @@ export default function ResumeWord({
   state,
   text = 'RESUME',
   ink = '#e23b18',
+  stopMotion,
   radius = 1.14,
   size = 1,
   span = Math.PI - 1.24,
@@ -209,10 +259,31 @@ export default function ResumeWord({
   still = false,
   loose = false,
   spacing,
+  ransom,
+  ransomWord = 0,
 }: {
   state: MutableRefObject<ChipWordState>
   text?: string
   ink?: string
+  /**
+   * Shoot this word like paper on an animation stand: a stepped clock, a boil
+   * per letter, and a reveal that pops rather than wipes. Off by default, so the
+   * chip's own word and anything else sharing this component keep their motion.
+   */
+  stopMotion?: {
+    fps?: number
+    /**
+     * What a piece IS. 'word' cuts the line into whitespace-delimited scraps and
+     * moves each as one, which is how a cut-out is actually made; 'letter' keeps
+     * the earlier per-glyph slide.
+     */
+    group?: 'letter' | 'word'
+    travel?: number
+    from?: number
+    boil?: number
+    boilTurn?: number
+    word?: Partial<WordMotion>
+  }
   /** arc radius around the chip (world) */
   radius?: number
   /** letter size multiplier */
@@ -248,20 +319,47 @@ export default function ResumeWord({
   loose?: boolean
   /** world units per letter slot; when given, the span follows the text length and radius alone sets the curve */
   spacing?: number
+  /**
+   * Set the line as RANSOM cut-outs instead of ink, at this seed.
+   *
+   * The arc, the tangent rotation, the sway and the staggered brush wipe are all untouched: only what each
+   * letter's canvas holds changes. The wipe revealing a torn scrap reads as the scrap being pasted, which
+   * is the right verb for this lettering anyway.
+   */
+  ransom?: number
+  /** which word this is, so two lines with the same seed are not cut identically */
+  ransomWord?: number
 }) {
   const group = useRef<THREE.Group>(null)
   const letters = useRef<(Letter | null)[]>([])
   const { camera } = useThree()
   const chars = useMemo(() => text.split(''), [text])
+  // the line cut into scraps, and each character's place inside its own scrap
+  const groups = useMemo(() => wordGroups(text), [text])
+  const wordIdx = useMemo(() => {
+    const of = wordOf(text)
+    const seen: number[] = []
+    return of.map((w) => {
+      if (w < 0) return null
+      seen[w] = (seen[w] ?? -1) + 1
+      return { w, k: seen[w] }
+    })
+  }, [text])
 
   useEffect(() => {
     let alive = true
     const g = group.current
     if (!g) return
-    ensureFont().then(() => {
+    // the ransom faces too when this line is cut from them, or a scrap gets measured against a fallback
+    // that is about to be replaced and the arc is laid out to the wrong widths
+    Promise.all([ensureFont(), ransom === undefined ? Promise.resolve() : loadRansomFaces()]).then(() => {
       if (!alive || !group.current) return
       const probe = document.createElement('canvas').getContext('2d')!
-      const built = chars.map((ch) => (ch === ' ' ? null : makeLetter(ch, ink, size, probe, weight, outline)))
+      // prev is threaded through so no scrap repeats its neighbour's face or stock along the arc
+      const prev = { f: -1, s: -1 }
+      const built = chars.map((ch, i) =>
+        ch === ' ' ? null : makeLetter(ch, ink, size, probe, weight, outline, ransom === undefined ? undefined : { seed: ransom, word: ransomWord, i, prev }),
+      )
       for (const L of built) if (L) group.current.add(L.mesh)
       letters.current = built
     })
@@ -292,7 +390,17 @@ export default function ResumeWord({
   useFrame(({ clock }) => {
     const Ls = letters.current
     if (!Ls.length) return
-    const t = clock.elapsedTime
+    /**
+     * On an animation stand nothing moves between exposures, so the letters read
+     * a STEPPED clock rather than the render clock. Smooth motion at sixty is
+     * the single thing that says computer, and stepping it is most of what says
+     * paper.
+     */
+    const sm = stopMotion ? { ...SM_DEFAULTS, ...stopMotion } : null
+    const wm: WordMotion | null = sm && sm.group !== 'letter' ? { ...WORD_DEFAULTS, ...(sm.word ?? {}) } : null
+    const raw = clock.elapsedTime
+    const t = sm ? smTime(raw, sm.fps) : raw
+    const exposure = sm ? smFrame(raw, sm.fps) : 0
     const s = state.current
     const N = Ls.length
     // camera-right on the ground plane, so the arc faces the viewer like pomme's
@@ -360,9 +468,57 @@ export default function ResumeWord({
     const ax = an.set ? an.x + an.vx * glide + (s.x - an.x) * drag : s.x
     const ay = an.set ? an.y + an.vy * glide + (s.y - an.y) * drag : s.y
     const az = an.set ? an.z + an.vz * glide + (s.z - an.z) * drag : s.z
+    // the arc these letters sit on. Hoisted out of the loop because none of it
+    // varies per letter except u, and because the word pre-pass below has to
+    // find their homes on the SAME arc to turn them about their own centre.
+    // bottom) or top arc (a rainbow, left to right over the top); sway unless still. With offsetY the
+    // bottom arc's lowest point is pinned relative to the chip so long lines can be stacked as banners
+    const radiusUsed = OLDFALL && loose ? 1.7 : radius
+    // pomme sways the ring by 0.05 rad at R 1.14; keeping the ANGLE would swing a wider arc further in
+    // world units, which reads as the word sitting off centre rather than breathing
+    const sway = still ? 0 : Math.sin(t * 0.7) * 0.05 * (1.14 / radiusUsed)
+    const spanUsed = spacing !== undefined ? (spacing * (N - 1)) / radiusUsed : OLDFALL && loose ? Math.PI - 1.24 : span
+    const uAt = (i: number) => (N > 1 ? i / (N - 1) : 0.5)
+    const thAt = (i: number) =>
+      arc === 'top' ? Math.PI / 2 + spanUsed / 2 - uAt(i) * spanUsed + sway : Math.PI * 1.5 - spanUsed / 2 + uAt(i) * spanUsed + sway
+
+    /**
+     * Each word's own centre, which is the point it is turned about.
+     *
+     * A scrap set down by hand pivots about ITSELF. Turning the letters about the
+     * arc's centre instead would swing the word along the arc, which is a
+     * different move entirely, so the pivot has to be the mean of that word's own
+     * letters and it has to be recomputed with the sway.
+     */
+    const wordTx: ({ shot: WordShot; px: number; py: number } | null)[] = []
+    if (wm) {
+      for (let w = 0; w < groups.length; w++) {
+        const g = groups[w]
+        let px = 0
+        let py = 0
+        for (const gi of g.idx) {
+          px += Math.cos(thAt(gi)) * radiusUsed
+          py += Math.sin(thAt(gi)) * radiusUsed * 0.92
+        }
+        wordTx[w] = { shot: wordShot(w, groups.length, wm, ransomWord), px: px / g.idx.length, py: py / g.idx.length }
+      }
+    }
+
     for (let i = 0; i < N; i++) {
       const L = Ls[i]
       if (!L) continue
+      // which scrap this letter belongs to, and where it sits inside it
+      const wi = wm ? wordIdx[i] : null
+      const W = wi ? wordTx[wi.w] : null
+      /**
+       * When this letter is due on the board.
+       *
+       * In word mode a scrap goes down WHOLE, so every letter of a word shares
+       * one cue. The 0.12 s per-letter stagger would put the letters of one word
+       * on the board one at a time, which is the single thing a piece being moved
+       * as one piece cannot do.
+       */
+      const revealAt = wm && wi && W ? stagger + W.shot.cue : stagger + i * 0.12
       let o = L.o
       // loose letters: the ink lingers longer on the fall (they drop away instead of un-writing)
       // the letters leave the way they arrived: the same wave through the word, in the same order, but the
@@ -385,7 +541,17 @@ export default function ResumeWord({
             ? 0
             : o
           : Math.min(o, 1 - cl((smash - 0.06 - i * 0.05) / 0.34))
-      else if (s.onT >= 0) o = Math.max(o, cl((s.onT - stagger - i * 0.12) / 0.4))
+      else if (s.onT >= 0) o = Math.max(o, cl((s.onT - revealAt) / 0.4))
+      /**
+       * Popped, not wiped.
+       *
+       * The reveal is a brush wipe that draws each letter on over 0.4 s. There
+       * is no such thing as a wipe on an animation stand: a cut-out is on the
+       * board for an exposure or it is not, so this snaps the same cue to on or
+       * off, on whichever cue this mode uses: the word's, so a scrap appears
+       * whole, or the letter's 0.12 s stagger in letter mode.
+       */
+      if (sm) o = o > 0.001 ? 1 : 0
       L.o = o
       if (Math.abs(o - L.wip) > 0.001) {
         drawWipe(L, o)
@@ -401,13 +567,8 @@ export default function ResumeWord({
       // letters on a circle around the state point: bottom arc (pomme's LOADING, left to right along the
       // bottom) or top arc (a rainbow, left to right over the top); sway unless still. With offsetY the
       // bottom arc's lowest point is pinned relative to the chip so long lines can be stacked as banners
-      const radiusUsed = OLDFALL && loose ? 1.7 : radius
-      // pomme sways the ring by 0.05 rad at R 1.14; keeping the ANGLE would swing a wider arc further in
-      // world units, which reads as the word sitting off centre rather than breathing
-      const sway = still ? 0 : Math.sin(t * 0.7) * 0.05 * (1.14 / radiusUsed)
-      const u = N > 1 ? i / (N - 1) : 0.5
-      const spanUsed = spacing !== undefined ? (spacing * (N - 1)) / radiusUsed : OLDFALL && loose ? Math.PI - 1.24 : span
-      const th = arc === 'top' ? Math.PI / 2 + spanUsed / 2 - u * spanUsed + sway : Math.PI * 1.5 - spanUsed / 2 + u * spanUsed + sway
+      const u = uAt(i)
+      const th = thAt(i)
       // distance around the arc from its middle, which is what the wrap bends back
       const off = th - (arc === 'top' ? Math.PI / 2 : Math.PI * 1.5)
       const yArc = arc === 'bottom' && offsetY !== 0 ? ay + offsetY + (Math.sin(th) + 1) * radiusUsed * 0.92 : ay + Math.sin(th) * radiusUsed * 0.92
@@ -548,15 +709,105 @@ export default function ResumeWord({
         L.mat.needsUpdate = true
       }
       L.mesh.renderOrder = overTable ? 12 : 6
+      /**
+       * The boil: the letter is picked up and put back down between exposures.
+       *
+       * Applied ACROSS and UP in the shot's own axes rather than in world x and
+       * y, so a letter trembles in the plane it is pinned to however the arc has
+       * turned it. Scaled by the letter's own size, so a big word and a small one
+       * boil by the same amount to look at rather than the same number of units.
+       *
+       * It changes on the EXPOSURE, not on the render frame. Moving every frame
+       * is noise; moving twelve times a second is paper.
+       */
+      /**
+       * The letter is slid onto the page, and it is STILL once it is there.
+       *
+       * Its cue is the same 0.12 s stagger the reveal already uses, so the word
+       * builds left to right, and the travel reads the stepped clock so each
+       * letter lands in six discrete places on the way in rather than gliding.
+       * It goes past its mark on the last exposure or two and comes back, which
+       * is the hand, not an easing curve.
+       *
+       * The boil is multiplied by `moving`, so a letter that has been put down
+       * does not tremble. That is the no-idle rule: an animation stand does
+       * nothing at all between shots.
+       */
+      let bx = 0
+      let by = 0
+      let smTurn = 0
+      const smT = s.onT >= 0 ? s.onT : 0
+      if (sm && wm) {
+        /**
+         * WORD MODE: the scrap is carried and turned as ONE piece.
+         *
+         * The word arrives off square and straightens, on a bowed path, with the
+         * turn finishing after the slide. All of that is decided in stop-motion.ts
+         * against the word's own centre; what the layout below wants is the DELTA
+         * from this letter's home, in its two channels, so the arc, the tangent
+         * rotation and everything else stay exactly as they were.
+         */
+        if (wi && W) {
+          /**
+           * Every letter of the word reads the SAME pose. A scrap of paper is
+           * rigid, so what keeps the word from looking welded is not the letters
+           * sliding against each other, it is that each one is set down with its
+           * own hand error every time the piece is touched. That error changes on
+           * the POSE, not on the exposure, so holding a pose for two exposures
+           * holds its registration too: the piece is not being touched in between.
+           */
+          const m = wordAt(smT, W.shot, wm, sm.fps, stagger)
+          const cx = Math.cos(th) * radiusUsed
+          const cy = Math.sin(th) * radiusUsed * 0.92
+          const dxw = cx - W.px
+          const dyw = cy - W.py
+          const c = Math.cos(m.turn)
+          const sn = Math.sin(m.turn)
+          bx += W.px + (dxw * c - dyw * sn) + m.x - cx
+          by += W.py + (dxw * sn + dyw * c) + m.y - cy
+          smTurn += m.turn
+          if (m.moving) {
+            const b = boilAt(i + 1, m.pose)
+            bx += b.x * sm.boil * size
+            by += b.y * sm.boil * size
+            smTurn += b.turn * sm.boilTurn
+          }
+        }
+      } else if (sm) {
+        // LETTER MODE: kept from the first pass, one glyph at a time
+        const sl = slideAt(smT, s.onT >= 0 ? stagger + i * 0.12 : 0, sm.travel, sm.fps)
+        // in from below and outward along the arc, so it slides UP onto its place
+        const away = 1 - sl.k
+        bx += away * sm.from * size * (u < 0.5 ? -1 : 1) * 0.5
+        by -= away * sm.from * size
+        if (sl.moving) {
+          const b = boilAt(i + 1, exposure)
+          bx += b.x * sm.boil * size
+          by += b.y * sm.boil * size
+          smTurn += b.turn * sm.boilTurn
+        }
+      }
       L.mesh.position.set(
-        ax + right.x * (Math.cos(th) * radiusUsed + dx) + fwd.x * dz,
-        yArc + dy,
-        az + right.z * (Math.cos(th) * radiusUsed + dx) + fwd.z * dz,
+        ax + right.x * (Math.cos(th) * radiusUsed + dx + bx) + fwd.x * dz,
+        yArc + dy + by,
+        az + right.z * (Math.cos(th) * radiusUsed + dx + bx) + fwd.z * dz,
       )
       // billboarded, then turned along the arc's tangent: pomme's badge-style wrap, which is what makes
       // the word read as bent around the object rather than laid in front of it
       L.mesh.quaternion.copy(camera.quaternion)
-      L.mesh.rotateZ((arc === 'top' ? th - Math.PI / 2 : th - Math.PI * 1.5) + tilt)
+      L.mesh.rotateZ((arc === 'top' ? th - Math.PI / 2 : th - Math.PI * 1.5) + tilt + smTurn)
+      /**
+       * And a turn OUT of the picture plane, for the cut-out lines.
+       *
+       * A billboarded letter is exactly parallel to the lens, so a row of them is a decal however it is
+       * curved; turning each one a little on x and y makes the perspective camera foreshorten them
+       * individually and the arc stops being a printed band and starts being scraps hanging in a room.
+       * Small, because these are already rotated along the arc's tangent and the two compound.
+       */
+      if (ransom !== undefined) {
+        L.mesh.rotateX((rnd(i, 71) - 0.5) * 0.5)
+        L.mesh.rotateY((rnd(i, 72) - 0.5) * 0.5)
+      }
       if (flatAmt > 0) {
         // driven into the felt: blend from facing the camera to lying face up on the table, spun about the
         // vertical. A plane turned -90 about x has its own up pointing away from the viewer, so the letter
