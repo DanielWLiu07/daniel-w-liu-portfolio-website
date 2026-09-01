@@ -22,17 +22,38 @@ export interface CompGraphEntry {
   positionPass?: 'always' | 'onChange'
 }
 
-/** pomme's five-frame impact flicker: 2 inverted, 3 mono, then the afterimage veil */
-function impactFrames(u: Uniforms, ia: number) {
+/**
+ * The impact flicker, as {impact, after} for the manga pass. One place, because casino-scene drives the
+ * same uniforms on its own path and the two had drifted into separate copies of this.
+ *
+ * SIX frames at 12fps, all of them the SAME treatment:
+ *
+ *   0      after = 1, a blown-out white frame. The hit itself.
+ *   1-5    impact = 2, the inverted two-tone, held for the whole rest of the flicker
+ *   then   the afterimage veil decays out
+ *
+ * The gritty mono frames that used to run from frame 3 are gone. They were the crosshatch look, and
+ * switching into them halfway meant the flash changed its mind partway through - two effects in a row
+ * rather than one held. One treatment, held, is a stronger read, and the inverted two-tone is the one
+ * worth holding: it is the only state that reverses the whole image rather than just texturing it.
+ *
+ * The blank frame stays, and it is deliberately NOT the crosshatch state underneath - impact is 2 there
+ * too, so no mono frame exists anywhere in the sequence. It has to be its own step because in the shader
+ * the afterimage veil is mixed BEFORE the inversion, so an inverted frame overwrites any veil on top.
+ */
+export function impactPass(ia: number): { impact: number; after: number } {
   const IFR = 1 / 12
-  let imp = 0
-  if (ia >= 0) {
-    const stepN = Math.floor(ia / IFR)
-    if (stepN <= 1) imp = 2
-    else if (stepN <= 4) imp = 1
-  }
-  if (u.impact) u.impact.value = imp
-  if (u.after) u.after.value = ia >= IFR * 5 ? 0.5 * Math.exp(-(ia - IFR * 5) * 6) : 0
+  if (ia < 0) return { impact: 0, after: 0 }
+  const n = Math.floor(ia / IFR)
+  if (n === 0) return { impact: 2, after: 1 }
+  if (n <= 5) return { impact: 2, after: 0 }
+  return { impact: 0, after: 0.5 * Math.exp(-(ia - IFR * 6) * 6) }
+}
+
+function impactFrames(u: Uniforms, ia: number) {
+  const { impact, after } = impactPass(ia)
+  if (u.impact) u.impact.value = impact
+  if (u.after) u.after.value = after
 }
 
 export const COMP_GRAPHS: Record<string, CompGraphEntry> = {
