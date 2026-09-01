@@ -9,6 +9,7 @@
 import * as THREE from 'three'
 import { DoubleSide, type Texture } from 'three'
 import { CASINO_PALETTE, compileMaterial, feltMaterialGraph, graph, lit, openInViewer, revealMask, smoothStep, spotLamp, watercolorMaterialGraph, type Graph, type GraphNode } from 'blender-to-threejs'
+import { EYE, EYE_PLANE, GLYPH, lowerReach, rayAt, upperReach, type EyeInk } from './eye'
 
 const [INK_BLACK, INK_RED, INK_GREEN, INK_GOLD] = CASINO_PALETTE.inks
 const PAPER = CASINO_PALETTE.paper
@@ -83,12 +84,52 @@ export function cardBackMaterial() {
   return compileMaterial(register('cardBack', g.blend(inside, g.rgb(...PAPER), fill)))
 }
 
-export type ChipInk = 'red' | 'green' | 'gold' | 'black'
+/**
+ * Chip denominations, in the house order.
+ *
+ * The first four ARE the casino palette's inks, unchanged, so anything printed
+ * through the spot-colour pass still quantises exactly rather than to a nearest
+ * match. The rest are real denomination colours and sit OUTSIDE that palette:
+ * they are correct under the watercolour pass the resume actually runs, and a
+ * spot-colour pass would round them to the closest ink. That is a deliberate
+ * trade, not an oversight.
+ *
+ * Values are the standard table set: white 1, red 5, blue 10, green 25,
+ * black 100, purple 500, orange 1000.
+ */
+export type ChipInk = 'red' | 'green' | 'gold' | 'black' | 'white' | 'blue' | 'purple' | 'orange'
 const CHIP_INK: Record<ChipInk, readonly [number, number, number]> = {
   red: INK_RED,
   green: INK_GREEN,
   gold: INK_GOLD,
   black: INK_BLACK,
+  white: PAPER,
+  blue: [0.13, 0.32, 0.62],
+  purple: [0.36, 0.18, 0.48],
+  orange: [0.85, 0.42, 0.13],
+}
+
+/** the denomination each colour carries, for a label or a stack's value */
+export const CHIP_VALUE: Record<ChipInk, number> = {
+  white: 1,
+  red: 5,
+  blue: 10,
+  green: 25,
+  black: 100,
+  purple: 500,
+  orange: 1000,
+  gold: 5000,
+}
+
+/** every chip colour, in denomination order */
+export const CHIP_INKS: ChipInk[] = ['white', 'red', 'blue', 'green', 'black', 'purple', 'orange', 'gold']
+
+/**
+ * The edge inserts and the face ring are PAPER on every chip except the white
+ * one, where paper on paper would erase them. That one takes its own ink.
+ */
+export function chipTrim(ink: ChipInk): readonly [number, number, number] {
+  return ink === 'white' ? INK_RED : PAPER
 }
 
 /**
@@ -102,7 +143,7 @@ export function chipMaterial(ink: ChipInk) {
   const u = g.separate(uv, 'x')
   // cylinder side UV: u runs around the rim. 8 inserts, each 45 percent duty.
   const spot = g.greaterThan(g.math('FRACT', g.multiply(u, 8)), 0.55)
-  const side = g.blend(spot, body, g.rgb(...PAPER))
+  const side = g.blend(spot, body, g.rgb(...chipTrim(ink)))
   return compileMaterial(register(`chip:${ink}`, g.multiplyColor(1, side, lift(g, 0.6, 1.0))))
 }
 
@@ -115,7 +156,7 @@ export function chipFaceMaterial(ink: ChipInk) {
   const r = g.math('SQRT', g.add(g.multiply(cx, cx), g.multiply(cy, cy)))
   // paper ring between two radii
   const ring = g.multiply(g.greaterThan(r, 0.3), g.greaterThan(0.4, r))
-  return compileMaterial(register(`chipFace:${ink}`, g.blend(ring, body, g.rgb(...PAPER))))
+  return compileMaterial(register(`chipFace:${ink}`, g.blend(ring, body, g.rgb(...chipTrim(ink)))))
 }
 
 /** Black ink for the deck box, marquee, and anything that should print solid. */
@@ -248,7 +289,7 @@ export function chipWatercolorMaterial(ink: ChipInk) {
   const uv = g.uv()
   const u = g.separate(uv, 'x')
   const spot = g.greaterThan(g.math('FRACT', g.multiply(u, 8)), 0.55)
-  const base = g.blend(spot, body, g.rgb(...PAPER))
+  const base = g.blend(spot, body, g.rgb(...chipTrim(ink)))
   return trackLit(compileMaterial(register(`chipWC:${ink}`, lit(g, watercolorMaterialGraph(g, { base, scale: 2.5, wobble: 0.04, bands: 3, edge: 0.6 }), lamp(g)))))
 }
 export function chipFaceWatercolorMaterial(ink: ChipInk) {
@@ -259,8 +300,54 @@ export function chipFaceWatercolorMaterial(ink: ChipInk) {
   const cy = g.subtract(g.separate(uv, 'y'), 0.5)
   const r = g.math('SQRT', g.add(g.multiply(cx, cx), g.multiply(cy, cy)))
   const ring = g.multiply(g.greaterThan(r, 0.3), g.greaterThan(0.4, r))
-  const base = g.blend(ring, body, g.rgb(...PAPER))
+  const base = g.blend(ring, body, g.rgb(...chipTrim(ink)))
   return trackLit(compileMaterial(register(`chipFaceWC:${ink}`, lit(g, watercolorMaterialGraph(g, { base, scale: 2.5, wobble: 0.04, bands: 3, edge: 0.6 }), lamp(g)))))
+}
+
+/**
+ * A plain coloured body in the casino's own watercolour, with no chip markings.
+ *
+ * The dice first wore chipFaceWatercolorMaterial, which draws the chip's paper
+ * RING, so every face of every die came out with a big white circle stamped on
+ * it. A die is not a chip with pips on top: its body is flat colour and the pips
+ * are the only marking, so it needs a material that says exactly that.
+ */
+export function solidWatercolorMaterial(ink: ChipInk, key = 'solid') {
+  const g = graph()
+  const base = g.rgb(...CHIP_INK[ink])
+  return trackLit(
+    compileMaterial(
+      register(
+        `${key}WC:${ink}`,
+        lit(g, watercolorMaterialGraph(g, { base, scale: 2.5, wobble: 0.04, bands: 3, edge: 0.6 }), lamp(g)),
+      ),
+    ),
+  )
+}
+
+/**
+ * A die: one material for the whole thing, body and pips.
+ *
+ * The pips are RECESSED INTO the body, so they are part of the same mesh rather
+ * than spheres sitting on it, and there is no second surface to give a second
+ * material to. Which vertices are pip comes in on the mesh's own COLOUR
+ * attribute, written when the dents are cut: 1 for the body, 0 inside a pip.
+ *
+ * Same treatment as everything else on the felt (watercolour over the lamp), so
+ * a die next to a chip is made of the same stuff.
+ */
+export function diceMaterial(body: ChipInk, pip: ChipInk) {
+  const g = graph()
+  const mask = g.separate(g.vertexColor(), 'x')
+  const base = g.blend(mask, g.rgb(...CHIP_INK[pip]), g.rgb(...CHIP_INK[body]))
+  return trackLit(
+    compileMaterial(
+      register(
+        `dice:${body}/${pip}`,
+        lit(g, watercolorMaterialGraph(g, { base, scale: 2.5, wobble: 0.04, bands: 3, edge: 0.6 }), lamp(g)),
+      ),
+    ),
+  )
 }
 
 /**
@@ -487,4 +574,160 @@ export function cardArtMaterial(map: Texture, key: string) {
   const g = graph()
   const col = lit(g, g.texture(map, g.uv()), lamp(g, [0, 1, 0]))
   return trackLit(compileMaterial(register(`cardArt:${key}`, col)))
+}
+
+/**
+ * The Eye of Providence, as LINE ART.
+ *
+ * Nothing here is filled. The whole glyph is strokes: the two lids, the iris and
+ * pupil as rings, the triangle round them and the rays outside that. The card's
+ * OPACITY is the strokes themselves, so there is no ground, no vignette and no
+ * rectangle to hide, and a field of them composites over each other and over
+ * anything behind with no edges to give it away.
+ *
+ * That is also why it needed rebuilding rather than recolouring: the filled
+ * version painted regions back to front over a lifted ground, and every one of
+ * those decisions is the opposite of what line art wants.
+ *
+ * Uniforms, driven per frame from eye.ts so the maths that decides where the
+ * iris may go lives somewhere a check can reach it:
+ *   eyeOpen             0 shut, 1 open
+ *   eyeIrisX, eyeIrisY  where the iris sits, already clamped onto its oval
+ */
+export function eyeMaterial(key = 'eye', ink: EyeInk = 'gold', flat = false) {
+  const g = graph()
+  const uv = g.uv()
+  // eye space: x from -1 at one corner to +1 at the other, y in the same units
+  const x = g.multiply(g.subtract(g.separate(uv, 'x'), 0.5), EYE_PLANE.w)
+  const y = g.multiply(g.subtract(g.separate(uv, 'y'), 0.5), EYE_PLANE.h)
+
+  const open = g.uniform('eyeOpen', 0)
+  const irisX = g.uniform('eyeIrisX', 0)
+  const irisY = g.uniform('eyeIrisY', EYE.irisY)
+  /**
+   * Weight and paper as UNIFORMS rather than constants.
+   *
+   * A field is fourteen materials, and a stroke width baked into the graph means
+   * every nudge of a slider rebuilds all fourteen. As uniforms the panel drives
+   * them for free, which is the difference between a knob you can drag and one
+   * you can only set.
+   */
+  const weight = g.uniform('eyeWeight', 1)
+  const paper = g.uniform('eyePaper', 1)
+
+  /**
+   * The paper moves under the pen.
+   *
+   * Two noise fields, one per axis, added to the COORDINATES before any shape
+   * maths runs. Every stroke on the glyph then wanders together, the way a
+   * drawing on a sheet does, instead of each line wobbling on its own and
+   * pulling apart from its neighbours where they are meant to meet.
+   *
+   * Rebuilding this as line art is where the material's own watercolour got
+   * lost: the filled version ran its colour through watercolorMaterialGraph and
+   * the line version went straight to a flat ink, so only the compositor was
+   * touching it. This puts the paper back, on the geometry as well as the ink.
+   */
+  /**
+   * ONE noise field, one octave, read twice.
+   *
+   * This was two fields at detail 3, which is eight octaves of 3D noise per
+   * FRAGMENT, on a card that is mostly empty and drawn fourteen times over. It
+   * measured as the single most expensive thing on the page: p99 frame time went
+   * from 27 ms to 79 ms with the field on, and the chip's impact landed on top
+   * of that.
+   *
+   * The second axis is the same field read at an offset instead. Two independent
+   * fields would be tidier and the difference is invisible: the offset is large
+   * enough that x and y wander independently, which is all the wobble needs.
+   */
+  const paperNoise = g.noise(g.combine(g.multiply(x, 2.1), g.multiply(y, 2.1), 0), { scale: 2.6, detail: 1 })
+  const paperNoise2 = g.noise(g.combine(g.add(g.multiply(x, 2.1), 19.3), g.multiply(y, 2.1), 7.7), { scale: 2.6, detail: 1 })
+  const nx = g.subtract(paperNoise, 0.5)
+  const ny = g.subtract(paperNoise2, 0.5)
+  const wx = g.add(x, g.multiply(g.multiply(nx, paper), GLYPH.wobble * 2))
+  const wy = g.add(y, g.multiply(g.multiply(ny, paper), GLYPH.wobble * 2))
+
+  // the eye is drawn in ITS space, which is a fraction of the glyph's
+  const K = GLYPH.eyeScale
+  const ex = g.divide(wx, K)
+  const ey = g.divide(wy, K)
+
+  const F = 0.006
+  /** a stroke centred on where a distance is zero, `w` wide */
+  const stroke = (d: GraphNode, w: number) => {
+    const half = g.multiply(weight, w / 2)
+    return g.subtract(1, smoothStep(g, g.abs(d), g.subtract(half, F), g.add(half, F)))
+  }
+  /** inside a half plane, softened */
+  const under = (d: GraphNode) => smoothStep(g, d, 0, F)
+
+  /** (1 - t^2) clamped: the arc every lid is built from, zero at the corners */
+  const arcOf = (t: GraphNode | number) => g.max(0, g.subtract(1, g.multiply(t, t)))
+  const a = arcOf(ex)
+  // the upper lid's apex is shifted by skewing the COORDINATE, which leaves the
+  // corners where they are because the shift is proportional to the arc
+  const aU = arcOf(g.add(ex, g.multiply(EYE.upperSkew, a)))
+
+  const base = g.multiply(-EYE.closedSag, g.math('POWER', a, EYE.closedPower))
+  const up = g.add(base, g.multiply(g.multiply(open, upperReach), g.math('POWER', aU, EYE.upperPower)))
+  const dn = g.subtract(base, g.multiply(g.multiply(open, lowerReach), g.math('POWER', a, EYE.lowerPower)))
+
+  // the lids, clipped to between the corners. The upper is the heavy one.
+  const within = under(g.subtract(1, g.abs(ex)))
+  let lines: GraphNode = g.multiply(stroke(g.subtract(ey, up), EYE.upperLine), within)
+  lines = g.max(lines, g.multiply(stroke(g.subtract(ey, dn), GLYPH.line * 0.8), within))
+
+  // the iris and the pupil as RINGS, and both cropped by the lids the way the
+  // filled version cropped the disc
+  const dx = g.subtract(ex, irisX)
+  const dy = g.subtract(ey, irisY)
+  const r = g.sqrt(g.add(g.multiply(dx, dx), g.multiply(dy, dy)))
+  const inAperture = g.multiply(g.multiply(under(g.subtract(up, ey)), under(g.subtract(ey, dn))), within)
+  lines = g.max(lines, g.multiply(stroke(g.subtract(r, EYE.irisR), GLYPH.line), inAperture))
+  lines = g.max(lines, g.multiply(stroke(g.subtract(r, EYE.pupilR), GLYPH.line), inAperture))
+
+  /**
+   * The rays, as straight strokes at fixed angles.
+   *
+   * Written out one by one because there is no arctangent in the node set to
+   * fold them into an angular repeat with. Twelve is cheap enough and it keeps
+   * every ray's start, length and width explicit. rayAt puts each one on the
+   * ellipse round the eye, so they all begin the same distance clear of it.
+   */
+  for (let i = 0; i < GLYPH.rays; i++) {
+    const R = rayAt(i)
+    const along = g.add(g.multiply(wx, R.c), g.multiply(wy, R.s))
+    const across = g.subtract(g.multiply(wx, -R.s), g.multiply(wy, -R.c))
+    const seg = g.multiply(under(g.subtract(along, R.from)), under(g.subtract(R.to, along)))
+    lines = g.max(lines, g.multiply(stroke(across, GLYPH.rayWidth), seg))
+  }
+
+  // one ink for the whole glyph, run through the page's own watercolour so the
+  // stroke is pigment on paper rather than a flat fill: it bands, it mottles,
+  // and it darkens where the wash pools
+  const col = watercolorMaterialGraph(g, {
+    base: g.rgb(...CHIP_INK[ink]),
+    scale: 4.2,
+    wobble: 0.06,
+    bands: 3,
+    edge: 0.5,
+  })
+
+  /**
+   * `flat` skips the lamp.
+   *
+   * The table's light is a SPOT over the felt, so anything wearing it goes dark
+   * the moment it leaves that pool. That is right for a chip and wrong for an
+   * overlay: hung in front of a camera that swings away across the room, the
+   * eyes came out as barely visible scratches. An overlay is not in the room.
+   */
+  const m = compileMaterial(register(`${key}:${ink}${flat ? ':flat' : ''}`, flat ? col : lit(g, col, lamp(g, [0, 1, 0]))), {
+    // the strokes ARE the card: no ground, so nothing to hide and nothing to
+    // paint over a neighbour
+    opacity: g.multiply(lines, g.add(0.06, g.multiply(0.94, open))),
+  })
+  m.depthWrite = false
+  // a flat one takes no lamp, so it must not be handed to driveLamp either
+  return flat ? m : trackLit(m)
 }

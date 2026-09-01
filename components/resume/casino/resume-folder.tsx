@@ -400,6 +400,22 @@ export default function ResumeFolder({
     // from its stock and its contact shadow rather than from a big curl, which is the right trade: paper
     // that lifts far enough to read as curled also stops reading as being IN the folder.
     const rise = Math.min(pw * 0.028, thick * 30)
+    /**
+     * The angle the cover must be past before the paper may curl at all.
+     *
+     * The curl lifts the sheet's free corner by 0.94 * rise + 3.35 * thick off
+     * the leaf's plane, and that corner sits pw from the hinge, so the cover has
+     * to have swung far enough that its inner face is above that height where
+     * the corner is. The 2 is the curl's profile: the lift grows faster than
+     * linearly toward the free edge, so the tightest point is not the corner
+     * itself and a plain asin(h/d) clears the corner while still cutting the
+     * sheet nearer the fold.
+     *
+     * Measured on the real folder this comes out at 4.58 degrees. The gate that
+     * was here let the curl start at 0.34, which is where the white page was
+     * coming through the manila mid swing.
+     */
+    const curlClearAngle = Math.asin(Math.min(0.5, (2 * (0.94 * rise + 3.35 * thick)) / Math.max(1e-6, pw)))
     const sheets: Sheet[] = []
     // the shadow the leaf cannot receive: a soft patch on the leaf's own plane, just under the stack
     const shadow = new THREE.Mesh(
@@ -507,7 +523,7 @@ export default function ResumeFolder({
       w: cb.max.x - cb.min.x,
       h: cb.max.y - cb.min.y,
     }
-    return { root, pivot, page, sheets, pageLift: -(rise + thick * 3 + 0.004), pageSize: { w: pw, h: ph }, layoutX: Math.PI / 2, openAxis: 'y' as const, openSign, coverFace, frame: { up: [0, 1, 0] as const, right: [1, 0, 0] as const, normal: [0, 0, -1] as const } }
+    return { root, pivot, page, sheets, curlClearAngle, pageLift: -(rise + thick * 3 + 0.004), pageSize: { w: pw, h: ph }, layoutX: Math.PI / 2, openAxis: 'y' as const, openSign, coverFace, frame: { up: [0, 1, 0] as const, right: [1, 0, 0] as const, normal: [0, 0, -1] as const } }
   }, [ogScene, mats, useGenerated])
 
   const genBuilt = useMemo(() => {
@@ -550,6 +566,8 @@ export default function ResumeFolder({
     const printMat = sheetMaterial(tex, { printed: true, rotate: true, flipU: true })
     // here the fold is the leaf edge at y = 0, so the sheets bend away along y, and +z is up off the leaf
     const rise = Math.min(pShort * 0.06, sheetT * 30)
+    // the same clearance rule as the modelled branch, from this one's own numbers
+    const curlClearAngle = Math.asin(Math.min(0.5, (2 * (0.94 * rise + 3.35 * sheetT)) / Math.max(1e-6, pLong)))
     const sheets: Sheet[] = []
     const top = paperSheet({ w: pLong, h: pShort, t: sheetT }, edge, { across: 'y', foldAt: -1, up: 1, rise, skew: 0.05 })
     const page = top.mesh
@@ -602,7 +620,7 @@ export default function ResumeFolder({
     label.position.set(0, LEAF_H / 2, LEAF_T + 0.012)
     pivot.add(label)
 
-    return { root, pivot, page, sheets, pageLift: rise + sheetT * 3 + 0.004, pageSize: { w: pShort, h: pLong }, layoutX: -Math.PI / 2, openAxis: 'x' as const, openSign: -1, coverFace: { cx: 0, cy: LEAF_H / 2, z: 0, w: LEAF_W, h: LEAF_H } as LeafFace, frame: { up: [1, 0, 0] as const, right: [0, 1, 0] as const, normal: [0, 0, 1] as const } }
+    return { root, pivot, page, sheets, curlClearAngle, pageLift: rise + sheetT * 3 + 0.004, pageSize: { w: pShort, h: pLong }, layoutX: -Math.PI / 2, openAxis: 'x' as const, openSign: -1, coverFace: { cx: 0, cy: LEAF_H / 2, z: 0, w: LEAF_W, h: LEAF_H } as LeafFace, frame: { up: [1, 0, 0] as const, right: [0, 1, 0] as const, normal: [0, 0, 1] as const } }
   }, [mats])
 
   const built = ogBuilt ?? genBuilt
@@ -709,10 +727,23 @@ export default function ResumeFolder({
     if (parts.current.openAxis === 'y') parts.current.pivot.rotation.y = parts.current.openSign * Math.PI * tn.fldTurn * swing
     else parts.current.pivot.rotation.x = parts.current.openSign * Math.PI * tn.fldTurn * swing
 
-    // the paper relaxes as the cover comes clear: pressed flat under a shut cover, fully curled once it is
-    // open. Driving it rather than baking it is what makes the curl safe, since nothing can bend up into a
-    // cover that is still lying on it
-    const cu = Math.min(1, Math.max(0, (a - 0.12) / 0.88))
+    /**
+     * The paper relaxes as the cover comes clear, and it is keyed off the COVER
+     * rather than off a schedule that runs alongside it.
+     *
+     * The intent was always "nothing can bend up into a cover that is still
+     * lying on it", but the gate was a fixed 0.12 on `a`, which is a different
+     * curve from the one the cover swings on. Worked out: that let the curl
+     * start when the cover had turned 0.34 degrees, and the geometry needs 4.58.
+     * The sheet lifted into a cover still flat on top of it, and the white page
+     * came through the manila for a few frames mid open. That is the clipping.
+     *
+     * Reading the swing the cover is actually on, and the angle from the paper's
+     * own measurements, means the two cannot drift apart again: change the stock,
+     * the curl or fldTurn and this follows.
+     */
+    const clearAt = Math.min(0.6, (parts.current.curlClearAngle ?? 0.08) / Math.max(0.05, Math.PI * tn.fldTurn))
+    const cu = Math.min(1, Math.max(0, (swing - clearAt) / Math.max(0.05, 1 - clearAt)))
     const curl = cu * cu * (3 - 2 * cu)
     if (Math.abs(curl - curlAt.current) > 0.004 || (curl !== curlAt.current && (curl === 0 || curl === 1))) {
       for (const sh of parts.current.sheets) sh.curl(curl)
