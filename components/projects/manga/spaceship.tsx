@@ -42,7 +42,17 @@ const URL = '/models/spaceship.glb'
  * and are NOT recomputed: recomputing would smooth the hard creases flat, and
  * the creases are half of what this model is here to show.
  */
-export function useSpaceshipParts(size: number): THREE.BufferGeometry[] {
+/**
+ * The ship's parts in the coordinates BLENDER had them in, converted to Y-up by
+ * the exporter and otherwise untouched: no centring, no fit.
+ *
+ * Separate from useSpaceshipParts because a faithful scene copy needs the ship
+ * where his file puts it, not where a framing rule puts it, and the two callers
+ * must not share geometry: the fit below mutates buffers in place, so a shared
+ * array would quietly re-scale the copy every time the projects page mounted.
+ * Each caller clones.
+ */
+export function useSpaceshipWorld(): THREE.BufferGeometry[] {
   const { scene } = useGLTF(URL)
   return useMemo(() => {
     scene.updateWorldMatrix(true, true)
@@ -52,8 +62,28 @@ export function useSpaceshipParts(size: number): THREE.BufferGeometry[] {
       if (!mesh.isMesh) return
       const g = mesh.geometry.clone()
       g.applyMatrix4(mesh.matrixWorld)
+      g.computeBoundingBox()
+      g.computeBoundingSphere()
       parts.push(g)
     })
+    return parts
+  }, [scene])
+}
+
+/** The union bounding box of a set of geometries, in their own space. */
+export function partsBounds(parts: THREE.BufferGeometry[]): THREE.Box3 {
+  const box = new THREE.Box3()
+  for (const g of parts) {
+    if (!g.boundingBox) g.computeBoundingBox()
+    box.union(g.boundingBox as THREE.Box3)
+  }
+  return box
+}
+
+export function useSpaceshipParts(size: number): THREE.BufferGeometry[] {
+  const world = useSpaceshipWorld()
+  return useMemo(() => {
+    const parts = world.map((g) => g.clone())
 
     const box = new THREE.Box3()
     for (const g of parts) {
@@ -82,7 +112,52 @@ export function useSpaceshipParts(size: number): THREE.BufferGeometry[] {
       g.computeBoundingSphere()
     }
     return parts
-  }, [scene, size])
+  }, [world, size])
+}
+
+/**
+ * The ship as the glTF gives it: every mesh with its OWN geometry and its own
+ * local transform, unbaked.
+ *
+ * Needed because Blender's Generated coordinate (the "orco") is per-OBJECT and
+ * pre-transform, normalised into that object's own bounding box. Baking world
+ * matrices into the geometry, which useSpaceshipWorld does, destroys exactly
+ * that: the bounding box becomes the world-space one and every part shares a
+ * space it should not. A shader reading Generated has to see the local space.
+ *
+ * Returns clones, so a consumer may transform them without touching the cached
+ * glTF or the other consumer.
+ */
+export interface ShipPart {
+  geometry: THREE.BufferGeometry
+  /** the mesh's own matrix relative to the glTF root */
+  matrix: THREE.Matrix4
+  /** the geometry's bounding box in its OWN space, for Generated */
+  bounds: { min: [number, number, number]; max: [number, number, number] }
+  name: string
+}
+
+export function useSpaceshipLocal(): ShipPart[] {
+  const { scene } = useGLTF(URL)
+  return useMemo(() => {
+    scene.updateWorldMatrix(true, true)
+    const parts: ShipPart[] = []
+    scene.traverse((o) => {
+      const mesh = o as THREE.Mesh
+      if (!mesh.isMesh) return
+      const g = mesh.geometry.clone()
+      g.computeBoundingBox()
+      g.computeBoundingSphere()
+      const b = g.boundingBox as THREE.Box3
+      parts.push({
+        geometry: g,
+        matrix: mesh.matrixWorld.clone(),
+        bounds: { min: b.min.toArray() as [number, number, number], max: b.max.toArray() as [number, number, number] },
+        name: mesh.name,
+      })
+    })
+    return parts
+  }, [scene])
 }
 
 /** the ship under one material, as many meshes as it has parts */

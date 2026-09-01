@@ -35,6 +35,16 @@ export default function ProjectsManga() {
         <Canvas
           camera={{ position: [0, 0.45, 5.2], fov: 42 }}
           dpr={[1, 1.5]}
+          /**
+           * `flat` = NoToneMapping. r3f sets ACESFilmic on the renderer by
+           * default, which is a filmic S-curve over the whole frame: it was
+           * crushing the print pass's blacks and rolling its paper off to about
+           * 228 of 255, so the page's paper was never actually paper. Measured
+           * through /hatch-ref?const: linear 0.8 came back 0.7084 instead of
+           * 0.8. A print pass decides its own tone; nothing should be regrading
+           * it afterwards.
+           */
+          flat
           gl={async (props) => {
             const renderer = new WebGPURenderer({
               canvas: props.canvas as HTMLCanvasElement,
