@@ -17,7 +17,7 @@ import { SocialLinks } from '@/components/ui/social-links'
 import { katieRozeFont } from '@/lib/fonts/katie-roze'
 import CasinoScene, { BEATS, HAND, CHIP_STACKS, type ScrollState } from './casino-scene'
 import TunePanel from './tune-panel'
-import { FOLDER_KEYS } from './tune'
+import { EYE_KEYS, FLIGHT_KEYS, FOLDER_KEYS, JACK_KEYS, SUIT_KEYS, TITLE_KEYS } from './tune'
 import type { ImpactFx } from './hero-chip'
 import './casino.css'
 
@@ -114,16 +114,38 @@ export default function CasinoResume() {
   const inSign = progress > BEATS.sign[0] + 0.1
 
   // ?tune shows the live layout sliders (values also readable straight from the URL, see tune.ts)
+  /**
+   * 1.35 drawing-buffer pixels per CSS pixel, not 1.5, and not 1 either.
+   *
+   * On a 2x display the old cap rendered 2.25 times the pixels, and this page is pixel-bound in the
+   * painterly pass: measured, the same scene costs 20.2 ms a frame at 1920x1080 and 34.5 at the same size
+   * on a 2x display. A pass whose whole job is to break edges up into brushwork is the last place that
+   * resolution buys anything, so 1.5 was paying 70 percent more for a difference it then paints over.
+   * A flat 1 was the other extreme and read as soft, so this is the middle: 1.82x the pixels of a 1x buffer
+   * instead of 2.25x. Nothing changes on a 1x display, where every value here settles to 1. ?hi restores
+   * the old cap for captures.
+   */
+  const hiDpr = useMemo(() => (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).has('hi') : false), [])
   const showTune = useMemo(() => (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).has('tune') : false), [])
   // ?fld: just the presented folder's own knobs, for dialling the open file in place on the site itself
   const showFolderTune = useMemo(() => (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).has('fld') : false), [])
+  // ?jack: the opening title card's own knobs, on the right, with a save that survives a reload
+  const showJackTune = useMemo(() => (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).has('jack') : false), [])
+  // ?suits: place the impact's suit burst, frozen mid-flash so there is something to drag
+  const showSuitTune = useMemo(() => (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).has('suits') : false), [])
+  // ?flight: the coin's throw and the camera chasing it, and nothing else. Replays on a loop by default.
+  const showFlightTune = useMemo(() => (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).has('flight') : false), [])
+  // ?eyes: the field of eyes over the title card, and nothing else
+  const showEyeTune = useMemo(() => (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).has('eyes') : false), [])
+  // ?title: the ransom title, each line on its own, and the chips and dice round it
+  const showTitleTune = useMemo(() => (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).has('title') : false), [])
 
   return (
     <div className="casino-root" style={{ height: `${PAGE_HEIGHT_VH}vh` }}>
       <div className="casino-stage">
         <Canvas
           camera={{ position: [0, 6.2, 5.4], fov: 38 }}
-          dpr={[1, 1.5]}
+          dpr={hiDpr ? [1, 1.5] : [1, 1.35]}
           shadows="soft"
           gl={async (props) => {
             const renderer = new WebGPURenderer({
@@ -138,6 +160,11 @@ export default function CasinoResume() {
         </Canvas>
         {showTune && <TunePanel />}
         {!showTune && showFolderTune && <TunePanel only={FOLDER_KEYS} title="the open folder" />}
+        {!showTune && !showFolderTune && showSuitTune && <TunePanel only={SUIT_KEYS} title="the suit burst" />}
+        {!showTune && !showFolderTune && !showSuitTune && showFlightTune && <TunePanel only={FLIGHT_KEYS} title="the coin and the camera" />}
+        {!showTune && !showFolderTune && !showSuitTune && !showFlightTune && showJackTune && <TunePanel only={JACK_KEYS} title="jack of all trades" />}
+        {!showTune && !showFolderTune && !showSuitTune && !showFlightTune && !showJackTune && showEyeTune && <TunePanel only={EYE_KEYS} title="the eyes" />}
+        {!showTune && !showFolderTune && !showSuitTune && !showFlightTune && !showJackTune && !showEyeTune && showTitleTune && <TunePanel only={TITLE_KEYS} title="always bet on daniel w liu" />}
 
         {/* the open file lives in the scene (pages inside the folder); only a close control here */}
         <button type="button" className={`casino-file-close ${fileOpen ? 'is-open' : ''}`} onClick={closeFile} aria-label="Close the file">
