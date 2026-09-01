@@ -1,28 +1,82 @@
 'use client'
 
 /**
- * The hand: a royal flush in hearts (10 J Q K A) on the felt.
+ * Cards as objects: the geometry, the materials and the hand on the felt.
  *
- * Shape: a rounded-rectangle card (poker proportion 2.5 x 3.5), built as two shape planes back to back
- * (face and back) plus a thin rim, so it reads as card stock rather than a quad.
- * Faces: drawn on canvas in the casino palette (corner indices both ways up, court letters with a heart,
- * classic pip layout for the ten), so no bitmaps ship with the page.
- * Materials: the same lamp term as everything else, so the hand sits in the light.
+ * The ART lives in card-art.ts, which draws the whole 52 card set on canvas and
+ * knows nothing about three. This file turns one of those faces into something
+ * that can sit in a scene, so a change to the printing never touches the scene
+ * and a change to the stock never touches the printing.
+ *
+ * A card here is a SOLID, not a quad: a rounded rectangle with real thickness
+ * and three material groups, front, back and rim, so the face and the back can
+ * be different prints and the cut edge is its own cream stock. Two planes with a
+ * gap between them read as a card face on but go transparent at a grazing angle,
+ * which is exactly the angle a hand fanned on a table is seen from.
  */
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import * as THREE from 'three'
+import { SOCIAL_URLS } from '@/data/social-links'
 import { cardArtMaterial } from './materials'
+import { claimPointer, releasePointer } from './cursor'
+import {
+  ASPECT,
+  LINK_CARDS,
+  LINK_KEYS,
+  RANKS,
+  SUITS,
+  cardBackCanvas,
+  cardEdgeCanvas,
+  cardFaceCanvas,
+  cardId,
+  deck,
+  handleFor,
+  linkCardFaceCanvas,
+  type Card as CardSpec,
+  type LinkKey,
+  type Rank,
+  type Suit,
+} from './card-art'
 
-const CARD_W = 2.5
-const CARD_H = 3.5
-const ASPECT = CARD_W / CARD_H
-const RED = '#b8181c'
-const INK = '#1a1a1a'
-const PAPER = '#f6f2e6'
+export {
+  ASPECT,
+  LINK_CARDS,
+  LINK_KEYS,
+  RANKS,
+  SUITS,
+  cardBackCanvas,
+  cardEdgeCanvas,
+  cardFaceCanvas,
+  cardId,
+  deck,
+  handleFor,
+  linkCardFaceCanvas,
+  type CardSpec,
+  type LinkKey,
+  type Rank,
+  type Suit,
+}
 
-export type Rank = '10' | 'J' | 'Q' | 'K' | 'A'
+/**
+ * Where each calling card points. Read from the site's ONE table of profile
+ * URLs, so a card can never send anyone somewhere the rest of the site does not.
+ * Devpost is empty there for now, and an empty URL makes that card inert rather
+ * than guessed.
+ */
+export const LINK_HREF: Record<LinkKey, string> = {
+  linkedin: SOCIAL_URLS.linkedin,
+  devpost: SOCIAL_URLS.devpost,
+  github: SOCIAL_URLS.github,
+}
 
-/** rounded-rect card outline, centred, width 1 and height 1/ASPECT */
+/**
+ * Real stock, as a fraction of the card's long side: a card is 0.3 mm thick on
+ * an 88 mm long card. Picking a thickness by eye put a 52 deck at twice this and
+ * it read as a bar of soap.
+ */
+export const STOCK = 0.177 / 52
+
+/** rounded-rect card outline, centred */
 export function cardShape(w: number, h: number, r: number): THREE.Shape {
   const s = new THREE.Shape()
   const x = -w / 2, y = -h / 2
@@ -53,234 +107,279 @@ export function planarUV(geo: THREE.BufferGeometry): THREE.BufferGeometry {
   return geo
 }
 
-function heart(x: CanvasRenderingContext2D, cx: number, cy: number, s: number, colour = RED) {
-  x.save()
-  x.translate(cx, cy)
-  x.scale(s, s)
-  x.beginPath()
-  x.moveTo(0, 0.32)
-  x.bezierCurveTo(-0.55, -0.12, -0.36, -0.62, 0, -0.3)
-  x.bezierCurveTo(0.36, -0.62, 0.55, -0.12, 0, 0.32)
-  x.closePath()
-  x.fillStyle = colour
-  x.fill()
-  x.restore()
-}
-
-function corner(x: CanvasRenderingContext2D, rank: Rank, w: number, h: number, flip: boolean) {
-  x.save()
-  if (flip) {
-    x.translate(w, h)
-    x.rotate(Math.PI)
-  }
-  x.fillStyle = RED
-  x.font = `700 ${rank === '10' ? 74 : 88}px Georgia, "Times New Roman", serif`
-  x.textAlign = 'center'
-  x.fillText(rank, 64, 104)
-  heart(x, 64, 168, 52)
-  x.restore()
+/** concatenate non indexed parts into one geometry, one material group each */
+function joinGroups(parts: THREE.BufferGeometry[]): THREE.BufferGeometry {
+  const out = new THREE.BufferGeometry()
+  const counts = parts.map((p) => (p.getAttribute('position') as THREE.BufferAttribute).count)
+  const total = counts.reduce((a, b) => a + b, 0)
+  const pos = new Float32Array(total * 3)
+  const nrm = new Float32Array(total * 3)
+  const uv = new Float32Array(total * 2)
+  let v = 0
+  parts.forEach((p, i) => {
+    const P = p.getAttribute('position') as THREE.BufferAttribute
+    const N = p.getAttribute('normal') as THREE.BufferAttribute
+    const U = p.getAttribute('uv') as THREE.BufferAttribute
+    pos.set(P.array as Float32Array, v * 3)
+    nrm.set(N.array as Float32Array, v * 3)
+    uv.set(U.array as Float32Array, v * 2)
+    out.addGroup(v, counts[i], i)
+    v += counts[i]
+  })
+  out.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+  out.setAttribute('normal', new THREE.BufferAttribute(nrm, 3))
+  out.setAttribute('uv', new THREE.BufferAttribute(uv, 2))
+  out.computeBoundingBox()
+  out.computeBoundingSphere()
+  return out
 }
 
 /**
- * A court plate: a half figure drawn into the top half and mirrored into the bottom, the way a real court
- * card is printed. Bold shapes only (crown / tiara / hat, face, collar, robe with a heart), because the
- * watercolour pass eats fine line work.
+ * The rim: a band of quads around the outline, written by hand rather than taken
+ * from ExtrudeGeometry.
+ *
+ * ExtrudeGeometry emits two groups, caps and walls, and puts the FRONT and BACK
+ * caps in the same one, so a card built that way cannot print a face on one side
+ * and the deck's back on the other. Building the band means the geometry has the
+ * three groups a card actually has, and the rim gets useful UVs: u runs along the
+ * perimeter so the stock's tooth follows the edge, v runs across the thickness.
  */
-function courtHalf(x: CanvasRenderingContext2D, rank: 'J' | 'Q' | 'K', W: number, H: number) {
-  const cx = W / 2
-  const ink = INK
-  x.lineWidth = Math.max(3, W * 0.008)
-  x.strokeStyle = ink
-  x.lineJoin = 'round'
-  // robe: a broad wedge from the waist up to the shoulders
-  x.beginPath()
-  x.moveTo(cx - W * 0.34, H * 0.5)
-  x.lineTo(cx - W * 0.2, H * 0.3)
-  x.lineTo(cx + W * 0.2, H * 0.3)
-  x.lineTo(cx + W * 0.34, H * 0.5)
-  x.closePath()
-  x.fillStyle = RED
-  x.fill()
-  x.stroke()
-  // collar
-  x.beginPath()
-  x.moveTo(cx - W * 0.2, H * 0.3)
-  x.lineTo(cx, H * 0.38)
-  x.lineTo(cx + W * 0.2, H * 0.3)
-  x.closePath()
-  x.fillStyle = PAPER
-  x.fill()
-  x.stroke()
-  // a heart on the chest
-  heart(x, cx, H * 0.44, W * 0.13)
-  // face
-  x.beginPath()
-  x.ellipse(cx, H * 0.22, W * 0.1, H * 0.075, 0, 0, Math.PI * 2)
-  x.fillStyle = PAPER
-  x.fill()
-  x.stroke()
-  // eyes and mouth
-  x.fillStyle = ink
-  x.beginPath()
-  x.arc(cx - W * 0.04, H * 0.21, W * 0.011, 0, Math.PI * 2)
-  x.arc(cx + W * 0.04, H * 0.21, W * 0.011, 0, Math.PI * 2)
-  x.fill()
-  x.beginPath()
-  x.moveTo(cx - W * 0.03, H * 0.245)
-  x.quadraticCurveTo(cx, H * 0.255, cx + W * 0.03, H * 0.245)
-  x.stroke()
-  if (rank === 'K') {
-    // crown: three points with jewels, and a beard
-    x.beginPath()
-    x.moveTo(cx - W * 0.14, H * 0.155)
-    x.lineTo(cx - W * 0.1, H * 0.075)
-    x.lineTo(cx - W * 0.05, H * 0.13)
-    x.lineTo(cx, H * 0.06)
-    x.lineTo(cx + W * 0.05, H * 0.13)
-    x.lineTo(cx + W * 0.1, H * 0.075)
-    x.lineTo(cx + W * 0.14, H * 0.155)
-    x.closePath()
-    x.fillStyle = RED
-    x.fill()
-    x.stroke()
-    x.fillStyle = PAPER
-    for (const jx of [-0.1, 0, 0.1]) {
-      x.beginPath()
-      x.arc(cx + W * jx, H * 0.105, W * 0.014, 0, Math.PI * 2)
-      x.fill()
-      x.stroke()
+function rimGeometry(shape: THREE.Shape, t: number, segments: number, repeat: number): THREE.BufferGeometry {
+  const pts = shape.getPoints(segments)
+  // the outline closes back onto its start; carrying the duplicate would emit a
+  // degenerate quad
+  if (pts.length > 1 && pts[0].distanceTo(pts[pts.length - 1]) < 1e-6) pts.pop()
+  const n = pts.length
+  let perim = 0
+  const at: number[] = [0]
+  for (let i = 0; i < n; i++) {
+    perim += pts[i].distanceTo(pts[(i + 1) % n])
+    at.push(perim)
+  }
+  const pos: number[] = [], nrm: number[] = [], uv: number[] = []
+  for (let i = 0; i < n; i++) {
+    const p0 = pts[i], p1 = pts[(i + 1) % n]
+    const dx = p1.x - p0.x, dy = p1.y - p0.y
+    const len = Math.hypot(dx, dy) || 1
+    // the outline runs counter clockwise, so (dy, -dx) points out of the card
+    const nx = dy / len, ny = -dx / len
+    const u0 = (at[i] / perim) * repeat, u1 = (at[i + 1] / perim) * repeat
+    const A = [p0.x, p0.y, t], B = [p1.x, p1.y, t], Cc = [p1.x, p1.y, -t], D = [p0.x, p0.y, -t]
+    const tri = (a: number[], b: number[], c: number[], ua: number[], ub: number[], uc: number[]) => {
+      pos.push(...a, ...b, ...c)
+      for (let k = 0; k < 3; k++) nrm.push(nx, ny, 0)
+      uv.push(...ua, ...ub, ...uc)
     }
-    x.beginPath()
-    x.moveTo(cx - W * 0.07, H * 0.26)
-    x.quadraticCurveTo(cx, H * 0.33, cx + W * 0.07, H * 0.26)
-    x.strokeStyle = ink
-    x.stroke()
-  } else if (rank === 'Q') {
-    // tiara: a low band with three small points
-    x.beginPath()
-    x.moveTo(cx - W * 0.13, H * 0.155)
-    x.lineTo(cx - W * 0.08, H * 0.1)
-    x.lineTo(cx - W * 0.03, H * 0.14)
-    x.lineTo(cx, H * 0.09)
-    x.lineTo(cx + W * 0.03, H * 0.14)
-    x.lineTo(cx + W * 0.08, H * 0.1)
-    x.lineTo(cx + W * 0.13, H * 0.155)
-    x.closePath()
-    x.fillStyle = RED
-    x.fill()
-    x.stroke()
-    // hair falling either side
-    x.fillStyle = ink
-    x.beginPath()
-    x.moveTo(cx - W * 0.1, H * 0.17)
-    x.quadraticCurveTo(cx - W * 0.17, H * 0.26, cx - W * 0.11, H * 0.31)
-    x.stroke()
-    x.beginPath()
-    x.moveTo(cx + W * 0.1, H * 0.17)
-    x.quadraticCurveTo(cx + W * 0.17, H * 0.26, cx + W * 0.11, H * 0.31)
-    x.stroke()
-  } else {
-    // jack: a soft cap with a feather
-    x.beginPath()
-    x.moveTo(cx - W * 0.13, H * 0.16)
-    x.quadraticCurveTo(cx, H * 0.05, cx + W * 0.13, H * 0.16)
-    x.closePath()
-    x.fillStyle = RED
-    x.fill()
-    x.stroke()
-    x.beginPath()
-    x.moveTo(cx + W * 0.1, H * 0.14)
-    x.quadraticCurveTo(cx + W * 0.22, H * 0.07, cx + W * 0.17, H * 0.02)
-    x.strokeStyle = ink
-    x.stroke()
+    tri(A, D, Cc, [u0, 1], [u0, 0], [u1, 0])
+    tri(A, Cc, B, [u0, 1], [u1, 0], [u1, 1])
   }
+  const g = new THREE.BufferGeometry()
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3))
+  g.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(nrm), 3))
+  g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(uv), 2))
+  return g
 }
 
-function faceCanvas(rank: Rank): HTMLCanvasElement {
-  const W = 620, H = Math.round(620 / ASPECT)
-  const c = document.createElement('canvas')
-  c.width = W
-  c.height = H
-  const x = c.getContext('2d')!
-  x.fillStyle = PAPER
-  x.fillRect(0, 0, W, H)
-  // a hairline frame, the way a printed card carries one
-  x.strokeStyle = 'rgba(184,24,28,0.35)'
-  x.lineWidth = 6
-  x.strokeRect(26, 26, W - 52, H - 52)
-  corner(x, rank, W, H, false)
-  corner(x, rank, W, H, true)
-  const cx = W / 2, cy = H / 2
-  if (rank === 'A') {
-    heart(x, cx, cy, 300)
-  } else if (rank === '10') {
-    // classic ten: two columns of four plus two centred, mirrored top and bottom
-    const col = [W * 0.34, W * 0.66]
-    const rows = [H * 0.2, H * 0.36, H * 0.64, H * 0.8]
-    for (const px of col) for (const py of rows) heart(x, px, py, 96)
-    heart(x, cx, H * 0.28, 96)
-    heart(x, cx, H * 0.72, 96)
-  } else {
-    // court plate: the figure drawn once and mirrored, with the dividing rule
-    x.save()
-    x.beginPath()
-    x.rect(W * 0.16, H * 0.05, W * 0.68, H * 0.45)
-    x.clip()
-    courtHalf(x, rank, W, H)
-    x.restore()
-    x.save()
-    x.translate(W, H)
-    x.rotate(Math.PI)
-    x.beginPath()
-    x.rect(W * 0.16, H * 0.05, W * 0.68, H * 0.45)
-    x.clip()
-    courtHalf(x, rank, W, H)
-    x.restore()
-    x.strokeStyle = 'rgba(26,26,26,0.4)'
-    x.lineWidth = 4
-    x.beginPath()
-    x.moveTo(W * 0.16, cy)
-    x.lineTo(W * 0.84, cy)
-    x.stroke()
-    x.strokeStyle = 'rgba(184,24,28,0.5)'
-    x.strokeRect(W * 0.16, H * 0.05, W * 0.68, H * 0.9)
-  }
-  return c
+/**
+ * One card of stock. Groups: 0 front, 1 back, 2 rim.
+ *
+ * `length` is the card's long side in world units; the width follows from the
+ * poker proportion so a card can never be built out of shape.
+ */
+export function cardGeometry(length: number, thickness = length * STOCK, segments = 12): THREE.BufferGeometry {
+  const w = length * ASPECT
+  const shape = cardShape(w, length, Math.min(w, length) * 0.07)
+  const t = thickness / 2
+
+  const front = planarUV(new THREE.ShapeGeometry(shape, segments)).toNonIndexed()
+  front.translate(0, 0, t)
+  front.computeVertexNormals()
+
+  // UVs BEFORE the half turn on purpose: computed after, u would climb with
+  // world +x, which is the viewer's left when they are behind the card, and the
+  // back would print mirrored
+  const back = planarUV(new THREE.ShapeGeometry(shape, segments)).toNonIndexed()
+  back.rotateY(Math.PI)
+  back.translate(0, 0, -t)
+  back.computeVertexNormals()
+
+  // the tooth repeats about once per card length around the edge
+  const rim = rimGeometry(shape, t, segments, Math.max(2, Math.round((2 * (w + length)) / length)))
+
+  return joinGroups([front, back, rim])
 }
 
-function backCanvas(): HTMLCanvasElement {
-  const W = 620, H = Math.round(620 / ASPECT)
-  const c = document.createElement('canvas')
-  c.width = W
-  c.height = H
-  const x = c.getContext('2d')!
-  x.fillStyle = RED
-  x.fillRect(0, 0, W, H)
-  x.fillStyle = PAPER
-  x.fillRect(22, 22, W - 44, H - 44)
-  x.fillStyle = RED
-  x.fillRect(38, 38, W - 76, H - 76)
-  // lattice
-  x.strokeStyle = 'rgba(246,242,230,0.5)'
-  x.lineWidth = 3
-  for (let i = -H; i < W; i += 34) {
-    x.beginPath(); x.moveTo(i, 38); x.lineTo(i + H, H - 38); x.stroke()
-    x.beginPath(); x.moveTo(i, H - 38); x.lineTo(i + H, 38); x.stroke()
+/* -------------------------------------------------------------------------- */
+
+function canvasTexture(c: HTMLCanvasElement, repeat = false): THREE.CanvasTexture {
+  const t = new THREE.CanvasTexture(c)
+  t.colorSpace = THREE.SRGBColorSpace
+  t.anisotropy = 8
+  if (repeat) {
+    t.wrapS = THREE.RepeatWrapping
+    t.wrapT = THREE.RepeatWrapping
   }
-  return c
+  return t
+}
+
+/** the shared back and rim, built once: every card in a scene flips onto the same back */
+let SHARED: { back: THREE.Material; rim: THREE.Material } | null = null
+export function sharedCardMaterials() {
+  if (!SHARED) {
+    SHARED = {
+      back: cardArtMaterial(canvasTexture(cardBackCanvas()), 'back'),
+      rim: cardArtMaterial(canvasTexture(cardEdgeCanvas(), true), 'edge'),
+    }
+  }
+  return SHARED
+}
+
+const FACE_CACHE = new Map<string, THREE.Material>()
+/** the printed face of one card, built once per card and reused across the page */
+export function cardFaceMaterial(rank: Rank, suit: Suit, res = 620): THREE.Material {
+  const k = `${rank}${suit}@${res}`
+  const hit = FACE_CACHE.get(k)
+  if (hit) return hit
+  const m = cardArtMaterial(canvasTexture(cardFaceCanvas(rank, suit, res)), k)
+  FACE_CACHE.set(k, m)
+  return m
+}
+
+/** front, back, rim, in the order cardGeometry's groups expect */
+export function cardMaterials(rank: Rank, suit: Suit, res = 620): THREE.Material[] {
+  const s = sharedCardMaterials()
+  return [cardFaceMaterial(rank, suit, res), s.back, s.rim]
+}
+
+const LINK_CACHE = new Map<string, THREE.Material>()
+/** front, back, rim for one calling card */
+export function linkCardMaterials(key: LinkKey, res = 620): THREE.Material[] {
+  const href = LINK_HREF[key]
+  const k = `link:${key}@${res}:${href}`
+  let face = LINK_CACHE.get(k)
+  if (!face) {
+    face = cardArtMaterial(canvasTexture(linkCardFaceCanvas(key, href, res)), k)
+    LINK_CACHE.set(k, face)
+  }
+  const s = sharedCardMaterials()
+  return [face, s.back, s.rim]
+}
+
+/**
+ * One calling card, clickable.
+ *
+ * The lift on hover is what says it is not scenery. A card whose URL is empty
+ * still prints and still lifts nothing: it takes no pointer claim and opens
+ * nothing, so it cannot send anyone to a guessed profile.
+ */
+export function LinkCard({
+  linkKey,
+  position = [0, 0, 0],
+  rotation = [-Math.PI / 2, 0, 0],
+  length = 1.4,
+  res = 620,
+}: {
+  linkKey: LinkKey
+  position?: [number, number, number]
+  rotation?: [number, number, number]
+  length?: number
+  res?: number
+}) {
+  const geo = useMemo(() => cardGeometry(length), [length])
+  const mats = useMemo(() => linkCardMaterials(linkKey, res), [linkKey, res])
+  const [hot, setHot] = useState(false)
+  const href = LINK_HREF[linkKey]
+  const id = `linkcard:${linkKey}`
+  useEffect(() => () => releasePointer(id), [id])
+  useEffect(() => () => geo.dispose(), [geo])
+  return (
+    <mesh
+      geometry={geo}
+      material={mats}
+      position={[position[0], position[1] + (hot && href ? length * 0.055 : 0), position[2]]}
+      rotation={new THREE.Euler(rotation[0], rotation[1], rotation[2], 'YXZ')}
+      castShadow
+      receiveShadow
+      onPointerOver={(e) => {
+        e.stopPropagation()
+        if (!href) return
+        setHot(true)
+        claimPointer(id, true)
+      }}
+      onPointerOut={() => {
+        setHot(false)
+        claimPointer(id, false)
+      }}
+      onClick={(e) => {
+        e.stopPropagation()
+        if (href) window.open(href, '_blank', 'noopener,noreferrer')
+      }}
+    />
+  )
+}
+
+/** a card that shows its back on both sides, for a face down deck */
+export function faceDownMaterials(): THREE.Material[] {
+  const s = sharedCardMaterials()
+  return [s.back, s.back, s.rim]
+}
+
+/**
+ * One card in a scene. Lying flat is the common case, so the default rotation
+ * puts the face up rather than making every call site remember the quarter turn.
+ */
+export function Card({
+  rank,
+  suit,
+  position = [0, 0, 0],
+  rotation = [-Math.PI / 2, 0, 0],
+  length = 1.4,
+  res = 620,
+  faceDown = false,
+}: {
+  rank: Rank
+  suit: Suit
+  position?: [number, number, number]
+  rotation?: [number, number, number]
+  length?: number
+  res?: number
+  faceDown?: boolean
+}) {
+  const geo = useMemo(() => cardGeometry(length), [length])
+  const mats = useMemo(() => (faceDown ? faceDownMaterials() : cardMaterials(rank, suit, res)), [rank, suit, res, faceDown])
+  useEffect(() => () => geo.dispose(), [geo])
+  return (
+    <mesh
+      geometry={geo}
+      material={mats}
+      position={position}
+      rotation={new THREE.Euler(rotation[0], rotation[1], rotation[2], 'YXZ')}
+      castShadow
+      receiveShadow
+    />
+  )
 }
 
 export const ROYAL_FLUSH: Rank[] = ['10', 'J', 'Q', 'K', 'A']
 
+/**
+ * The hand on the felt: a royal flush, fanned.
+ *
+ * Cards are lifted along the fan by a hair each, and pushed back by their
+ * distance from the middle, so the fan is a shallow arc rather than five cards
+ * fighting for the same plane.
+ */
 export default function RoyalFlush({
   position = [-3.2, 0, 1.2],
   yaw = 0.12,
+  suit = 'hearts',
   length = 1.5,
   spread = 0.9,
   arc = 0.16,
 }: {
   position?: [number, number, number]
   yaw?: number
+  suit?: Suit
   /** long side of one card (world) */
   length?: number
   /** distance between card centres, as a fraction of the card width */
@@ -289,32 +388,12 @@ export default function RoyalFlush({
   arc?: number
 }) {
   const w = length * ASPECT
-  const geo = useMemo(() => {
-    const shape = cardShape(w, length, Math.min(w, length) * 0.07)
-    const front = planarUV(new THREE.ShapeGeometry(shape, 12))
-    const back = planarUV(new THREE.ShapeGeometry(shape, 12))
-    back.rotateY(Math.PI)
-    return { front, back }
-  }, [w, length])
-  const mats = useMemo(() => {
-    const faces = {} as Record<Rank, THREE.Material>
-    for (const r of ROYAL_FLUSH) {
-      const t = new THREE.CanvasTexture(faceCanvas(r))
-      t.colorSpace = THREE.SRGBColorSpace
-      t.anisotropy = 8
-      faces[r] = cardArtMaterial(t, r)
-    }
-    const bt = new THREE.CanvasTexture(backCanvas())
-    bt.colorSpace = THREE.SRGBColorSpace
-    return { faces, back: cardArtMaterial(bt, 'back') }
-  }, [])
-  useEffect(
-    () => () => {
-      geo.front.dispose()
-      geo.back.dispose()
-    },
-    [geo],
+  const geo = useMemo(() => cardGeometry(length), [length])
+  const mats = useMemo(
+    () => Object.fromEntries(ROYAL_FLUSH.map((r) => [r, cardMaterials(r, suit)])) as Record<Rank, THREE.Material[]>,
+    [suit],
   )
+  useEffect(() => () => geo.dispose(), [geo])
 
   const n = ROYAL_FLUSH.length
   return (
@@ -322,10 +401,15 @@ export default function RoyalFlush({
       {ROYAL_FLUSH.map((rank, i) => {
         const t = i - (n - 1) / 2
         return (
-          <group key={rank} position={[t * w * spread, i * 0.004, Math.abs(t) * length * 0.04]} rotation={[-Math.PI / 2, 0, -t * arc]}>
-            <mesh geometry={geo.front} material={mats.faces[rank]} position={[0, 0, 0.002]} castShadow />
-            <mesh geometry={geo.back} material={mats.back} position={[0, 0, -0.002]} />
-          </group>
+          <mesh
+            key={rank}
+            geometry={geo}
+            material={mats[rank]}
+            position={[t * w * spread, i * 0.004 + 0.002, Math.abs(t) * length * 0.04]}
+            rotation={new THREE.Euler(-Math.PI / 2, 0, -t * arc, 'YXZ')}
+            castShadow
+            receiveShadow
+          />
         )
       })}
     </group>
