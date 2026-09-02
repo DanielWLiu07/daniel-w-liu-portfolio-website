@@ -169,6 +169,30 @@ export function slideAt(t: number, at: number, travel: number, fps: number): { k
 export const SLIDE_CHART: readonly number[] = [0, -0.06, 0.14, 0.33, 0.49, 0.68, 0.79, 0.92, 0.99, 1.04, 0.99, 1.0]
 
 /**
+ * THE PASTE CHART: the same move, with no bounce at the end.
+ *
+ * SLIDE_CHART's tail (1.04, 0.99, 1.00) is a fraction of the TRAVEL, so what it
+ * costs depends entirely on how far the thing came. Measured on the two lockups
+ * that share it, the displacement after the piece first reaches home:
+ *
+ *   the title, travelling 1.39 units:  8.4px  8.4px  2.0px   invisible
+ *   the jack,  travelling 5.51 units: 46.7px 33.4px 33.4px   a lurch
+ *
+ * Same poses, five times the excursion, because the jack lockup comes in from
+ * four to seven units away and the quadratic Bezier it rides has slope 2(h-c) at
+ * the mark, which doubles the overshoot again. On top of that the jack's entry
+ * spin runs to 1.6 rad against the title's 0.3, so the tail twists 2.75 degrees
+ * instead of 0.7.
+ *
+ * arrive() in jack-intro.tsx had already found this from the other side: a ring
+ * past home "read as a nudge after the scrap had already arrived - a second
+ * little move rather than a settle", and a pasted scrap does not bounce. So the
+ * paste keeps the anticipation and the uneven spacing and simply decelerates
+ * onto its mark, with no pose ever past it.
+ */
+export const PASTE_CHART: readonly number[] = [0, -0.06, 0.14, 0.33, 0.49, 0.68, 0.79, 0.92, 0.97, 1.0]
+
+/**
  * Which pose we are on, and where that pose sits.
  *
  * Poses advance one per exposure (or per `step` exposures). Before the cue it is

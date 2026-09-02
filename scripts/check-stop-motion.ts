@@ -12,7 +12,7 @@
  *
  *   npx tsx scripts/check-stop-motion.ts
  */
-import { SM_DEFAULTS, WORD_DEFAULTS, boilAt, popAt, settle, slideAt, smFrame, smTime, chartAt, chartFor, SLIDE_CHART, wordAt, wordGroups, wordOf, wordShot } from '../components/resume/casino/stop-motion'
+import { SM_DEFAULTS, WORD_DEFAULTS, boilAt, popAt, settle, slideAt, smFrame, smTime, chartAt, chartFor, PASTE_CHART, SLIDE_CHART, wordAt, wordGroups, wordOf, wordShot } from '../components/resume/casino/stop-motion'
 
 const fail: string[] = []
 const { fps } = SM_DEFAULTS
@@ -199,6 +199,26 @@ const assert = (cond: boolean, msg: string) => { if (!cond) fail.push(msg) }
   const JUDDER = 0.645
   assert(widest < JUDDER / 3, `the widest gap must be well under the ${(JUDDER * 100).toFixed(0)}% that juddered, got ${(widest * 100).toFixed(0)}%`)
 
+  /**
+   * 3b. THE PASTE CHART: the same move with nothing past the mark.
+   *
+   * The overshoot is a fraction of the travel, so a lockup that comes in from
+   * four times as far pays four times as much for it. Measured, the title's tail
+   * moved 8px and the jack's moved 47px off the identical poses. A pasted scrap
+   * does not bounce, so the paste chart decelerates onto its mark instead.
+   */
+  const pg2 = PASTE_CHART.slice(1).map((v, i) => v - PASTE_CHART[i])
+  assert(PASTE_CHART[0] === 0, 'the paste chart starts at its mark')
+  assert(PASTE_CHART[PASTE_CHART.length - 1] === 1, 'and ends exactly on it')
+  assert(Math.max(...PASTE_CHART) <= 1, 'and NEVER goes past it: that is the whole difference')
+  assert(PASTE_CHART[1] < 0, 'it keeps the anticipation, which is at the start, not the end')
+  assert(Math.max(...pg2.map(Math.abs)) <= 0.22, 'and no pose jumps far enough to strobe')
+  // once it is home it stays home: no pose after the first 1 dips back
+  const home = PASTE_CHART.indexOf(1)
+  for (let i = home; i < PASTE_CHART.length; i++) assert(PASTE_CHART[i] === 1, 'nothing moves after it lands')
+  // the last approach gaps decelerate, so it arrives rather than slamming
+  assert(pg2[pg2.length - 1] < pg2[Math.floor(pg2.length / 2)], 'the paste eases onto its mark')
+
   // 4. poses advance one per exposure, hold when held, and STOP
   const c0 = chartAt(0, 0, FPS, 1)
   assert(c0.pose === 0 && c0.k === 0, 'the cue is pose 0')
@@ -300,5 +320,6 @@ console.log(
 console.log(
   'OK: the poses are AUTHORED, not sampled: nothing jumps more than a fifth of the travel, the gaps do\n' +
     '    not shrink evenly, there is an anticipation and an overshoot, and a word is one rigid scrap that\n' +
-    '    comes in from the edge nearest its own place and straightens after it lands.',
+    '    comes in from the edge nearest its own place and straightens after it lands; and the pasted\n' +
+    '    lockup rides the same spacing with nothing past the mark, because a pasted scrap does not bounce.',
 )

@@ -24,7 +24,7 @@ import { modalTransform, type ModalGesture } from 'blender-to-threejs'
 import { cardBackCanvas, cardShape, planarUV } from './playing-cards'
 import { loadRansomFaces, ransomPick, ransomScrap, rnd } from './ransom'
 import { beatHold, beatTime, camLift, getLetter, getTune, JACK_FONTS, popUndo, pushUndo, setLetter, setTune, takeRecentre, TUNE_DEFAULTS, TUNE_RANGES, useTune, type Tune } from './tune'
-import { SLIDE_CHART, chartAt, chartFor } from './stop-motion'
+import { PASTE_CHART, chartAt, chartFor } from './stop-motion'
 
 /**
  * ONE face for the whole line, and a display face rather than a system one.
@@ -617,14 +617,18 @@ function arrive(s: number, dur: number, steps = 0): { p: number; n: number } {
  * The chart is authored per exposure instead, so no pose jumps more than a fifth
  * of the travel and the gaps are deliberately uneven.
  *
- * `p` is returned UNCLAMPED on purpose: the chart starts at -0.06 and peaks at
- * 1.04, and the Bezier below extrapolates those into a real anticipation before
- * the push and a real carry past the mark, rather than a curve that eases
- * perfectly into place.
+ * It rides PASTE_CHART rather than the title's SLIDE_CHART: same authored
+ * spacing and the same anticipation, but nothing past the mark. The overshoot is
+ * a fraction of the travel, and this lockup travels four times as far as the
+ * title, so the identical tail that is 8px there is a 47px lurch here. See
+ * PASTE_CHART for the measurements.
+ *
+ * `p` is returned UNCLAMPED so the -0.06 anticipation still extrapolates
+ * backwards through the Bezier into a real pull-back before the push.
  */
 function chartArrive(s: number, step: number, fps: number): { p: number; n: number } {
-  if (s <= 0) return { p: SLIDE_CHART[0], n: 0 }
-  const c = chartAt(s, 0, fps, step)
+  if (s <= 0) return { p: PASTE_CHART[0], n: 0 }
+  const c = chartAt(s, 0, fps, step, PASTE_CHART)
   return { p: c.k, n: c.pose }
 }
 
