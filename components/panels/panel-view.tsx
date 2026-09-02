@@ -18,6 +18,7 @@ import {
   type Control,
   type PanelSnapshot,
   type PanelValue,
+  type TreeNode,
 } from "blender-to-threejs";
 
 function num(v: PanelValue | undefined, fallback = 0): number {
@@ -123,16 +124,99 @@ function Snippet({ label, text }: { label: string; text: string }) {
   );
 }
 
+/**
+ * One hierarchy row, and its children.
+ *
+ * Collapsed by default below the top level, which is Blender's behaviour and
+ * the only way a rigged character does not bury the rest of the scene: one
+ * goose is five meshes against twenty bones.
+ */
+function Row({
+  node,
+  depth,
+  onSelect,
+  onVisible,
+}: {
+  node: TreeNode;
+  depth: number;
+  onSelect: (id: string) => void;
+  onVisible: (id: string, visible: boolean) => void;
+}) {
+  const [open, setOpen] = useState(depth < 1);
+  const kids = node.children ?? [];
+  return (
+    <>
+      <div
+        className="flex items-center gap-1 py-px hover:bg-neutral-100"
+        style={{ paddingLeft: depth * 12 }}
+      >
+        {kids.length > 0 ? (
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            className="w-3 shrink-0 text-neutral-400 hover:text-neutral-700"
+            aria-label={open ? "collapse" : "expand"}
+          >
+            {open ? "▾" : "▸"}
+          </button>
+        ) : (
+          <span className="w-3 shrink-0" />
+        )}
+        <button
+          type="button"
+          onClick={() => onSelect(node.id)}
+          className={`min-w-0 flex-1 truncate text-left ${
+            node.visible ? "text-neutral-700" : "text-neutral-400 line-through"
+          }`}
+          title={`${node.name} · ${node.type}`}
+        >
+          {node.name}
+          <span className="pl-1.5 text-neutral-400">{node.type}</span>
+        </button>
+        {node.tris ? (
+          <span className="shrink-0 tabular-nums text-neutral-400">
+            {node.tris >= 1000
+              ? `${(node.tris / 1000).toFixed(1)}k`
+              : node.tris}
+          </span>
+        ) : null}
+        <button
+          type="button"
+          onClick={() => onVisible(node.id, !node.visible)}
+          className="w-4 shrink-0 text-neutral-400 hover:text-neutral-800"
+          aria-label={node.visible ? "hide" : "show"}
+          title={node.visible ? "hide" : "show"}
+        >
+          {node.visible ? "◉" : "○"}
+        </button>
+      </div>
+      {open
+        ? kids.map((k) => (
+            <Row
+              key={k.id}
+              node={k}
+              depth={depth + 1}
+              onSelect={onSelect}
+              onVisible={onVisible}
+            />
+          ))
+        : null}
+    </>
+  );
+}
+
 export default function PanelView({
   snapshot,
   onSet,
   onPress,
+  onSelect,
 }: {
   snapshot: PanelSnapshot;
   onSet: (key: string, value: PanelValue) => void;
   onPress: (key: string) => void;
+  onSelect: (key: string, node: string, visible?: boolean) => void;
 }) {
-  const { schema, values, readouts, snippets, connected } = snapshot;
+  const { schema, values, readouts, snippets, trees, connected } = snapshot;
 
   // Keep the OS window's title bar useful when several are parked side by side.
   useEffect(() => {
@@ -233,6 +317,26 @@ export default function PanelView({
                   text={snippets[c.key] ?? ""}
                 />
               );
+            case "tree": {
+              const roots = trees[c.key] ?? [];
+              return (
+                <div key={c.key} className="py-1">
+                  {roots.length === 0 ? (
+                    <div className="text-neutral-400">nothing in the scene</div>
+                  ) : (
+                    roots.map((n) => (
+                      <Row
+                        key={n.id}
+                        node={n}
+                        depth={0}
+                        onSelect={(id) => onSelect(c.key, id)}
+                        onVisible={(id, v) => onSelect(c.key, id, v)}
+                      />
+                    ))
+                  )}
+                </div>
+              );
+            }
           }
         })}
       </div>

@@ -59,11 +59,18 @@ export function usePanel(
 
   useEffect(() => {
     if (!host) return;
+    // Every optional member has to be forwarded explicitly. Forgetting one
+    // fails silently — the host calls an absent method, gets undefined, and
+    // the panel renders an empty section rather than an error. That is exactly
+    // how the outliner first shipped showing "nothing in the scene" against a
+    // 94-object graph.
     host.register(schema, {
       get: () => ref.current.get(),
       set: (k, v) => ref.current.set(k, v),
       press: (k) => ref.current.press?.(k),
       snippets: () => ref.current.snippets?.() ?? {},
+      trees: () => ref.current.trees?.() ?? {},
+      select: (k, node, visible) => ref.current.select?.(k, node, visible),
     });
     return () => host.unregister(schema.id);
   }, [host, schema]);

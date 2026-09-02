@@ -27,6 +27,13 @@ import NodeGraphView from "@/components/three/node-graph-view";
 import RunTuner from "@/components/three/run-tuner";
 import type { PanelValue } from "blender-to-threejs";
 import PopOut from "@/components/panels/pop-out";
+import {
+  OUTLINER_PANEL,
+  outlinerCounts,
+  outlinerSelect,
+  outlinerShowAll,
+  outlinerTrees,
+} from "@/components/panels/outliner-panel";
 import { usePanelHost } from "@/components/panels/use-panels";
 import {
   RUN_PANEL,
@@ -506,6 +513,41 @@ export default function PlayPage() {
    * what you are reading is the whole silhouette moving.
    */
   const panelHost = usePanelHost();
+
+  /**
+   * The Outliner, over the live scene.
+   *
+   * `__scene` is set by RenderProbe once the renderer exists. Read through a
+   * getter rather than captured, because the scene is not there on the first
+   * render and a captured null would never recover.
+   */
+  const liveScene = () =>
+    (window as unknown as { __scene?: THREE.Scene }).__scene ?? null;
+  const outlinerBinding = {
+    // No editable controls: an outliner is a view, and the two buttons are
+    // presses rather than values.
+    get: () => ({}),
+    set: () => {},
+    press: (key: string) => {
+      if (key === "showAll") outlinerShowAll(liveScene());
+      // "refresh" needs no work — every message re-walks the scene on the way
+      // out, so asking is the refresh.
+    },
+    trees: () => outlinerTrees(liveScene()),
+    select: (_key: string, node: string, visible?: boolean) =>
+      outlinerSelect(liveScene(), node, visible),
+  };
+  // A scene graph changes when something is added or removed, which is rare —
+  // so this is a slow poll rather than a per-frame push. Walking a rigged
+  // character every frame would allocate a node per bone for nothing.
+  useEffect(() => {
+    if (!panelHost) return;
+    const t = setInterval(() => {
+      panelHost.readouts(OUTLINER_PANEL.id, outlinerCounts(liveScene()));
+      panelHost.refresh(OUTLINER_PANEL.id);
+    }, 1000);
+    return () => clearInterval(t);
+  }, [panelHost]);
   const runBinding = {
     get: () => runValues(tuning, showBones),
     set: (key: string, value: PanelValue) => {
@@ -603,6 +645,14 @@ export default function PlayPage() {
             schema={RUN_PANEL}
             binding={runBinding}
             label="pop out the run panel"
+          />
+        </div>
+        <div className="mt-1">
+          <PopOut
+            host={panelHost}
+            schema={OUTLINER_PANEL}
+            binding={outlinerBinding}
+            label="pop out the outliner"
           />
         </div>
         <RunTuner

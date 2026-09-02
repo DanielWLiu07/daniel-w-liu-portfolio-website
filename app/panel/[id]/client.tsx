@@ -27,6 +27,7 @@ export default function PanelClientView({ id }: { id: string }) {
     values: {},
     readouts: {},
     snippets: {},
+    trees: {},
     connected: false,
   });
 
@@ -46,10 +47,20 @@ export default function PanelClientView({ id }: { id: string }) {
     [],
   );
   const onPress = useCallback((key: string) => client.current?.press(key), []);
+  const onSelect = useCallback(
+    (key: string, node: string, visible?: boolean) =>
+      client.current?.select(key, node, visible),
+    [],
+  );
 
   return (
     <div className="h-dvh font-mono text-xs text-neutral-700">
-      <PanelView snapshot={snapshot} onSet={onSet} onPress={onPress} />
+      <PanelView
+        snapshot={snapshot}
+        onSet={onSet}
+        onPress={onPress}
+        onSelect={onSelect}
+      />
     </div>
   );
 }
