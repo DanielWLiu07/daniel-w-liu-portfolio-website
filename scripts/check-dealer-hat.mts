@@ -6,7 +6,7 @@ import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js'
 import {poseDealerAtTable,dealerPart} from '../components/resume/casino/dealer-pose'
 import {DealerEntranceRig,dealerEntrance,entranceFace,blendEntranceFace,DEALER_IDLE_START,DEALER_ENTRANCE_END,DEALER_HAT_VISIBLE} from '../components/resume/casino/dealer-entrance'
 import {DealerBodyRig} from '../components/resume/casino/dealer-idle'
-import {applyDealerCardAction} from '../components/resume/casino/dealer-card-handoff'
+import {applyDealerPointAction,applyDealerCardAction} from '../components/resume/casino/dealer-card-handoff'
 import {DealerFaceRig,facePose} from '../components/resume/face/face-rig'
 import {FACE_DEFAULTS} from '../components/resume/face/face-settings'
 const loader=new GLTFLoader();loader.register(()=>({name:'T',loadTexture:()=>Promise.resolve(new Texture())}))
@@ -26,7 +26,7 @@ for(const {age,settings} of samples){
  const bt=Math.max(0,age-DEALER_ENTRANCE_END),fade=Math.min(1,bt/1.4),w=fade*fade*(3-2*fade),seconds=Math.max(0,age-DEALER_IDLE_START)
  if(bt>0)body.apply(seconds,w,1,1,w,bt)
  face.apply(age<DEALER_ENTRANCE_END?blendEntranceFace(entranceFace(settings,age),facePose(settings,seconds),dealerEntrance(age).idle):facePose(settings,seconds))
- entrance.apply(age);applyDealerCardAction(body.shuffle,age,seconds)
+ entrance.apply(age);applyDealerCardAction(body.shuffle,age,seconds);applyDealerPointAction(body.chip,age,seconds)
  const surfaces=meshes.map(surface),hats=surfaces.filter(s=>['Hat','Hatband'].includes(dealerPart(s.mesh))),skulls=surfaces.filter(s=>dealerPart(s.mesh)==='Skull'),hands=surfaces.filter(s=>s.mesh.name.startsWith('Hand'))
  for(const hat of hats){
   for(const hand of hands){pairs++;if(hat.g.boundingBox!.intersectsBox(hand.g.boundingBox!)&&hat.bvh.intersectsGeometry(hand.g,new Matrix4()))failures.push(`Hand / ${hat.mesh.name} at ${age}`)}

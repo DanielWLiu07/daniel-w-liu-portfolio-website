@@ -6,7 +6,7 @@ import {Mesh,MeshStandardMaterial,Texture,VectorKeyframeTrack} from 'three'
 import {poseDealerAtTable} from '../components/resume/casino/dealer-pose'
 import {DEALER_DEFAULTS} from '../components/resume/casino/dealer-layout'
 import {DEALER_CARD_REVEAL_START} from '../components/resume/casino/dealer-card-reveal'
-import {applyDealerCardAction,DEALER_CARD_ACTION_START} from '../components/resume/casino/dealer-card-handoff'
+import {applyDealerPointAction,applyDealerCardAction,DEALER_CARD_ACTION_START} from '../components/resume/casino/dealer-card-handoff'
 import {DealerBodyRig} from '../components/resume/casino/dealer-idle'
 import {DEALER_ENTRANCE_END, DEALER_HAT_VISIBLE, DEALER_IDLE_START, dealerEntranceTime, DealerEntranceRig,dealerEntrance,entranceFace,blendEntranceFace} from '../components/resume/casino/dealer-entrance'
 import {DealerFaceRig,facePose} from '../components/resume/face/face-rig'
@@ -32,11 +32,11 @@ for(let i=0;i<=duration*24;i++) {
  body.apply(idleStudy?age:Math.max(0,age-DEALER_IDLE_START),idleStudy?studyAmount:fade*fade*(3-2*fade),studySpeed,studyActing,idleStudy?1:fade*fade*(3-2*fade),idleStudy?Infinity:age-DEALER_ENTRANCE_END)
  const animatedFace=idleStudy?facePose(FACE_DEFAULTS,age):blendEntranceFace(entranceFace(FACE_DEFAULTS,age),facePose(FACE_DEFAULTS,Math.max(0,age-DEALER_IDLE_START)),dealerEntrance(age).idle)
  face.apply(animatedFace)
- if(!idleStudy) {entrance.apply(age);applyDealerCardAction(body.shuffle,age,Math.max(0,age-DEALER_IDLE_START)*studySpeed)}
+ if(!idleStudy) {entrance.apply(age);applyDealerCardAction(body.shuffle,age,Math.max(0,age-DEALER_IDLE_START)*studySpeed);applyDealerPointAction(body.chip,age,Math.max(0,age-DEALER_IDLE_START)*studySpeed)}
  take.frames.push(sampler.sample(age))
  for(const name of Object.keys(positions)) positions[name].push(...model.getObjectByName(name)!.position.toArray())
 }
-entrance.reset();body.reset();face.neutralize();body.shuffle.group.visible=true;body.chip.group.visible=true
+entrance.reset();body.reset();face.neutralize();body.shuffle.group.visible=true;body.chip.group.visible=false
 const clip=takeClip(take,model)
 for(const [name,values] of Object.entries(positions)) clip.tracks.push(new VectorKeyframeTrack(`${name}.position`,take.frames.map(f=>f.time),values))
 model.traverse(o=>{

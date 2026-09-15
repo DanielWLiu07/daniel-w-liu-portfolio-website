@@ -6,6 +6,13 @@ import { createHash } from 'node:crypto'
 import { readFile, writeFile } from 'node:fs/promises'
 import sharp from 'sharp'
 
+// Optional same-resolution delivery texture. Originals and lossless delivery
+// remain available; no vertices, normals, skin weights or animation data change.
+const delivery = process.argv.includes('--delivery')
+const compact = delivery || process.argv.includes('--compact')
+const quality = delivery ? 86 : 94
+const suffix = delivery ? 'delivery' : compact ? 'compact' : 'web'
+
 const manifest = JSON.parse(await readFile('public/models/casino-dealer-v3.json', 'utf8'))
 const sourcePath = `public${manifest.model.split('?')[0]}`
 const source = await readFile(sourcePath)
@@ -21,12 +28,19 @@ for (const [index, image] of gltf.images.entries()) {
   assert.equal(image.mimeType, 'image/png')
   const view = gltf.bufferViews[image.bufferView]
   const png = bin.subarray(view.byteOffset ?? 0, (view.byteOffset ?? 0) + view.byteLength)
-  const webp = await sharp(png).webp({ lossless: true, effort: 6 }).toBuffer()
+  const webp = await sharp(png).webp(compact ? { quality, effort: 6 } : { lossless: true, effort: 6 }).toBuffer()
   // This is pixel-identical compression, including full resolution and alpha.
   const before = await sharp(png).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
   const after = await sharp(webp).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
   assert.deepEqual(after.info, before.info)
-  assert.ok(after.data.equals(before.data), 'Decoded texture pixels must be identical')
+  if (!compact) assert.ok(after.data.equals(before.data), 'Decoded texture pixels must be identical')
+  else {
+    let squaredError = 0
+    for (let i = 0; i < before.data.length; i++) squaredError += (before.data[i] - after.data[i]) ** 2
+    const rmse = Math.sqrt(squaredError / before.data.length)
+    assert.ok(rmse < 6, `Texture error too high: ${rmse}`)
+    console.log(JSON.stringify({ textureRMSE: rmse, width: before.info.width, height: before.info.height }))
+  }
   assert.ok(webp.length < png.length, 'Compression must actually save bytes')
   replacements.set(image.bufferView, webp)
   image.mimeType = 'image/webp'
@@ -66,15 +80,15 @@ header.writeUInt32LE(paddedJson.length, 12); header.writeUInt32LE(0x4e4f534a, 16
 binHeader.writeUInt32LE(packed.length); binHeader.writeUInt32LE(0x004e4942, 4)
 const output = Buffer.concat([header, paddedJson, binHeader, packed])
 const digest = buffer => createHash('sha256').update(buffer).digest('hex')
-const outputPath = 'public/models/casino-dealer-v3-web.glb'
+const outputPath = `public/models/casino-dealer-v3-${suffix}.glb`
 // Another working pane may be rebuilding the source. Never publish a stale pair.
 assert.equal(digest(await readFile(sourcePath)), digest(source), 'Dealer changed during compression; rerun')
 assert.deepEqual(JSON.parse(await readFile('public/models/casino-dealer-v3.json', 'utf8')), manifest)
 await writeFile(outputPath, output)
-await writeFile('public/models/casino-dealer-v3-web.json', JSON.stringify({
+await writeFile(`public/models/casino-dealer-v3-${suffix}.json`, JSON.stringify({
   sourceModel: manifest.model, sourceSha256: digest(source),
-  model: `/models/casino-dealer-v3-web.glb?v=${digest(output).slice(0, 12)}`,
+  model: `/models/casino-dealer-v3-${suffix}.glb?v=${digest(output).slice(0, 12)}`,
   sourceBytes: source.length, bytes: output.length, originalImageBytes, optimizedImageBytes,
-  texture: 'lossless WebP; identical decoded pixels; geometry and rig unchanged',
+  texture: compact ? `WebP quality ${quality}; original resolution; geometry and rig unchanged` : 'lossless WebP; identical decoded pixels; geometry and rig unchanged',
 }, null, 2) + '\n')
 console.log(JSON.stringify({ sourceBytes: source.length, bytes: output.length, saved: source.length - output.length, originalImageBytes, optimizedImageBytes }))

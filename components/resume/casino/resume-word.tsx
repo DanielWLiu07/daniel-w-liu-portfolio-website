@@ -20,7 +20,7 @@ import { markPropMotion } from './prop-arrival'
 import { hoverCorrection, proximityInfluence } from './word-hover'
 
 const KFONT = "'KatieRoze', 'Marker Felt', 'Bradley Hand', 'Comic Sans MS', cursive"
-const FONT_URL = '/shared/fonts/Katie%20Roze%20Watercolour%20Font%20-%20By%20Lef/KatieRoze.woff2'
+const FONT_URL = '/fonts/KatieRoze-display-512.woff2'
 const cl = (x: number) => Math.min(1, Math.max(0, x))
 
 interface Letter {

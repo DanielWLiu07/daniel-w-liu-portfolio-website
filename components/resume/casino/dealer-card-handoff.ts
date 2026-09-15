@@ -1,13 +1,27 @@
 import { Matrix4, Object3D, Quaternion, Vector3 } from 'three'
-import { DEALER_CARD_SNAP } from './dealer-card-reveal'
+import { DEALER_CARD_REVEAL_START } from './dealer-card-reveal'
 import { dealerEntranceTime } from './dealer-entrance'
 import type { DealerShuffleRig } from './dealer-shuffle'
+import type { DealerChipRig } from './dealer-chip'
 
 const clamp=(x:number)=>Math.max(0,Math.min(1,x))
 const smooth=(x:number)=>{const t=clamp(x);return t*t*t*(t*(t*6-15)+10)}
 // Start as the supporting hand releases the seated skull, while the hat lands.
 export const DEALER_CARD_ACTION_START=dealerEntranceTime(2.18)
-export const DEALER_CARD_CATCH=DEALER_CARD_ACTION_START+DEALER_CARD_SNAP+.24
+export const DEALER_CARD_CATCH=DEALER_CARD_ACTION_START+DEALER_CARD_REVEAL_START+.24
+
+/** The free arm settles casually into its point, ready by the card hand's snap. */
+export function applyDealerPointAction(rig:DealerChipRig,impactAge:number,seconds:number,enabled=true) {
+  const age=impactAge-DEALER_CARD_ACTION_START
+  const weight=enabled?smooth((age-.30)/.65):0
+  if(weight===0)return
+  const joints:Object3D[]=[]
+  rig.root.traverse(o=>{if(/^Right(Arm|ForeArm|Hand|Thumb\d|Index\d|Middle\d|Ring\d|Pinky\d)$/.test(o.name))joints.push(o)})
+  const before=joints.map(o=>o.quaternion.clone())
+  rig.pointAt(seconds,1,age)
+  joints.forEach((o,i)=>o.quaternion.slerp(before[i],1-weight))
+  rig.root.updateWorldMatrix(true,true)
+}
 
 export function applyDealerCardAction(rig:DealerShuffleRig,impactAge:number,seconds:number,enabled=true) {
   const age=impactAge-DEALER_CARD_ACTION_START

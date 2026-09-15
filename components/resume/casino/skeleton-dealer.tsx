@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, type MutableRefObject } fr
 import { useFrame } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import { clone } from 'three/addons/utils/SkeletonUtils.js'
-import { Group, Mesh, MeshStandardMaterial, Texture, type Material } from 'three'
+import { Group, Mesh, MeshStandardMaterial, Texture, type Vector3, type Material } from 'three'
 import { compGraph, compileComp, compileMaterial, graph, lit } from 'blender-to-threejs'
 import { lamp, LIT_MATERIALS, trackLit } from './materials'
 import { dealerActing, dealerPart, dealerPlacement, isDealerSkull, poseDealerAtTable, SKELETON_DEALER_URL } from './dealer-pose'
@@ -22,7 +22,7 @@ import { DEALER_IDLE_START, DealerEntranceRig, DEALER_ENTRANCE_END, dealerEntran
 import { disposeDealerWrist } from './dealer-wrist'
 import { disposeDealerHandSkin } from './dealer-hand-skin'
 import { DealerBodyRig } from './dealer-idle'
-import { applyDealerCardAction, type DealerCardHandoff } from './dealer-card-handoff'
+import { applyDealerPointAction, applyDealerCardAction, type DealerCardHandoff } from './dealer-card-handoff'
 
 type DealerRenderMesh = { mesh: Mesh; skull: boolean; hat: boolean; cards: boolean }
 
@@ -38,12 +38,13 @@ function updateDealerAppearance(meshes: DealerRenderMesh[], bodyReveal: number, 
   }
 }
 
-export default function SkeletonDealer({ feltY, chordZ, rail, fit, fx, motionRef, onReady, cardHandoff }: {
+export default function SkeletonDealer({ feltY, chordZ, rail, fit, fx, motionRef, onReady, cardHandoff, pointTarget }: {
   feltY: number; chordZ: number; rail: number; fit: number
   fx: MutableRefObject<ImpactFx>
   motionRef: MutableRefObject<boolean>
   onReady: (object: Group | null) => void
   cardHandoff?: DealerCardHandoff
+  pointTarget?: MutableRefObject<Vector3 | null>
 }) {
   const { scene } = useGLTF(SKELETON_DEALER_URL)
   const { dealerSize, dealerX, dealerY, dealerZ, dealerYaw, dealerPitch, dealerRoll, dealerBodyAmount } = useTune()
@@ -154,8 +155,17 @@ export default function SkeletonDealer({ feltY, chordZ, rail, fit, fx, motionRef
     // land a frame before the skull. The body follows the compositor continuously.
     const live = incoming.current && performance.now() - incoming.current.at < 1000 ? incoming.current.sample : null
     const age = fx.current.impactAge
+    // The entire actor is hidden during the card wall and chip flight. Avoid
+    // resetting/evaluating its full skeleton while it cannot contribute a pixel.
+    // The first impact frame still runs the original absolute-time pose below.
+    if (age < 0 && !live && !wasLive.current) {
+      actor.visible = false
+      motionRef.current = false
+      return
+    }
     entrance.reset()
     body.reset()
+    if(pointTarget?.current) body.chip.pointTarget.lerp(posedModel.worldToLocal(pointTarget.current.clone()),1-Math.exp(-dt/.16))
     if (live) motionRig.current?.apply(live)
     else if (wasLive.current && homePose.current) motionRig.current?.apply(homePose.current)
     const entry = dealerEntrance(age)
@@ -169,6 +179,7 @@ export default function SkeletonDealer({ feltY, chordZ, rail, fit, fx, motionRef
       faceMoved = faceRig.current.apply(pose, age < DEALER_IDLE_START ? Infinity : dt)
       entrance.apply(age)
       applyDealerCardAction(body.shuffle,age,Math.max(0,age-DEALER_IDLE_START)*faceSettings.speed,dealerBodyAmount>0)
+      applyDealerPointAction(body.chip,age,Math.max(0,age-DEALER_IDLE_START)*faceSettings.speed,dealerBodyAmount>0)
     }
     const state = live ? { visible: true, bodyReveal: 1, blink: 0 } : dealerActing(fx.current.impactAge)
     actor.visible = state.visible

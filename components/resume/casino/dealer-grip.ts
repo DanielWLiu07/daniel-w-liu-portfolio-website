@@ -89,7 +89,7 @@ export class DealerHandGrip {
     // The index bends gently behind the overlap. Each spare finger closes a
     // little farther toward the pinky, rather than repeating one rigid claw.
     const poses=this.side==='Left'
-      ? [[12,18,12],[16,24,3],[38,58,25],[43,64,30],[48,70,34]]
+      ? [[12,18,12],[16,24,3],[58,80,42],[64,84,46],[68,88,50]]
       : [[24,22,16],[8,12,8],[12,18,10],[24,46,32],[30,54,38]]
     for(const {bone,home,axis,fanAxis,cardFan} of this.fingers) {
       const digit=['Thumb','Index','Middle','Ring','Pinky'].findIndex(name=>bone.name.includes(name))
@@ -112,6 +112,23 @@ export class DealerHandGrip {
       bone.quaternion.copy(home).multiply(new Quaternion().setFromAxisAngle(axis,(poses[digit][joint]+pressure)*weight*Math.PI/180))
       if(joint===0&&digit>0) bone.quaternion.multiply(new Quaternion().setFromAxisAngle(fanAxis,(digit-2.5)*1.5*weight*Math.PI/180))
     }
+    this.root.updateWorldMatrix(true,true)
+  }
+  /** A softly folded hand with one extended index, aimed at the actual prop. */
+  pointTo(target:Vector3,weight=1,offer=1) {
+    const poses=[[32,40,24],[5,7-4*offer,3],[68,88,48],[72,90,50],[76,92,52]]
+    for(const {bone,home,axis} of this.fingers) {
+      const digit=['Thumb','Index','Middle','Ring','Pinky'].findIndex(name=>bone.name.includes(name))
+      const joint=Number(bone.name.slice(-1))-1
+      const pressure=digit>1?2*offer:0
+      bone.quaternion.copy(home).multiply(new Quaternion().setFromAxisAngle(axis,(poses[digit][joint]+pressure)*weight*Math.PI/180))
+    }
+    this.root.updateWorldMatrix(true,true)
+    const base=this.root.getObjectByName(this.side+'Index1')!,parent=base.parent!
+    const before=base.quaternion.clone()
+    const from=parent.worldToLocal(this.root.localToWorld(this.tip('Index'))).sub(base.position).normalize()
+    const to=parent.worldToLocal(this.root.localToWorld(target.clone())).sub(base.position).normalize()
+    base.quaternion.premultiply(new Quaternion().setFromUnitVectors(from,to)).normalize().slerp(before,1-weight)
     this.root.updateWorldMatrix(true,true)
   }
   /** Fingers gather over a hat; spare fingers never curl into a paw. */
@@ -195,17 +212,17 @@ export class DealerHandGrip {
     chain.forEach((f,i)=>f.bone.quaternion.slerp(start[i],1-weight))
     chain[0].bone.updateWorldMatrix(true,true)
   }
-  /** A loaded middle-finger snap, then a fast release into the two-card pinch. */
+  /** The empty hand relaxes, loads the middle-finger snap, then releases into the palm. */
   snapFingers(prepare:number,release:number,weight:number) {
-    // Leave the index loosely extended so the returning thumb has a clear path.
-    const loaded=[[24,26,20],[5,28,18],[30,92,42],[52,88,44],[58,84,40]]
-    const finish=[[30,32,25],[5,28,18],[48,86,48],[48,86,44],[54,82,40]]
+    const relaxed=[[12,16,8],[18,24,12],[20,28,16],[24,32,18],[28,36,20]]
+    const loaded=[[24,26,20],[16,24,3],[30,92,42],[64,84,46],[68,88,50]]
+    const finish=[[24,26,18],[16,24,3],[58,80,42],[64,84,46],[68,88,50]]
     for(const {bone,home,axis} of this.fingers) {
       const digit=['Thumb','Index','Middle','Ring','Pinky'].findIndex(name=>bone.name.includes(name))
       const joint=Number(bone.name.slice(-1))-1
-      const angle=loaded[digit][joint]*(1-release)+finish[digit][joint]*release
-      const pose=home.clone().multiply(new Quaternion().setFromAxisAngle(axis,angle*weight*Math.PI/180))
-      bone.quaternion.slerp(pose,prepare)
+      const load=relaxed[digit][joint]+(loaded[digit][joint]-relaxed[digit][joint])*prepare
+      const angle=load+(finish[digit][joint]-load)*release
+      bone.quaternion.copy(home).multiply(new Quaternion().setFromAxisAngle(axis,angle*weight*Math.PI/180))
     }
     this.root.updateWorldMatrix(true,true)
   }

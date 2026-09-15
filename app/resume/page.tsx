@@ -2,7 +2,8 @@
 
 import dynamic from 'next/dynamic'
 import { usePerformanceMode } from '@/contexts/performance-mode-context'
-import LegacyResumePage from './legacy'
+// The video page's components are not needed to boot the 3D scene.
+const LegacyResumePage = dynamic(() => import('./legacy'), { ssr: false })
 
 // "Always bet on Daniel W Liu": the casino table is WebGPU + TSL through the
 // node pipeline; it never renders on the server and never runs in Lite mode.

@@ -17,8 +17,27 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://www.danielwliu.com"),
   title: "Daniel W Liu",
   description: "Portfolio website for Daniel W Liu - Computer Science and Finance student at University of Waterloo",
+  openGraph: {
+    type: "website",
+    siteName: "Daniel W Liu",
+    title: "Always Bet on Daniel W Liu",
+    description: "Computer Science and Finance at the University of Waterloo. Explore my projects, experience, and interactive portfolio.",
+    images: [{
+      url: "/social/always-bet-on-daniel-w-liu-v2.jpg",
+      width: 1200,
+      height: 630,
+      alt: "Always Bet on Daniel W Liu — a painted casino table with a skeleton dealer, cards, and poker chips.",
+    }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Always Bet on Daniel W Liu",
+    description: "Computer Science and Finance at the University of Waterloo. Explore my projects, experience, and interactive portfolio.",
+    images: ["/social/always-bet-on-daniel-w-liu-v2.jpg"],
+  },
 };
 
 export default function RootLayout({

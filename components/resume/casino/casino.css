@@ -31,6 +31,7 @@
   position: sticky;
   top: 0;
   height: 100vh;
+  height: 100svh;
   width: 100%;
   overflow: hidden;
 }
@@ -294,6 +295,55 @@
 }
 .casino-file-close.is-open { opacity: 1; pointer-events: auto; }
 .casino-file-close:hover { background: #b8181c; }
+/* Keep a keyboard/screen-reader fallback without a detached floating button. */
+.casino-file-close:not(:focus-visible) {
+  width: 1px;
+  height: 1px;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.casino-mobile-actions { display: none; }
+@media (any-pointer: coarse) {
+  .casino-nav button, .casino-file-close { min-height: 44px; }
+}
+@media (max-width: 900px) and (orientation: portrait), (max-height: 500px) and (max-width: 1100px) {
+  .casino-mobile-actions {
+    position: fixed;
+    z-index: 42;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    left: max(12px, env(safe-area-inset-left));
+    right: max(12px, env(safe-area-inset-right));
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    pointer-events: none;
+  }
+  .casino-mobile-actions a, .casino-mobile-actions button {
+    pointer-events: auto;
+    min-height: 44px;
+    padding: 10px 15px;
+    border-radius: 6px;
+    background: #f5f0e0;
+    color: #151815;
+    border: 1px solid #c8c0a5;
+    font: 600 13px/1.3 system-ui, sans-serif;
+    box-shadow: 0 3px 12px #0004;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .casino-mobile-actions a { background: #153d30; color: #fff; border-color: #82a68f; }
+  .casino-mobile-actions.is-file-open { justify-content: center; }
+  .casino-file-close { top: auto; bottom: max(12px, env(safe-area-inset-bottom)); right: max(12px, env(safe-area-inset-right)); min-height: 44px; }
+  .casino-nav { top: max(10px, env(safe-area-inset-top)); }
+  .casino-nav button { min-height: 44px; }
+}
+@media (max-width: 430px) {
+  .casino-nav button { padding-inline: 5px; margin-inline: 1px; font-size: clamp(10px, 2.8vw, 12px); }
+}
 .casino-file-left {
   background: #f5f0e0;
   box-shadow: 0 30px 60px rgba(0, 0, 0, 0.55);

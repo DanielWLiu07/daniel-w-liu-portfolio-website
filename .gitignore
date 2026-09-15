@@ -47,6 +47,10 @@ next-env.d.ts
 # original unoptimized assets (keep locally, don't deploy)
 public/_originals/
 
+# Intermediate dealer texture build; shipped output is the meshopt GLB/manifest.
+public/models/casino-dealer-v3-delivery.glb
+public/models/casino-dealer-v3-delivery.json
+
 # original full-size fonts (keep locally for re-subsetting)
 /fonts-original/
 

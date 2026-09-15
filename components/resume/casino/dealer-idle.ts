@@ -109,7 +109,7 @@ export class DealerBodyRig {
       this.grips[side].relax(seconds*speed-.24,amount,gesture)
     }
     this.shuffle.apply(seconds*speed,amount>0?interactionBlend:0,revealAge)
-    this.chip.apply(seconds*speed,amount>0?interactionBlend:0)
+    this.chip.pointAt(seconds*speed,amount>0?interactionBlend:0)
     this.root.updateWorldMatrix(true,true)
   }
   dispose() {this.shuffle.dispose();this.chip.dispose()}

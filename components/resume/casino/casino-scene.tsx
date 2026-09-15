@@ -27,6 +27,7 @@ import {
 } from './materials'
 import SkeletonDealer from './skeleton-dealer'
 import TitleDepth from './title-depth'
+import { casinoViewport, PORTRAIT_TITLE } from './responsive-layout'
 import { dealerPlacement } from './dealer-pose'
 import ResumeFolder, { FOLDER_TIME, type PageFrameOut } from './resume-folder'
 import RoyalFlush from './playing-cards'
@@ -765,6 +766,7 @@ export default function CasinoScene({
   armed = true,
   folderOpen = false,
   onFolderOpen,
+  onFolderClose,
   scroll,
   fx,
   report,
@@ -776,6 +778,7 @@ export default function CasinoScene({
   /** the resume file is open: the camera settles over the folder */
   folderOpen?: boolean
   onFolderOpen?: () => void
+  onFolderClose?: () => void
   scroll: MutableRefObject<ScrollState>
   fx: MutableRefObject<ImpactFx>
   report: (impactAge: number, jolt: number) => void
@@ -783,6 +786,7 @@ export default function CasinoScene({
   uniformsRef: MutableRefObject<MangaUniforms | null>
 }) {
   const faces = useCardFaces()
+  const [jackReady, setJackReady] = useState(false)
   const [tableFit, setTableFit] = useState<TableFit | null>(null)
   const tableFitRef = useRef<TableFit | null>(null)
   const folderRestPose = useMemo(() => ({ position: [0.15, (tableFit?.feltY ?? 0) + 0.004, 0.95] as [number, number, number], yaw: Math.PI / 2 - 0.1 }), [tableFit?.feltY])
@@ -848,6 +852,7 @@ export default function CasinoScene({
     () => Math.min(1, viewSize.width / Math.max(1, viewSize.height) / TITLE_TUNED_AT),
     [viewSize.width, viewSize.height],
   )
+  const responsive = useMemo(() => casinoViewport(viewSize.width, viewSize.height), [viewSize.width, viewSize.height])
   const spec = useMemo(() => tableSpec(tune), [tune])
   const reveal = useMemo(() => tableReveal(tune), [tune])
   // ?edit: transform gizmo over the set pieces (set-editor.tsx)
@@ -864,6 +869,7 @@ export default function CasinoScene({
   const [folderGroup, setFolderGroup] = useState<THREE.Group | null>(null)
   const [dealerGroup, setDealerGroup] = useState<THREE.Group | null>(null)
   const dealerMotion = useRef(false)
+  const redChipPosition = useRef<THREE.Vector3 | null>(null)
   const showDealer = typeof window === 'undefined' || !new URLSearchParams(window.location.search).has('nodealer')
   // the opening beat: the dealer's hand flicks the chip up from here, the word writes at the apex, then the drop
   const wordState = useRef<ChipWordState>({ x: 0, y: 0, z: 0, onT: -1, offT: -1, hitAt: 0.62 })
@@ -943,7 +949,7 @@ export default function CasinoScene({
           {/* pomme's exact placement: apple centred at GROW_CENTER (-0.5, 0, -0.65), height 1.9, ground at y = -0.95, paper background */}
           <color attach="background" args={['#dcd6c4']} />
           <Suspense fallback={null}>
-            <HeroChip report={report} landing={[1.4, -0.95, 0.4]} painterly={!wcMat} watercolorMaterial={wcMat} />
+            <HeroChip armed={armed} report={report} landing={[1.4, -0.95, 0.4]} painterly={!wcMat} watercolorMaterial={wcMat} />
           </Suspense>
           <ShadowCatcher y={-0.95} />
           <Suspense fallback={null}>
@@ -970,13 +976,14 @@ export default function CasinoScene({
               {!noJack && <IntroBackdrop clock0={chipClock0} fx={fx} />}
               {showDealer && <Suspense fallback={null}>
                 <SkeletonDealer feltY={tableFit.feltY} chordZ={spec.chordZ} rail={spec.rail}
-                  fit={titleFit} fx={fx} motionRef={dealerMotion} onReady={setDealerGroup} />
+                  fit={responsive.dealerFit} fx={fx} motionRef={dealerMotion} onReady={setDealerGroup} pointTarget={redChipPosition} />
               </Suspense>}
               {/* graph materials are unlit and cannot receive shadows: an invisible catcher disc on the felt
                   carries them; it sits a hair above the felt and BELOW the props' bases, and paints in with the table */}
               <ShadowCatcher y={tableFit.feltY + 0.001} radius={tableFit.feltR + 1.3} fx={fx} reveal={reveal} alpha={modelTable ? undefined : tableAlpha} />
               <Suspense fallback={null}>
                 <HeroChip
+                  worldPositionRef={redChipPosition}
                   folderObstacle={folderGroup}
                   feltRear={spec.chordZ + spec.rail * 0.5}
                   folderRestPose={folderRestPose}
@@ -996,7 +1003,7 @@ export default function CasinoScene({
                 />
               </Suspense>
               {/* the title card, before any of this: it is carried off the top as the chip falls */}
-              {!noJack && <JackIntro armed={armed} clock0={chipClock0} flickAt={tune.jkFlick} riseFor={tune.jkRise} holdFor={tune.jkHold} chipState={wordState} />}
+              {!noJack && <JackIntro onReady={setJackReady} armed={armed} clock0={chipClock0} flickAt={tune.jkFlick} riseFor={tune.jkRise} holdFor={tune.jkHold} chipState={wordState} />}
               {!noJack && <FallStreaks armed={armed} clock0={chipClock0} flickAt={tune.jkFlick} dropAt={jackDropAt} />}
               {!noJack && <FlightRoulette clock0={chipClock0} />}
               <Suspense fallback={null}>
@@ -1006,7 +1013,7 @@ export default function CasinoScene({
               {!noJack && eyesOn && <EyeField clock0={chipClock0} />}
               {/* the resume folder from the old page, standing on the felt beside the chip */}
               <Suspense fallback={null}>
-                <ResumeFolder position={folderRestPose.position} length={3.6} yaw={folderRestPose.yaw} groupRef={setFolderGroup} deal={{ from: [13, 0.4], at: 2.4, duration: 1.3, turns: 1.5 }} fx={fx} onOpen={onFolderOpen} open={folderOpen} />
+                <ResumeFolder position={folderRestPose.position} length={3.6 * responsive.folderScale} yaw={folderRestPose.yaw} groupRef={setFolderGroup} deal={{ from: [13, 0.4], at: 2.4, duration: 1.3, turns: 1.5 }} fx={fx} onOpen={onFolderOpen} onClose={onFolderClose} open={folderOpen} />
               </Suspense>
               {/* the hand: a royal flush in hearts, fanned on the felt. Off by
                   default while the chips and dice are being placed, since it took
@@ -1070,8 +1077,14 @@ export default function CasinoScene({
                 * up and off the top while ALWAYS BET ON sank onto the felt.
                 */}
               {!noTitle && (
-                <TitleDepth>
-                <group scale={titleFit}>
+                <TitleDepth depthScale={responsive.portrait || responsive.short ? .8 : 1.8}>
+                {responsive.portrait ? PORTRAIT_TITLE.map(line => {
+                  const scale = Math.min(titleFit, .32) * line.scale
+                  const anchorY = tableFit.feltY + tune.titleY
+                  return <group key={line.text} scale={scale} position={[0, tableFit.feltY + line.y - scale * (anchorY + .92 * tune.titleR), 0]}>
+                    <ResumeWord offscreenEntry hoverAdjust state={titleState} text={line.text} ink="#6cf59a" arc="top" stopMotion={{ fps: tune.smFps, travel: tune.smTravel, from: tune.smFrom, boil: tune.smBoil, boilTurn: tune.smTurn, group: smGroup, word: wordMotion }} radius={tune.titleR} spacing={tune.titleSpacing} size={tune.titleSize} weight={tune.titleWeight} still stagger={line.stagger} ransom={noJack ? undefined : tune.jkSeed} ransomWord={line.word} />
+                  </group>
+                }) : <group scale={titleFit} position={[0, responsive.short ? -.85 : responsive.aspect < 1.35 ? (tableFit.feltY + tune.titleY) * (1 - titleFit) : 0, 0]}>
                   <group position={[tune.ttAX, tune.ttAY - 0.92 * tune.titleR * tune.ttAS, 0]} rotation={[0, 0, tune.ttAR]} scale={tune.ttAS}>
                     <ResumeWord offscreenEntry hoverAdjust state={titleState} text="ALWAYS BET ON" ink="#6cf59a" arc="top" stopMotion={{ fps: tune.smFps, travel: tune.smTravel, from: tune.smFrom, boil: tune.smBoil, boilTurn: tune.smTurn, group: smGroup, word: wordMotion }} radius={tune.titleR} spacing={tune.titleSpacing} size={tune.titleSize} weight={tune.titleWeight} still ransom={noJack ? undefined : tune.jkSeed} ransomWord={11} />
                   </group>
@@ -1082,7 +1095,7 @@ export default function CasinoScene({
                   <group position={[tune.ttBX, tune.ttBY - 0.92 * tune.titleR * tune.ttBS - tune.titleGap, 0]} rotation={[0, 0, tune.ttBR]} scale={tune.ttBS}>
                     <ResumeWord offscreenEntry hoverAdjust state={titleState} text="DANIEL W LIU" ink="#6cf59a" arc="top" stopMotion={{ fps: tune.smFps, travel: tune.smTravel, from: tune.smFrom, boil: tune.smBoil, boilTurn: tune.smTurn, group: smGroup, word: wordMotion }} radius={tune.titleR} spacing={tune.titleSpacing} size={tune.titleSize} weight={tune.titleWeight} still stagger={0.5} ransom={noJack ? undefined : tune.jkSeed} ransomWord={12} />
                   </group>
-                </group>
+                </group>}
                 </TitleDepth>
               )}
               {/* chips and dice strewn under the title, from a seed */}
@@ -1101,7 +1114,7 @@ export default function CasinoScene({
       )}
       {compName && COMP_GRAPHS[compName] ? (
         <CompositorPost
-          warmupReady={pommeMatch ? undefined : Boolean(tableFit && folderGroup && (!showDealer || dealerGroup))}
+          warmupReady={pommeMatch ? undefined : Boolean(tableFit && folderGroup && (noJack || jackReady) && (!showDealer || dealerGroup))}
           build={COMP_GRAPHS[compName].build}
           onFrame={(u, t) => COMP_GRAPHS[compName].onFrame?.(u, t, fx.current)}
           onReady={onReady}

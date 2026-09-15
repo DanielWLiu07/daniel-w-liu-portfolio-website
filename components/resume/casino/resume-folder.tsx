@@ -13,19 +13,20 @@
  * A fully generated folder stays behind ?folder=gen as a fallback.
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, type MutableRefObject, type Ref } from 'react'
-import { useFrame } from '@react-three/fiber'
+import { useFrame, useThree } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
+import { MeshBasicNodeMaterial } from 'three/webgpu'
 import { bakedSpin, contactPlane, planeAt, planeTilt, unbakeSpin } from 'blender-to-threejs'
 import { claimPointer } from './cursor'
-import { contactShadowTexture, paperSheet, tapeTexture, type Sheet } from './paper'
-import { createFolderTape } from './folder-tape'
+import { contactShadowTexture, paperSheet, type Sheet } from './paper'
 import { getTune } from './tune'
 import { drivePresent } from './materials'
 import FolderLeaf, { RESUME_PDF, type LeafFace } from './folder-leaf'
-import { folderMaterial, sheetMaterial, stockMaterial, tapeMaterial } from './materials'
+import { folderMaterial, sheetMaterial, stockMaterial } from './materials'
 import type { ImpactFx } from './hero-chip'
 import { markPropMotion } from './prop-arrival'
+import { listenForFolderDismiss } from './folder-dismiss'
 
 export const RESUME_PAGE = { url: '/resume/resume-page1.jpg', w: 1583, h: 2048 }
 /**
@@ -268,6 +269,7 @@ export default function ResumeFolder({
   deal,
   fx,
   onOpen,
+  onClose,
   interactive = true,
   open = false,
   onPageFrame,
@@ -279,6 +281,7 @@ export default function ResumeFolder({
   deal?: { from: [number, number]; at: number; duration?: number; turns?: number }
   fx?: MutableRefObject<ImpactFx>
   onOpen?: () => void
+  onClose?: () => void
   interactive?: boolean
   open?: boolean
   onPageFrame?: (f: PageFrameOut) => void
@@ -432,7 +435,7 @@ export default function ResumeFolder({
     // the shadow the leaf cannot receive: a soft patch on the leaf's own plane, just under the stack
     const shadow = new THREE.Mesh(
       new THREE.PlaneGeometry(pw * 1.16, ph * 1.16),
-      new THREE.MeshBasicMaterial({ map: contactShadowTexture(), transparent: true, opacity: 0.5, depthWrite: false }),
+      new MeshBasicNodeMaterial({ map: contactShadowTexture(), transparent: true, opacity: 0.5, depthWrite: false }),
     )
     // barely offset: a directional shadow left the corner it pointed away from with nothing under it at
     // all, and that was exactly the corner that read as not being on the folder
@@ -516,20 +519,6 @@ export default function ResumeFolder({
     page.userData.sheet = true
     root.add(page)
 
-    const tapeBuilt = createFolderTape(page, { w: pw, h: ph, thick, rise, foldAt, skew: 0.05, sharp },
-      [tapeMaterial(tapeTexture(1)), tapeMaterial(tapeTexture(2))])
-    const tape = {
-      meshes: tapeBuilt.meshes,
-      update: (curl: number) => {
-        // The fitted leaf is parallel to the page's local XY plane. Transform
-        // its separation into that frame, including the animated stack press.
-        const leafZ = (planeAt(plane, cx) - page.position.z) * Math.cos(tilt)
-        tapeBuilt.update(curl, leafZ)
-      },
-    }
-    root.add(...tape.meshes)
-    tape.update(1)
-
     // hinge: the fold is the leaf edge away from the tab, on the face the two leaves share (measured
     // above, since the sheets have to bend away from it)
     const cc = cb.getCenter(new THREE.Vector3())
@@ -550,7 +539,7 @@ export default function ResumeFolder({
       w: cb.max.x - cb.min.x,
       h: cb.max.y - cb.min.y,
     }
-    return { root, pivot, page, sheets, press, tape, curlClearAngle, pageLift: -(rise + thick * 3 + 0.004), pageSize: { w: pw, h: ph }, layoutX: Math.PI / 2, openAxis: 'y' as const, openSign, coverFace, frame: { up: [0, 1, 0] as const, right: [1, 0, 0] as const, normal: [0, 0, -1] as const } }
+    return { root, pivot, page, sheets, press, curlClearAngle, pageLift: -(rise + thick * 3 + 0.004), pageSize: { w: pw, h: ph }, layoutX: Math.PI / 2, openAxis: 'y' as const, openSign, coverFace, frame: { up: [0, 1, 0] as const, right: [1, 0, 0] as const, normal: [0, 0, -1] as const } }
   }, [ogScene, mats, useGenerated])
 
   const genBuilt = useMemo(() => {
@@ -651,14 +640,14 @@ export default function ResumeFolder({
     })
     const label = new THREE.Mesh(
       new THREE.PlaneGeometry(LEAF_W * 0.92, LEAF_H * 0.92),
-      new THREE.MeshBasicMaterial({ map: labelTex, transparent: true, depthWrite: false, toneMapped: false, side: THREE.DoubleSide }),
+      new MeshBasicNodeMaterial({ map: labelTex, transparent: true, depthWrite: false, toneMapped: false, side: THREE.DoubleSide }),
     )
     label.renderOrder = 2
     label.name = 'folder_label'
     label.position.set(0, LEAF_H / 2, LEAF_T + 0.012)
     pivot.add(label)
 
-    return { root, pivot, page, sheets, press, tape: null, curlClearAngle, pageLift: rise + sheetT * 3 + 0.004, pageSize: { w: pShort, h: pLong }, layoutX: -Math.PI / 2, openAxis: 'x' as const, openSign: -1, coverFace: { cx: 0, cy: LEAF_H / 2, z: 0, w: LEAF_W, h: LEAF_H } as LeafFace, frame: { up: [1, 0, 0] as const, right: [0, 1, 0] as const, normal: [0, 0, 1] as const } }
+    return { root, pivot, page, sheets, press, curlClearAngle, pageLift: rise + sheetT * 3 + 0.004, pageSize: { w: pShort, h: pLong }, layoutX: -Math.PI / 2, openAxis: 'x' as const, openSign: -1, coverFace: { cx: 0, cy: LEAF_H / 2, z: 0, w: LEAF_W, h: LEAF_H } as LeafFace, frame: { up: [1, 0, 0] as const, right: [0, 1, 0] as const, normal: [0, 0, 1] as const } }
   }, [mats])
 
   const built = ogBuilt ?? genBuilt
@@ -693,6 +682,12 @@ export default function ResumeFolder({
   }, [model, length, built.layoutX])
 
   const outer = useRef<THREE.Group>(null)
+  const canvas = useThree((state) => state.gl.domElement)
+  const camera = useThree((state) => state.camera)
+  useEffect(() => {
+    if (!open || !interactive || !onClose || !outer.current) return
+    return listenForFolderDismiss(canvas, camera, outer.current, onClose)
+  }, [open, interactive, onClose, canvas, camera])
   const swell = useRef<THREE.Group>(null)
   const hover = useRef({ on: false, amt: 0, off: 0 })
   const closing = useRef(false)
@@ -814,7 +809,6 @@ export default function ResumeFolder({
       // and the stack rides up on the same driver, so it is only ever at its full
       // height when there is no cover lying on it to fight with
       parts.current.press(PRESS_SHUT + (1 - PRESS_SHUT) * curl)
-      parts.current.tape?.update(curl)
       curlAt.current = curl
     }
 
@@ -826,7 +820,6 @@ export default function ResumeFolder({
       sh.mesh.visible = paperVisible
       sh.face.visible = paperVisible
     }
-    for (const strip of parts.current.tape?.meshes ?? []) strip.visible = paperVisible
 
     const h = hover.current
     // and a short grace on RELEASE, on top of the claims: a pointer crossing a gap between two of the
@@ -884,6 +877,9 @@ export default function ResumeFolder({
     }
 
     const g = outer.current
+    // Presented folder and hero chip share one depth band, so the folder can
+    // physically occlude the chip on every viewport without hiding either actor.
+    if (g) g.userData.cardRenderLayer = a > .01 ? 2 : 0
     if (!g) return
     if (deal && fx) {
       const ia = fx.current.impactAge
@@ -1067,7 +1063,7 @@ export default function ResumeFolder({
   })
 
   return (
-    <group ref={outer} name="resume-folder-deal" position={deal ? [deal.from[0], position[1], deal.from[1]] : position} rotation={[0, yaw, 0]} visible={!deal}>
+    <group ref={outer} name="resume-folder-deal" userData={{ cardRenderLayer: 0 }} position={deal ? [deal.from[0], position[1], deal.from[1]] : position} rotation={[0, yaw, 0]} visible={!deal}>
       <group
         ref={swell}
         onPointerOver={(e) => {
@@ -1087,7 +1083,7 @@ export default function ResumeFolder({
         <group ref={groupRef}>
           <primitive object={model} />
           {/* the links, printed on the cover's inner face: they ride it open */}
-          <FolderLeaf face={built.coverFace} mount={built.pivot} active={open} onHover={leafHover} />
+          <FolderLeaf face={built.coverFace} mount={built.pivot} active={open} onHover={leafHover} onClose={onClose} />
           {/* the page opens the resume itself */}
           <PageLink page={built.page} mount={built.root} active={open} size={built.pageSize} lift={built.pageLift} onHover={pageHover} />
         </group>

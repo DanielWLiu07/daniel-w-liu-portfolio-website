@@ -24,7 +24,9 @@ for(let i=0;i<=30*24;i++) {
   const joints=[1,2,3].map(j=>root.getObjectByName('Left'+digit+j)!.getWorldPosition(new Vector3()))
   joints.push(root.localToWorld(left.tip(digit)))
   const segments=joints.slice(1).map((p,j)=>p.clone().sub(joints[j]))
-  for(let j=0;j<2;j++) assert.ok(segments[j].angleTo(segments[j+1])<85*Math.PI/180,`${digit} supports the paper with a continuous curve, without folded-back joints`)
+  // The index supports the paper; spare fingers tuck into the palm.
+  const limit=digit==='Index'?85:105
+  for(let j=0;j<2;j++) assert.ok(segments[j].angleTo(segments[j+1])<limit*Math.PI/180,`${digit} maintains a continuous curl without folding back`)
  }
  const card=body.shuffle.cards[0]
  for(const digit of ['Index']) {
@@ -90,7 +92,7 @@ for(let i=0;i<=240;i++) {
   if(cardPrevious) points.forEach((p,j)=>{const distance=p.distanceTo(cardPrevious![j]);if(distance>travelStep){travelStep=distance;worstTravel=age}})
   cardPrevious=points
   for(const card of body.shuffle.cards) {
-   if(age>=DEALER_CARD_SNAP+.24) {
+   if(age>=DEALER_CARD_REVEAL_START+.24) {
     const contact=card.worldToLocal(root.localToWorld(left.tip('Thumb')))
     assert.ok(Math.abs(contact.x)<.034 && Math.abs(contact.y-(DEALER_CARD_PAD+.001))<.003 && Math.abs(contact.z+dealerCardReveal(age).slide)<.004,'Thumb holds the lower corner throughout the fan flourish')
    }
@@ -110,10 +112,10 @@ assert.ok(releaseSamples[0].middle.distanceTo(releaseSamples[1].middle)>.015,'Mi
 assert.equal(dealerCardReveal(DEALER_CARD_REVEAL_START-.001).visible,false)
 assert.equal(dealerCardReveal(DEALER_CARD_REVEAL_START).turn,0,'Cards materialize directly in the held orientation')
 assert.equal(dealerCardReveal(DEALER_CARD_REVEAL_START).slide,dealerCardReveal(Infinity).slide,'The magical appearance is at the pinch, without overhead travel')
-assert.equal(dealerCardReveal(DEALER_CARD_SNAP).visible,true)
-assert.ok(dealerCardReveal(DEALER_CARD_SNAP+.10).width<.75,'The cards do not jump to full width immediately')
-assert.equal(dealerCardReveal(DEALER_CARD_SNAP+.25).width,1,'The unfold finishes before the fan settles')
-assert.ok(dealerCardReveal(DEALER_CARD_SNAP+.42).fan>1,'Fan briefly overshoots before settling')
+assert.equal(dealerCardReveal(DEALER_CARD_SNAP).visible,false,'Cards wait for the finger release and grip transition')
+assert.ok(dealerCardReveal(DEALER_CARD_REVEAL_START+.10).width<.75,'The cards do not jump to full width immediately')
+assert.equal(dealerCardReveal(DEALER_CARD_REVEAL_START+.25).width,1,'The unfold finishes before the fan settles')
+assert.ok(dealerCardReveal(DEALER_CARD_REVEAL_START+.42).fan>1,'Fan briefly overshoots before settling')
 assert.equal(dealerCardReveal(3).fan,1)
 console.log({cardThumbGapMM:thumbGap*1000,snapGapMM:snapGap*1000,thumbBendDegrees:bend*180/Math.PI,snapStepDegrees:snapStep*180/Math.PI,indexSupportMM:indexGap*1000,thumbAlignmentDegrees:thumbAlignment*180/Math.PI,cardStepMM:travelStep*1000,worstTravel,worstSnap})
 assert.ok(travelStep<.012,'After the snap, the cards stay continuously attached to the grip')
@@ -123,6 +125,15 @@ assert.ok(thumbAlignment<35*Math.PI/180,'Thumb pad crosses the lower card edge i
 assert.ok(snapGap<.012,'Thumb and middle finger meet before the snap')
 assert.ok(snapStep<.40,'Fast finger release stays continuous without a one-frame joint flip')
 assert.ok(bend<85*Math.PI/180,'Thumb bends across its joints without a hooked distal tip')
+// Before loading, the empty hand must not assume its future thumb/index pinch.
+body.reset();body.shuffle.apply(0,1,0,true)
+const relaxedThumb=root.getObjectByName('LeftThumb1')!.quaternion.clone(),low=root.getObjectByName('LeftHand')!.getWorldPosition(new Vector3())
+body.reset();body.shuffle.apply(0,1,Infinity,true)
+assert.ok(relaxedThumb.normalize().angleTo(root.getObjectByName('LeftThumb1')!.quaternion.clone().normalize())>.25,'Empty-hand thumb differs from the card pinch')
+assert.ok(root.getObjectByName('LeftHand')!.getWorldPosition(new Vector3()).distanceTo(low)>.08,'The forearm rises from a relaxed preparation')
+const stroke=[DEALER_CARD_SNAP-.22,DEALER_CARD_SNAP].map(age=>{body.reset();body.shuffle.apply(0,1,age,true);return root.getObjectByName('LeftHand')!.getWorldPosition(new Vector3())})
+assert.ok(stroke[0].distanceTo(stroke[1])>.065,'The snap includes a readable forearm stroke')
+assert.equal(dealerCardReveal(DEALER_CARD_REVEAL_START).grip,1,'Grip is ready before the cards appear')
 body.reset();assert.equal(body.shuffle.group.visible,false,'Replay clears the card reveal')
 body.dispose()
 console.log('Opposed grips, thumb articulation, loaded snap, progressive card production, supported fan contact and replay passed.')

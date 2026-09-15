@@ -2,7 +2,7 @@ import { Bone, BoxGeometry, BufferGeometry, Color, Float32BufferAttribute, Mesh,
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import { DealerArmRig } from './dealer-arms'
 import { DealerHandGrip } from './dealer-grip'
-import { DEALER_CARD_SNAP, dealerCardReveal } from './dealer-card-reveal'
+import { dealerCardReveal } from './dealer-card-reveal'
 
 const clamp=(x:number)=>Math.max(0,Math.min(1,x))
 const smooth=(x:number)=>{const t=clamp(x);return t*t*t*(t*(t*6-15)+10)}
@@ -98,9 +98,9 @@ export class DealerShuffleRig {
       if(cardsOnly&&side==='Right')continue
       const grip=this.grips[side]
       const before=['Arm','ForeArm','Hand'].map(name=>this.root.getObjectByName(side+name)!.quaternion.clone())
-      const palm=pose.leftPalm.clone();palm.y+=reveal.lift
-      const normal=side==='Left'?this.direction(new Vector3(-.3,.2,-1).applyAxisAngle(new Vector3(1,0,0),reveal.wrist)):new Vector3(0,-1,0)
-      const forward=side==='Left'?this.direction(new Vector3(-.18,1,.2).applyAxisAngle(new Vector3(1,0,0),reveal.wrist)):new Vector3(.12,-.05,1)
+      const palm=pose.leftPalm.clone().add(new Vector3(reveal.side,reveal.lift,reveal.reach))
+      const normal=side==='Left'?this.direction(new Vector3(-.3,.2,-1).applyAxisAngle(new Vector3(1,0,0),reveal.wrist).applyAxisAngle(new Vector3(0,1,0),reveal.bank)):new Vector3(0,-1,0)
+      const forward=side==='Left'?this.direction(new Vector3(-.18,1,.2).applyAxisAngle(new Vector3(1,0,0),reveal.wrist).applyAxisAngle(new Vector3(0,1,0),reveal.bank)):new Vector3(.12,-.05,1)
       const target=side==='Left'?this.local(palm):new Vector3(-.29+.005*Math.sin(2*Math.PI*pose.t/10),1.225,.405),pole=side==='Left'?new Vector3(.28,1.04,.13):new Vector3(sign*.38,1.12,.16)
       this.arms.palm(side,target,pole,normal,forward)
       // Refine pad placement after orienting the hand under the chest's
@@ -122,8 +122,7 @@ export class DealerShuffleRig {
       grip.holdCards(pose.t,weight)
       if(side==='Right') continue
       const handFrame=grip.frame()
-      const up=handFrame.normal.clone(),front=handFrame.forward.clone()
-      const right=up.clone().cross(front).normalize()
+      const up=handFrame.normal.clone()
       const index=this.root.getObjectByName('LeftIndex2')!
       const cardFront=this.root.worldToLocal(index.localToWorld(new Vector3(0,.02,0))).sub(this.root.worldToLocal(index.getWorldPosition(new Vector3()))).normalize()
       const cardRight=up.clone().cross(cardFront).normalize(),cardUp=cardFront.clone().cross(cardRight).normalize()
@@ -133,24 +132,9 @@ export class DealerShuffleRig {
       const thumbDirection=cardFront.clone().multiplyScalar(.55).addScaledVector(cardRight,-.83).addScaledVector(cardUp,-.10).normalize()
       const pinch=indexPad.addScaledVector(cardRight,.012).addScaledVector(cardFront,-.008).addScaledVector(cardUp,DEALER_CARD_PAD+.001)
       grip.pinchThumb(pinch,weight,cardUp,thumbDirection,true)
-      if(reveal.prepare>0) grip.snapFingers(reveal.prepare,reveal.release,weight)
       const orientation=new Quaternion().setFromRotationMatrix(new Matrix4().makeBasis(cardRight,cardUp,cardFront))
         .multiply(new Quaternion().setFromAxisAngle(new Vector3(0,0,1),reveal.turn))
       const cardNormal=new Vector3(0,1,0).applyQuaternion(orientation)
-      // Meet the middle finger's skin, then open a small clearance arc before
-      // the thumb returns to the card pinch. Bone-to-bone contact clips the pads.
-      const thumbClearance=Math.sin(Math.PI*smooth((revealAge-DEALER_CARD_SNAP+.24)/.24))
-      const snapPad=.025+.004*smooth((revealAge-DEALER_CARD_SNAP+.39)/.08)
-      const snapContact=grip.tip('Middle').addScaledVector(up,-snapPad-.020*thumbClearance).addScaledVector(right,.025*thumbClearance)
-      const thumbBones=[1,2,3].map(j=>this.root.getObjectByName('LeftThumb'+j)!)
-      grip.pinchThumb(pinch,weight,cardUp,thumbDirection,true)
-      const heldThumb=thumbBones.map(b=>b.quaternion.clone())
-      const loaded=reveal.release>0?reveal.prepare*reveal.prepare:reveal.prepare
-      if(loaded>0) {
-        grip.pinchThumb(snapContact,Math.max(weight,reveal.prepare),up,undefined,true)
-        thumbBones.forEach((b,j)=>b.quaternion.slerp(heldThumb[j],1-loaded))
-        this.root.updateWorldMatrix(true,true)
-      }
       const groupRotation=this.root.getWorldQuaternion(new Quaternion()).invert().multiply(this.group.getWorldQuaternion(new Quaternion()))
       // The snap produces both cards at the pinch; the fan opens around that contact.
       for(const i of [0,1]) {
@@ -161,6 +145,26 @@ export class DealerShuffleRig {
         this.cards[i].scale.set(reveal.width,1,1)
         this.cards[i].position.copy(this.group.worldToLocal(this.root.localToWorld(center)))
         this.cards[i].quaternion.copy(groupRotation.clone().invert().multiply(rotation))
+      }
+      // Card transforms use the proven held grip. Until after the snap, the
+      // visible empty hand has its own relaxed / loaded / released performance.
+      if(reveal.grip<1||reveal.thumbGrip<1) {
+        const fingers:Bone[]=[]
+        this.root.traverse(o=>{if((o as Bone).isBone&&/^Left(Thumb|Index|Middle|Ring|Pinky)[123]$/.test(o.name))fingers.push(o as Bone)})
+        const held=fingers.map(b=>b.quaternion.clone())
+        // The thumb stays at the loaded contact as the middle finger drops.
+        // Chasing the released fingertip made it recoil and then reverse again.
+        grip.snapFingers(reveal.prepare,0,weight)
+        const contact=grip.tip('Middle').addScaledVector(up,-.025)
+        grip.pinchThumb(contact,weight,up,undefined,true)
+        const loaded=fingers.map(b=>b.quaternion.clone())
+        grip.snapFingers(reveal.prepare,reveal.release,weight)
+        fingers.forEach((b,j)=>{
+          if(b.name.includes('Thumb')) {
+            const rest=b.quaternion.clone()
+            b.quaternion.copy(loaded[j]).slerp(held[j],reveal.thumbGrip).slerp(rest,1-reveal.prepare)
+          } else b.quaternion.slerp(held[j],reveal.grip)
+        })
       }
       this.root.updateWorldMatrix(true,true)
 
