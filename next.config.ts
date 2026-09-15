@@ -20,6 +20,10 @@ const nextConfig: NextConfig = {
   // bundle and materials render blank with no error to trace.
   transpilePackages: ['blender-to-threejs'],
 
+  outputFileTracingIncludes: {
+    '/api/motion-runtime/*': ['./node_modules/@mediapipe/tasks-vision/vision_bundle.js', './node_modules/@mediapipe/tasks-vision/wasm/**/*'],
+  },
+
 };
 
 export default nextConfig;
