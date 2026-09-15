@@ -1,5 +1,26 @@
 /* Casino resume page. The canvas is the print; the DOM is the type. */
 
+.eye-editor-mode .casino-stage { width: calc(100% - 420px); height: 100dvh; }
+.eye-module-region { position: fixed; inset: 0 0 0 auto; width: 420px; z-index: 50; background: #191c20; border-left: 1px solid #47524b; }
+.eye-module-region iframe { width: 100%; height: 100%; border: 0; }
+.eye-workspace-launch { position: fixed; bottom: 18px; left: 60px; max-width: calc(100% - 490px); z-index: 60; padding: 10px; background: #191c20; color: #d6ddd9; border: 1px solid #47524b; border-radius: 6px; font: 12px ui-monospace, monospace; }
+.eye-workspace-launch button { cursor: pointer; }
+@media (max-width: 760px) {
+  .eye-editor-mode .casino-stage { width: 100%; height: 55dvh; }
+  .eye-module-region { inset: auto 0 0; width: 100%; height: 45dvh; }
+  .eye-workspace-launch { bottom: 46dvh; max-width: calc(100% - 80px); }
+}
+
+.jack-editor-mode .casino-stage { width: calc(100% - 370px); height: 100dvh; }
+.jack-module-region { position: fixed; inset: 0 0 0 auto; width: 370px; z-index: 50; background: #191c20; border-left: 1px solid #47524b; }
+.jack-module-region iframe { width: 100%; height: 100%; border: 0; }
+.jack-workspace-launch { position: fixed; bottom: 16px; left: 20px; max-width: calc(100% - 410px); z-index: 60; background: #191c20; color: #d6ddd9; padding: 8px; border-radius: 6px; font: 11px ui-monospace, monospace; }
+.jack-workspace-launch button { border: 1px solid #47524b; padding: 7px; border-radius: 4px; cursor: pointer; }
+@media (max-width: 760px) { .jack-module-region { inset: auto 0 0; width: 100%; height: 45dvh; } .jack-workspace-launch { bottom: 46dvh; max-width: calc(100% - 40px); } }
+@media (max-width: 760px) {
+  .jack-editor-mode .casino-stage { width: 100%; height: 55dvh; }
+}
+
 .casino-root {
   position: relative;
   background: #f5f0e0;

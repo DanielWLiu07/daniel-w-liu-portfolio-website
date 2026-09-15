@@ -1,10 +1,34 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { DEALER_LABELS, DEALER_MOTION_LABELS } from './dealer-layout'
 import { tweakEntries, resetTweaks, TUNE_CHOICES, TUNE_DEFAULTS, TUNE_RANGES, clearSavedTune, letterCount, propCount, propsJson, recentre, resetLetters, resetProps, saveTune, setTune, tuneQuery, undoTune, useTune, type Tune } from './tune'
 
 /** plain-language names, so the sliders read as what they do in the shot rather than as field names */
-const LABEL: Partial<Record<keyof Tune, string>> = {
+export const TUNE_LABELS: Partial<Record<keyof Tune, string>> = {
+  bgStyle: 'background treatment', bgStrength: 'background strength', bgDetail: 'background detail',
+  bgMotion: 'background motion', bgGlow: 'background brightness',
+  ...DEALER_LABELS, ...DEALER_MOTION_LABELS,
+  rfSize: 'card size', rfX: 'left / right', rfY: 'up / down', rfDepth: 'depth',
+  rfTilt: 'face tilt', rfYaw: 'left / right turn', rfBank: 'bank',
+  rfScaleX: 'X scale', rfScaleY: 'Y scale', rfScaleZ: 'Z scale',
+  rfSpread: 'card spacing', rfArc: 'fan angle', rfDelay: 'arrival delay',
+  rfEnter: 'card flight duration', rfExit: 'exit duration', rfDrift: 'upward drift',
+  rfStagger: 'delay between cards', rfEnergy: 'entrance expression',
+  rfFlow: 'fan movement amount', rfFlowSpeed: 'fan movement speed',
+  rfSway: 'Y-axis sway amount', rfSwaySpeed: 'Y-axis sway speed',
+  rfBob: 'vertical bob amount', rfBobSpeed: 'vertical bob speed',
+  rfTextX: 'text: left / right', rfTextY: 'text: up / down', rfTextSize: 'text size',
+  rfTextR: 'text rotation', rouTextR: 'text rotation',
+  rouTextX: 'text: left / right', rouTextY: 'text: up / down', rouTextSize: 'text size',
+  rouSize: 'size', rouX: 'left / right', rouY: 'up / down',
+  rouTilt: 'face tilt', rouBank: 'bank', rouDelay: 'arrival delay',
+  rouYaw: 'left / right turn', rouDepth: 'depth', rouScaleX: 'X scale', rouScaleY: 'Y scale', rouScaleZ: 'Z scale',
+  rouSway: 'turn amount', rouSwaySpeed: 'turn speed',
+  rouEnter: 'rise duration', rouExit: 'exit duration', rouDrift: 'upward drift',
+  rouWheel: 'wheel spin', rouBall: 'ball speed',
+  chipX: 'red chip: left / right',
+  chipZ: 'red chip: back / front',
   fldFit: 'zoom out',
   fldUp: 'up / down',
   fldSide: 'left / right',
@@ -74,9 +98,14 @@ const LABEL: Partial<Record<keyof Tune, string>> = {
   jkShot: 'jack: shot on the chart (0/1)',
   jkStep: 'jack: exposures a pose is held',
   jkHand: 'jack: how far a scrap lands off',
+  jkNudge: 'jack: correction size (1 = a normal move)',
   suitSize: 'suit size',
   hitEyeN: 'how many eyes',
   hitEyeSize: 'eye size',
+  hitEyeDelay: 'eye opening delay (s)',
+  hitEyeStagger: 'gap between eyes (s)',
+  hitRevealNoise: 'reveal noise amount',
+  hitBoil: 'burst tremble per frame',
   suitFrom: 'how far in they start',
   jkLag: 'title holds back',
   jkInitial: 'first letter bigger',
@@ -130,6 +159,7 @@ const LABEL: Partial<Record<keyof Tune, string>> = {
   wdSwing: 'word: how much the path bows',
   wdDrag: 'word: turn lags by (poses)',
   wdDir: 'word: entry direction bias (rad)',
+  wdHand: 'word: correction size (1 = a normal move)',
 }
 
 /** the keys on show whose value is no longer the default */
@@ -165,7 +195,7 @@ async function toClipboard(text: string): Promise<boolean> {
  * `only` narrows it to one set of knobs, which is what ?fld uses to put the presented folder's own controls
  * on the site itself without the other twenty sliders in the way.
  */
-export default function TunePanel({ only, title }: { only?: (keyof Tune)[]; title?: string }) {
+export default function TunePanel({ only, title, compact = false }: { only?: (keyof Tune)[]; title?: string; compact?: boolean }) {
   const t = useTune()
   const [flash, setFlash] = useState('')
   // Ctrl+Z / Cmd+Z. Every gesture pushes one entry before it changes anything, so an undo lands on the
@@ -265,7 +295,8 @@ export default function TunePanel({ only, title }: { only?: (keyof Tune)[]; titl
         position: 'fixed',
         [side]: 12,
         top: 72,
-        bottom: 12,
+        bottom: compact || only?.length === 1 ? undefined : 12,
+        maxHeight: 'calc(100vh - 84px)',
         zIndex: 50,
         background: 'rgba(20,20,20,0.86)',
         color: '#eee',
@@ -309,7 +340,7 @@ export default function TunePanel({ only, title }: { only?: (keyof Tune)[]; titl
           const choices = TUNE_CHOICES[k]
           return (
             <label key={k} style={{ display: 'grid', gridTemplateColumns: only ? '112px 1fr 46px' : '58px 1fr 46px', gap: 6, alignItems: 'center', marginBottom: 4 }}>
-              <span style={{ color: on ? '#7fd6a0' : '#eee' }} title={k}>{(only && LABEL[k]) || k}</span>
+              <span style={{ color: on ? '#7fd6a0' : '#eee' }} title={k}>{(only && TUNE_LABELS[k]) || k}</span>
               {/* a key with a CHOICES entry is a set of named things, not a range: a font is picked, not dialled */}
               {choices ? (
                 <select

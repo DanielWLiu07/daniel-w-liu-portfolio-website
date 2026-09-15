@@ -7,6 +7,7 @@
  * position drives the scene.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { Canvas } from '@react-three/fiber'
 import { WebGPURenderer } from 'three/webgpu'
 import type { MangaUniforms } from 'blender-to-threejs'
@@ -14,18 +15,24 @@ import { createInteractiveButtons } from '@/data/resume-buttons'
 import { useTransitionState } from '@/components/ui/page-transition'
 import { LoadingContent } from '@/components/ui/page-transition/loading-content'
 import { SocialLinks } from '@/components/ui/social-links'
-import { katieRozeFont } from '@/lib/fonts/katie-roze'
 import CasinoScene, { BEATS, HAND, CHIP_STACKS, type ScrollState } from './casino-scene'
-import TunePanel from './tune-panel'
-import { EYE_KEYS, FLIGHT_KEYS, FOLDER_KEYS, JACK_KEYS, SUIT_KEYS, TITLE_KEYS } from './tune'
+import { CHIP_KEYS, EYE_KEYS, FOLDER_KEYS, JACK_KEYS, SUIT_KEYS, TITLE_KEYS } from './tune'
 import type { ImpactFx } from './hero-chip'
 import './casino.css'
+
+// Keep editor code out of the public scene's initial download.
+const TunePanel = dynamic(() => import('./tune-panel'), { ssr: false })
+const FlightWorkspace = dynamic(() => import('./flight-workspace'), { ssr: false })
+const PanelRenderBridge = dynamic(() => import('@/components/panels/panel-render-bridge'), { ssr: false })
+const CasinoLayoutPanel = dynamic(() => import('./layout-panel'), { ssr: false })
+const JackWorkspace = dynamic(() => import('./jack-workspace'), { ssr: false })
+const TitleEyeWorkspace = dynamic(() => import('./title-eye-workspace'), { ssr: false })
 
 const PAGE_HEIGHT_VH = 520
 // Parked while the opening beat is tuned: no marquee, cards, chips or sign copy.
 const SHOW_COPY = false
 
-export default function CasinoResume() {
+export default function CasinoResume({ layoutTuning = false, jackEditing = false, eyeEditing = false }: { layoutTuning?: boolean; jackEditing?: boolean; eyeEditing?: boolean }) {
   const scroll = useRef<ScrollState>({ progress: 0, velocity: 0 })
   const uniforms = useRef<MangaUniforms | null>(null)
   const fx = useRef<ImpactFx>({ impactAge: -1, jolt: 0, landed: false })
@@ -35,10 +42,9 @@ export default function CasinoResume() {
   const { transitionStage, signalReady } = useTransitionState()
   const signalled = useRef(false)
 
-  // scroll -> shared ref (per frame, no React) + coarse state for the DOM
+  // Keep scroll state current without a second animation loop polling layout.
   useEffect(() => {
     let last = window.scrollY
-    let raf = 0
     const tick = () => {
       const max = document.documentElement.scrollHeight - window.innerHeight
       const y = window.scrollY
@@ -46,13 +52,15 @@ export default function CasinoResume() {
       last = y
       const p = max > 0 ? Math.min(1, Math.max(0, y / max)) : 0
       scroll.current.progress = p
-      // the marquee comes in on the chip's impact beat, like pomme's login sign
-      if (fx.current.landed) setLanded(true)
-      setProgress((prev) => (Math.abs(prev - p) > 0.004 ? p : prev))
-      raf = requestAnimationFrame(tick)
+      if (SHOW_COPY) setProgress((prev) => (Math.abs(prev - p) > 0.004 ? p : prev))
     }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
+    tick()
+    window.addEventListener('scroll', tick, { passive: true })
+    window.addEventListener('resize', tick)
+    return () => {
+      window.removeEventListener('scroll', tick)
+      window.removeEventListener('resize', tick)
+    }
   }, [])
 
   // ready handshake with the site transition
@@ -94,6 +102,7 @@ export default function CasinoResume() {
     f.impactAge = impactAge
     f.jolt = jolt
     f.landed = f.landed || impactAge >= 0
+    if (SHOW_COPY && f.landed) setLanded(true)
   }, [])
   // the desk scene's links (github, linkedin, email, waterloo), minus the
   // photo props that only made sense on the desk
@@ -126,14 +135,18 @@ export default function CasinoResume() {
    * the old cap for captures.
    */
   const hiDpr = useMemo(() => (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).has('hi') : false), [])
+  const showDealerTune = useMemo(() => (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).has('dealer') : false), [])
   const showTune = useMemo(() => (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).has('tune') : false), [])
+  const showChipTune = useMemo(() => (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).has('chippos') : false), [])
   // ?fld: just the presented folder's own knobs, for dialling the open file in place on the site itself
   const showFolderTune = useMemo(() => (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).has('fld') : false), [])
   // ?jack: the opening title card's own knobs, on the right, with a save that survives a reload
   const showJackTune = useMemo(() => (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).has('jack') : false), [])
   // ?suits: place the impact's suit burst, frozen mid-flash so there is something to drag
   const showSuitTune = useMemo(() => (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).has('suits') : false), [])
+  const showImpactEyeTune = useMemo(() => (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).has('eyeTiming') : false), [])
   // ?flight: the coin's throw and the camera chasing it, and nothing else. Replays on a loop by default.
+  const showTools = useMemo(() => (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).has('tools') : false), [])
   const showFlightTune = useMemo(() => (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).has('flight') : false), [])
   // ?eyes: the field of eyes over the title card, and nothing else
   const showEyeTune = useMemo(() => (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).has('eyes') : false), [])
@@ -141,30 +154,48 @@ export default function CasinoResume() {
   const showTitleTune = useMemo(() => (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).has('title') : false), [])
 
   return (
-    <div className="casino-root" style={{ height: `${PAGE_HEIGHT_VH}vh` }}>
+    <div className={`casino-root${jackEditing ? ' jack-editor-mode' : ''}${eyeEditing ? ' eye-editor-mode' : ''}`} style={{ height: jackEditing || eyeEditing ? '100dvh' : `${PAGE_HEIGHT_VH}vh` }}>
       <div className="casino-stage">
         <Canvas
           camera={{ position: [0, 6.2, 5.4], fov: 38 }}
           dpr={hiDpr ? [1, 1.5] : [1, 1.35]}
           shadows="soft"
           gl={async (props) => {
+            const canvas = props.canvas as HTMLCanvasElement
             const renderer = new WebGPURenderer({
-              canvas: props.canvas as HTMLCanvasElement,
+              canvas,
               antialias: true,
             })
+            // Allocate the initial GPU attachments at the measured stage size,
+            // not the canvas element's default 300×150 during async init.
+            const resize = () => {
+              const bounds = canvas.parentElement?.getBoundingClientRect()
+              renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, hiDpr ? 1.5 : 1.35))
+              renderer.setSize(Math.max(1, bounds?.width ?? canvas.clientWidth), Math.max(1, bounds?.height ?? canvas.clientHeight), false)
+            }
+            resize()
             await renderer.init()
+            // Init can overlap a display/DPR change. Invalidate attachments once
+            // it finishes as well, before Fiber starts the first render.
+            resize()
             return renderer as unknown as never
           }}
         >
           <CasinoScene armed={armed} folderOpen={fileOpen} onFolderOpen={openFile} scroll={scroll} fx={fx} report={report} onReady={onReady} uniformsRef={uniforms} />
+          {(showFlightTune || showTools || eyeEditing) && <PanelRenderBridge enabled />}
         </Canvas>
+        {eyeEditing ? <TitleEyeWorkspace /> : jackEditing ? <JackWorkspace /> : layoutTuning ? <CasinoLayoutPanel /> : <>
         {showTune && <TunePanel />}
+        {!showTune && showDealerTune && <CasinoLayoutPanel characterOnly />}
+        {!showTune && !showSuitTune && showImpactEyeTune && <TunePanel only={['hitEyeDelay', 'hitEyeStagger', 'hitRevealNoise']} title="impact animation" compact />}
+        {!showTune && showChipTune && <TunePanel only={CHIP_KEYS} title="the red chip" />}
         {!showTune && showFolderTune && <TunePanel only={FOLDER_KEYS} title="the open folder" />}
         {!showTune && !showFolderTune && showSuitTune && <TunePanel only={SUIT_KEYS} title="the suit burst" />}
-        {!showTune && !showFolderTune && !showSuitTune && showFlightTune && <TunePanel only={FLIGHT_KEYS} title="the coin and the camera" />}
+        {!showTune && !showFolderTune && !showSuitTune && (showFlightTune || showTools) && <FlightWorkspace />}
         {!showTune && !showFolderTune && !showSuitTune && !showFlightTune && showJackTune && <TunePanel only={JACK_KEYS} title="jack of all trades" />}
         {!showTune && !showFolderTune && !showSuitTune && !showFlightTune && !showJackTune && showEyeTune && <TunePanel only={EYE_KEYS} title="the eyes" />}
         {!showTune && !showFolderTune && !showSuitTune && !showFlightTune && !showJackTune && !showEyeTune && showTitleTune && <TunePanel only={TITLE_KEYS} title="always bet on daniel w liu" />}
+        </>}
 
         {/* the open file lives in the scene (pages inside the folder); only a close control here */}
         <button type="button" className={`casino-file-close ${fileOpen ? 'is-open' : ''}`} onClick={closeFile} aria-label="Close the file">
@@ -174,7 +205,7 @@ export default function CasinoResume() {
         {SHOW_COPY && (<>
         <section className={`casino-copy casino-marquee ${inMarquee && landed ? 'is-on' : ''}`}>
           <p className="casino-kicker">The House</p>
-          <h1 className={`casino-title ${katieRozeFont.className}`}>Always bet on<br />Daniel W Liu</h1>
+          <h1 className="casino-title" style={{ fontFamily: 'KatieRoze' }}>Always bet on<br />Daniel W Liu</h1>
           <p className="casino-sub">Scroll to deal the hand.</p>
         </section>
 

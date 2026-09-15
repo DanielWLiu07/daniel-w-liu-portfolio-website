@@ -166,31 +166,62 @@ export function slideAt(t: number, at: number, travel: number, fps: number): { k
  * (`step`), never by resampling the chart, because resampling it would put us
  * straight back to decimating a curve.
  */
-export const SLIDE_CHART: readonly number[] = [0, -0.06, 0.14, 0.33, 0.49, 0.68, 0.79, 0.92, 0.99, 1.04, 0.99, 1.0]
+export const SLIDE_CHART: readonly number[] = [0, -0.06, 0.14, 0.34, 0.5, 0.63, 0.78, 0.88]
 
 /**
- * THE PASTE CHART: the same move, with no bounce at the end.
+ * THE LANDING: how the piece was got onto its mark, as more of the same move.
  *
- * SLIDE_CHART's tail (1.04, 0.99, 1.00) is a fraction of the TRAVEL, so what it
- * costs depends entirely on how far the thing came. Measured on the two lockups
- * that share it, the displacement after the piece first reaches home:
+ * This has now been wrong twice in opposite directions, and the two mistakes
+ * have one cause, so it is worth writing down properly.
  *
- *   the title, travelling 1.39 units:  8.4px  8.4px  2.0px   invisible
- *   the jack,  travelling 5.51 units: 46.7px 33.4px 33.4px   a lurch
+ * First the overshoot lived in the chart as poses of 0.99, 1.04, 0.99, 1.00.
+ * Against regular moves of 0.16 of the travel, those are steps of .07, .05,
+ * -.05 and .01: a quarter the size of every other move in the sequence, and a
+ * sign flip in the middle. That reads as a tremor after the piece has arrived,
+ * which is what "an extra wiggle at the end" was.
  *
- * Same poses, five times the excursion, because the jack lockup comes in from
- * four to seven units away and the quadratic Bezier it rides has slope 2(h-c) at
- * the mark, which doubles the overshoot again. On top of that the jack's entry
- * spin runs to 1.6 rad against the title's 0.3, so the tail twists 2.75 degrees
- * instead of 0.7.
+ * Then, diagnosing that as "the miss scales with travel", the correction was
+ * made an absolute hand's width instead. Measured against each word's own
+ * movement that is worse, not better: on the title it came to about half a
+ * regular move, and on the jack lockup, which travels four times as far, 13 to
+ * 25 percent of one, with tails at 2 percent. Also a tremor.
  *
- * arrive() in jack-intro.tsx had already found this from the other side: a ring
- * past home "read as a nudge after the scrap had already arrived - a second
- * little move rather than a settle", and a pasted scrap does not bounce. So the
- * paste keeps the anticipation and the uneven spacing and simply decelerates
- * onto its mark, with no pose ever past it.
+ * The invariant is not about absolute size at all. IT IS THAT A CORRECTION IS
+ * THE SAME SIZE AS A REGULAR MOVE. An animator fixing a scrap picks it up and
+ * puts it down; that is one more exposure of the same kind of motion, on the
+ * same cadence, not a smaller separate thing bolted on after the move ended. So
+ * a correction is a share of the travel like every other pose, it continues the
+ * chart with no gap, and every step in it is comparable to the steps before it.
+ *
+ * These entries continue SLIDE_CHART, which deliberately stops short at 0.88;
+ * the final move onto exactly 1 is appended to all of them. Different lengths
+ * are what make the words of a line stop on different exposures.
  */
-export const PASTE_CHART: readonly number[] = [0, -0.06, 0.14, 0.33, 0.49, 0.68, 0.79, 0.92, 0.97, 1.0]
+export type Landing = readonly number[]
+
+export const LANDINGS: readonly Landing[] = [
+  // A readable overshoot, then smaller alternating corrections around home.
+  // Every word stays in hand briefly; none locks while its neighbours arrive.
+  // Keep the variants within two exposures so the final locks form one beat.
+  [1.1, 0.96, 1.02],
+  [1.12, 0.95, 1.03, 0.985],
+  [1.09, 0.955, 1.025],
+  [1.11, 0.95, 1.025, 0.985],
+  [1.12, 0.94, 1.04, 0.98, 1.01],
+  [1.1, 0.94, 1.035, 0.98, 1.01],
+]
+
+/**
+ * Which landing this word gets.
+ *
+ * Stepped through rather than hashed. A hash will happily hand three words in a
+ * row the same ending, and words finishing identically on the same exposure is
+ * the exact thing this exists to prevent; stepping guarantees neighbours differ.
+ */
+export function landingFor(seed: number, w: number): Landing {
+  const n = LANDINGS.length
+  return LANDINGS[(((w + Math.floor(seed)) % n) + n) % n]
+}
 
 /**
  * Which pose we are on, and where that pose sits.
@@ -211,6 +242,50 @@ export function chartAt(
   if (pose >= chart.length - 1) return { k: chart[chart.length - 1], pose: chart.length - 1, moving: false }
   return { k: chart[pose], pose, moving: true }
 }
+
+/**
+ * A whole placement: the approach, then the hand fixing what it got wrong.
+ *
+ * `k` runs the authored chart and never passes 1, so how far the piece came
+ * cannot affect how far it lands off. `over` is the correction AFTER it first
+ * arrives, in hand units along its own travel, and it is what the caller adds as
+ * an absolute offset. `moving` covers both halves, so the boil runs until the
+ * hand actually lets go.
+ *
+ * The two together are why words stop at different times: a landing of [] is
+ * done the moment it arrives, and a landing of [0.75, -0.45, 0.2, 0] is still
+ * being fussed with four exposures later.
+ */
+export interface Placement {
+  k: number
+  over: number
+  pose: number
+  moving: boolean
+}
+
+export function placeAt(
+  t: number,
+  at: number,
+  fps: number,
+  step = 1,
+  landing: Landing = [],
+  chart: readonly number[] = SLIDE_CHART,
+  hand = 1,
+): Placement {
+  if (t < at) return { k: chart[0], over: 0, pose: 0, moving: false }
+  const pose = Math.floor(smFrame(t - at, fps) / Math.max(1, step))
+  if (pose < chart.length) return { k: chart[pose], over: 0, pose, moving: true }
+  const li = pose - chart.length
+  // the correction, on the same cadence and at the same scale as the approach
+  if (li < landing.length) return { k: 1 + (landing[li] - 1) * hand, over: 0, pose, moving: true }
+  // and the last placement is the one that was got right: exactly on the mark,
+  // and carrying no hand error, so nothing twitches on the frame it lands
+  return { k: 1, over: 0, pose, moving: false }
+}
+
+/** how long a whole placement takes, approach and landing together */
+export const placeFor = (fps: number, step = 1, landing: Landing = [], chart: readonly number[] = SLIDE_CHART) =>
+  ((chart.length + landing.length) * Math.max(1, step)) / fps
 
 /** how long a chart takes end to end */
 export const chartFor = (fps: number, step = 1, chart: readonly number[] = SLIDE_CHART) =>
@@ -298,10 +373,12 @@ export interface WordMotion {
   drag: number
   /** a bias added to every entry direction, radians; 0 leaves them pointing outward */
   dir: number
+  /** how big the corrections are; 1 is as authored, which is one regular move */
+  hand: number
 }
 
 export const WORD_DEFAULTS: WordMotion = {
-  beat: 0.22,
+  beat: 0.12,
   step: 1,
   // the widest gap in the chart is 24%, so this is the number that decides
   // whether anything strobes: 0.24 * 1.6 is under half a letter width a frame
@@ -310,6 +387,7 @@ export const WORD_DEFAULTS: WordMotion = {
   swing: 0.22,
   drag: 2,
   dir: 0,
+  hand: 1,
 }
 
 export interface WordShot {
@@ -322,6 +400,25 @@ export interface WordShot {
   turn: number
   /** which side of the straight line it bows out to */
   side: number
+}
+
+/** Displacement that puts an entire rotating word beyond one viewport edge.
+ * The radius encloses the word at every rotation, not just its centre point.
+ */
+export function offscreenWordOffset(
+  side: 'left' | 'top' | 'right' | 'bottom',
+  x: number, y: number, radius: number, halfW: number, halfH: number,
+): { x: number; y: number } {
+  const pad = radius + 0.15
+  if (side === 'left') return { x: -halfW - pad - x, y: 0 }
+  if (side === 'right') return { x: halfW + pad - x, y: 0 }
+  if (side === 'top') return { x: 0, y: halfH + pad - y }
+  return { x: 0, y: -halfH - pad - y }
+}
+
+/** Travel along a local direction until an enclosing sphere clears a frustum side. */
+export function offscreenPlaneTravel(distanceToPlane: number, radius: number, directionDotNormal: number) {
+  return Math.max(0, (distanceToPlane + radius) / Math.max(0.01, -directionDotNormal))
 }
 
 /**
@@ -381,25 +478,28 @@ export function wordAt(
   wm: WordMotion,
   fps: number,
   at = 0,
+  landing: Landing = [],
 ): { x: number; y: number; turn: number; moving: boolean; pose: number } {
   const cue = at + shot.cue
-  // one chart, read twice: once for the slide and once for the turn, which is
-  // cued a whole number of POSES behind it. A fractional lag would be a curve
-  // again; an animator is late by exposures.
-  const sl = chartAt(t, cue, fps, wm.step)
-  const rt = chartAt(t, cue + (wm.drag * Math.max(1, wm.step)) / fps, fps, wm.step)
-  // the chart runs past 1 and comes back, so `away` goes negative there and the
-  // word carries PAST its mark before it is corrected
+  // the approach, and the turn cued a whole number of POSES behind it so the
+  // word straightens last. A fractional lag would be a curve again; an animator
+  // is late by exposures.
+  const sl = placeAt(t, cue, fps, wm.step, landing, SLIDE_CHART, wm.hand)
+  const rt = placeAt(t, cue + (wm.drag * Math.max(1, wm.step)) / fps, fps, wm.step, landing, SLIDE_CHART, wm.hand)
   const away = 1 - sl.k
   let x = away * shot.ox
   let y = away * shot.oy
-  // and the bow: perpendicular to the entry, zero at both ends, widest halfway,
-  // so the piece swings in rather than sliding down a rail
   const len = Math.hypot(shot.ox, shot.oy)
-  if (len > 1e-6 && wm.swing !== 0) {
-    const bow = Math.sin(Math.PI * Math.min(1, Math.max(0, sl.k))) * wm.swing * len * shot.side
-    x += (-shot.oy / len) * bow
-    y += (shot.ox / len) * bow
+  if (len > 1e-6) {
+    // the bow: perpendicular to the entry, zero at both ends, widest halfway, so
+    // the piece swings in rather than sliding down a rail
+    if (wm.swing !== 0) {
+      const bow = Math.sin(Math.PI * Math.min(1, Math.max(0, sl.k))) * wm.swing * len * shot.side
+      x += (-shot.oy / len) * bow
+      y += (shot.ox / len) * bow
+    }
   }
+  // the turn rides the same chart, so a word that carries past its mark is turned
+  // past square with it and brought back on the correction
   return { x, y, turn: (1 - rt.k) * shot.turn, moving: sl.moving || rt.moving, pose: sl.pose }
 }

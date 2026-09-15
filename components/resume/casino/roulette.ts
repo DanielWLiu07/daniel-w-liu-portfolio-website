@@ -202,6 +202,19 @@ export interface SpinState {
   phase: 'track' | 'fall' | 'settled'
 }
 
+/** Continuous presentation spin for the flying wheel, without a settle/reset. */
+export function orbitAt(t: number, opts: SpinOptions = {}): SpinState {
+  return {
+    wheel: t * (opts.wheelSpeed ?? DEFAULTS.wheelSpeed),
+    ballAngle: t * (opts.ballSpeed ?? DEFAULTS.ballSpeed),
+    ballRadius: DIMS.track,
+    ballHeight: DIMS.wall * 0.42,
+    pocket: null,
+    result: null,
+    phase: 'track',
+  }
+}
+
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v)
 /** smoothstep, so the ball does not change direction with a corner in it */
 const ease = (v: number) => {

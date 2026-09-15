@@ -25,12 +25,22 @@ import {
   RED_NUMBERS,
   WHEEL_ORDER,
   cycleAt,
+  orbitAt,
   pocketColour,
   resultOf,
   spinAt,
 } from '../components/resume/casino/roulette'
 
 const fail: string[] = []
+
+// Presentation orbit stays in motion even after the normal spin would settle.
+for (const t of [0, 1, 15, 60]) {
+  const a = orbitAt(t, { wheelSpeed: 2.6, ballSpeed: -9 })
+  const b = orbitAt(t + 0.1, { wheelSpeed: 2.6, ballSpeed: -9 })
+  if (Math.abs(b.wheel - a.wheel - 0.26) > 1e-9) fail.push(`presentation wheel stopped at ${t}`)
+  if (Math.abs(b.ballAngle - a.ballAngle + 0.9) > 1e-9) fail.push(`presentation ball stopped at ${t}`)
+  if (a.phase !== 'track' || a.ballRadius !== DIMS.track || a.result !== null) fail.push(`presentation ball settled at ${t}`)
+}
 
 // 37 pockets, 0..36, each exactly once
 if (POCKETS !== 37) fail.push(`expected 37 pockets, got ${POCKETS}`)

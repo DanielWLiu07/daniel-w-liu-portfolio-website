@@ -6,10 +6,76 @@
  * (inside the Canvas) and the panel (DOM) share one source without prop drilling.
  */
 import { useSyncExternalStore } from 'react'
+import { isJackEditor, jackEditorTime } from './jack-editor-clock'
+import { isTitleEyeEditor } from './title-eye-layout'
+import { DEALER_DEFAULTS, DEALER_RANGES, DEALER_MOTION_DEFAULTS, DEALER_MOTION_RANGES, type DealerControls, type DealerMotionControls } from './dealer-layout'
+import { IMPACT_DURATION, IMPACT_PLACEMENT_AGE } from './impact-eye-motion'
+import { JACK_COMPOSITION, JACK_SEED_LEAD } from './jack-composition'
+import { BACKDROP_STYLES } from './intro-backdrop-art'
 
-export interface Tune {
+export interface Tune extends DealerControls, DealerMotionControls {
+  bgStyle: number
+  bgStrength: number
+  bgDetail: number
+  bgMotion: number
+  bgGlow: number
+  /** Camera-facing royal flush accompanying the chip on the right. */
+  rfSize: number
+  rfX: number
+  rfY: number
+  rfDepth: number
+  rfTilt: number
+  rfYaw: number
+  rfBank: number
+  rfScaleX: number
+  rfScaleY: number
+  rfScaleZ: number
+  rfSpread: number
+  rfArc: number
+  rfDelay: number
+  rfEnter: number
+  rfExit: number
+  rfDrift: number
+  rfBob: number
+  rfBobSpeed: number
+  rfStagger: number
+  rfEnergy: number
+  rfFlow: number
+  rfFlowSpeed: number
+  rfSway: number
+  rfSwaySpeed: number
+  rfTextX: number
+  rfTextY: number
+  rfTextSize: number
+  rfTextR: number
+  rouTextX: number
+  rouTextY: number
+  rouTextSize: number
+  rouTextR: number
+  /** Roulette travelling beside the rising hero chip; offsets in frame half-extents. */
+  rouSize: number
+  rouX: number
+  rouY: number
+  rouTilt: number
+  rouBank: number
+  rouYaw: number
+  rouDepth: number
+  rouScaleX: number
+  rouScaleY: number
+  rouScaleZ: number
+  rouSway: number
+  rouSwaySpeed: number
+  rouDelay: number
+  rouEnter: number
+  rouExit: number
+  rouDrift: number
+  rouWheel: number
+  rouBall: number
   /** chip diameter multiplier */
   chip: number
+  /** hero chip resting position on the felt; negative Z is away from the viewer */
+  chipX: number
+  chipZ: number
   /** table diameter (world units) */
   table: number
   /** rail width past the felt */
@@ -95,6 +161,8 @@ export interface Tune {
   wdDrag: number
   /** word mode: a bias on every entry direction, radians (0 = straight outward) */
   wdDir: number
+  /** word mode: how big the corrections are; 1 is as authored, which is one regular move */
+  wdHand: number
   /* The presented folder, in the SCREEN's own axes rather than the world's. It builds its pose from the
      camera's basis and frames itself off the camera's fov and aspect, so every one of these is a plain
      up/down or left/right in the shot and a proportion rather than a position: they hold on any window
@@ -129,6 +197,8 @@ export interface Tune {
    * The times are seconds on the armed clock, which is the same clock the chip's flick runs on.
    */
   jkFit: number
+  jkFanSpread: number
+  jkFanAngle: number
   jkCardX: number
   jkCardY: number
   jkCardW: number
@@ -149,10 +219,10 @@ export interface Tune {
   jkTOf: number
   jkTAll: number
   jkTTrades: number
-  /** JACK's own offset ON the card, in the card's units */
+  /** JACK's offset on the card, in the card's reference units. */
   jkJackX: number
   jkJackY: number
-  /** each word's own roll, radians. The card's is jkCardTilt; JACK's is on top of the card's. */
+  /** Word roll, radians. JACK adds this to its supporting card's tilt. */
   jkJackR: number
   jkOfR: number
   jkAllR: number
@@ -415,6 +485,12 @@ export interface Tune {
    */
   hitEyeN: number
   hitEyeSize: number
+  /** Seconds after impact before the first eye starts opening; all eyes share this offset. */
+  hitEyeDelay: number
+  /** Time between successive eye openings, independent of each lid's opening speed. */
+  hitEyeStagger: number
+  hitRevealNoise: number
+  hitBoil: number
   /**
    * How much of the lens's climb the title does NOT follow, 0 to 1.
    *
@@ -473,6 +549,8 @@ export interface Tune {
   jkStep: number
   /** jack lockup: how far a scrap lands off, per pose */
   jkHand: number
+  /** jack lockup: how big the corrections are; 1 is as authored, which is one regular move */
+  jkNudge: number
   /**
    * How long a letter takes to get there, as a multiple of its own base time.
    *
@@ -547,6 +625,7 @@ export const EASE_DOWN_CHOICES = ['fall (accelerates in)', 'smooth (arrives gent
 export const EASE_COIN_CHOICES = ['coin stays ballistic', 'coin uses the same easing']
 
 export const TUNE_CHOICES: Partial<Record<keyof Tune, string[]>> = {
+  bgStyle: BACKDROP_STYLES,
   jkEaseUp: EASE_UP_CHOICES,
   jkEaseDown: EASE_DOWN_CHOICES,
   jkEaseCoin: EASE_COIN_CHOICES,
@@ -556,10 +635,55 @@ export const TUNE_CHOICES: Partial<Record<keyof Tune, string[]>> = {
   jkFontTrades: FONT_CHOICES,
 }
 
-export const TUNE_DEFAULTS: Tune = { chip: 1.6, table: 24, rail: 0.7, chord: -4.5, camY: 4.6, camZ: 12.5, lookY: 1.4, lampH: 7.5, lampCone: 33, revealNoise: 0.3, revealRadial: 2.2, revealSoft: 0.3, titleR: 16, titleSpan: 2.1, titleSize: 1.45, titleY: 3.45, titleGap: 0.78, titleSpacing: 0.5, titleWeight: 6, fldFit: 1.18, fldUp: -0.05, fldSide: 0, fldLean: -0.28, fldSpin: 0, fldTurn: 0.945, fldTilt: 0.09, fldFloat: 0.014, fldRise: 0.055, fldMove: 0.035, jkFit: 1.95, jkCardX: -1.407, jkCardY: 0.252, jkCardW: 1.35, jkCardTilt: 0.155, jkJackS: 0.7, jkOfX: 0.102, jkOfY: 0.882, jkOfS: 0.66, jkAllX: 0.665, jkAllY: 0.359, jkAllS: 0.598, jkTrX: -0.442, jkTrY: -0.414, jkTrS: 0.555, jkTCardIn: 0.55, jkTCardLand: 1.35, jkTJack: 1.65, jkTOf: 1.65, jkTAll: 1.65, jkTTrades: 1.65, jkJackX: -0.107, jkJackY: 0.173, jkJackR: 0, jkOfR: 0.05, jkAllR: -0.02, jkTrR: 0, jkFontJack: 0, jkFontOf: 0, jkFontAll: 0, jkFontTrades: 0, jkSeed: 7, jkLockX: 0, jkLockY: 0, jkFlick: 3.2, jkHold: 0.06, jkApex: 40, jkPeak: 0, jkDelay: 0.18, jkOver: 0.08, jkSink: 0, jkRise: 1.5, jkLag: 1, jkFall: 20, jkFallFor: 1.1, jkEaseUp: 4, jkEaseDown: 0, jkEaseCoin: 0, jkWind: 2, jkDive: 1.78, jkSpinUp: 30, jkSpinTop: 4, jkSpinLand: 18, suit0X: 3.62, suit0Y: 1.8, suit1X: 1.42, suit1Y: 2.56, suit2X: -1.42, suit2Y: 2.56, suit3X: -3.62, suit3Y: 1.8, suitSize: 1.35, suitFrom: 0, hitEyeN: 12, hitEyeSize: 0.85, jkInitial: 1.5, jkVary: 0.19, jkScatter: 0.35, jkSteps: 0, jkShot: 1, jkStep: 1, jkHand: 0.022, jkSpeed: 0.95, eyN: 14, eySize: 1, eyDist: 4.2, eyAt: 0.35, eyStagger: 0.75, eyWake: 0.5, eyWeight: 1, eyPaper: 1, eyGaze: 1, eyEvery: 3.6, eyCover: 1, eyFade: 1, ttAX: 0, ttAY: 1.1, ttAS: 0.82, ttAR: 0, ttBX: 0, ttBY: 0, ttBS: 1.14, ttBR: 0, ttChips: 7, ttChipS: 1, ttDice: 2, ttDiceS: 1, ttPropX: 0, ttPropZ: 0, ttSpread: 3.4, ttSeed: 3, smFps: 12, smTravel: 0.5, smFrom: 1.6, smBoil: 0.022, smTurn: 0.028, wdBeat: 0.22, wdStep: 1, wdFrom: 1.6, wdTurn: 0.3, wdSwing: 0.22, wdDrag: 2, wdDir: 0 }
+export const TUNE_DEFAULTS: Tune = { ...JACK_COMPOSITION, ...DEALER_DEFAULTS, ...DEALER_MOTION_DEFAULTS, bgStyle: 11, bgStrength: 1, bgDetail: 0.34, bgMotion: 1.1, bgGlow: 1.08, rouTextX: 0.42, rouTextY: -0.4, rouTextSize: 1.55, rouTextR: 0.4, rfTextX: -0.42, rfTextY: 0.45, rfTextSize: 1.55, rfTextR: 0.15, rfSize: 1.15, rfX: 0.8, rfY: -0.08, rfDepth: 0, rfTilt: -0.12, rfYaw: -0.18, rfBank: 1.35, rfScaleX: 1, rfScaleY: 1, rfScaleZ: 1, rfSpread: 0.48, rfArc: 0.26, rfDelay: 0.2, rfEnter: 0.72, rfExit: 0.55, rfDrift: 0.08, rfBob: 0.12, rfBobSpeed: 3.2, rfStagger: 0.14, rfEnergy: 1.25, rfFlow: 1.5, rfFlowSpeed: 3, rfSway: 0.46, rfSwaySpeed: 3.4, rouYaw: 0, rouDepth: 0, rouScaleX: 1, rouScaleY: 1, rouScaleZ: 1, rouSway: 0.34, rouSwaySpeed: 2.8, rouSize: 2.140458984375, rouX: -0.14923209798994974, rouY: -0.1544016912320484, rouTilt: 1.02, rouBank: -0.538390625, rouDelay: 0.12, rouEnter: 0.62, rouExit: 0.55, rouDrift: 0.25, rouWheel: 2.6, rouBall: 9, chipX: 0, chipZ: -1.6, chip: 1.6, table: 24, rail: 0.7, chord: -2.5, camY: 4.6, camZ: 12.5, lookY: 1.4, lampH: 7.5, lampCone: 33, revealNoise: 0.3, revealRadial: 2.2, revealSoft: 0.3, titleR: 16, titleSpan: 2.1, titleSize: 1.45, titleY: 3.45, titleGap: 0.78, titleSpacing: 0.5, titleWeight: 6, fldFit: 1.18, fldUp: -0.05, fldSide: 0, fldLean: -0.28, fldSpin: 0, fldTurn: 0.945, fldTilt: 0.09, fldFloat: 0.014, fldRise: 0.055, fldMove: 0.035, jkFit: 1.95, jkCardX: -1.407, jkCardY: 0.252, jkCardW: 1.35, jkCardTilt: 0.155, jkJackS: 0.7, jkOfX: 0.102, jkOfY: 0.882, jkOfS: 0.66, jkAllX: 0.665, jkAllY: 0.359, jkAllS: 0.598, jkTrX: -0.442, jkTrY: -0.414, jkTrS: 0.555, jkTCardIn: 0.55, jkTCardLand: 1.35, jkTJack: 1.65, jkTOf: 1.65, jkTAll: 1.65, jkTTrades: 1.65, jkJackX: -0.107, jkJackY: 0.173, jkJackR: 0, jkOfR: 0.05, jkAllR: -0.02, jkTrR: 0, jkFontJack: 0, jkFontOf: 0, jkFontAll: 0, jkFontTrades: 0, jkSeed: 7, jkLockX: 0, jkLockY: 0, jkFlick: 3.7, jkHold: 0.06, jkApex: 40, jkPeak: 0, jkDelay: 0.18, jkOver: 0.08, jkSink: 0, jkRise: 1.5, jkLag: 1, jkFall: 20, jkFallFor: 1.1, jkEaseUp: 4, jkEaseDown: 0, jkEaseCoin: 0, jkWind: 2, jkDive: 1.78, jkSpinUp: 30, jkSpinTop: 4, jkSpinLand: 18, suit0X: 3.62, suit0Y: 1.8, suit1X: 1.42, suit1Y: 2.56, suit2X: -1.42, suit2Y: 2.56, suit3X: -3.62, suit3Y: 1.8, suitSize: 1.35, suitFrom: 0, hitEyeN: 12, hitEyeSize: 0.85, hitEyeDelay: 0.18, hitEyeStagger: 0.018, hitRevealNoise: 3, hitBoil: 0.06, jkInitial: 1.5, jkVary: 0.19, jkScatter: 0.35, jkSteps: 0, jkShot: 1, jkStep: 1, jkHand: 0.022, jkNudge: 1, jkSpeed: 0.95, eyN: 14, eySize: 1, eyDist: 4.2, eyAt: 0.35, eyStagger: 0.75, eyWake: 0.5, eyWeight: 1, eyPaper: 1, eyGaze: 1, eyEvery: 3.6, eyCover: 1, eyFade: 1, ttAX: 0, ttAY: 1.1, ttAS: 0.82, ttAR: 0, ttBX: 0, ttBY: 0, ttBS: 1.14, ttBR: 0, ttChips: 7, ttChipS: 1, ttDice: 2, ttDiceS: 1, ttPropX: 0, ttPropZ: 0, ttSpread: 3.4, ttSeed: 3, smFps: 12, smTravel: 0.5, smFrom: 1.6, smBoil: 0.022, smTurn: 0.028, wdBeat: 0.12, wdStep: 1, wdFrom: 1.6, wdTurn: 0.3, wdSwing: 0.22, wdDrag: 2, wdDir: 0, wdHand: 1 }
+
+// Keep this authored lockup together rather than burying composition in the
+// unrelated scene controls above. Explicit saved overrides still win.
+Object.assign(TUNE_DEFAULTS, JACK_COMPOSITION)
+// Bring the hero chip toward the resume; the live folder collider still clamps
+// this requested home to a safe edge, including its full hover radius.
+TUNE_DEFAULTS.chipZ = -0.65
 
 export const TUNE_RANGES: Record<keyof Tune, [number, number, number]> = {
+  jkFanSpread: [0.3, 1.7, 0.01], jkFanAngle: [0, 1.6, 0.01],
+  bgStyle: [0, BACKDROP_STYLES.length - 1, 1], bgStrength: [0, 1, 0.05],
+  bgDetail: [0, 1, 0.01], bgMotion: [0, 2, 0.05], bgGlow: [0.3, 2, 0.01],
+  ...DEALER_RANGES, ...DEALER_MOTION_RANGES,
+  rfSize: [0.3, 3, 0.02],
+  rfX: [-1.5, 1.5, 0.01], rfY: [-1.5, 1.5, 0.01],
+  rfDepth: [-4, 4, 0.05],
+  rfTilt: [-Math.PI, Math.PI, 0.01], rfYaw: [-Math.PI, Math.PI, 0.01], rfBank: [-Math.PI, Math.PI, 0.01],
+  rfScaleX: [-4, 4, 0.05], rfScaleY: [-4, 4, 0.05], rfScaleZ: [-4, 4, 0.05],
+  rfSpread: [0.15, 1, 0.01], rfArc: [0, 0.4, 0.01],
+  rfDelay: [0, 0.8, 0.02], rfEnter: [0.15, 1.2, 0.02], rfExit: [0.15, 0.8, 0.02], rfDrift: [0, 0.5, 0.01],
+  rfBob: [0, 0.35, 0.01], rfBobSpeed: [0.5, 6, 0.1],
+  rfStagger: [0, 0.28, 0.01], rfEnergy: [0, 2, 0.05],
+  rfFlow: [0, 2, 0.05], rfFlowSpeed: [0.5, 5, 0.1],
+  rfSway: [0, 0.7, 0.01], rfSwaySpeed: [0.2, 6, 0.1],
+  rfTextX: [-2, 2, 0.01], rfTextY: [-2, 2, 0.01], rfTextSize: [0, 3, 0.05],
+  rfTextR: [-1.2, 1.2, 0.01], rouTextR: [-1.2, 1.2, 0.01],
+  rouTextX: [-2, 2, 0.01], rouTextY: [-2, 2, 0.01], rouTextSize: [0, 3, 0.05],
+  rouSize: [0.4, 3, 0.05],
+  rouX: [-1, 1.5, 0.02],
+  rouY: [-1, 1, 0.02],
+  rouTilt: [-Math.PI, Math.PI, 0.01],
+  rouBank: [-Math.PI, Math.PI, 0.01],
+  rouYaw: [-Math.PI, Math.PI, 0.01],
+  rouDepth: [-4, 4, 0.05],
+  rouScaleX: [-4, 4, 0.05],
+  rouScaleY: [-4, 4, 0.05],
+  rouScaleZ: [-4, 4, 0.05],
+  rouSway: [0, 0.6, 0.01],
+  rouSwaySpeed: [0.2, 6, 0.1],
+  rouDelay: [0, 0.8, 0.02],
+  rouEnter: [0.15, 1.2, 0.02],
+  rouExit: [0.15, 0.8, 0.02],
+  rouDrift: [0, 0.8, 0.02],
+  rouWheel: [0.2, 6, 0.1],
+  rouBall: [7, 18, 0.1],
   chip: [0.5, 4, 0.05],
+  chipX: [-4, 4, 0.05],
+  chipZ: [-4, 2, 0.05],
   table: [4, 60, 0.1],
   rail: [0.1, 2, 0.05],
   chord: [-20, 2, 0.05],
@@ -620,6 +744,7 @@ export const TUNE_RANGES: Record<keyof Tune, [number, number, number]> = {
   wdSwing: [0, 1.2, 0.01],
   wdDrag: [0, 5, 1],
   wdDir: [-3.14, 3.14, 0.02],
+  wdHand: [0, 2.5, 0.05],
   fldFit: [0.9, 2.2, 0.01],
   fldUp: [-0.5, 0.5, 0.005],
   fldSide: [-0.5, 0.5, 0.005],
@@ -690,6 +815,10 @@ export const TUNE_RANGES: Record<keyof Tune, [number, number, number]> = {
   suitFrom: [0, 1, 0.02],
   hitEyeN: [0, 12, 1],
   hitEyeSize: [0.1, 3, 0.05],
+  hitEyeDelay: [0, 0.35, 0.01],
+  hitEyeStagger: [0, 0.04, 0.001],
+  hitRevealNoise: [0, 5, 0.05],
+  hitBoil: [0, 0.4, 0.01],
   jkLag: [0, 1, 0.01],
   jkInitial: [1, 2.6, 0.01],
   jkVary: [0, 0.5, 0.01],
@@ -698,6 +827,7 @@ export const TUNE_RANGES: Record<keyof Tune, [number, number, number]> = {
   jkShot: [0, 1, 1],
   jkStep: [1, 4, 1],
   jkHand: [0, 0.12, 0.002],
+  jkNudge: [0, 2.5, 0.05],
   jkSpeed: [0.2, 6, 0.05],
   eyN: [0, 40, 1],
   eySize: [0.4, 1.6, 0.02],
@@ -740,14 +870,33 @@ export const FOLDER_KEYS: (keyof Tune)[] = ['fldFit', 'fldUp', 'fldSide', 'fldLe
 /** the impact burst, for ?suits: four suits and three eyes, each freely placed, plus sizes and the spread */
 export const SUIT_KEYS: (keyof Tune)[] = [
   'suit0X', 'suit0Y', 'suit1X', 'suit1Y', 'suit2X', 'suit2Y', 'suit3X', 'suit3Y', 'suitSize',
-  'hitEyeN', 'hitEyeSize',
-  'suitFrom',
+  'hitEyeN', 'hitEyeSize', 'hitEyeDelay', 'hitEyeStagger',
+  'suitFrom', 'hitBoil',
 ]
 
 export const FLIGHT_KEYS: (keyof Tune)[] = [
   'jkFlick', 'jkRise', 'jkApex', 'jkPeak', 'jkDelay', 'jkOver', 'jkHold', 'jkSink', 'jkFall', 'jkFallFor', 'jkEaseUp', 'jkWind', 'jkEaseDown', 'jkDive', 'jkEaseCoin', 'jkLag',
   'jkSpinUp', 'jkSpinTop', 'jkSpinLand',
 ]
+
+export const BACKDROP_KEYS: (keyof Tune)[] = ['bgStyle', 'bgStrength', 'bgDetail', 'bgMotion', 'bgGlow']
+
+export const ROULETTE_KEYS: (keyof Tune)[] = [
+  'rouTextX', 'rouTextY', 'rouTextSize', 'rouTextR',
+  'rouSize', 'rouX', 'rouY', 'rouTilt', 'rouBank', 'rouDelay',
+  'rouYaw', 'rouDepth', 'rouScaleX', 'rouScaleY', 'rouScaleZ', 'rouSway', 'rouSwaySpeed',
+  'rouEnter', 'rouExit', 'rouDrift', 'rouWheel', 'rouBall',
+]
+
+export const ROYAL_FLUSH_KEYS: (keyof Tune)[] = [
+  'rfTextX', 'rfTextY', 'rfTextSize', 'rfTextR',
+  'rfSize', 'rfX', 'rfY', 'rfTilt', 'rfYaw', 'rfBank', 'rfDepth',
+  'rfScaleX', 'rfScaleY', 'rfScaleZ', 'rfSpread', 'rfArc', 'rfSway', 'rfSwaySpeed',
+  'rfDelay', 'rfEnter', 'rfStagger', 'rfEnergy', 'rfFlow', 'rfFlowSpeed', 'rfExit', 'rfDrift', 'rfBob', 'rfBobSpeed',
+]
+
+/** the red hero chip, independently of the surrounding piles */
+export const CHIP_KEYS: (keyof Tune)[] = ['chipX', 'chipZ']
 
 /** the opening title card, for ?jack */
 /** the title and everything strewn around it, for ?title */
@@ -757,7 +906,7 @@ export const TITLE_KEYS: (keyof Tune)[] = [
   'ttBX', 'ttBY', 'ttBS', 'ttBR',
   'ttChips', 'ttChipS', 'ttDice', 'ttDiceS', 'ttPropX', 'ttPropZ', 'ttSpread', 'ttSeed',
   'smFps', 'smTravel', 'smFrom', 'smBoil', 'smTurn',
-  'wdBeat', 'wdStep', 'wdFrom', 'wdTurn', 'wdSwing', 'wdDrag', 'wdDir',
+  'wdBeat', 'wdStep', 'wdFrom', 'wdTurn', 'wdSwing', 'wdDrag', 'wdDir', 'wdHand',
   // the eyes live over this part of the shot too, so they are tunable from here
   'eyN', 'eySize', 'eyCover', 'eyDist', 'eyFade', 'eyWeight', 'eyPaper', 'eyGaze',
 ]
@@ -770,7 +919,8 @@ export const EYE_KEYS: (keyof Tune)[] = [
 ]
 
 export const JACK_KEYS: (keyof Tune)[] = [
-  'jkSeed', 'jkFlick', 'jkHold', 'jkApex', 'jkPeak', 'jkDelay', 'jkOver', 'jkSink', 'jkRise', 'jkLag', 'jkFall', 'jkFallFor', 'jkEaseUp', 'jkWind', 'jkEaseDown', 'jkDive', 'jkEaseCoin', 'jkSpinUp', 'jkSpinTop', 'jkSpinLand', 'jkSteps', 'jkShot', 'jkStep', 'jkHand', 'jkSpeed', 'jkInitial', 'jkVary', 'jkScatter', 'jkFit', 'jkLockX', 'jkLockY',
+  'bgStyle', 'bgStrength', 'bgDetail', 'bgMotion', 'bgGlow',
+  'jkSeed', 'jkFlick', 'jkHold', 'jkApex', 'jkPeak', 'jkDelay', 'jkOver', 'jkSink', 'jkRise', 'jkLag', 'jkFall', 'jkFallFor', 'jkEaseUp', 'jkWind', 'jkEaseDown', 'jkDive', 'jkEaseCoin', 'jkSpinUp', 'jkSpinTop', 'jkSpinLand', 'smFps', 'smBoil', 'smTurn', 'wdBeat', 'wdStep', 'wdFrom', 'wdTurn', 'wdSwing', 'wdDrag', 'wdDir', 'wdHand', 'jkInitial', 'jkVary', 'jkScatter', 'jkFit', 'jkLockX', 'jkLockY',
   'jkCardX', 'jkCardY', 'jkCardW', 'jkCardTilt',
   'jkJackX', 'jkJackY', 'jkJackR', 'jkJackS', 'jkFontJack',
   'jkOfX', 'jkOfY', 'jkOfR', 'jkOfS', 'jkFontOf',
@@ -920,7 +1070,7 @@ function fromSave(): Partial<Tune> {
   }
 }
 /** stores the keys that differ from the defaults; returns how many */
-export function saveTune(keys?: (keyof Tune)[]): number {
+export function saveTune(keys?: (keyof Tune)[], scope?: { letterPrefixes: string[]; props: boolean }): number {
   const t = ensure()
   const ks = (keys ?? (Object.keys(TUNE_DEFAULTS) as (keyof Tune)[])).filter((k) => t[k] !== TUNE_DEFAULTS[k])
   const prev = fromSave()
@@ -931,8 +1081,14 @@ export function saveTune(keys?: (keyof Tune)[]): number {
   for (const k of ks) next[k] = t[k]
   try {
     window.localStorage.setItem(SAVE_KEY, JSON.stringify(next))
-    window.localStorage.setItem(LETTER_KEY, JSON.stringify(letters))
-    window.localStorage.setItem(PROP_KEY, JSON.stringify(props))
+    if (scope) {
+      const previous = JSON.parse(window.localStorage.getItem(LETTER_KEY) ?? '{}') as Record<string, LetterTweak>
+      const scoped = (key: string) => scope.letterPrefixes.some(prefix => key.startsWith(prefix))
+      const nextLetters = Object.fromEntries(Object.entries(previous ?? {}).filter(([key]) => !scoped(key)))
+      for (const [key, value] of Object.entries(letters)) if (scoped(key)) nextLetters[key] = value
+      window.localStorage.setItem(LETTER_KEY, JSON.stringify(nextLetters))
+    } else window.localStorage.setItem(LETTER_KEY, JSON.stringify(letters))
+    if (!scope || scope.props) window.localStorage.setItem(PROP_KEY, JSON.stringify(props))
   } catch {
     return -1
   }
@@ -1089,6 +1245,7 @@ export function tuneQuery(): string {
  */
 let holdParam: number | null | undefined
 let looping = false
+let impactLooping = false
 /** ?suits: the suit burst's placer is up, so the sprites are draggable */
 export function placingSuits(): boolean {
   if (typeof window === 'undefined') return false
@@ -1096,20 +1253,36 @@ export function placingSuits(): boolean {
 }
 
 export function beatHold(): number | null {
+  if (isJackEditor()) return jackEditorTime()
+  if (isTitleEyeEditor()) { const t = ensure(); return t.jkFlick + t.jkRise + t.jkHold + t.jkFallFor + 6 }
   if (holdParam === undefined) {
     if (typeof window === 'undefined') return null
     const q = new URLSearchParams(window.location.search)
+    if (q.has('impact')) {
+      const raw = q.get('impact')
+      impactLooping = raw === 'loop'
+      looping = impactLooping
+      const t = ensure()
+      const age = Number(raw)
+      holdParam = impactLooping ? null : t.jkFlick + t.jkRise + t.jkHold + t.jkFallFor + (Number.isFinite(age) ? Math.max(0, age) : 0)
+      return holdParam
+    }
     if (q.has('suits')) {
       // the suit burst only exists inside the flash, so the placer FREEZES there - anywhere else on the
       // beat there is nothing on screen to drag. Mid-flash, not at the hit, so the wave has spread.
       const t = ensure()
-      holdParam = t.jkFlick + t.jkRise + t.jkHold + t.jkFallFor + 0.18
+      holdParam = t.jkFlick + t.jkRise + t.jkHold + t.jkFallFor + IMPACT_PLACEMENT_AGE
       return holdParam
     }
     if (q.has('flight')) {
-      // a flight is a MOVE - there is no single frame of it worth freezing, so this mode always replays
-      looping = q.get('flight') !== 'hold'
-      holdParam = null
+      // Keep the detached editors connected while holding a readable roulette
+      // pose. Bare ?flight still replays the full shot.
+      const raw = q.get('flight')
+      const t = ensure()
+      const seconds = Number(raw)
+      holdParam = raw === 'hold' ? t.jkFlick + t.jkRise * 0.75
+        : raw !== '' && Number.isFinite(seconds) && seconds > 0 ? seconds : null
+      looping = holdParam === null
       return holdParam
     }
     const raw = q.get('jack')
@@ -1133,15 +1306,16 @@ export function beatHold(): number | null {
    * thrown off the top - which is exactly the frame you cannot tune the title in.
    *
    * What it wants is the last frame where the title is FINISHED and nothing is in front of it, which is
-   * the instant before the coin is flicked. The title is done when the slowest scrap has landed: the last
-   * one starts up to 0.26 late and travels up to 0.72, so a second scaled by jkSpeed covers it.
+   * the instant before the coin is flicked. Account for the shared word stagger,
+   * authored approach, individual landing corrections, and delayed rotation.
    *
    * If the title is not finished by then - the coin set to flick early - it falls back to the apex, which
    * is the next moment everything is up and still. The coin is in the frame there, but a scrap frozen
    * mid-air is no use to a slider at all.
    */
   const t = ensure()
-  const settled = Math.max(t.jkTJack, t.jkTOf, t.jkTAll, t.jkTTrades) + 1.0 * t.jkSpeed
+  const settled = Math.max(...[t.jkTJack, t.jkTOf, t.jkTAll, t.jkTTrades].map((cue, i) =>
+    (cue + (1.2 - i * .08) / 1.35 + JACK_SEED_LEAD) / 1.3))
   const clean = t.jkFlick - 0.05
   return settled <= clean ? clean : Math.max(settled, t.jkFlick + t.jkRise + t.jkHold)
 }
@@ -1342,7 +1516,9 @@ export function beatLoop(): { from: number; to: number } | null {
   beatHold()
   if (!looping) return null
   const t = ensure()
-  return { from: Math.max(0, t.jkFlick - 0.8), to: t.jkFlick + t.jkRise + t.jkHold + t.jkFallFor + 0.7 }
+  const hit = t.jkFlick + t.jkRise + t.jkHold + t.jkFallFor
+  // The focused loop restarts before the title's 1.1s entrance can latch its letter animation.
+  return { from: Math.max(0, impactLooping ? hit - 0.16 : t.jkFlick - 0.8), to: hit + IMPACT_DURATION + (impactLooping ? 0.05 : 0.35) }
 }
 
 /**
@@ -1353,6 +1529,7 @@ export function beatLoop(): { from: number; to: number } | null {
  * in one place is what keeps a replay from tearing the beat into parts that restart at different moments.
  */
 export function beatTime(raw: number): number {
+  if (isJackEditor()) return jackEditorTime()
   const hold = beatHold()
   if (hold !== null) return Math.min(raw, hold)
   const lp = beatLoop()

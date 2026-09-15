@@ -8,7 +8,7 @@
  * manga post pass, so this file draws flat palette colours and lets the pass
  * make the print.
  */
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { ShadowNodeMaterial } from 'three/webgpu'
@@ -25,25 +25,40 @@ import {
   paperMaterial,
   type ChipInk,
 } from './materials'
-import Dealer from './dealer'
-import Reaper from './reaper'
+import SkeletonDealer from './skeleton-dealer'
+import TitleDepth from './title-depth'
+import { dealerPlacement } from './dealer-pose'
 import ResumeFolder, { FOLDER_TIME, type PageFrameOut } from './resume-folder'
 import RoyalFlush from './playing-cards'
 import HeroChip, { type ChipWordState, type ImpactFx } from './hero-chip'
 import JackIntro, { FallStreaks } from './jack-intro'
+import FlightRoulette from './flight-roulette'
+import FlightRoyalFlush from './flight-royal-flush'
+import IntroBackdrop from './intro-backdrop'
 import EyeField from './eye-field'
+import TitleEyes from './title-eyes'
 import TitleProps from './title-props'
+import { cycloramaGeometry, ROOM_FLOOR_DROP } from './room-geometry'
+import { propsAreMoving } from './prop-arrival'
 
 import ResumeWord from './resume-word'
 import CompositorPost from './compositor-post'
-import Apple, { PommeLights } from './apple'
-import RoundTable, { type TableFit } from './round-table'
+import type { TableFit } from './round-table'
 import FlatTable, { RailTube, tableGraph, tableUniforms, type FlatTableSpec } from './flat-table'
 import { beatTime, camLift, getTune, REVEAL_TIME_SCALE, useTune, type Tune } from './tune'
 import { driveLamp, LAMP, roomMaterial } from './materials'
-import SetEditor, { type SetPiece } from './set-editor'
+import type { SetPiece } from './set-editor'
+import { AdaptiveRenderQuality, pixelBudgetScale } from './render-quality'
 import { applyLayout, type StageLayout } from 'blender-to-threejs'
 import { impactPass, COMP_GRAPHS } from './comp-graphs'
+
+// Optional actors preload their GLBs when imported. Import only the selected mode.
+const Dealer = lazy(() => import('./dealer'))
+const Reaper = lazy(() => import('./reaper'))
+const Apple = lazy(() => import('./apple'))
+const PommeLights = lazy(() => import('./apple').then(m => ({ default: m.PommeLights })))
+const RoundTable = lazy(() => import('./round-table'))
+const SetEditor = lazy(() => import('./set-editor'))
 
 /** the window shape the title's numbers were dialled in at: 1500 x 900 */
 const TITLE_TUNED_AT = 1500 / 900
@@ -71,43 +86,22 @@ export const BEATS = {
  * So the right number is not a constant at all - it depends on the display it lands on and on whatever
  * else that machine is doing, and a fixed 0.75 is only ever right for one of those.
  *
- * Deliberately timid. It measures the MEDIAN, not the mean, so one compile stall cannot trigger it; it
- * steps down at most three times and never back up, so it cannot oscillate; and each step costs a
- * Compositor rebuild (renderScale is in its effect's deps), so there is a cooldown between them and a hard
- * cap on how many the page will ever pay for. ?scale= turns it off, since that is someone choosing.
+ * Samples only after the page is armed. A pixel budget handles large displays
+ * immediately; sustained misses can reach 0.5 without rebuilding the paint graph.
+ * ?scale= remains an explicit override.
  */
 function useAdaptiveScale(base: number, enabled: boolean): number {
   const [scale, setScale] = useState(base)
-  const st = useRef({ samples: [] as number[], age: 0, steps: 0, cooldown: 0 })
+  const { size, viewport } = useThree()
+  const cap = pixelBudgetScale(base, size.width, size.height, viewport.dpr)
+  const resolved = Math.min(scale, cap)
+  const st = useRef(new AdaptiveRenderQuality())
   useFrame((_, dt) => {
-    if (!enabled) return
-    const q = st.current
-    q.age += dt
-    // It settles inside the first few seconds and then stops for good. A step is a Compositor REBUILD, so
-    // it costs a stall, and a stall during the words landing or the fall is worse than the frame rate it
-    // buys. The load and the card flourish are the right place to spend them: things are moving, so the
-    // measurement is honest, but nothing in that window has to land on an exact frame.
-    if (q.steps >= 3 || q.age > 6) return
-    if (q.cooldown > 0) {
-      q.cooldown -= dt
-      return
-    }
-    q.samples.push(dt)
-    if (q.samples.length < 30) return
-    const med = [...q.samples].sort((a2, b2) => a2 - b2)[Math.floor(q.samples.length / 2)]
-    q.samples.length = 0
-    // 22 ms is about 45 fps: below that the fall stops reading as motion and starts reading as stutter
-    // 24 ms, about 42 fps. Raised from 22: the floor below costs real sharpness, so the bar for paying it
-    // has to be a page that is genuinely struggling rather than one a frame or two short.
-    if (med > 0.024) {
-      q.steps++
-      q.cooldown = 1
-      // floor 0.55, not 0.45: at 0.45 the lettering picks up visible fringing, and past a point the cure
-      // is worse than the lag it treats
-      setScale((v) => Math.max(0.55, Math.round((v - 0.1) * 100) / 100))
-    }
+    if (!enabled || document.hidden) { st.current.reset(); return }
+    const next = st.current.sample(dt, resolved, base)
+    if (next !== resolved) setScale(next)
   })
-  return scale
+  return resolved
 }
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x))
@@ -192,7 +186,7 @@ interface Fall {
 }
 function fallState(fall: Fall | undefined, elapsed: number): { y: number; rush: number } {
   if (!fall) return { y: 0, rush: 0 }
-  const ft = fall.clock0.current > 0 ? beatTime(elapsed - fall.clock0.current) : -1
+  const ft = fall.clock0.current >= 0 ? beatTime(elapsed - fall.clock0.current) : -1
   if (ft < 0) return { y: fall.height, rush: 0 }
   /**
    * ONE ARC for the whole move, rather than a rise branch and a fall branch meeting at a seam.
@@ -474,47 +468,15 @@ function RoomLamp({ fx, fall }: { fx: MutableRefObject<ImpactFx>; fall?: Fall })
  * The room as a cyclorama: ONE surface sweeping from the floor up into the wall through a wide curve, one
  * material, so the lamp reveals no seam. Background is decided by the lamp, not by paper.
  */
-function cycloramaGeometry(width: number, floorFront: number, cornerZ: number, radius: number, wallTop: number, segs = 48): THREE.BufferGeometry {
-  const prof: [number, number][] = []
-  prof.push([floorFront, 0])
-  prof.push([cornerZ + radius, 0])
-  for (let i = 1; i <= segs; i++) {
-    const a = (i / segs) * (Math.PI / 2)
-    prof.push([cornerZ + radius - Math.sin(a) * radius, radius - Math.cos(a) * radius])
-  }
-  prof.push([cornerZ, wallTop])
-  const pos: number[] = []
-  const nrm: number[] = []
-  const idx: number[] = []
-  const hw = width / 2
-  for (let i = 0; i < prof.length; i++) {
-    const [z, y] = prof[i]
-    const [z0, y0] = prof[Math.max(0, i - 1)]
-    const [z1, y1] = prof[Math.min(prof.length - 1, i + 1)]
-    const tz = z1 - z0, ty = y1 - y0
-    const len = Math.hypot(tz, ty) || 1
-    const nz = -ty / len, ny = tz / len
-    const sgn = nz + ny >= 0 ? 1 : -1
-    pos.push(-hw, y, z, hw, y, z)
-    nrm.push(0, ny * sgn, nz * sgn, 0, ny * sgn, nz * sgn)
-  }
-  for (let i = 0; i < prof.length - 1; i++) {
-    const a = i * 2, b = a + 1, c = a + 2, d = a + 3
-    idx.push(a, b, c, b, d, c)
-  }
-  const g = new THREE.BufferGeometry()
-  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
-  g.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3))
-  g.setIndex(idx)
-  return g
-}
-
 function Room({ floorY }: { floorY: number }) {
   const mat = useMemo(() => roomMaterial('wall'), [])
   // wallTop 240, not the 40 it was: the camera climbs jkFall + jkLift chasing the coin, which is now well
   // over 45, and a 40-high wall put its own top edge across the frame as a hard horizontal seam at the top
   // of the move. Measured at rest before and after - the difference is inside the run-to-run noise.
-  const geo = useMemo(() => cycloramaGeometry(120, 40, -12, 9, 240), [])
+  // Keep the floor flat through the layout slider's full rearward range. The
+  // old bend began at z=-3 and rose through an extended table. This room stays
+  // fixed while the back edge moves; no actor or camera is attached to it.
+  const geo = useMemo(() => cycloramaGeometry(120, 40, -20, 9, 240), [])
   useEffect(() => () => geo.dispose(), [geo])
   return <mesh position={[0, floorY, 0]} geometry={geo} material={mat} receiveShadow />
 }
@@ -635,8 +597,13 @@ function CameraRig({
       return
     }
     if (devCam === 'dealer') {
-      camera.position.set(2.4, 1.6, -0.2)
-      camera.lookAt(1.7, 0.9, -2.75)
+      const tn = getTune()
+      const fy = tableFitRef.current?.feltY ?? 0
+      const aspect = (camera as THREE.PerspectiveCamera).aspect
+      const placement = dealerPlacement(fy, tn.chord, tn.rail, Math.min(1, aspect / TITLE_TUNED_AT), tn)
+      const framing = placement.scale / 2
+      camera.position.set(tn.dealerX + 1.4 * framing, fy + tn.dealerY + 2 * framing, placement.position[2] + 5.5 * framing)
+      camera.lookAt(tn.dealerX, fy + tn.dealerY + .8 * framing, placement.position[2])
       return
     }
     if (devCam === 'reaper') {
@@ -818,11 +785,9 @@ export default function CasinoScene({
   const faces = useCardFaces()
   const [tableFit, setTableFit] = useState<TableFit | null>(null)
   const tableFitRef = useRef<TableFit | null>(null)
+  const folderRestPose = useMemo(() => ({ position: [0.15, (tableFit?.feltY ?? 0) + 0.004, 0.95] as [number, number, number], yaw: Math.PI / 2 - 0.1 }), [tableFit?.feltY])
   const folderOpenRef = useRef(false)
-  const pageFrameRef = useRef<PageFrame | null>(null)
-  const onPageFrame = useCallback((f: PageFrame) => {
-    pageFrameRef.current = f
-  }, [])
+  const positionSnapshot = useRef({ matrix: new THREE.Matrix4(), dealerMatrix: new THREE.Matrix4(), tune: null as Tune | null })
   useEffect(() => {
     folderOpenRef.current = folderOpen
   }, [folderOpen])
@@ -863,6 +828,7 @@ export default function CasinoScene({
     swing: tune.wdSwing,
     drag: tune.wdDrag,
     dir: tune.wdDir,
+    hand: tune.wdHand,
   }
 
   /**
@@ -896,6 +862,9 @@ export default function CasinoScene({
   )
   const [tableMesh, setTableMesh] = useState<THREE.Mesh | null>(null)
   const [folderGroup, setFolderGroup] = useState<THREE.Group | null>(null)
+  const [dealerGroup, setDealerGroup] = useState<THREE.Group | null>(null)
+  const dealerMotion = useRef(false)
+  const showDealer = typeof window === 'undefined' || !new URLSearchParams(window.location.search).has('nodealer')
   // the opening beat: the dealer's hand flicks the chip up from here, the word writes at the apex, then the drop
   const wordState = useRef<ChipWordState>({ x: 0, y: 0, z: 0, onT: -1, offT: -1, hitAt: 0.62 })
   const handRef = useRef<[number, number, number]>([0.95, 1.45, -3.0])
@@ -923,8 +892,9 @@ export default function CasinoScene({
     () => [
       { name: 'table', object: tableMesh, lockTranslate: ['y'] },
       { name: 'folder', object: folderGroup },
+      { name: 'dealer', object: dealerGroup },
     ],
-    [tableMesh, folderGroup],
+    [tableMesh, folderGroup, dealerGroup],
   )
   useEffect(() => {
     if (tableMesh) applyLayout({ table: tableMesh }, SET_LAYOUT)
@@ -942,10 +912,11 @@ export default function CasinoScene({
   const scaleOverride = useMemo(() => {
     if (typeof window === 'undefined') return undefined
     const v = new URLSearchParams(window.location.search).get('scale')
-    return v ? Number(v) : undefined
+    const scale = Number(v)
+    return v && Number.isFinite(scale) && scale > 0 ? Math.min(1, Math.max(0.25, scale)) : undefined
   }, [])
   // ?cam=pomme reproduces pomme's landing framing exactly for shader comparison
-  const adaptiveScale = useAdaptiveScale(COMP_GRAPHS[compName ?? 'night']?.renderScale ?? 1, !scaleOverride)
+  const adaptiveScale = useAdaptiveScale(COMP_GRAPHS[compName ?? 'night']?.renderScale ?? 1, !scaleOverride && armed)
   const pommeMatch = useMemo(
     () => (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('cam') === 'pomme' : false),
     [],
@@ -953,20 +924,20 @@ export default function CasinoScene({
   return (
     <>
       {/* the camera holds its table framing: the folder presents ITSELF to it (see ResumeFolder) */}
-      <CameraRig scroll={scroll} fx={fx} tableFitRef={tableFitRef} pageRef={pageFrameRef} fall={noJack ? undefined : fallRig} />
-      {editMode && <SetEditor pieces={pieces} />}
+      <CameraRig scroll={scroll} fx={fx} tableFitRef={tableFitRef} fall={noJack ? undefined : fallRig} />
+      {editMode && <Suspense fallback={null}><SetEditor pieces={pieces} /></Suspense>}
       {/* SET_ONLY: everything but the hero chip is parked while the opening
           beat is tuned; flip to false to bring the table back */}
       {!SET_ONLY && (
         <>
           <Table />
-          <Dealer />
+          <Suspense fallback={null}><Dealer /></Suspense>
           <Deck />
           <Cards scroll={scroll} faces={faces} />
           <Chips scroll={scroll} />
         </>
       )}
-      {pommeMatch ? <PommeLights /> : <RoomLamp fx={fx} fall={noJack ? undefined : fallRig} />}
+      {pommeMatch ? <Suspense fallback={null}><PommeLights /></Suspense> : <RoomLamp fx={fx} fall={noJack ? undefined : fallRig} />}
       {pommeMatch ? (
         <>
           {/* pomme's exact placement: apple centred at GROW_CENTER (-0.5, 0, -0.65), height 1.9, ground at y = -0.95, paper background */}
@@ -995,14 +966,22 @@ export default function CasinoScene({
           )}
           {tableFit && (
             <>
-              <Room floorY={tableFit.feltY - 0.06} />
+              <Room floorY={tableFit.feltY - ROOM_FLOOR_DROP} />
+              {!noJack && <IntroBackdrop clock0={chipClock0} fx={fx} />}
+              {showDealer && <Suspense fallback={null}>
+                <SkeletonDealer feltY={tableFit.feltY} chordZ={spec.chordZ} rail={spec.rail}
+                  fit={titleFit} fx={fx} motionRef={dealerMotion} onReady={setDealerGroup} />
+              </Suspense>}
               {/* graph materials are unlit and cannot receive shadows: an invisible catcher disc on the felt
                   carries them; it sits a hair above the felt and BELOW the props' bases, and paints in with the table */}
               <ShadowCatcher y={tableFit.feltY + 0.001} radius={tableFit.feltR + 1.3} fx={fx} reveal={reveal} alpha={modelTable ? undefined : tableAlpha} />
               <Suspense fallback={null}>
                 <HeroChip
+                  folderObstacle={folderGroup}
+                  feltRear={spec.chordZ + spec.rail * 0.5}
+                  folderRestPose={folderRestPose}
                   report={report}
-                  landing={[0, tableFit.feltY + 0.004, 0]}
+                  landing={[tune.chipX, tableFit.feltY + 0.004, tune.chipZ]}
                   size={tune.chip}
                   painterly={!wcMat}
                   watercolorMaterial={wcMat}
@@ -1014,18 +993,20 @@ export default function CasinoScene({
                   onWord={onWord}
                   onStart={onChipStart}
                   armed={armed}
-                  perch={{ at: 2.4 + 1.3 * 0.9, height: 0.06 }}
-                  shed={folderOpen}
                 />
               </Suspense>
               {/* the title card, before any of this: it is carried off the top as the chip falls */}
-              {!noJack && <JackIntro armed={armed} clock0={chipClock0} flickAt={tune.jkFlick} riseFor={tune.jkRise} holdFor={tune.jkHold} />}
+              {!noJack && <JackIntro armed={armed} clock0={chipClock0} flickAt={tune.jkFlick} riseFor={tune.jkRise} holdFor={tune.jkHold} chipState={wordState} />}
               {!noJack && <FallStreaks armed={armed} clock0={chipClock0} flickAt={tune.jkFlick} dropAt={jackDropAt} />}
+              {!noJack && <FlightRoulette clock0={chipClock0} />}
+              <Suspense fallback={null}>
+                {!noJack && <FlightRoyalFlush clock0={chipClock0} />}
+              </Suspense>
               {/* the eyes, off by default over the title: ?eyes puts the field back on the same beat clock */}
               {!noJack && eyesOn && <EyeField clock0={chipClock0} />}
               {/* the resume folder from the old page, standing on the felt beside the chip */}
               <Suspense fallback={null}>
-                <ResumeFolder position={[0.15, tableFit.feltY + 0.004, 0.95]} length={3.6} yaw={Math.PI / 2 - 0.1} groupRef={setFolderGroup} deal={{ from: [13, 0.4], at: 2.4, duration: 1.3, turns: 1.5 }} fx={fx} onOpen={onFolderOpen} open={folderOpen} onPageFrame={onPageFrame} />
+                <ResumeFolder position={folderRestPose.position} length={3.6} yaw={folderRestPose.yaw} groupRef={setFolderGroup} deal={{ from: [13, 0.4], at: 2.4, duration: 1.3, turns: 1.5 }} fx={fx} onOpen={onFolderOpen} open={folderOpen} />
               </Suspense>
               {/* the hand: a royal flush in hearts, fanned on the felt. Off by
                   default while the chips and dice are being placed, since it took
@@ -1089,21 +1070,24 @@ export default function CasinoScene({
                 * up and off the top while ALWAYS BET ON sank onto the felt.
                 */}
               {!noTitle && (
+                <TitleDepth>
                 <group scale={titleFit}>
                   <group position={[tune.ttAX, tune.ttAY - 0.92 * tune.titleR * tune.ttAS, 0]} rotation={[0, 0, tune.ttAR]} scale={tune.ttAS}>
-                    <ResumeWord state={titleState} text="ALWAYS BET ON" ink="#6cf59a" arc="top" stopMotion={{ fps: tune.smFps, travel: tune.smTravel, from: tune.smFrom, boil: tune.smBoil, boilTurn: tune.smTurn, group: smGroup, word: wordMotion }} radius={tune.titleR} spacing={tune.titleSpacing} size={tune.titleSize} weight={tune.titleWeight} still ransom={noJack ? undefined : tune.jkSeed} ransomWord={11} />
+                    <ResumeWord offscreenEntry hoverAdjust state={titleState} text="ALWAYS BET ON" ink="#6cf59a" arc="top" stopMotion={{ fps: tune.smFps, travel: tune.smTravel, from: tune.smFrom, boil: tune.smBoil, boilTurn: tune.smTurn, group: smGroup, word: wordMotion }} radius={tune.titleR} spacing={tune.titleSpacing} size={tune.titleSize} weight={tune.titleWeight} still ransom={noJack ? undefined : tune.jkSeed} ransomWord={11} />
                   </group>
                   {/* spacing follows the line's own size: a bigger line needs more
                       room between its letters or they overlap, and the 0.82 that
                       used to sit here made DANIEL W LIU permanently the smaller of
                       the two whatever its own knob said */}
                   <group position={[tune.ttBX, tune.ttBY - 0.92 * tune.titleR * tune.ttBS - tune.titleGap, 0]} rotation={[0, 0, tune.ttBR]} scale={tune.ttBS}>
-                    <ResumeWord state={titleState} text="DANIEL W LIU" ink="#6cf59a" arc="top" stopMotion={{ fps: tune.smFps, travel: tune.smTravel, from: tune.smFrom, boil: tune.smBoil, boilTurn: tune.smTurn, group: smGroup, word: wordMotion }} radius={tune.titleR} spacing={tune.titleSpacing} size={tune.titleSize} weight={tune.titleWeight} still stagger={0.5} ransom={noJack ? undefined : tune.jkSeed} ransomWord={12} />
+                    <ResumeWord offscreenEntry hoverAdjust state={titleState} text="DANIEL W LIU" ink="#6cf59a" arc="top" stopMotion={{ fps: tune.smFps, travel: tune.smTravel, from: tune.smFrom, boil: tune.smBoil, boilTurn: tune.smTurn, group: smGroup, word: wordMotion }} radius={tune.titleR} spacing={tune.titleSpacing} size={tune.titleSize} weight={tune.titleWeight} still stagger={0.5} ransom={noJack ? undefined : tune.jkSeed} ransomWord={12} />
                   </group>
                 </group>
+                </TitleDepth>
               )}
               {/* chips and dice strewn under the title, from a seed */}
-              {!noTitle && <TitleProps y={tableFit.feltY + 0.004} />}
+              {!noTitle && <TitleProps y={tableFit.feltY + 0.004} fx={fx} tableMesh={tableMesh} />}
+              {!noTitle && <TitleEyes fx={fx} />}
               {/* the dealer's hand (reaper.tsx, arm-only staging) is parked until the flick reads right (mocap);
                   ?hand brings it back */}
               {showHand && (
@@ -1117,13 +1101,25 @@ export default function CasinoScene({
       )}
       {compName && COMP_GRAPHS[compName] ? (
         <CompositorPost
+          warmupReady={pommeMatch ? undefined : Boolean(tableFit && folderGroup && (!showDealer || dealerGroup))}
           build={COMP_GRAPHS[compName].build}
           onFrame={(u, t) => COMP_GRAPHS[compName].onFrame?.(u, t, fx.current)}
           onReady={onReady}
           rawOutput={COMP_GRAPHS[compName].rawOutput}
           renderScale={scaleOverride ?? adaptiveScale}
           positionPass={COMP_GRAPHS[compName].positionPass}
-          positionDirty={() => fx.current.impactAge < 2.5}
+          positionDirty={() => {
+            const previous = positionSnapshot.current
+            folderGroup?.updateWorldMatrix(true, false)
+            const moved = folderGroup ? !previous.matrix.equals(folderGroup.matrixWorld) : false
+            if (folderGroup) previous.matrix.copy(folderGroup.matrixWorld)
+            dealerGroup?.updateWorldMatrix(true, false)
+            const dealerMoved = dealerGroup ? !previous.dealerMatrix.equals(dealerGroup.matrixWorld) : false
+            if (dealerGroup) previous.dealerMatrix.copy(dealerGroup.matrixWorld)
+            const retuned = previous.tune !== tune
+            previous.tune = tune
+            return fx.current.impactAge < 4.5 || dealerMotion.current || dealerMoved || propsAreMoving() || folderOpen || moved || retuned
+          }}
         />
       ) : (
         <MangaPost scroll={scroll} fx={fx} onReady={onReady} uniformsRef={uniformsRef} />

@@ -8,6 +8,7 @@
  */
 import * as THREE from 'three'
 import { DoubleSide, type Texture } from 'three'
+import { texture } from 'three/tsl'
 import { CASINO_PALETTE, compileMaterial, feltMaterialGraph, graph, lit, openInViewer, revealMask, smoothStep, spotLamp, watercolorMaterialGraph, type Graph, type GraphNode } from 'blender-to-threejs'
 import { EYE, EYE_PLANE, GLYPH, lowerReach, rayAt, upperReach, type EyeInk } from './eye'
 
@@ -370,7 +371,11 @@ export function roomMaterial(kind: 'wall' | 'floor') {
   // the wall keeps a gradient; the spill has its own uniform names so the driver never touches it
   // 'room' prefix: the driver holds the floor dark before the landing while the chip's lamp stays on
   const cone = spotLamp(g, { ...LAMP, prefix: 'room' }).light
-  const spill = spotLamp(g, { ...LAMP, prefix: 'spill', cone: 88, blend: 0.9, gain: 0.55, ambient: 0.03, range: 18 }).light
+  // Follow the wall's rearward move (-12 -> -20) with the spill's Z position.
+  // Keep the original lamp height/range: raising it to 18 and extending its
+  // range to 28 washed out the dark upper corners. This lower pool is calibrated
+  // against the original wood-room capture, with the chip-fall clearance intact.
+  const spill = spotLamp(g, { ...LAMP, prefix: 'spill', position: [0, LAMP.position[1], -8], cone: 88, blend: 0.9, gain: 0.85, ambient: 0.03, range: 18 }).light
   const m = trackLit(compileMaterial(register(`room:${kind}`, lit(g, col, g.add(cone, spill)))))
   return m
 }
@@ -555,6 +560,25 @@ export function stockMaterial() {
   return m
 }
 
+/** Thin matte tape shares the folder's lamp and presentation lighting. */
+export function tapeMaterial(map: Texture) {
+  const g = graph()
+  const m = trackPresent(trackLit(compileMaterial(paperLit(g, g.texture(map, g.uv())))))
+  // The graph's texture node returns RGB; retain the torn silhouette and
+  // translucency through the texture's alpha socket.
+  m.opacityNode = texture(map).a
+  m.transparent = true
+  m.depthWrite = false
+  // Printed paper already uses -2/-2. A strip a fraction above its surface
+  // still loses the GPU depth test against that bias, despite clearing every
+  // paper triangle in a geometric test. Keep tape in front without lifting it.
+  m.polygonOffset = true
+  m.polygonOffsetFactor = -4
+  m.polygonOffsetUnits = -4
+  m.side = DoubleSide
+  return m
+}
+
 /**
  * A cut-out mark (a logo, an icon) printed on a surface: colour from `map`, lit like everything else, with
  * its shape from `mask` (white where the mark is). The graph's Image Texture node returns RGB only, so the
@@ -594,7 +618,7 @@ export function cardArtMaterial(map: Texture, key: string) {
  *   eyeOpen             0 shut, 1 open
  *   eyeIrisX, eyeIrisY  where the iris sits, already clamped onto its oval
  */
-export function eyeMaterial(key = 'eye', ink: EyeInk = 'gold', flat = false) {
+export function eyeMaterial(key = 'eye', ink: EyeInk = 'gold', flat = false, wobble = true) {
   const g = graph()
   const uv = g.uv()
   // eye space: x from -1 at one corner to +1 at the other, y in the same units
@@ -641,12 +665,21 @@ export function eyeMaterial(key = 'eye', ink: EyeInk = 'gold', flat = false) {
    * fields would be tidier and the difference is invisible: the offset is large
    * enough that x and y wander independently, which is all the wobble needs.
    */
-  const paperNoise = g.noise(g.combine(g.multiply(x, 2.1), g.multiply(y, 2.1), 0), { scale: 2.6, detail: 1 })
-  const paperNoise2 = g.noise(g.combine(g.add(g.multiply(x, 2.1), 19.3), g.multiply(y, 2.1), 7.7), { scale: 2.6, detail: 1 })
-  const nx = g.subtract(paperNoise, 0.5)
-  const ny = g.subtract(paperNoise2, 0.5)
-  const wx = g.add(x, g.multiply(g.multiply(nx, paper), GLYPH.wobble * 2))
-  const wy = g.add(y, g.multiply(g.multiply(ny, paper), GLYPH.wobble * 2))
+  /**
+   * `wobble` false leaves the noise OUT of the graph rather than turning it down.
+   *
+   * eyePaper at 0 costs exactly as much as eyePaper at 1: the noise is still evaluated per fragment and
+   * then multiplied by nothing. Callers that draw a lot of these for a fraction of a second want the
+   * cheaper shader, not the same shader holding still - the flash's twelve are 46 KB of perlin each,
+   * compiled and filled inside the six frames of an inverted two-tone, where a paper wander is not a
+   * thing anyone can see.
+   */
+  const wx = wobble
+    ? g.add(x, g.multiply(g.multiply(g.subtract(g.noise(g.combine(g.multiply(x, 2.1), g.multiply(y, 2.1), 0), { scale: 2.6, detail: 1 }), 0.5), paper), GLYPH.wobble * 2))
+    : x
+  const wy = wobble
+    ? g.add(y, g.multiply(g.multiply(g.subtract(g.noise(g.combine(g.add(g.multiply(x, 2.1), 19.3), g.multiply(y, 2.1), 7.7), { scale: 2.6, detail: 1 }), 0.5), paper), GLYPH.wobble * 2))
+    : y
 
   // the eye is drawn in ITS space, which is a fraction of the glyph's
   const K = GLYPH.eyeScale

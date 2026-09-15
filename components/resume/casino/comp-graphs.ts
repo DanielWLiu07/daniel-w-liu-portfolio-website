@@ -6,6 +6,9 @@
 import { fbm, valueNoise, watercolorGraph, type CompGraph, type CompInput, type Compositor } from 'blender-to-threejs'
 import type { ImpactFx } from './hero-chip'
 import * as THREE from 'three'
+import { IMPACT_DURATION, impactBurstMotion } from './impact-eye-motion'
+import { withImpactReveal } from './impact-reveal'
+import { getTune } from './tune'
 
 // pomme's paper texture for the watercolour compose step
 const paper = new THREE.TextureLoader().load('/models/paper.png')
@@ -26,40 +29,30 @@ export interface CompGraphEntry {
  * The impact flicker, as {impact, after} for the manga pass. One place, because casino-scene drives the
  * same uniforms on its own path and the two had drifted into separate copies of this.
  *
- * SIX frames at 12fps, all of them the SAME treatment:
- *
- *   0      after = 1, a blown-out white frame. The hit itself.
- *   1-5    impact = 2, the inverted two-tone, held for the whole rest of the flicker
- *   then   the afterimage veil decays out
- *
- * The gritty mono frames that used to run from frame 3 are gone. They were the crosshatch look, and
- * switching into them halfway meant the flash changed its mind partway through - two effects in a row
- * rather than one held. One treatment, held, is a stronger read, and the inverted two-tone is the one
- * worth holding: it is the only state that reverses the whole image rather than just texturing it.
- *
- * The blank frame stays, and it is deliberately NOT the crosshatch state underneath - impact is 2 there
- * too, so no mono frame exists anywhere in the sequence. It has to be its own step because in the shader
- * the afterimage veil is mixed BEFORE the inversion, so an inverted frame overwrites any veil on top.
+ * One opening flash, then the inverted treatment through arrival, coasting and outward flight.
+ * The watercolor graphs reveal normal paint from the centre during the flight; by the time
+ * this uniform resets, that reveal already covers every pixel. There is no trailing fade.
  */
 export function impactPass(ia: number): { impact: number; after: number } {
   const IFR = 1 / 12
   if (ia < 0) return { impact: 0, after: 0 }
-  const n = Math.floor(ia / IFR)
-  if (n === 0) return { impact: 2, after: 1 }
-  if (n <= 5) return { impact: 2, after: 0 }
-  return { impact: 0, after: 0.5 * Math.exp(-(ia - IFR * 6) * 6) }
+  if (ia < IFR) return { impact: 2, after: 1 }
+  if (ia < IMPACT_DURATION) return { impact: 2, after: 0 }
+  return { impact: 0, after: 0 }
 }
 
 function impactFrames(u: Uniforms, ia: number) {
   const { impact, after } = impactPass(ia)
   if (u.impact) u.impact.value = impact
   if (u.after) u.after.value = after
+  if (u.impactReturn) u.impactReturn.value = impactBurstMotion(ia).reveal
+  if (u.impactNoise) u.impactNoise.value = getTune().hitRevealNoise
 }
 
 export const COMP_GRAPHS: Record<string, CompGraphEntry> = {
   /** the watercolour recipe from the library, impact frames from the chip */
   watercolor: {
-    build: (c) => watercolorGraph(c, { paper, bleedTaps: 3 }),
+    build: (c) => withImpactReveal(c, watercolorGraph(c, { paper, bleedTaps: 3 })),
     onFrame: (u, _t, fx) => impactFrames(u, fx.impactAge),
     rawOutput: true,
     // painterly hides the internal resolution completely; the pass cost scales with pixels
@@ -69,7 +62,7 @@ export const COMP_GRAPHS: Record<string, CompGraphEntry> = {
   /** the dark room: charcoal paper, gouache composition (chalk glow), one lamp pool over the table */
   night: {
     build: (c) =>
-      watercolorGraph(c, {
+      withImpactReveal(c, watercolorGraph(c, {
         paper,
         bleedTaps: 3,
         compose: 'gouache',
@@ -78,7 +71,7 @@ export const COMP_GRAPHS: Record<string, CompGraphEntry> = {
         paperColor: [0.11, 0.125, 0.115],
         grain: 1.0,
         pool: { centre: [0.5, 0.42], radius: 0.8, floor: 0.75, soft: 1.4 },
-      }),
+      })),
     onFrame: (u, _t, fx) => impactFrames(u, fx.impactAge),
     rawOutput: true,
     renderScale: 0.75,

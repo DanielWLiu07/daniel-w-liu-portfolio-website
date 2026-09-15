@@ -12,7 +12,9 @@
  *
  *   npx tsx scripts/check-stop-motion.ts
  */
-import { SM_DEFAULTS, WORD_DEFAULTS, boilAt, popAt, settle, slideAt, smFrame, smTime, chartAt, chartFor, PASTE_CHART, SLIDE_CHART, wordAt, wordGroups, wordOf, wordShot } from '../components/resume/casino/stop-motion'
+import { SM_DEFAULTS, WORD_DEFAULTS, boilAt, popAt, settle, slideAt, smFrame, smTime, LANDINGS, SLIDE_CHART, chartAt, chartFor, landingFor, placeAt, placeFor, wordAt, wordGroups, wordOf, wordShot } from '../components/resume/casino/stop-motion'
+import { TUNE_DEFAULTS } from '../components/resume/casino/tune'
+import { offscreenWordOffset } from '../components/resume/casino/stop-motion'
 
 const fail: string[] = []
 const { fps } = SM_DEFAULTS
@@ -182,9 +184,8 @@ const assert = (cond: boolean, msg: string) => { if (!cond) fail.push(msg) }
   const gaps = SLIDE_CHART.slice(1).map((v, i) => v - SLIDE_CHART[i])
   const widest = Math.max(...gaps.map(Math.abs))
   assert(SLIDE_CHART[0] === 0, 'the chart starts at the mark it is measured from')
-  assert(SLIDE_CHART[SLIDE_CHART.length - 1] === 1, 'and ends exactly on the mark')
   assert(SLIDE_CHART[1] < 0, 'a hand pulls the scrap back before it pushes it: pose 1 is the anticipation')
-  assert(Math.max(...SLIDE_CHART) > 1, 'the chart has to carry past the mark somewhere')
+  // the carry past the mark is NOT in the chart any more: see 3b, it is the landing
   assert(widest <= 0.22, `no pose may jump more than a fifth of the travel or it strobes: widest is ${(widest * 100).toFixed(0)}%`)
   // and the gaps must NOT shrink monotonically, which is what a sampled ease
   // curve does and what reads mechanical
@@ -200,24 +201,86 @@ const assert = (cond: boolean, msg: string) => { if (!cond) fail.push(msg) }
   assert(widest < JUDDER / 3, `the widest gap must be well under the ${(JUDDER * 100).toFixed(0)}% that juddered, got ${(widest * 100).toFixed(0)}%`)
 
   /**
-   * 3b. THE PASTE CHART: the same move with nothing past the mark.
+   * 3b. THE LANDING: a correction is the SAME SIZE AS A REGULAR MOVE.
    *
-   * The overshoot is a fraction of the travel, so a lockup that comes in from
-   * four times as far pays four times as much for it. Measured, the title's tail
-   * moved 8px and the jack's moved 47px off the identical poses. A pasted scrap
-   * does not bounce, so the paste chart decelerates onto its mark instead.
+   * This is the invariant, and it has been got wrong twice in opposite
+   * directions. Overshoot poses inside the chart (0.99, 1.04, 0.99, 1.00) are
+   * steps of .07, .05, -.05, .01 against regular moves of .16: a quarter the
+   * size, so a tremor. Replacing them with a fixed absolute nudge was worse,
+   * because a word that travels four times as far then corrects itself by 13% of
+   * its own movement. Either way the failure is the same: a move far smaller than
+   * the moves around it, which reads as jitter rather than as a hand.
+   *
+   * So the test is a RATIO, not an absolute, and it is the one that catches both.
    */
-  const pg2 = PASTE_CHART.slice(1).map((v, i) => v - PASTE_CHART[i])
-  assert(PASTE_CHART[0] === 0, 'the paste chart starts at its mark')
-  assert(PASTE_CHART[PASTE_CHART.length - 1] === 1, 'and ends exactly on it')
-  assert(Math.max(...PASTE_CHART) <= 1, 'and NEVER goes past it: that is the whole difference')
-  assert(PASTE_CHART[1] < 0, 'it keeps the anticipation, which is at the start, not the end')
-  assert(Math.max(...pg2.map(Math.abs)) <= 0.22, 'and no pose jumps far enough to strobe')
-  // once it is home it stays home: no pose after the first 1 dips back
-  const home = PASTE_CHART.indexOf(1)
-  for (let i = home; i < PASTE_CHART.length; i++) assert(PASTE_CHART[i] === 1, 'nothing moves after it lands')
-  // the last approach gaps decelerate, so it arrives rather than slamming
-  assert(pg2[pg2.length - 1] < pg2[Math.floor(pg2.length / 2)], 'the paste eases onto its mark')
+  const approach = SLIDE_CHART.slice(1).map((v, i) => v - SLIDE_CHART[i]).slice(1)
+  const regular = [...approach].sort((x, y) => x - y)[Math.floor(approach.length / 2)]
+  assert(SLIDE_CHART[SLIDE_CHART.length - 1] < 1, 'the approach stops SHORT: the move onto the mark belongs to the landing')
+  for (const L of LANDINGS) {
+    // every step of the full placement, the final move onto the mark included
+    const full = [SLIDE_CHART[SLIDE_CHART.length - 1], ...L, 1]
+    const steps = full.slice(1).map((v, i) => Math.abs(v - full[i]))
+    for (const st of steps) {
+      assert(st > 0, 'every correction changes pose')
+      assert(st <= regular * 1.75, `a correction of ${(st / regular * 100).toFixed(0)}% of a regular move would strobe`)
+    }
+    if (L.length) assert(Math.max(...L) > 1, 'a correcting landing carries past the mark')
+  }
+  for (const L of LANDINGS) {
+    assert(L.length >= 3 && L.length <= 5, 'each word gets a short in-place settle')
+    for (let i = 1; i < L.length; i++) {
+      assert((L[i] - 1) * (L[i - 1] - 1) < 0, 'corrections alternate around home')
+      assert(Math.abs(L[i] - 1) < Math.abs(L[i - 1] - 1), 'corrections decay towards rest')
+    }
+    assert(Math.abs(L[L.length - 1] - 1) <= 0.0251, 'last correction is small before the exact lock')
+  }
+  for (let seed = 0; seed < 7; seed++) {
+    for (let w = 0; w < 5; w++)
+      assert(
+        JSON.stringify(landingFor(seed, w)) !== JSON.stringify(landingFor(seed, w + 1)),
+        `words ${w} and ${w + 1} must land differently at seed ${seed}`,
+      )
+
+  }
+
+  /**
+   * 3c. and it holds at ANY travel, which is the point of stating it as a ratio.
+   * A word coming in from 6 units and one from 1.2 must both correct themselves
+   * by the same share of their own movement.
+   */
+  {
+    const wmA = { ...WORD_DEFAULTS }
+    const land = LANDINGS[1]
+    const ratio = (ox: number) => {
+      const sh = { cue: 0, ox, oy: 0, turn: 0.2, side: 1 }
+      const xs: number[] = []
+      for (let f = 0; f <= 40; f++) xs.push(wordAt(f / FPS, sh, wmA, FPS, 0, land).x)
+      const steps = xs.slice(1).map((v, i) => Math.abs(v - xs[i])).filter((v) => v > 1e-9)
+      const big = Math.max(...steps)
+      // the correction is the last real step
+      const lastStep = steps[steps.length - 1]
+      return lastStep / big
+    }
+    const a2 = ratio(-1.2)
+    const b2 = ratio(-6.0)
+    assert(Math.abs(a2 - b2) < 1e-6, `the correction must be the same share of the move at any travel: ${a2.toFixed(3)} vs ${b2.toFixed(3)}`)
+    assert(a2 > 0 && a2 < 0.15, 'the final correction is a small settle, not another arrival')
+  }
+
+  /** 3d. locks cluster closely without all snapping still on one exposure */
+  {
+    const wmB = { ...WORD_DEFAULTS }
+    const stops = [0, 1, 2].map((w) => {
+      const sh = wordShot(w, 3, wmB, 11)
+      const land = landingFor(11, w)
+      let last = -1
+      for (let f = 0; f <= 80; f++) if (wordAt(f / FPS, sh, wmB, FPS, 0, land).moving) last = f
+      return last
+    })
+    assert(new Set(stops).size > 1, `the words should not all lock together, got ${stops.join(', ')}`)
+    assert(Math.max(...stops) - Math.min(...stops) <= 4, 'the final locks stay within four exposures')
+    assert(placeFor(FPS, 1, []) < placeFor(FPS, 1, LANDINGS[5]), 'a fussed-over scrap takes longer than a clean one')
+  }
 
   // 4. poses advance one per exposure, hold when held, and STOP
   const c0 = chartAt(0, 0, FPS, 1)
@@ -228,8 +291,11 @@ const assert = (cond: boolean, msg: string) => { if (!cond) fail.push(msg) }
     assert(c.k === SLIDE_CHART[f], `pose ${f} sits where the chart says`)
     assert(c.moving, `pose ${f} is still in hand`)
   }
-  const done = chartAt(chartFor(FPS, 1) + 5, 0, FPS, 1)
+  const done = placeAt(placeFor(FPS, 1, LANDINGS[1]) + 5, 0, FPS, 1, LANDINGS[1])
   assert(done.k === 1 && !done.moving, 'and after the last pose it is down and out of hand')
+  // the pose it actually lands on carries no hand error, so nothing twitches on it
+  const onMark = placeAt((SLIDE_CHART.length + LANDINGS[1].length) / FPS, 0, FPS, 1, LANDINGS[1])
+  assert(onMark.k === 1 && !onMark.moving, 'the frame it lands on is exact and unhandled')
   // step holds each pose, without resampling
   const held = chartAt(1 / FPS, 0, FPS, 2)
   assert(held.pose === 0, 'at step 2 the first pose is held for two exposures')
@@ -262,11 +328,12 @@ const assert = (cond: boolean, msg: string) => { if (!cond) fail.push(msg) }
 
   // 7. it OVERSHOOTS on the way
   let past = false
+  const land0 = LANDINGS[1]
   for (let f = 0; f <= 60; f++) {
-    const m = wordAt(f / FPS, shot0, wm, FPS)
+    const m = wordAt(f / FPS, shot0, wm, FPS, 0, land0)
     if (m.x * shot0.ox + m.y * shot0.oy < -1e-6) past = true
   }
-  assert(past, 'a word set down by hand goes past its mark and is pulled back')
+  assert(past, 'a word given an overshooting landing goes past its mark and is pulled back')
 
   // 8. the path BOWS: a hand does not move a thing down a rail
   const reach = Math.hypot(shot0.ox, shot0.oy)
@@ -307,6 +374,36 @@ const assert = (cond: boolean, msg: string) => { if (!cond) fail.push(msg) }
   assert(JSON.stringify(wordShot(1, 3, wm, 7)) !== JSON.stringify(wordShot(1, 3, wm, 12)), 'two lines are cut differently')
 }
 
+// Jack now shares the title's word engine: all four words must finish before lift-off.
+// Full word bounds, not just the pivot, must begin beyond the viewport.
+for (const [halfW, halfH] of [[6, 2], [2, 6], [3, 3]]) {
+  for (const radius of [0.2, 1.5, 4]) {
+    for (const side of ['left', 'top', 'right', 'bottom'] as const) {
+      const x = 0.6, y = -0.4
+      const d = offscreenWordOffset(side, x, y, radius, halfW, halfH)
+      const outside = side === 'left' ? x + d.x + radius < -halfW
+        : side === 'right' ? x + d.x - radius > halfW
+        : side === 'top' ? y + d.y - radius > halfH : y + d.y + radius < -halfH
+      if (!outside) fail.push(`${side} entry clips into ${halfW}x${halfH} before it moves`)
+    }
+  }
+}
+{
+  const t = TUNE_DEFAULTS
+  const wm = { beat: t.wdBeat, step: t.wdStep, from: t.wdFrom, turn: t.wdTurn, swing: t.wdSwing, drag: t.wdDrag, dir: t.wdDir, hand: t.wdHand }
+  const locks = [t.jkTJack, t.jkTOf, t.jkTAll, t.jkTTrades].map((at, w) =>
+    at + w * wm.beat + (SLIDE_CHART.length + landingFor(11, w).length + wm.drag) * wm.step / t.smFps,
+  )
+  if (Math.max(...locks) - Math.min(...locks) > 0.3) fail.push('Jack final locks must cluster within 0.3 seconds')
+  ;[t.jkTJack, t.jkTOf, t.jkTAll, t.jkTTrades].forEach((at, w) => {
+    const shot = wordShot(w, 4, wm, 11)
+    const pose = wordAt(t.jkFlick - 0.2 - at, shot, wm, t.smFps, 0, landingFor(11, w))
+    if (pose.moving || Math.abs(pose.x) + Math.abs(pose.y) + Math.abs(pose.turn) > 1e-9) {
+      fail.push(`Jack word ${w} must be fully settled at least 0.2 seconds before the coin launches`)
+    }
+  })
+}
+
 if (fail.length) {
   console.error('FAIL')
   for (const f of fail) console.error('  ' + f)
@@ -318,8 +415,7 @@ console.log(
     `the boil never outlives the move; and a reveal is on or off with no value in between.`,
 )
 console.log(
-  'OK: the poses are AUTHORED, not sampled: nothing jumps more than a fifth of the travel, the gaps do\n' +
-    '    not shrink evenly, there is an anticipation and an overshoot, and a word is one rigid scrap that\n' +
-    '    comes in from the edge nearest its own place and straightens after it lands; and the pasted\n' +
-    '    lockup rides the same spacing with nothing past the mark, because a pasted scrap does not bounce.',
+  'OK: the poses are AUTHORED, not sampled, and no gap is big enough to strobe. The correction at the\n' +
+    '    end overshoots then decays through short alternating corrections; every word locks exactly\n' +
+    '    at home, with no idle motion.',
 )

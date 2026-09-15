@@ -32,51 +32,36 @@ export function contactShadowTexture(): THREE.CanvasTexture {
   return t
 }
 
-/**
- * A strip of tape: warm, translucent, with the slightly ragged ends and the shine down the middle that is
- * what actually reads as tape rather than a coloured rectangle. Transparent, so the compositor treats it
- * as a decal and it never stamps its quad into the position buffer.
- */
-export function tapeTexture(): THREE.CanvasTexture {
-  const W = 512
-  const H = 160
+/** Matte cream masking tape: fine fibres and torn ends, without a painted bevel. */
+export function tapeTexture(seed = 0): THREE.CanvasTexture {
+  const W = 128
+  const H = 512
   const c = document.createElement('canvas')
   c.width = W
   c.height = H
   const x = c.getContext('2d')!
-  x.clearRect(0, 0, W, H)
-  // the body, with the ends torn rather than cut
-  const tear = (at: number, dir: number) => {
-    x.beginPath()
-    x.moveTo(at, 0)
-    for (let i = 0; i <= 10; i++) {
-      const t = i / 10
-      const wob = Math.sin(t * 7.3 + at) * 5 + Math.sin(t * 19 + at) * 2.5
-      x.lineTo(at + dir * (3 + wob), t * H)
-    }
-    x.lineTo(at + dir * W, H)
-    x.lineTo(at + dir * W, 0)
-    x.closePath()
+  const pixels = x.createImageData(W, H)
+  const noise = (n: number) => {
+    const v = Math.sin(n * 127.1 + seed * 311.7) * 43758.5453
+    return v - Math.floor(v)
   }
-  // strong enough to survive the painterly pass, which washed the first version out to a faint streak
-  x.fillStyle = 'rgba(218, 196, 142, 0.86)'
-  x.fillRect(0, 0, W, H)
-  // a sheen along the middle, and a little dirt at the edges, so it is not a flat wash
-  const g = x.createLinearGradient(0, 0, 0, H)
-  g.addColorStop(0, 'rgba(150,126,74,0.22)')
-  g.addColorStop(0.34, 'rgba(255,252,238,0.42)')
-  g.addColorStop(0.58, 'rgba(255,250,232,0.16)')
-  g.addColorStop(1, 'rgba(120,98,54,0.30)')
-  x.fillStyle = g
-  x.fillRect(0, 0, W, H)
-  // bite the torn ends back out
-  x.globalCompositeOperation = 'destination-out'
-  x.fillStyle = '#000'
-  tear(0, -1)
-  x.fill()
-  tear(W, 1)
-  x.fill()
-  x.globalCompositeOperation = 'source-over'
+  for (let py = 0; py < H; py++) {
+    for (let px = 0; px < W; px++) {
+      // The tears cut INTO the strip; the long edges stay machine-cut.
+      const bottom = 10 + Math.sin(px * 0.13 + seed) * 3 + noise(Math.floor(px / 4)) * 7
+      const top = H - 10 - Math.sin(px * 0.17 + seed * 2) * 3 - noise(93 + Math.floor(px / 3)) * 8
+      const coverage = Math.min(1, Math.max(0, Math.min(py - bottom, top - py, px - 1, W - 2 - px)))
+      const fibre = (noise(px + py * W) - 0.5) * 5 + Math.sin(py * 0.83 + Math.sin(px * 0.06)) * 1.5
+      const i = (py * W + px) * 4
+      // Honey-coloured paper stays distinct from both the white document and
+      // pale manila after the gouache pass compresses their light colours.
+      pixels.data[i] = 210 + fibre
+      pixels.data[i + 1] = 185 + fibre
+      pixels.data[i + 2] = 132 + fibre
+      pixels.data[i + 3] = coverage * (0.79 + (noise(px * 3 + py * 7) - 0.5) * 0.035) * 255
+    }
+  }
+  x.putImageData(pixels, 0, 0)
   const t = new THREE.CanvasTexture(c)
   t.colorSpace = THREE.SRGBColorSpace
   t.anisotropy = 8
@@ -265,4 +250,3 @@ export function paperSheet(
   }
   return { mesh, face, curl: both }
 }
-

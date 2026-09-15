@@ -12,7 +12,7 @@
  * single piece, ball track and all, is the thing that makes an animation read
  * as a toy.
  */
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, type MutableRefObject } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
@@ -23,6 +23,7 @@ import {
   POCKET_ARC,
   WHEEL_ORDER,
   cycleAt,
+  orbitAt,
   pocketAngle,
   pocketColour,
   spinAt,
@@ -276,21 +277,42 @@ export interface RouletteProps extends SpinOptions {
   /** use the generated wheel instead of the drawn one */
   mesh?: boolean
   paused?: boolean
+  /** Keep the head and ball counter-rotating for a presentation shot. */
+  orbit?: boolean
   /** hold the spin at this point of the cycle, 0 to 1, instead of running it */
   scrub?: number
+  /** Scene beat in seconds; null parks the wheel while its shot is off screen. */
+  time?: MutableRefObject<number | null>
+  /** Fill for a wheel presented outside the table's spotlight. */
+  fill?: number
+  shadows?: boolean
   /** called when a spin settles with the winning number, and with null when the next one is under way */
   onResult?: (n: number | null) => void
 }
 
-export default function Roulette({
+export default function Roulette(props: RouletteProps) {
+  return props.mesh ? <MeshyRoulette {...props} /> : <Wheel {...props} />
+}
+
+function MeshyRoulette(props: RouletteProps) {
+  const meshy = useMeshyWheel()
+  return <Wheel {...props} meshy={meshy} />
+}
+
+function Wheel({
   position = [0, 0, 0],
   size = 1.15,
   mesh = false,
   paused = false,
+  orbit = false,
   scrub,
+  time,
+  fill,
+  shadows = true,
   onResult,
+  meshy = null,
   ...spin
-}: RouletteProps) {
+}: RouletteProps & { meshy?: ReturnType<typeof useMeshyWheel> }) {
   const bowl = useMemo(() => bowlGeometry(), [])
   const seat = useMemo(() => {
     // the ring the frets seat into. The bowl and the black pockets are the same
@@ -309,7 +331,6 @@ export default function Roulette({
   }, [])
   const head = useMemo(() => headGeometry(), [])
   const diamonds = useMemo(() => deflectorGeometry(), [])
-  const meshy = useMeshyWheel()
   const useMesh = mesh && meshy !== null
 
   const mats = useMemo(() => {
@@ -348,13 +369,20 @@ export default function Roulette({
   )
 
   useFrame((_, dt) => {
+    if (time && time.current === null) return
+    if (fill !== undefined) {
+      for (const material of [mats.bowl, ...mats.head, mats.metal, mats.ball]) {
+        const u = material.userData.uniforms as Record<string, { value: number }> | undefined
+        if (u?.lampAmb) u.lampAmb.value = fill
+      }
+    }
     // clamped: a backgrounded tab hands back one enormous delta, and a wheel
     // that teleports through half a spin on return reads as a bug
     if (!paused) clock.current += Math.min(dt, 1 / 20)
     const period = spin.period ?? 15
-    const t = scrub !== undefined ? scrub * period : clock.current
+    const t = time?.current ?? (scrub !== undefined ? scrub * period : clock.current)
     const c = scrub !== undefined ? { cycle: 0, t } : cycleAt(t, spin)
-    const s = spinAt(c.t, c.cycle, spin)
+    const s = orbit ? orbitAt(t, spin) : spinAt(c.t, c.cycle, spin)
 
     if (headRef.current) headRef.current.rotation.y = s.wheel
     if (ballRef.current) {
@@ -385,28 +413,26 @@ export default function Roulette({
       <group position={[0, -DIMS.base, 0]}>
       {useMesh ? (
         <>
-          <mesh geometry={(meshy as { bowl: THREE.BufferGeometry }).bowl} material={mats.bowl} castShadow receiveShadow />
+          <mesh geometry={(meshy as { bowl: THREE.BufferGeometry }).bowl} material={mats.bowl} castShadow={shadows} receiveShadow={shadows} />
           <group ref={headRef}>
-            <mesh geometry={(meshy as { head: THREE.BufferGeometry }).head} material={mats.metal} castShadow receiveShadow />
+            <mesh geometry={(meshy as { head: THREE.BufferGeometry }).head} material={mats.metal} castShadow={shadows} receiveShadow={shadows} />
           </group>
         </>
       ) : (
         <>
-          <mesh geometry={bowl} material={mats.bowl} castShadow receiveShadow />
-          <mesh geometry={rim} material={mats.metal} castShadow receiveShadow />
-          <mesh geometry={diamonds} material={mats.metal} castShadow receiveShadow />
+          <mesh geometry={bowl} material={mats.bowl} castShadow={shadows} receiveShadow={shadows} />
+          <mesh geometry={rim} material={mats.metal} castShadow={shadows} receiveShadow={shadows} />
+          <mesh geometry={diamonds} material={mats.metal} castShadow={shadows} receiveShadow={shadows} />
           <group ref={headRef}>
-            <mesh geometry={head} material={mats.head} castShadow receiveShadow />
-            <mesh geometry={seat} material={mats.metal} castShadow receiveShadow />
+            <mesh geometry={head} material={mats.head} castShadow={shadows} receiveShadow={shadows} />
+            <mesh geometry={seat} material={mats.metal} castShadow={shadows} receiveShadow={shadows} />
           </group>
         </>
       )}
-      <mesh ref={ballRef} material={mats.ball} castShadow>
+      <mesh ref={ballRef} material={mats.ball} castShadow={shadows}>
         <sphereGeometry args={[DIMS.ball, 20, 14]} />
       </mesh>
       </group>
     </group>
   )
 }
-
-useGLTF.preload(MESHY_WHEEL)
