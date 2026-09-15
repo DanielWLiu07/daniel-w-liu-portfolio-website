@@ -11,13 +11,20 @@
  * Everything wears the table's own materials, so a chip here is the same object
  * as a chip on the felt rather than a lookalike sitting next to one.
  */
-import { useMemo } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, type MutableRefObject } from 'react'
 import * as THREE from 'three'
-import { useThree, type ThreeEvent } from '@react-three/fiber'
-import { chipFaceWatercolorMaterial, chipWatercolorMaterial, CHIP_INKS, type ChipInk } from './materials'
-import { heroChipHeight, heroChipRadius } from './hero-chip'
+import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
+import { chipFaceWatercolorMaterial, chipWatercolorMaterial, CHIP_INKS, LAMP, type ChipInk } from './materials'
+import { heroChipHeight, heroChipRadius, type ImpactFx } from './hero-chip'
+import { propArrival, bakedDiePose, diceEntranceYaw, markPropMotion } from './prop-arrival'
+import type { createInteractiveDie } from './interactive-die'
+import { createChipController } from './chip-pile-controller'
+import { ROOM_FLOOR_DROP } from './room-geometry'
 import Die from './dice'
-import { getProp, setProp, useTune, type PropTweak } from './tune'
+import { impactPropFill } from './impact-eye-motion'
+import { getProp, getTune, setProp, useTune, type PropTweak } from './tune'
+
+const ChipPhysics = createContext<ReturnType<typeof createChipController> | null>(null)
 
 /**
  * The same size as the chip in the middle of the table, taken FROM it, and
@@ -66,6 +73,13 @@ export const PROP_LAYOUT: Record<string, PropTweak> = {
   'die:0': { x: 2.6722, z: -2.8463, s: 1, r: 3.4207 },
   'die:1': { x: 3.7287, z: -1.9103, s: 1, r: 1.4726 },
 }
+
+/**
+ * The approved rear edge moved from -4.5 to -2.5. Translate the whole
+ * arrangement by the same +2 in Z, preserving spacing, pile shapes and saved
+ * per-prop edits. This is a baked placement, not a link to the live table slider.
+ */
+export const PROP_LAYOUT_OFFSET_Z = 2
 
 /** deterministic, so a seed always deals the same handful */
 const hash = (n: number) => {
@@ -172,7 +186,7 @@ export function pileScatter(chips: number, dice: number, spread: number, seed: n
  * which feels broken as soon as the camera is not square on. Size and spin do
  * use pixel deltas, because there is nothing in the world for them to track.
  */
-function useDrag(key: string, base: PropTweak, planeY: number, origin: [number, number]) {
+function useDrag(key: string, base: PropTweak, planeY: number, origin: [number, number], onTap?: (event: ThreeEvent<PointerEvent>) => void, allowPlainMove = true) {
   const { camera, gl } = useThree()
   const plane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 1, 0), -planeY), [planeY])
   const ray = useMemo(() => new THREE.Raycaster(), [])
@@ -187,7 +201,11 @@ function useDrag(key: string, base: PropTweak, planeY: number, origin: [number, 
     let moved = false
 
     const onMove = (ev: PointerEvent) => {
+      // Dice clicks stay clicks even when the pointer drifts across an airborne
+      // face. Ctrl-drag explicitly opts into moving the saved table placement.
+      if (mode === 'move' && !allowPlainMove && !e.ctrlKey) return
       moved = moved || Math.abs(ev.clientX - from.px) + Math.abs(ev.clientY - from.py) > 3
+      if (!moved) return
       if (mode === 'move') {
         const r = gl.domElement.getBoundingClientRect()
         ndc.set(((ev.clientX - r.left) / r.width) * 2 - 1, -(((ev.clientY - r.top) / r.height) * 2 - 1))
@@ -205,7 +223,10 @@ function useDrag(key: string, base: PropTweak, planeY: number, origin: [number, 
     const onUp = () => {
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
-      if (!moved) return
+      if (!moved) {
+        if (mode === 'move' && !e.ctrlKey) onTap?.(e)
+        return
+      }
       // one shot, capture phase: the release that ends a drag must not land as a
       // click on whatever the prop was dropped onto
       const swallow = (ce: MouseEvent) => {
@@ -222,72 +243,189 @@ function useDrag(key: string, base: PropTweak, planeY: number, origin: [number, 
   return { onPointerDown }
 }
 
-function ChipStack({ at, size, geo, chipH, drag }: { at: Placed; size: number; geo: THREE.BufferGeometry; chipH: number; drag: ReturnType<typeof useDrag> }) {
+function ChipStack({ at, size, geo, chipH, drag, kickRef, fx }: { at: Placed; size: number; geo: THREE.BufferGeometry; chipH: number; drag: ReturnType<typeof useDrag>; kickRef: MutableRefObject<((event: ThreeEvent<PointerEvent>) => void) | null>; fx?: MutableRefObject<ImpactFx>; tableMesh?: THREE.Mesh | null }) {
   const mats = useMemo(
     () => [chipWatercolorMaterial(at.ink), chipFaceWatercolorMaterial(at.ink), chipFaceWatercolorMaterial(at.ink)],
     [at.ink],
   )
+  const root = useRef<THREE.Group>(null)
+  const meshes = useRef<THREE.Mesh[]>([])
+  const physics = useContext(ChipPhysics)!
+  const homes = useMemo(() => {
+    const lean = new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.sin(at.leanDir) * at.lean, 0, Math.cos(at.leanDir) * at.lean))
+    return Array.from({ length: at.height }, (_, k) => {
+      const t = k * 1.7 + at.phase
+      const drift = at.wobble * (at.kind === 'loose' ? 1 + k / at.height : 1)
+      return {
+        position: new THREE.Vector3(Math.sin(t) * drift, chipH / 2 + k * chipH, Math.cos(t * 0.83) * drift).applyQuaternion(lean),
+        quaternion: lean.clone().multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), at.spin + k * at.twist)),
+      }
+    })
+  }, [at.height, at.lean, at.leanDir, at.phase, at.wobble, at.kind, at.spin, at.twist, chipH])
+  useEffect(() => {
+    const unregister = physics.register({ root: root.current!, meshes: meshes.current, radius: propChipRadius(chipH / propChipHeight(1)), height: chipH })
+    kickRef.current = event => {
+      if (!root.current || (fx && fx.current.impactAge < 1.5)) return
+      const radius = propChipRadius(chipH / propChipHeight(1)) * root.current.getWorldScale(new THREE.Vector3()).x * 0.85
+      physics.impact(event.point, radius, event.ray.direction)
+      markPropMotion(1)
+    }
+    return () => { kickRef.current = null; unregister() }
+  }, [homes, chipH, kickRef, fx, physics, size, at.x, at.z])
+  useFrame(() => {
+    if (!physics.active) homes.forEach((home, i) => {
+      if (meshes.current[i]) meshes.current[i].visible = true
+      meshes.current[i]?.position.copy(home.position)
+      meshes.current[i]?.quaternion.copy(home.quaternion)
+    })
+  })
   return (
-    <group position={[at.x, 0, at.z]} scale={size} {...drag}>
-      {/* the lean is on a wrapper so it tips the pile as one, from the felt up,
-          rather than shearing the chips against each other */}
-      <group rotation={[Math.sin(at.leanDir) * at.lean, 0, Math.cos(at.leanDir) * at.lean]}>
+    <group ref={root} position={[at.x, 0, at.z]} scale={size} {...drag} onClick={event => event.stopPropagation()}>
+      {/* Initial lean is baked into each body's pose; physics owns it after a click. */}
       {Array.from({ length: at.height }, (_, k) => {
-        // the wander is the pile's OWN: its amplitude, its phase and its twist,
-        // so no two piles trace the same curve up
-        const t = k * 1.7 + at.phase
-        const drift = at.wobble * (at.kind === 'loose' ? 1 + k / at.height : 1)
         return (
           <mesh
             key={k}
+            ref={mesh => { if (mesh) meshes.current[k] = mesh }}
             name="prop-chip"
             geometry={geo}
             material={mats}
             castShadow
             receiveShadow
-            position={[Math.sin(t) * drift, chipH / 2 + k * chipH, Math.cos(t * 0.83) * drift]}
-            rotation={[0, at.spin + k * at.twist, 0]}
+            position={homes[k].position}
+            quaternion={homes[k].quaternion}
           />
         )
       })}
-      </group>
     </group>
   )
 }
 
 /** one chip, with its own place: the scatter's, unless it has been dragged */
-function Chip({ at, i, t, y, geo, chipH }: { at: Placed; i: number; t: ReturnType<typeof useTune>; y: number; geo: THREE.BufferGeometry; chipH: number }) {
+function Chip({ at, i, t, y, geo, chipH, fx, tableMesh }: { at: Placed; i: number; t: ReturnType<typeof useTune>; y: number; geo: THREE.BufferGeometry; chipH: number; fx?: MutableRefObject<ImpactFx>; tableMesh?: THREE.Mesh | null }) {
   const key = `chip:${i}`
   // the baked layout first, the scatter for anything it does not name
   const base: PropTweak = PROP_LAYOUT[key] ?? { x: at.x, z: at.z, s: 1, r: at.spin }
   const put = getProp(key) ?? base
-  const drag = useDrag(key, base, y, [t.ttPropX, t.ttPropZ])
-  return <ChipStack at={{ ...at, x: put.x, z: put.z, spin: put.r }} size={t.ttChipS * put.s} geo={geo} chipH={chipH} drag={drag} />
+  const kickRef = useRef<((event: ThreeEvent<PointerEvent>) => void) | null>(null)
+  const drag = useDrag(key, base, y, [t.ttPropX, t.ttPropZ + PROP_LAYOUT_OFFSET_Z], event => kickRef.current?.(event), false)
+  const arrival = useRef<THREE.Group>(null)
+  useFrame(() => {
+    if (!arrival.current) return
+    const m = propArrival(fx?.current.impactAge ?? 10, 0.72 + (i % 3) * 0.07)
+    arrival.current.visible = m.visible
+    // Side lanes leave the hero chip and resume clear. Whole stacks slide flat.
+    arrival.current.position.set((put.x < 0 ? -1 : 1) * 9 * m.remaining, 0, (i % 2 ? -0.5 : 0.5) * m.remaining)
+  })
+  return <group ref={arrival} visible={!fx}><ChipStack at={{ ...at, x: put.x, z: put.z, spin: put.r }} size={t.ttChipS * put.s} geo={geo} chipH={chipH} drag={drag} kickRef={kickRef} fx={fx} tableMesh={tableMesh} /></group>
 }
 
-function OneDie({ at, i, t, y }: { at: Placed; i: number; t: ReturnType<typeof useTune>; y: number }) {
+function OneDie({ at, i, t, y, fx }: { at: Placed; i: number; t: ReturnType<typeof useTune>; y: number; fx?: MutableRefObject<ImpactFx> }) {
   const key = `die:${i}`
   const base: PropTweak = PROP_LAYOUT[key] ?? { x: at.x, z: at.z, s: 1, r: at.spin }
   const put = getProp(key) ?? base
-  const drag = useDrag(key, base, y, [t.ttPropX, t.ttPropZ])
   const size = propDieSize(t.chip) * t.ttDiceS * put.s
+  const roll = useRef<THREE.Group>(null)
+  const generation = useRef(0)
+  const playback = useRef<{ physics: Awaited<ReturnType<typeof createInteractiveDie>> | null; loading: boolean; pending: number; age: number; dead: boolean }>({ physics: null, loading: false, pending: 0, age: -1, dead: false })
+  const velocity = useRef(new THREE.Vector3())
+  const angularVelocity = useRef(new THREE.Vector3())
+  const lastRotation = useRef(new THREE.Quaternion())
+  const deltaRotation = useRef(new THREE.Quaternion())
+  const lastPosition = useRef(new THREE.Vector3())
+  const entranceYaw = useMemo(() => new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), diceEntranceYaw(i, put.r)), [i, put.r])
+  useEffect(() => {
+    const state = playback.current
+    state.dead = false
+    return () => { generation.current++; state.dead = true; state.physics?.dispose(); state.physics = null }
+  }, [])
+  const drag = useDrag(key, base, y, [t.ttPropX, t.ttPropZ + PROP_LAYOUT_OFFSET_Z], () => {
+    const state = playback.current
+    if (!roll.current?.visible) return
+    if (state.physics) {
+      state.physics.kick()
+      markPropMotion(1)
+      return
+    }
+    state.pending++
+    if (state.loading) return
+    state.loading = true
+    const ticket = generation.current
+    void import('./interactive-die').then(async ({ createInteractiveDie }) => {
+      if (state.dead || ticket !== generation.current || !roll.current) return
+      const physics = await createInteractiveDie(roll.current.position, roll.current.quaternion, velocity.current, size, angularVelocity.current)
+      if (state.dead || ticket !== generation.current) { physics.dispose(); return }
+      state.physics = physics
+      while (state.pending > 0) { physics.kick(); state.pending-- }
+      state.loading = false
+      markPropMotion(1)
+    }).catch(error => { state.loading = false; console.error('Dice physics could not load', error) })
+  }, false)
+  useFrame((_, dt) => {
+    if (!roll.current) return
+    const state = playback.current
+    const age = (fx?.current.impactAge ?? 10) - i * 0.06
+    if (age < state.age - 0.1) { generation.current++; state.physics?.dispose(); state.physics = null; state.pending = 0; state.loading = false }
+    state.age = age
+    lastPosition.current.copy(roll.current.position)
+    lastRotation.current.copy(roll.current.quaternion)
+    if (state.physics) {
+      if (state.physics.step(dt, roll.current.position, roll.current.quaternion)) markPropMotion(0.2)
+    } else {
+      roll.current.visible = bakedDiePose(age, size, i, roll.current.position, roll.current.quaternion)
+      roll.current.position.applyQuaternion(entranceYaw)
+      roll.current.quaternion.premultiply(entranceYaw)
+    }
+    if (dt > 0 && dt < 0.1) {
+      velocity.current.copy(roll.current.position).sub(lastPosition.current).divideScalar(dt)
+      const dq = deltaRotation.current.copy(lastRotation.current).invert().premultiply(roll.current.quaternion).normalize()
+      if (dq.w < 0) dq.set(-dq.x, -dq.y, -dq.z, -dq.w)
+      const sin = Math.hypot(dq.x, dq.y, dq.z)
+      angularVelocity.current.set(dq.x, dq.y, dq.z).multiplyScalar(sin > 1e-6 ? 2 * Math.atan2(sin, dq.w) / (sin * dt) : 0)
+    }
+  })
   return (
-    <group {...drag}>
+    <group {...drag} onClick={e => e.stopPropagation()} position={[put.x, 0, put.z]} rotation={[0, put.r, 0]}>
+      <group ref={roll} visible={!fx}>
       <Die
         value={at.value}
         ink="white"
         pipInk="black"
-        spin={put.r}
-        // y is half the die's size, so it rests on the felt the way a chip does
-        position={[put.x, size / 2, put.z]}
         size={size}
       />
+      </group>
     </group>
   )
 }
 
-export default function TitleProps({ y }: { y: number }) {
+export default function TitleProps({ y, fx, tableMesh }: { y: number; fx?: MutableRefObject<ImpactFx>; tableMesh?: THREE.Mesh | null }) {
   const t = useTune()
+  const physics = useMemo(() => createChipController(() => {
+    const tune = getTune()
+    tableMesh?.updateWorldMatrix(true, false)
+    return { radius: tune.table * 0.41 + tune.rail, chord: tableMesh ? tune.chord - tune.rail : -tune.table, floorY: y - 0.004 - ROOM_FLOOR_DROP,
+      matrix: tableMesh?.matrixWorld ?? new THREE.Matrix4().makeRotationX(-Math.PI / 2) }
+  }, () => propChipRadius(getTune().chip)), [tableMesh, y])
+  useEffect(() => () => physics.dispose(), [physics])
+  const root = useRef<THREE.Group>(null)
+  const wasLit = useRef(false)
+  useFrame((_, dt) => {
+    const age = fx?.current.impactAge ?? 10
+    if (physics.step(dt, age)) markPropMotion(0.1)
+    const flash = impactPropFill(age)
+    if (!root.current || (!flash && !wasLit.current)) return
+    // The impact threshold otherwise erases these dim side actors. Keep their local
+    // fill throughout the radial return, then settle it once every pixel is in colour.
+    root.current.traverse(o => {
+      const mat = (o as THREE.Mesh).material
+      if (!mat) return
+      for (const m of Array.isArray(mat) ? mat : [mat]) {
+        const u = m.userData.uniforms as Record<string, { value: number }> | undefined
+        if (u?.lampAmb) u.lampAmb.value = LAMP.ambient + flash * 0.8
+      }
+    })
+    wasLit.current = flash > 0
+  })
   // rebuilt when the chip knob moves, because that knob is what sets the size
   const chipR = propChipRadius(t.chip)
   const chipH = propChipHeight(t.chip)
@@ -298,13 +436,15 @@ export default function TitleProps({ y }: { y: number }) {
   )
   if (!chips.length && !dice.length) return null
   return (
-    <group position={[t.ttPropX, y, t.ttPropZ]}>
+    <ChipPhysics.Provider value={physics}>
+    <group ref={root} position={[t.ttPropX, y, t.ttPropZ + PROP_LAYOUT_OFFSET_Z]}>
       {chips.map((c, i) => (
-        <Chip key={`c${i}`} at={c} i={i} t={t} y={y} geo={cyl} chipH={chipH} />
+        <Chip key={`c${i}`} at={c} i={i} t={t} y={y} geo={cyl} chipH={chipH} fx={fx} tableMesh={tableMesh} />
       ))}
       {dice.map((d, i) => (
-        <OneDie key={`d${i}`} at={d} i={i} t={t} y={y} />
+        <OneDie key={`d${i}`} at={d} i={i} t={t} y={y} fx={fx} />
       ))}
     </group>
+    </ChipPhysics.Provider>
   )
 }

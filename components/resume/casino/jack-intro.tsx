@@ -1,30 +1,25 @@
 'use client'
 
 /**
- * "JACK OF ALL TRADES": the title card, before the chip is ever flicked.
- *
- * A Jack tumbles in, slaps down left of centre and tilted, and the phrase builds on it one word at a
- * time. Each word is a different trade, so each word is set in a different face, colour, size and place,
- * and each ARRIVES DIFFERENTLY: the Jack is stamped onto the card, "of" is breathed in behind it, "ALL"
- * is thrown at the camera, "TRADES" is typed. Then the chip comes up through the lockup and the whole
- * thing is carried off the top of the frame as the chip falls, which is the handoff into the table.
- *
- * The hits are on a 0.4 s grid on purpose. A title that lands on a beat reads as deliberate; the same
- * moves at arbitrary times read as a pile of animations. Every hit also SHAKES the lockup, because a
- * word that arrives and disturbs nothing does not feel like it hit anything.
- *
- * It is billboarded a fixed distance in front of the camera rather than placed on the set, so the
- * framing is the same whatever the camera is doing and the layout can be reasoned about in screen
- * units. It is still a scene object, so the compositor paints it with everything else.
+ * Jack of Hearts / JACK OF ALL TRADES: a layered collage before the chip throw.
+ * The royal-flush Jack artwork anchors the left with JACK pasted across it;
+ * "of" sits high beside it, ALL fills the right and TRADES overlaps below. Stop-motion
+ * entries come from outside the viewport and retain their overshoot/corrections.
+ * Paper keeps real depth ordering, with perspective-compensated type sizes.
  */
 import { useEffect, useMemo, useRef, type MutableRefObject } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { modalTransform, type ModalGesture } from 'blender-to-threejs'
-import { cardBackCanvas, cardShape, planarUV } from './playing-cards'
+import { cardShape, planarUV } from './playing-cards'
 import { loadRansomFaces, ransomPick, ransomScrap, rnd } from './ransom'
-import { beatHold, beatTime, camLift, getLetter, getTune, JACK_FONTS, popUndo, pushUndo, setLetter, setTune, takeRecentre, TUNE_DEFAULTS, TUNE_RANGES, useTune, type Tune } from './tune'
-import { PASTE_CHART, chartAt, chartFor } from './stop-motion'
+import { beatHold, beatTime, camLift, getLetter, getTune, JACK_FONTS, popUndo, pushUndo, setLetter, setTune, takeRecentre, TUNE_DEFAULTS, TUNE_RANGES, undoTune, useTune, type Tune } from './tune'
+import { isJackEditor, subscribeJackClock } from './jack-editor-clock'
+import { JACK_PARTS, jackSceneEditor, registerJackPart } from './jack-scene-editor'
+import { FallingCardDepth } from './falling-card-depth'
+import { ScreenExit } from './screen-exit'
+import { jackStraightAt, jackRedBackAt, jackSeedAt, jackBlastAt, JACK_SEED_LEAD } from './jack-composition'
+import { JACK_FAN, JACK_CARRIERS, JACK_GRID, JACK_GRID_CENTRES, jackTileAt, jackEchoAt, jackSpiralAt, jackKeeperAt, jackWallRevealAt, JACK_HEADLINE_SPAN, includeJackRect, jackPaperProjection, jackDealAt, jackFraming } from './jack-composition'
 
 /**
  * ONE face for the whole line, and a display face rather than a system one.
@@ -62,21 +57,7 @@ export const JACK_END = 3.03
  * is still crossing, so it reads as having come out of the stream rather than as a separate event, and it
  * is the one card that stops.
  */
-const SNAKE = { at: 0.1, dur: 0.78, gap: 0.03, count: 26, w: 0.26 }
-
-/** where a card in the ribbon is at `u`, in the lockup's own plane: right to left, snaking. */
-function snakePath(u: number, out: THREE.Vector3) {
-  out.set(
-    4.6 - 9.2 * u,
-    // FIVE half-turns over the run, not two. The first cut had a wavelength longer than the frame, so what
-    // was on screen at any moment was a single enormous arc: correct as a path and useless as a read,
-    // because a snake is only a snake if you can see it turn. About two full undulations fit now.
-    1.05 * Math.sin(u * Math.PI * 5 + 0.6) - 0.1,
-    // and through the plane as well, so the ribbon has depth and the cards cross in front of and behind
-    // each other instead of sliding along one flat line
-    0.7 * Math.sin(u * Math.PI * 3.3 + 0.3),
-  )
-}
+const SNAKE = { at: 0.10, dur: 0.8, gap: 0, count: JACK_GRID.columns * JACK_GRID.rows, w: JACK_GRID.width }
 
 const PAPER = '#f6f2e6'
 const INK = '#121212'
@@ -263,7 +244,7 @@ function wordCanvas(text: string, o: { family: string; colour: string; track?: n
 }
 
 /**
- * Everything in the lockup is a DECAL to the compositor.
+ * Transparent lettering is a DECAL to the compositor; solid card shapes are not.
  *
  * The position pass renders the scene a second time into a position buffer, and it does it through one
  * override material that cannot see alphaTest - so a transparent quad stamps its whole RECTANGLE, not its
@@ -273,6 +254,15 @@ function wordCanvas(text: string, o: { family: string; colour: string; track?: n
  */
 function asDecal<T extends THREE.Object3D>(o: T): T {
   o.userData.compNoPosition = true
+  return o
+}
+
+/** Rounded geometry is the actual paper silhouette, safe for position styling.
+ * Cards keep transparent materials for ordered collage rendering, so explicitly
+ * opt them in. Front and reverse meshes both need this during a flip.
+ */
+function asCard<T extends THREE.Object3D>(o: T): T {
+  o.userData.compForcePosition = true
   return o
 }
 
@@ -419,7 +409,13 @@ function ransomWord(text: string, seed: number, w: number, forced: number, initi
     const { faceI, stockI } = ransomPick(chars[i], seed, w, i, prevFace, prevStock)
     prevFace = faceI
     prevStock = stockI
-    const L = ransomScrap(chars[i], seed, w, i, forced, faceI, stockI)
+    // One clean serif skeleton anchors the payoff word; its original cutouts,
+    // ink, weight and slant still vary. JACK retains its existing mixed art.
+    const authoredFace = seed === 7 && w === 3 && forced === 0 ? 10 : faceI
+    // The connector gets a small red label so it remains readable over the
+    // patterned court illustrations; the surrounding scraps retain their mix.
+    const authoredStock = seed === 7 && w === 1 ? 3 : stockI
+    const L = ransomScrap(chars[i], seed, w, i, forced, authoredFace, authoredStock)
     const r = (n: number) => rnd(seed * 977 + w * 31, i, 40 + n)
     // sizes vary per scrap, which is most of what says these came from different places
     /**
@@ -460,14 +456,16 @@ function ransomWord(text: string, seed: number, w: number, forced: number, initi
     mesh.renderOrder = 20 + Math.floor(r(8) * 12)
     // a shade of air between scraps. They may touch and occasionally overlap - that is the look - but a
     // pair that overlaps by a quarter of a letter reads as one smudged glyph rather than two pasted ones.
-    const adv = hw * (1.02 + r(2) * 0.12)
+    // Collage is assembled edge-over-edge, not a row of isolated labels.
+    // Small irregular overlaps join the silhouettes without hiding the ink.
+    const adv = hw * (0.87 + r(2) * 0.06)
     out.push({
       mesh,
       mat,
       // OFF THE LINE. A hand-pasted word does not sit on a baseline: the hop, the uneven advance and the
       // roll are all one setting, because they are one idea - that nobody measured any of this.
       x: cursor + hw / 2 + (r(9) - 0.5) * scatter * 0.5,
-      dy: (r(3) - 0.5) * scatter * 2,
+      dy: (r(3) - 0.5) * scatter * 2 + (w === 3 ? Math.sin(i / Math.max(1, chars.length - 1) * Math.PI) * 0.18 : 0),
       rot: (r(4) - 0.5) * scatter * 1.1,
       // IN SPACE, not on a plane: each scrap is turned out of the picture plane on both axes and sits at
       // its own depth. The lockup is billboarded, so without this every letter is exactly parallel to the
@@ -476,8 +474,8 @@ function ransomWord(text: string, seed: number, w: number, forced: number, initi
       // back down from 1.0 / 1.6: the wider turn went with the thickness and read as the same overdone
       // thing. This is enough to foreshorten a scrap and to let the camera's fall move them against each
       // other, without any of them looking like it is standing on edge.
-      rx: (r(5) - 0.5) * 0.6,
-      ry: (r(6) - 0.5) * 0.6,
+      rx: (r(5) - 0.5) * 0.16,
+      ry: (r(6) - 0.5) * 0.16,
       // overwritten by assignDepths once every word exists: depth is a property of the whole lockup, not
       // of one word, because the scraps that must not collide are the ones from DIFFERENT words
       dz: 0,
@@ -508,129 +506,12 @@ function wordMesh(text: string, size: number, o: Parameters<typeof wordCanvas>[1
   return { mesh, mat }
 }
 
-/**
- * The card the Jack is printed on: paper, a hairline frame, and the four suits in the corners.
- *
- * All four, because the joke is the phrase. A Jack that belongs to one suit is a card; a Jack that
- * belongs to every suit is the line itself, and it costs four glyphs to say.
- */
-function cardFace(W: number, H: number): HTMLCanvasElement {
-  const c = document.createElement('canvas')
-  c.width = W
-  c.height = H
-  const x = c.getContext('2d')!
-  x.fillStyle = PAPER
-  x.fillRect(0, 0, W, H)
-  x.strokeStyle = 'rgba(184,24,28,0.32)'
-  x.lineWidth = 6
-  x.strokeRect(24, 24, W - 48, H - 48)
-  const suits: [string, string][] = [['♠', INK], ['♥', RED], ['♣', INK], ['♦', RED]]
-  /**
-   * One corner index: the J with its suit under it.
-   *
-   * The block is centred at 0.135 of the height, not 0.11, and that is not taste. At 0.11 with a 0.15W
-   * letter the top of the J sat at y = -3: it was being CLIPPED by the edge of the canvas, so the card
-   * came out with four decapitated indices. It clears the hairline frame at 24 px now with room over.
-   */
-  const idx = (cx: number, cy: number, flip: boolean, s: [string, string]) => {
-    x.save()
-    x.translate(cx, cy)
-    if (flip) x.rotate(Math.PI)
-    x.textAlign = 'center'
-    x.textBaseline = 'middle'
-    x.font = `700 ${Math.round(W * 0.13)}px 'Times New Roman', Times, serif`
-    x.fillStyle = s[1]
-    x.fillText('J', 0, -W * 0.07)
-    x.font = `${Math.round(W * 0.11)}px 'Times New Roman', Times, serif`
-    x.fillText(s[0], 0, W * 0.065)
-    x.restore()
-  }
-  idx(W * 0.125, H * 0.135, false, suits[0])
-  idx(W * 0.875, H * 0.865, true, suits[1])
-  idx(W * 0.875, H * 0.135, false, suits[2])
-  idx(W * 0.125, H * 0.865, true, suits[3])
-  // the court plate, empty: the word is stamped into it a beat later and wants a clean field
-  x.strokeStyle = 'rgba(26,26,26,0.22)'
-  x.lineWidth = 4
-  x.strokeRect(W * 0.24, H * 0.2, W * 0.52, H * 0.6)
-  return c
-}
-
 const smooth = (t: number) => {
   const x = Math.min(1, Math.max(0, t))
   return x * x * x * (x * (x * 6 - 15) + 10)
 }
 const cl = (x: number) => Math.min(1, Math.max(0, x))
 
-/**
- * Where a word is along its travel, on `steps` exposures. Returns the progress and the exposure's index.
- *
- * A hard attack that decelerates onto its mark: 0 at the start, exactly 1 at the end, with nothing past
- * it. The thrown read comes from the ATTACK, not from a bounce at the end.
- *
- * The easing is nearly linear on purpose. Under a step quantiser a strong ease-out puts most of the
- * distance into the first pose or two and leaves the rest as a crawl, so only two of the eight exposures
- * read as movement at all; even strides, then the overshoot and the settle, is what an animator's pass
- * actually looks like.
- *
- * TIME is what gets quantised, not the eased progress, and that is the whole difference between a pose
- * held for a beat and a pose held for half a second. Quantising the eased value gives exposures of wildly
- * different lengths - the curve is steep at the start, so the first poses flick past, and shallow at the
- * end, so the last ones sit there - which reads as the word stalling exactly as it arrives. Stepping the
- * CLOCK gives every pose the same length and lets the easing do what easing is for: a big move, then a
- * smaller one, then smaller again, each held for the same beat.
- *
- * The settle wobble is evaluated on the same stepped clock. A word that lands in steps and then rings
- * smoothly gives the whole thing away.
- */
-function arrive(s: number, dur: number, steps = 0): { p: number; n: number } {
-  if (s <= 0) return { p: 0, n: 0 }
-  const step = steps > 0 ? dur / steps : 0
-  const n = step > 0 ? Math.ceil(s / step) : 0
-  const sq = step > 0 ? n * step : s
-  const u = Math.min(1, sq / dur)
-  /**
-   * The curve depends on WHETHER IT IS STEPPED, and the two wants are opposite.
-   *
-   * Smooth wants a hard ease: a thrown thing covers most of its distance immediately and then kills its
-   * speed, and anything close to linear reads as floating rather than as thrown. That is what "slow and
-   * looks bad" was - the flat 1.25 curve was correct for the stepped version and wrong the moment the
-   * quantiser came off.
-   *
-   * Stepped wants the opposite, because a hard ease-out under a quantiser puts most of the distance in the
-   * first pose and leaves the rest a crawl, so only two exposures read as movement at all.
-   */
-  const e = 1 - Math.pow(1 - u, steps > 0 ? 1.25 : 3.2)
-  // NO overshoot. There used to be a small ring past home, which is the standard way to land a thrown
-  // thing and here read as a nudge after the scrap had already arrived - a second little move rather than
-  // a settle. The hard ease kills the speed on its own; a pasted scrap does not bounce.
-  return { p: e, n }
-}
-
-/**
- * The same arrival as the title's, off the same authored chart.
- *
- * arrive() above documents the exact trap this avoids, from the other side: a
- * hard ease under a quantiser "puts most of the distance in the first pose and
- * leaves the rest a crawl, so only two exposures read as movement at all". That
- * is what a decimated curve always does, and it is why the title read as lag.
- * The chart is authored per exposure instead, so no pose jumps more than a fifth
- * of the travel and the gaps are deliberately uneven.
- *
- * It rides PASTE_CHART rather than the title's SLIDE_CHART: same authored
- * spacing and the same anticipation, but nothing past the mark. The overshoot is
- * a fraction of the travel, and this lockup travels four times as far as the
- * title, so the identical tail that is 8px there is a 47px lurch here. See
- * PASTE_CHART for the measurements.
- *
- * `p` is returned UNCLAMPED so the -0.06 anticipation still extrapolates
- * backwards through the Bezier into a real pull-back before the push.
- */
-function chartArrive(s: number, step: number, fps: number): { p: number; n: number } {
-  if (s <= 0) return { p: PASTE_CHART[0], n: 0 }
-  const c = chartAt(s, 0, fps, step, PASTE_CHART)
-  return { p: c.k, n: c.pose }
-}
 
 export default function JackIntro({
   armed,
@@ -638,6 +519,7 @@ export default function JackIntro({
   flickAt,
   riseFor,
   holdFor,
+  chipState,
 }: {
   /** the beat's clock only starts once the page cover has cleared, exactly like the chip's */
   armed: boolean
@@ -648,29 +530,38 @@ export default function JackIntro({
   /** the chip's rise and apex hold, so the hard exit lands on the frame the chip starts falling */
   riseFor: number
   holdFor: number
+  chipState: MutableRefObject<{ x: number; y: number; z: number }>
 }) {
   const { camera, gl } = useThree()
   const group = useRef<THREE.Group>(null)
   /** the live scale factor, so a screen drag can be converted into the lockup's own units */
   const fitRef = useRef(1)
   const t0 = useRef(-1)
+  const cardImpact = useRef({ at: Infinity, x: 0, y: 0, speed: 0, previousWorldY: 0, previousY: -Infinity, previousT: -1 })
+  const paperExit = useMemo(() => new ScreenExit(), [])
+  const retiredPaper = useRef({ at: Infinity, last: -1 })
   /** what G / S / R will act on: set by clicking or dragging something, cleared by clicking empty space */
   const sel = useRef<string | null>(null)
+  const workspaceSelection = useRef<string | null>('card')
   /** the world transform the lockup is let go at, so the falling camera leaves it behind */
   const frozen = useRef<null | { p: THREE.Vector3; q: THREE.Quaternion; s: number }>(null)
   /** the latched centring offset: recomputed only when something asks for it, never every frame */
   const centre = useRef<[number, number]>([0, 0])
+  const needsFraming = useRef(true)
+  const framing = useRef({ halfWidth: 2.7, halfHeight: 1.65 })
   const built = useRef<null | {
     card: THREE.Mesh
     cardMat: THREE.MeshBasicMaterial
     backMat: THREE.MeshBasicMaterial
-    snake: { mesh: THREE.Mesh; mat: THREE.MeshBasicMaterial; i: number }[]
+    fan: { mesh: THREE.Mesh; face: THREE.MeshBasicMaterial; back: THREE.MeshBasicMaterial }[]
+    textures: THREE.Texture[]
+    depth: FallingCardDepth
+    snake: { mesh: THREE.Mesh; mat: THREE.MeshBasicMaterial; faceMat: THREE.MeshBasicMaterial; mixedTex: THREE.Texture; jackTex: THREE.Texture; i: number }[]
     /** what each grabbable mesh edits: its two position keys and its size key */
     pick: { mesh: THREE.Mesh; name: string; i: number; x: keyof Tune; y: keyof Tune; r: keyof Tune; s: keyof Tune }[]
     /** the card and the words, offset as one so the line can be centred on its own bounds */
     lock: THREE.Group
     jack: RansomWord
-    jackFit: number
     of: RansomWord
     all: RansomWord
     trades: RansomWord
@@ -710,65 +601,85 @@ export default function JackIntro({
 
   useEffect(() => {
     let dead = false
+    const unregister: (() => void)[] = []
     const mine = ++version.current
     // waits on document.fonts so every word is MEASURED against the face it will be drawn in; measuring
     // early lays the lockup out in fallback metrics and it never corrects itself
-    loadRansomFaces().then(() => document.fonts.ready).then(() => {
-      if (dead || mine !== version.current || !group.current) return
+    Promise.all([
+      loadRansomFaces().then(() => document.fonts.ready),
+      Promise.all([...['hearts', ...JACK_FAN.map(card => card.suit)].map(suit => `/textures/royal-flush/J-${suit}.webp`), '/textures/royal-flush/casino-back.webp', ...['10', 'Q', 'K', 'A'].flatMap(rank => ['hearts', 'spades'].map(suit => `/textures/royal-flush/${rank}-${suit}.webp`))].map(url => new THREE.TextureLoader().loadAsync(url))),
+    ]).then(([, maps]) => {
+      if (dead || mine !== version.current || !group.current) { maps.forEach(map => map.dispose()); return }
+      for (const map of maps) { map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 4 }
+      const tex = maps[0]
       const g = group.current
       const cw = D.jkCardW
-      const ch = (cw * 3.5) / 2.5
-      const faceCnv = cardFace(560, Math.round((560 * 3.5) / 2.5))
-      const tex = new THREE.CanvasTexture(faceCnv)
+      // Same full-face artwork as FlightRoyalFlush; preserve its 2:3 ratio.
+      const ch = cw * 1.5
       tex.colorSpace = THREE.SRGBColorSpace
       tex.anisotropy = 4
       const cardMat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0, depthWrite: false, toneMapped: false, fog: false })
       const shape = planarUV(new THREE.ShapeGeometry(cardShape(cw, ch, cw * 0.075), 12))
-      const card = asDecal(new THREE.Mesh(shape, cardMat))
+      const card = asCard(new THREE.Mesh(shape, cardMat))
       card.renderOrder = 20
       // A BACK, because the throw flips it. A single plane faces +z, so every frame the card is turned away
       // it would simply not be drawn and the flip would read as the card blinking rather than turning. The
       // back is a child so it inherits the squash on landing, and it is the deck's own back, so a card
       // thrown in from off frame belongs to the hand already on the felt.
-      const backTex = new THREE.CanvasTexture(cardBackCanvas())
+      const backTex = maps[4]
       backTex.colorSpace = THREE.SRGBColorSpace
       backTex.anisotropy = 4
       const backMat = new THREE.MeshBasicMaterial({ map: backTex, transparent: true, opacity: 0, depthWrite: false, toneMapped: false, fog: false })
-      const back = asDecal(new THREE.Mesh(shape.clone(), backMat))
+      const back = asCard(new THREE.Mesh(shape.clone(), backMat))
       back.rotation.y = Math.PI
       back.position.z = -0.003
       back.renderOrder = 19
       card.add(back)
+      const fan = JACK_FAN.map((layout, i) => {
+        const map = maps[i + 1]
+        map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 4
+        const face = cardMat.clone(); face.map = map
+        const mesh = asCard(new THREE.Mesh(shape, face))
+        mesh.name = `Jack of ${layout.suit}`
+        mesh.renderOrder = 16 + i
+        const reverseMat = backMat.clone()
+        const reverse = asCard(new THREE.Mesh(shape, reverseMat))
+        reverse.rotation.y = Math.PI; reverse.position.z = -0.003
+        reverse.renderOrder = 15 + i
+        mesh.add(reverse); card.add(mesh)
+        return { mesh, face, back: reverseMat }
+      })
 
-      // The ribbon. All backs, and DoubleSide rather than a face on the reverse: they are travelling fast
-      // enough that nobody reads a face, the lattice is symmetric so a mirrored back is the same back, and
-      // it is one material path instead of forty meshes. Own material each, only because they fade in and
-      // out at their own moments.
+      // Physical two-sided tiles: alternating fronts/backs after each hinge opens.
       const sw = SNAKE.w
-      const snakeGeo = planarUV(new THREE.ShapeGeometry(cardShape(sw, sw * 1.4, sw * 0.075), 8))
-      const snake = Array.from({ length: SNAKE.count }, (_, i) => {
-        const mat = new THREE.MeshBasicMaterial({ map: backTex, transparent: true, opacity: 0, depthWrite: false, toneMapped: false, side: THREE.DoubleSide, fog: false })
-        const m = asDecal(new THREE.Mesh(snakeGeo, mat))
-        m.renderOrder = 18
+      const snakeGeo = planarUV(new THREE.ShapeGeometry(cardShape(sw, sw * 1.5, sw * 0.075), 8))
+      // One card per cell: no duplicate followers stacking on the same spot.
+      const slots = Array.from({ length: SNAKE.count }, (_, slot) => slot)
+      const snake = slots.map(slot => {
+        const i = slot % SNAKE.count
+        const col = i % JACK_GRID.columns, row = Math.floor(i / JACK_GRID.columns)
+        const faceUp = (col + row) % 2 === 0
+        const keeper = JACK_GRID_CENTRES.findIndex(([c, r]) => c === col && r === row)
+        const jackTex = maps[keeper >= 0 ? keeper : (col + row * 3) % 4]
+        const mixedTex = maps[5 + (col * 3 + row * 5) % 8]
+        const faceTex = mixedTex
+        const mat = new THREE.MeshBasicMaterial({ map: faceUp ? faceTex : backTex, transparent: true, opacity: 1, depthWrite: false, toneMapped: false, side: THREE.FrontSide, fog: false })
+        const m = asCard(new THREE.Mesh(snakeGeo, mat))
+        const reverseMat = mat.clone()
+        reverseMat.map = faceUp ? backTex : faceTex
+        const reverse = asCard(new THREE.Mesh(snakeGeo, reverseMat))
+        reverse.rotation.y = Math.PI
+        reverse.position.z = -.003
+        m.add(reverse)
+        m.renderOrder = 10
         m.visible = false
-        return { mesh: m, mat, i }
+        return { mesh: m, mat, faceMat: faceUp ? mat : reverseMat, mixedTex, jackTex, i: slot }
       })
 
       // Four ransom words. Each is its own set of cut-outs, so the mix is per LETTER rather than per word,
       // which is the difference between a ransom note and four fonts in a row.
       const jack = ransomWord('JACK', seed, 0, fj, initial, vary, scatter)
       for (const L of jack.letters) L.mesh.renderOrder = 21
-      // Scaled to the CARD it is printed on, measured off the flowed word rather than set by eye. At its
-      // own size the word came out wider than the card and ran off both edges, which is what "the J is not
-      // on the card correctly" was: not the index, the word.
-      /**
-       * JACK is allowed to OVERHANG the card now, up to a quarter of its width past each edge.
-       *
-       * Fitting it strictly inside the court plate was shrinking it to about 40 percent, which is why
-       * turning its slider up did so little - the clamp was eating most of what the slider gave. A pasted
-       * letter that runs off the edge of the card it is stuck to is what a real note looks like anyway.
-       */
-      const jackFit = Math.min(1, (cw * 1.3) / (jack.width * D.jkJackS))
       const of = ransomWord('of', seed, 1, fo, initial, vary, scatter)
       const all = ransomWord('ALL', seed, 2, fa, initial, vary, scatter)
       const trades = ransomWord('TRADES', seed, 3, ft, initial, vary, scatter)
@@ -778,28 +689,55 @@ export default function JackIntro({
       // one inner group for the card and the type, so the whole line can be shifted by its own centring
       // without disturbing the ribbon, which is a full-frame flourish and belongs to the frame
       const lock = new THREE.Group()
-      lock.add(card, ...words.flatMap((w2) => w2.letters.map((L) => L.mesh)))
+      // Match the outer group order so mesh orders, not nested group defaults,
+      // place the persistent wall behind the foreground cards and lettering.
+      lock.renderOrder = 20
+      const wordGroups = words.map(word => {
+        const parent = new THREE.Group()
+        parent.renderOrder = 20
+        parent.add(...word.letters.map(letter => letter.mesh))
+        return parent
+      })
+      lock.add(card, ...fan.map(piece => piece.mesh), ...wordGroups)
       g.add(lock, ...snake.map((k) => k.mesh))
+      if (isJackEditor()) {
+        const selected = workspaceSelection.current
+        unregister.push(jackSceneEditor.add('jack-title', lock, { name: 'Jack of All Trades' }))
+        const perPixel = () => (2 * DIST * Math.tan(THREE.MathUtils.degToRad((camera as THREE.PerspectiveCamera).fov) / 2)) / gl.domElement.clientHeight / (fitRef.current || 1)
+        JACK_PARTS.forEach((part, index) => unregister.push(registerJackPart(part, index === 0 ? card : wordGroups[index - 1], perPixel)))
+        jackSceneEditor.select(selected ?? 'card')
+      }
       const pick = [
         { mesh: card, name: 'card', i: -1, x: 'jkCardX' as const, y: 'jkCardY' as const, r: 'jkCardTilt' as const, s: 'jkCardW' as const },
+        ...fan.map(({ mesh }) => ({ mesh, name: 'card', i: -1, x: 'jkCardX' as const, y: 'jkCardY' as const, r: 'jkCardTilt' as const, s: 'jkCardW' as const })),
         // every letter grabs its whole word: a word is one thing to move, however many scraps it is made of
         ...jack.letters.map((L, li) => ({ mesh: L.mesh, name: 'JACK', i: li, x: 'jkJackX' as const, y: 'jkJackY' as const, r: 'jkJackR' as const, s: 'jkJackS' as const })),
         ...of.letters.map((L, li) => ({ mesh: L.mesh, name: 'of', i: li, x: 'jkOfX' as const, y: 'jkOfY' as const, r: 'jkOfR' as const, s: 'jkOfS' as const })),
         ...all.letters.map((L, li) => ({ mesh: L.mesh, name: 'ALL', i: li, x: 'jkAllX' as const, y: 'jkAllY' as const, r: 'jkAllR' as const, s: 'jkAllS' as const })),
         ...trades.letters.map((L, li) => ({ mesh: L.mesh, name: 'TRADES', i: li, x: 'jkTrX' as const, y: 'jkTrY' as const, r: 'jkTrR' as const, s: 'jkTrS' as const })),
       ]
-      built.current = { card, cardMat, backMat, snake, pick, lock, jack, jackFit, of, all, trades }
-    })
+      const depth = new FallingCardDepth([
+        ...[card, ...fan.map(piece => piece.mesh)].map((mesh, i) => [mesh, ...words[i].letters.map(letter => letter.mesh)]),
+        ...snake.map(piece => [piece.mesh]),
+      ])
+      built.current = { card, cardMat, backMat, fan, snake, pick, lock, jack, of, all, trades, textures: maps, depth }
+      needsFraming.current = true
+    }).catch(error => console.error('Jack intro artwork failed to load', error))
     return () => {
       dead = true
+      workspaceSelection.current = jackSceneEditor.selectedId() ?? workspaceSelection.current
+      unregister.reverse().forEach(remove => remove())
       const b = built.current
       if (b && group.current) {
-        const all2 = [b.card, ...(b.card.children as THREE.Mesh[]), ...b.snake.map((k) => k.mesh), ...[b.jack, b.of, b.all, b.trades].flatMap((w2) => w2.letters.map((L) => L.mesh))]
-        for (const o of all2) {
-          group.current.remove(o)
-          o.geometry.dispose()
-          ;(o.material as THREE.Material).dispose()
-        }
+        group.current.remove(b.lock)
+        const all2: THREE.Mesh[] = []
+        for (const tile of b.snake) tile.mesh.traverse(object => { if (object instanceof THREE.Mesh) all2.push(object) })
+        b.lock.traverse(object => { if (object instanceof THREE.Mesh) all2.push(object) })
+        const textures = new Set([...b.textures, ...all2.map(o => (o.material as THREE.MeshBasicMaterial).map)])
+        textures.forEach(texture => texture?.dispose())
+        new Set(all2.map(o => o.geometry)).forEach(geometry => geometry.dispose())
+        new Set(all2.map(o => o.material as THREE.Material)).forEach(material => material.dispose())
+        group.current.remove(...b.snake.map(piece => piece.mesh))
       }
       built.current = null
     }
@@ -818,6 +756,7 @@ export default function JackIntro({
    * on the CAPTURE phase so a grab never reaches the folder or the chip underneath it.
    */
   useEffect(() => {
+    if (isJackEditor()) return
     if (beatHold() === null) return
     const el = gl.domElement
     const ray = new THREE.Raycaster()
@@ -850,6 +789,7 @@ export default function JackIntro({
       e.stopPropagation()
       const t2 = getTune()
       sel.current = g2.name
+      window.dispatchEvent(new CustomEvent('casino:jack-select', { detail: g2.name }))
       /**
        * ALT edits the ONE LETTER, everything else edits its word.
        *
@@ -931,6 +871,7 @@ export default function JackIntro({
    * typed in DEGREES because nobody thinks in radians at a keyboard.
    */
   useEffect(() => {
+    if (isJackEditor()) return
     if (beatHold() === null) return
     const el = gl.domElement
     let start: { x: number; y: number; r: number; s: number } | null = null
@@ -939,6 +880,7 @@ export default function JackIntro({
       const [mn, mx] = TUNE_RANGES[k]
       return Math.max(mn, Math.min(mx, Math.round(v * 1000) / 1000))
     }
+    if (new URLSearchParams(window.location.search).has('flight')) return
     const stop = modalTransform(el, {
       axes: ['x', 'y'],
       enabled: () => sel.current !== null && !!built.current,
@@ -993,16 +935,54 @@ export default function JackIntro({
     return stop
   }, [gl, camera])
 
+  useEffect(() => {
+    if (!isJackEditor()) return
+    const canvas = gl.domElement
+    canvas.tabIndex = 0
+    // One keyboard owner; legacy drag/modal effects above are disabled here.
+    const disconnect = jackSceneEditor.connect(canvas, { axes: ['x', 'y'], profile: 'basic' })
+    const ray = new THREE.Raycaster(), ndc = new THREE.Vector2()
+    const pick = (event: PointerEvent) => {
+      if (event.button !== 0 || jackSceneEditor.gesture()) return
+      const rect = canvas.getBoundingClientRect()
+      ndc.set((event.clientX - rect.left) / rect.width * 2 - 1, 1 - (event.clientY - rect.top) / rect.height * 2)
+      ray.setFromCamera(ndc, camera)
+      const hit = ray.intersectObjects(built.current?.pick.map(part => part.mesh) ?? [], false)[0]
+      jackSceneEditor.pick(hit?.object ?? null)
+      canvas.focus()
+      event.stopPropagation()
+    }
+    const stopClock = subscribeJackClock(() => {
+      if (jackSceneEditor.gesture()) {
+        const selected = jackSceneEditor.selectedId()
+        jackSceneEditor.select(null); jackSceneEditor.select(selected)
+      }
+    })
+    const undo = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'z') return
+      const target = event.target as HTMLElement | null
+      if (target?.matches('input, textarea, select, [contenteditable=true]')) return
+      event.preventDefault(); undoTune()
+    }
+    canvas.addEventListener('pointerdown', pick, true)
+    window.addEventListener('keydown', undo)
+    return () => { stopClock(); disconnect(); canvas.removeEventListener('pointerdown', pick, true); window.removeEventListener('keydown', undo) }
+  }, [gl, camera])
+
   useFrame((state, dt) => {
     const g = group.current
     const b = built.current
     if (!g || !b) return
+    b.depth.restore(g)
     if (!armed) {
       g.visible = false
       return
     }
-    if (t0.current < 0) t0.current = clock0.current > 0 ? clock0.current : state.clock.elapsedTime
+    if (t0.current < 0) t0.current = clock0.current >= 0 ? clock0.current : state.clock.elapsedTime
     const t = beatTime(state.clock.elapsedTime - t0.current)
+    // Speed the complete card choreography together, preserving its easing,
+    // overlaps and word handoffs without speeding up the camera/table exit.
+    const cardTime = t * 1.3 - JACK_SEED_LEAD
     /**
      * ONE quantiser, and this is why it reads as an animation rather than as a stuck page.
      *
@@ -1026,8 +1006,9 @@ export default function JackIntro({
      * frame - which reads as a second, harder push upward exactly when the coin gets high.
      */
     const letGo = dropAt + tn.jkSink
-    const gone = letGo + tn.jkFallFor + 0.1
-    g.visible = t >= SNAKE.at - 0.05 && t < gone
+    if (t < retiredPaper.current.last || t <= flickAt) retiredPaper.current.at = Infinity
+    retiredPaper.current.last = t
+    g.visible = t >= 0 && t < retiredPaper.current.at
     if (!g.visible) return
 
     /**
@@ -1048,12 +1029,51 @@ export default function JackIntro({
      * then shoots back up out of the top as the camera drops. Not the full amount, or the last word would
      * be pushed off the bottom edge before the fall even starts.
      */
+    // Frame the actual tilted paper silhouettes, including JACK's overhang.
+    // Only re-centre when requested: ordinary editor moves must not shift peers.
+    const requestedFraming = takeRecentre()
+    if (needsFraming.current || requestedFraming) {
+      needsFraming.current = false
+      const bounds = { left: Infinity, right: -Infinity, bottom: Infinity, top: -Infinity }
+      const textBounds = { left: Infinity, right: -Infinity, bottom: Infinity, top: -Infinity }
+      const span = (word: RansomWord, x: number, y: number, scale: number, roll: number) => {
+        const wi = word === b.jack ? 0 : word === b.of ? 1 : word === b.all ? 2 : 3
+        const carrier = JACK_CARRIERS[wi]
+        includeJackRect(bounds, x + carrier.x, y + carrier.y, carrier.width, carrier.width * 1.5, carrier.roll)
+        const c = Math.cos(roll), s = Math.sin(roll)
+        word.letters.forEach((letter, i) => {
+          const tweak = getLetter(`${word === b.jack ? 'JACK' : word === b.of ? 'of' : word === b.all ? 'ALL' : 'TRADES'}:${i}`)
+          const lx = (letter.x + tweak.dx) * scale, ly = (letter.dy + tweak.dy) * scale
+          const geo = letter.mesh.geometry
+          if (!geo.boundingBox) geo.computeBoundingBox()
+          const box = geo.boundingBox!
+          includeJackRect(textBounds, x + lx * c - ly * s, y + lx * s + ly * c,
+            (box.max.x - box.min.x) * scale * Math.abs(tweak.s),
+            (box.max.y - box.min.y) * scale * Math.abs(tweak.s), roll + letter.rot + tweak.r)
+        })
+      }
+      const cs = tn.jkCardW / D.jkCardW
+      const co = Math.cos(tn.jkCardTilt), si = Math.sin(tn.jkCardTilt)
+      const cardFit = Math.min(1, D.jkCardW * JACK_HEADLINE_SPAN / (b.jack.width * D.jkJackS))
+      span(b.jack, tn.jkCardX + cs * (tn.jkJackX * co - tn.jkJackY * si),
+        tn.jkCardY + cs * (tn.jkJackX * si + tn.jkJackY * co),
+        tn.jkJackS * cardFit * cs, tn.jkCardTilt + tn.jkJackR)
+      span(b.of, tn.jkOfX, tn.jkOfY, tn.jkOfS, tn.jkOfR)
+      span(b.all, tn.jkAllX, tn.jkAllY, tn.jkAllS, tn.jkAllR)
+      span(b.trades, tn.jkTrX, tn.jkTrY, tn.jkTrS, tn.jkTrR)
+      bounds.left = Math.min(bounds.left, textBounds.left); bounds.right = Math.max(bounds.right, textBounds.right)
+      bounds.bottom = Math.min(bounds.bottom, textBounds.bottom); bounds.top = Math.max(bounds.top, textBounds.top)
+      const frame = jackFraming(bounds, textBounds)
+      centre.current = [frame.x, frame.y]
+      framing.current = { halfWidth: frame.halfWidth, halfHeight: frame.halfHeight }
+    }
+
     const cam = camera as THREE.PerspectiveCamera
     const halfH = DIST * Math.tan(THREE.MathUtils.degToRad(cam.fov) / 2)
     const halfW = halfH * cam.aspect
     // no cap at 1: the factor is relative to the frame half-height at DIST, so capping it would peg the
     // lockup to a size that only meant anything when DIST was 6
-    let fit = Math.min(halfW / 2.95, halfH / tn.jkFit)
+    let fit = Math.min(halfW / (framing.current.halfWidth + 0.28), halfH / (framing.current.halfHeight + 0.38)) * (1.85 / tn.jkFit)
     fitRef.current = fit
     if (t < letGo) {
       frozen.current = null
@@ -1061,6 +1081,8 @@ export default function JackIntro({
       cam.getWorldDirection(fwd)
       g.position.copy(cam.position).addScaledVector(fwd, DIST)
       // the same arc the camera is on, so the two can never drift apart
+      // The camera follows the chip; cancel its climb on the paper so the
+      // wall and words remain behind, as before the falling-paper change.
       g.position.y -= tn.jkLag * camLift(t, flickAt, dropAt, tn.jkFallFor, 0).y
       g.quaternion.copy(cam.quaternion)
     } else {
@@ -1093,29 +1115,94 @@ export default function JackIntro({
     // to carry its lowest line past the top of the frame, and it is clear at about 83 percent of the drop.
 
     g.scale.setScalar(fit)
+    const impact = cardImpact.current
+    if (t < impact.previousT || t <= flickAt) {
+      impact.at = Infinity
+      impact.speed = 0
+      impact.previousY = -Infinity
+    }
+    g.updateWorldMatrix(true, false)
+    fallPivot.set(chipState.current.x, chipState.current.y, chipState.current.z)
+    g.worldToLocal(fallPivot)
+    if (t > flickAt && t < dropAt && impact.at === Infinity && fallPivot.y >= 0) {
+      const span = fallPivot.y - impact.previousY
+      const crossing = Number.isFinite(span) && span > 0 ? Math.max(0, Math.min(1, -impact.previousY / span)) : 1
+      impact.at = impact.previousT >= flickAt ? impact.previousT + (t - impact.previousT) * crossing : t
+      impact.x = fallPivot.x * fit
+      impact.y = 0
+      const elapsed = t - impact.previousT
+      const measuredSpeed = elapsed > .0001 ? (chipState.current.y - impact.previousWorldY) / elapsed : 0
+      // Ballistic fallback also supports a paused editor crossing on a frame
+      // where the chip's state arrives after the timeline clock has advanced.
+      const riseU = Math.max(0, Math.min(1, (t - flickAt) / riseFor))
+      const estimatedSpeed = 2 * (tn.jkFall + tn.jkApex) * (1 - riseU) / riseFor
+      impact.speed = Math.max(25, Math.min(100, measuredSpeed > 0 ? measuredSpeed : estimatedSpeed))
+    }
+    impact.previousY = fallPivot.y
+    impact.previousWorldY = chipState.current.y
+    impact.previousT = t
 
-    // THE FLOURISH. One path, one card per phase offset, so they arrive as a moving line. Each card is
-    // turned along the ribbon's own tangent and then ROLLED about it, which is what a real card spring
-    // does and what makes the stream flicker rather than slide.
+    // Neighbor-to-neighbor checkerboard unfolding, then an accelerating fall.
     {
-      const P = scratch.p, Q = scratch.q
       for (const k of b.snake) {
-        const u = (t - SNAKE.at) / SNAKE.dur - k.i * SNAKE.gap
-        if (u <= 0 || u >= 1) {
-          k.mesh.visible = false
-          continue
+        const index = k.i % SNAKE.count, generation = Math.floor(k.i / SNAKE.count)
+        const col = index % JACK_GRID.columns, row = Math.floor(index / JACK_GRID.columns)
+        const tile = jackTileAt(cardTime, col, row)
+        const travelTime = cardTime
+        const leader = jackEchoAt(travelTime, col, row)
+        const echo = generation ? jackEchoAt(travelTime - .26, col, row) : leader
+        const keeper = JACK_GRID_CENTRES.findIndex(([c, r]) => c === col && r === row)
+        const cue = [B.jack, B.of, B.all, B.trades][keeper]
+        const dance = keeper >= 0 ? jackKeeperAt(cardTime, keeper, cue) : null
+        k.mesh.visible = tile.visible
+        if (generation) k.mesh.visible = k.mesh.visible && keeper < 0 && (leader.active || cardTime >= 2.02) && Math.hypot(leader.x, leader.y) > 0
+        const width = Math.max(JACK_GRID.width, halfW * 2 / (fit * 7.6), halfH * 2 / (fit * 8.5))
+        const fold = (1 - Math.cos(tile.flip)) * 0.5
+        const x = (col - JACK_GRID.originCol + echo.x + (dance?.x ?? 0)) * width - tile.dirX * width * fold
+        const y = (JACK_GRID.originRow - row + echo.y) * width * 1.5 - tile.dirY * width * 1.5 * fold + (dance?.y ?? 0) * width
+        const lift = 0
+        // Open the seed edge-on at the exact screen centre. On exit the whole
+        // field gently winds clockwise, while each card curls away in depth.
+        const spiral = jackSpiralAt(cardTime, x, y)
+        k.mesh.position.set(spiral.x, spiral.y, lift - tile.retreat + echo.lift * width + (dance?.lift ?? 0))
+        k.mesh.rotation.set((tile.seed ? (1 - tile.open) * Math.PI / 2 : tile.dirY * tile.flip) + tile.tilt + echo.axisX * echo.angle + (dance?.tilt ?? 0), -tile.dirX * tile.flip + tile.yaw + echo.axisY * echo.angle + (dance?.yaw ?? 0), spiral.angle + (dance?.roll ?? 0))
+        if (tile.seed && cardTime < .8) {
+          const seed = jackSeedAt(cardTime, halfH / fit + width * 1.6)
+          k.mesh.visible = seed.visible
+          k.mesh.position.set(0, seed.y, 0)
+          k.mesh.rotation.set(0, seed.yaw, seed.roll)
         }
-        k.mesh.visible = true
-        snakePath(u, P)
-        snakePath(Math.min(1, u + 0.02), Q)
-        k.mesh.position.copy(P)
-        k.mesh.quaternion.setFromUnitVectors(AXIS_Y, scratch.tan.subVectors(Q, P).normalize())
-        // rolled, but not so fast that many of them are edge-on at once: an edge-on card is a hairline, and
-        // several at a time leave holes in the middle of the ribbon that read as missing cards rather than as
-        // cards turning
-        k.mesh.rotateY(u * 8 + k.i * 0.42)
-        // faded at both ends of its own run, so no card pops on or off at the edge of the frame
-        k.mat.opacity = Math.min(1, u * 7, (1 - u) * 7) * 0.95
+        if (tile.open === 1 && cardTime >= .8) k.mesh.quaternion.set(echo.qx, echo.qy, echo.qz, echo.qw)
+        const wallReveal = jackWallRevealAt(cardTime, col, row)
+        k.mesh.position.z -= .22
+        applyWallTurn(k.mesh.quaternion, wallReveal, (col + row) % 2 !== 0)
+        // Rotate the existing two-sided card; the reverse already carries the
+        // red artwork. Keep the foreground word carriers face-up and readable.
+        const redTurn = jackRedBackAt(cardTime, col, row) * Math.PI
+        scratch.wallQuaternion.set(0, Math.sin(redTurn / 2), 0, Math.cos(redTurn / 2))
+        k.mesh.quaternion.multiply(scratch.wallQuaternion)
+        const fall = jackBlastAt(t - impact.at, index, k.mesh.position.x * fit - impact.x, k.mesh.position.y * fit - impact.y, impact.speed)
+        if (fall.active) {
+          k.mesh.position.x += fall.x / fit
+          k.mesh.position.y += fall.y / fit
+          fallEuler.set(fall.pitch, fall.yaw, fall.roll, 'ZYX')
+          fallQuaternion.setFromEuler(fallEuler)
+          k.mesh.quaternion.premultiply(fallQuaternion)
+        }
+        k.faceMat.map = wallReveal >= .5 ? k.jackTex : k.mixedTex
+        k.mesh.renderOrder = 10 + Math.round((1 - tile.open) * 2) + (echo.active ? 2 : 0) - generation
+        k.mesh.scale.setScalar(width / SNAKE.w * 0.975)
+        k.mat.color.setScalar(1)
+        k.mat.depthWrite = t > impact.at
+        for (const child of k.mesh.children) {
+          child.renderOrder = k.mesh.renderOrder
+          if (child instanceof THREE.Mesh) {
+            const material = child.material as THREE.MeshBasicMaterial
+            material.color.copy(k.mat.color)
+            material.depthWrite = t > impact.at
+          }
+        }
+        k.mat.opacity = 1
       }
     }
 
@@ -1127,20 +1214,8 @@ export default function JackIntro({
     // perspective was already giving it, and 2.25x of growth over three quarters of a second does not read
     // as a card coming toward you, it reads as a zoom. The travel through z is small now for the same
     // reason: the size change left is only the perspective the throw actually earns.
-    {
-      const u = smooth((t - B.cardIn) / Math.max(0.05, B.cardLand - B.cardIn))
-      const k = 1 - u
-      const cs = tn.jkCardW / D.jkCardW
-      b.card.position.set(
-        tn.jkCardX + k * 5.4,
-        tn.jkCardY - k * 3.1 + Math.sin(u * Math.PI) * 0.55,
-        k * 0.5,
-      )
-      b.card.rotation.set(k * k * 1.1, -Math.pow(k, 1.5) * 9.2, tn.jkCardTilt + k * k * 2.6)
-      b.card.scale.set(cs, cs, 1)
-      b.cardMat.opacity = cl(u * 4)
-      b.backMat.opacity = b.cardMat.opacity
-    }
+    // Carrier cards are placed with their words below, using the exact same
+    // translation and turn so the artwork cannot lag behind the lettering.
 
     /**
      * THE LOCKUP: four ransom words, placed and then CENTRED ON THEIR OWN BOUNDS.
@@ -1159,7 +1234,9 @@ export default function JackIntro({
      * invisible and does only its one job. The per-scrap depth is deliberately NOT compensated: the far
      * scraps coming back smaller is most of the size variety in a word.
      */
-    const place = (name: string, w2: RansomWord, cx0: number, cy0: number, rot: number, sk0: number, at: () => number) => {
+    // The same motion model as ALWAYS BET ON / DANIEL W LIU: whole-word
+    // placement, stagger, bowed approach, delayed turn and per-pose hand error.
+    const place = (name: string, w2: RansomWord, cx0: number, cy0: number, rot: number, sk0: number, at: () => number, wi = 0) => {
       const zb = Z_BASE
       const pz = (DIST - zb) / DIST
       const cx = cx0 * pz
@@ -1167,118 +1244,164 @@ export default function JackIntro({
       const sk = sk0 * pz
       const co = Math.cos(rot)
       const si = Math.sin(rot)
-      // 0 or 1 means SMOOTH: no quantiser at all, the eased curve straight through
-      const steps = tn.jkSteps >= 2 ? Math.round(tn.jkSteps) : 0
-      // shot on the chart by default; jkShot 0 brings back the old eased curve
-      const shot = tn.jkShot >= 0.5
-      const E = w2.entry
-      for (let i = 0; i < w2.letters.length; i++) {
-        const L = w2.letters[i]
-        // its own override, if it has ever been given one: a letter with no entry costs a lookup and
-        // nothing else, and still follows its word
-        const T = getLetter(`${name}:${i}`)
-        const lx = (L.x + T.dx) * sk
-        const ly = (L.dy + T.dy) * sk
-        const hx = cx + (lx * co - ly * si)
-        const hy = cy + (lx * si + ly * co)
-        /**
-         * A word is ONE SCRAP.
-         *
-         * Its letters used to lag each other by up to a quarter of a second and
-         * sit up to a unit apart on the way in, which is fifteen pieces being
-         * tweened separately however stepped the clock is. On the chart they
-         * share a pose and a line, and the only thing separating them is the
-         * hand error below.
-         */
-        const s2 = at() - (shot ? 0 : L.lag * tn.jkSpeed)
-
-        /**
-         * ONE STEPPED CLOCK FOR THE WHOLE WORD, so every letter in it moves on the same exposure.
-         *
-         * The clock is the WORD's, not the letter's: an animator moves all the pieces and then shoots one
-         * frame, so a word whose letters each stepped on their own clock was never stop motion, it was
-         * fifteen things being tweened at fifteen different times.
-         */
-        const A = shot ? chartArrive(s2, tn.jkStep, tn.smFps) : arrive(s2, E.dur * tn.jkSpeed, steps)
-        // unclamped in chart mode, so the anticipation and the overshoot survive
-        const p = shot ? A.p : Math.min(1, Math.max(0, A.p))
-        const u = 1 - p
-        // the animator's hand: re-rolled once per EXPOSURE and decaying as it settles. Small on purpose -
-        // it used to be five times this, and a pose that lands somewhere random every time is not a hand,
-        // it is noise, and noise on top of a stepped move is what a stuttering page looks like.
-        const n = A.n
-        const shake = Math.max(0, Math.min(1, u)) * tn.jkHand
-        const jx = (rnd(i * 7 + 1, n, 900) - 0.5) * shake
-        const jy = (rnd(i * 7 + 2, n, 901) - 0.5) * shake
-
-        // the word's own line to its destination, and this letter's slight offset along it
-        const sx = hx + E.fx + (shot ? 0 : L.ox)
-        const sy = hy + E.fy + (shot ? 0 : L.oy)
-        const dx = hx - sx
-        const dy2 = hy - sy
-        const len = Math.hypot(dx, dy2) || 1
-        const ccx = (sx + hx) / 2 - (dy2 / len) * E.bow
-        const ccy = (sy + hy) / 2 + (dx / len) * E.bow
-        const q = 1 - p
-        const bx = q * q * sx + 2 * q * p * ccx + p * p * hx
-        const by = q * q * sy + 2 * q * p * ccy + p * p * hy
-
-        L.mesh.position.set(bx + jx, by + jy, zb + L.dz * sk)
-        // the word's roll, the scrap's own, its override, and the turn the word is still unwinding
-        L.mesh.rotation.set(L.rx, L.ry, rot + L.rot + T.r + E.spin * u)
-        L.mesh.scale.setScalar(sk * T.s)
-        L.mat.opacity = s2 > 0 ? 1 : 0
+      // Compress the entire approach/overshoot/hand-correction chart together;
+      // the words keep their individual character without a long trailing settle.
+      const localTime = at() + cardTime - t
+      const deal = jackDealAt(localTime * 1.35, wi)
+      const carrier = JACK_CARRIERS[wi]
+      const rollU = Math.max(0, Math.min(1, (deal.progress - .35) / .65))
+      const motion = { x: 0, y: 0, turn: -carrier.roll * (1 - rollU * rollU * (3 - 2 * rollU)), moving: deal.moving, pose: Math.floor(localTime * tn.smFps) }
+      // Match travel relative to cap height across the two differently-sized layouts.
+      const homes = w2.letters.map((L, i) => {
+        const tweak = getLetter(`${name}:${i}`)
+        const lx = (L.x + tweak.dx) * sk
+        const ly = (L.dy + tweak.dy) * sk
+        return { L, tweak, x: cx + lx * co - ly * si, y: cy + lx * si + ly * co }
+      })
+      const px = homes.reduce((sum, h) => sum + h.x, 0) / Math.max(1, homes.length)
+      const py = homes.reduce((sum, h) => sum + h.y, 0) / Math.max(1, homes.length)
+      // Keepers inherit the precise grid tile pose before peeling into the title.
+      const gridWidth = Math.max(JACK_GRID.width, halfW * 2 / (fit * 7.6), halfH * 2 / (fit * 8.5))
+      const [col, row] = JACK_GRID_CENTRES[wi]
+      const homeCardX = (cx0 + carrier.x) * pz, homeCardY = (cy0 + carrier.y) * pz
+      const sourceTime = Math.min(cardTime, cardTime - localTime)
+      const sourceTravel = jackEchoAt(sourceTime, col, row)
+      scratch.sourceQuaternion.set(sourceTravel.qx, sourceTravel.qy, sourceTravel.qz, sourceTravel.qw)
+      applyWallTurn(scratch.sourceQuaternion, jackWallRevealAt(sourceTime, col, row), (col + row) % 2 !== 0)
+      if ((col + row) % 2 !== 0) scratch.sourceQuaternion.multiply(scratch.reverseQuaternion)
+      let sourceYaw = 2 * Math.atan2(scratch.sourceQuaternion.y, scratch.sourceQuaternion.w)
+      sourceYaw = Math.atan2(Math.sin(sourceYaw), Math.cos(sourceYaw))
+      // A back-to-face half-turn travels with the title, revealing its word
+      // during arrival rather than finishing the flip before the move begins.
+      deal.flip = (sourceYaw < 0 ? -1 : 1) * Math.PI * (1 - deal.progress)
+      const source = jackSpiralAt(sourceTime, (col - JACK_GRID.originCol + sourceTravel.x) * gridWidth, (JACK_GRID.originRow - row + sourceTravel.y) * gridWidth * 1.5)
+      const sourceX = (source.x - centre.current[0] - tn.jkLockX) * pz
+      const sourceY = (source.y - centre.current[1] - tn.jkLockY) * pz
+      motion.turn += source.angle * (1 - deal.progress)
+      const c = Math.cos(motion.turn)
+      const s = Math.sin(motion.turn)
+      const route = jackStraightAt(deal.progress, wi, sourceX, sourceY, homeCardX, homeCardY)
+      const entryX = route.x - (px + (homeCardX - px) * c - (homeCardY - py) * s)
+      const entryY = route.y - (py + (homeCardX - px) * s + (homeCardY - py) * c)
+      const piece = wi === 0 ? { mesh: b.card, face: b.cardMat, back: b.backMat } : b.fan[wi - 1]
+      const dx = (cx0 + carrier.x) * pz - px, dy = (cy0 + carrier.y) * pz - py
+      piece.mesh.visible = localTime >= 0
+      piece.mesh.position.set((px + dx * c - dy * s + entryX) / pz, (py + dx * s + dy * c + entryY) / pz, sourceTravel.lift * gridWidth * (1 - deal.progress))
+      piece.mesh.rotation.set(0, deal.flip, carrier.roll + motion.turn, 'ZYX')
+      piece.mesh.scale.setScalar((gridWidth * .975 * (1 - deal.progress) + carrier.width * deal.progress) / D.jkCardW)
+      piece.face.opacity = piece.back.opacity = localTime >= 0 ? 1 : 0
+      piece.face.depthWrite = piece.back.depthWrite = t > impact.at
+      homes.forEach(({ L, tweak, x, y }) => {
+        // The ink is on the face: it foreshortens with the card and is hidden
+        // on the reverse, then reveals naturally as that face turns toward us.
+        const pivotX = (cx0 + carrier.x) * pz, pivotY = (cy0 + carrier.y) * pz
+        const cc = Math.cos(carrier.roll), ss = Math.sin(carrier.roll)
+        const carriedScale = piece.mesh.scale.x * D.jkCardW / carrier.width
+        const localX = ((x - pivotX) * cc + (y - pivotY) * ss) * carriedScale
+        const localY = (-(x - pivotX) * ss + (y - pivotY) * cc) * carriedScale
+        const dx = pivotX + localX * Math.cos(deal.flip) * cc - localY * ss - px
+        const dy = pivotY + localX * Math.cos(deal.flip) * ss + localY * cc - py
+        L.mesh.position.set(
+          px + dx * c - dy * s + entryX,
+          py + dx * s + dy * c + entryY,
+          zb + L.dz * sk,
+        )
+        // The card's hinge is shared by the whole word. Applying its yaw in
+        // each letter's separately rotated axes made the word peel apart.
+        L.mesh.rotation.set(L.rx, L.ry, rot + L.rot + tweak.r - carrier.roll, 'ZYX')
+        L.mesh.quaternion.premultiply(piece.mesh.quaternion)
+        // Depth separates paper; it must not inflate its authored type size.
+        const depthScale = jackPaperProjection(DIST, fit, L.mesh.position.z)
+        const projection = depthScale / pz
+        L.mesh.position.x *= projection
+        L.mesh.position.y *= projection
+        L.mesh.position.x += (centre.current[0] + tn.jkLockX) * (depthScale - 1)
+        L.mesh.position.y += (centre.current[1] + tn.jkLockY) * (depthScale - 1)
+        L.mesh.scale.setScalar(sk * tweak.s * projection * carriedScale)
+        L.mat.opacity = localTime > 0 && Math.abs(deal.flip) < Math.PI / 2 - .03 ? 1 : 0
+      })
+      // Keep each card and its word together as the chip releases the paper.
+      const fall = jackBlastAt(t - impact.at, 67 + wi * 3,
+        (piece.mesh.position.x + centre.current[0] + tn.jkLockX) * fit - impact.x,
+        (piece.mesh.position.y + centre.current[1] + tn.jkLockY) * fit - impact.y, impact.speed)
+      if (fall.active) {
+        fallEuler.set(fall.pitch, fall.yaw, fall.roll, 'ZYX')
+        fallQuaternion.setFromEuler(fallEuler)
+        fallPivot.copy(piece.mesh.position)
+        for (const { L } of homes) {
+          // The collage's decorative depth ladder can place a low letter
+          // behind its own stock. Lift its full tilted bounds before applying
+          // the shared tumble, so enabling depth writes cannot slice the word.
+          if (!L.mesh.geometry.boundingBox) L.mesh.geometry.computeBoundingBox()
+          L.mesh.updateMatrix()
+          fallInkBounds.copy(L.mesh.geometry.boundingBox!).applyMatrix4(L.mesh.matrix)
+          L.mesh.position.z += Math.max(0, fallPivot.z + .025 - fallInkBounds.min.z)
+          L.mesh.position.sub(fallPivot).applyQuaternion(fallQuaternion).add(fallPivot)
+          L.mesh.position.x += fall.x / fit
+          L.mesh.position.y += fall.y / fit
+          L.mesh.quaternion.premultiply(fallQuaternion)
+        }
+        piece.mesh.position.x += fall.x / fit
+        piece.mesh.position.y += fall.y / fit
+        piece.mesh.quaternion.premultiply(fallQuaternion)
       }
     }
 
-    // JACK is pasted ON the card, so it is placed in the CARD's frame: its offset is rotated by the card's
-    // tilt and it carries the card's scale, and it can be dragged around the card without leaving it.
+    // Restore the original collage: JACK is pasted across the tilted card.
     {
       const s2 = t - B.jack
       const cs = tn.jkCardW / D.jkCardW
-      const rot = tn.jkCardTilt + tn.jkJackR
-      const co = Math.cos(tn.jkCardTilt)
-      const si = Math.sin(tn.jkCardTilt)
-      const ox = tn.jkJackX * cs
-      const oy = tn.jkJackY * cs
-      place('JACK', b.jack, tn.jkCardX + (ox * co - oy * si), tn.jkCardY + (ox * si + oy * co), rot, tn.jkJackS * b.jackFit * cs, () => s2)
+      const co = Math.cos(tn.jkCardTilt), si = Math.sin(tn.jkCardTilt)
+      const ox = tn.jkJackX * cs, oy = tn.jkJackY * cs
+      const cardFit = Math.min(1, D.jkCardW * JACK_HEADLINE_SPAN / (b.jack.width * D.jkJackS))
+      place('JACK', b.jack, tn.jkCardX + ox * co - oy * si, tn.jkCardY + ox * si + oy * co,
+        tn.jkCardTilt + tn.jkJackR, tn.jkJackS * cardFit * cs, () => s2, 0)
     }
 
     // "of": both scraps on the word's line and the word's frames, offset only slightly from each other
-    place('of', b.of, tn.jkOfX, tn.jkOfY, tn.jkOfR, tn.jkOfS, () => t - B.of)
+    place('of', b.of, tn.jkOfX, tn.jkOfY, tn.jkOfR, tn.jkOfS, () => t - B.of, 1)
 
     // ALL
-    place('ALL', b.all, tn.jkAllX, tn.jkAllY, tn.jkAllR, tn.jkAllS, () => t - B.all)
+    place('ALL', b.all, tn.jkAllX, tn.jkAllY, tn.jkAllR, tn.jkAllS, () => t - B.all, 2)
 
     // TRADES arrives as TRADES: one line, one set of frames, its letters apart only by their slight offsets
-    place('TRADES', b.trades, tn.jkTrX, tn.jkTrY, tn.jkTrR, tn.jkTrS, () => t - B.trades)
+    place('TRADES', b.trades, tn.jkTrX, tn.jkTrY, tn.jkTrR, tn.jkTrS, () => t - B.trades, 3)
 
-    // and the centring: measured off the bounds, but only when something ASKS for it
-    if (takeRecentre()) {
-      const cw2 = tn.jkCardW
-      let lo = tn.jkCardX - cw2 / 2
-      let hi = tn.jkCardX + cw2 / 2
-      let bo = tn.jkCardY - (cw2 * 1.4) / 2
-      let to = tn.jkCardY + (cw2 * 1.4) / 2
-      const span = (w2: RansomWord, x: number, y: number, sk: number) => {
-        lo = Math.min(lo, x - (w2.width * sk) / 2)
-        hi = Math.max(hi, x + (w2.width * sk) / 2)
-        bo = Math.min(bo, y - sk * 0.8)
-        to = Math.max(to, y + sk * 0.8)
-      }
-      span(b.of, tn.jkOfX, tn.jkOfY, tn.jkOfS)
-      span(b.all, tn.jkAllX, tn.jkAllY, tn.jkAllS)
-      span(b.trades, tn.jkTrX, tn.jkTrY, tn.jkTrS)
-      centre.current = [-(lo + hi) / 2, -(bo + to) / 2]
-    }
     b.lock.position.set(centre.current[0] + tn.jkLockX, centre.current[1] + tn.jkLockY, 0)
+    if (t > impact.at) b.depth.resolve(g)
   })
+
+  useFrame(({ camera, scene, clock }) => {
+    const g = group.current
+    const b = built.current
+    if (g?.visible && b && beatTime(clock.elapsedTime - t0.current) > cardImpact.current.at) {
+      b.depth.behindForeground(g, camera, scene)
+      const t = beatTime(clock.elapsedTime - t0.current)
+      // Allow the upward kick and camera dive to finish before retiring below
+      // the frame. A fixed lifetime used to chop the slowest papers in half.
+      if (t > flickAt + riseFor + holdFor + getTune().jkFallFor && paperExit.cleared(g, camera, 'bottom')) {
+        retiredPaper.current.at = t
+        g.visible = false
+      }
+    }
+  }, .9) // after the .75 dealer handoff, before the priority-1 paint compositor
 
   return <group ref={group} renderOrder={20} />
 }
 
-const scratch = { fwd: new THREE.Vector3(), p: new THREE.Vector3(), q: new THREE.Vector3(), tan: new THREE.Vector3() }
-const AXIS_Y = new THREE.Vector3(0, 1, 0)
+const scratch = { fwd: new THREE.Vector3(), p: new THREE.Vector3(), q: new THREE.Vector3(), tan: new THREE.Vector3(), sourceQuaternion: new THREE.Quaternion(), targetQuaternion: new THREE.Quaternion(), reverseQuaternion: new THREE.Quaternion(0, 1, 0, 0), wallQuaternion: new THREE.Quaternion() }
+const WALL_EDGE = new THREE.Quaternion(0, Math.SQRT1_2, 0, Math.SQRT1_2)
+const fallEuler = new THREE.Euler()
+const fallQuaternion = new THREE.Quaternion()
+const fallPivot = new THREE.Vector3()
+const fallInkBounds = new THREE.Box3()
+/** Swap printed artwork only at the shared edge-on pose, never face-on. */
+function applyWallTurn(q: THREE.Quaternion, reveal: number, backFace: boolean) {
+  if (reveal <= 0) return
+  if (reveal < .5) { q.slerp(WALL_EDGE, reveal * 2); return }
+  scratch.wallQuaternion.set(0, backFace ? 1 : 0, 0, backFace ? 0 : 1)
+  q.copy(WALL_EDGE).slerp(scratch.wallQuaternion, (reveal - .5) * 2)
+}
 /** a full-screen quad has no business in the position buffer at all */
 const DECAL = { compNoPosition: true }
 
@@ -1368,7 +1491,7 @@ export function FallStreaks({
   useFrame((state) => {
     const m = mesh.current
     if (!m || !built) return
-    if (!armed || clock0.current <= 0) {
+    if (!armed || clock0.current < 0) {
       m.visible = false
       return
     }
