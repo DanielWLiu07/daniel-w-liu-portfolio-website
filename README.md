@@ -2,6 +2,14 @@
 
 My personal portfolio site. Each page has its own visual identity - watercolor backgrounds, manga-style intros, 3D carousels - all tied together with custom page transitions.
 
+## 🍎 Pomme — featured project
+
+Autonomous produce-harvesting robot (HT6 hackathon): a rover + robotic arm with live fruit-ripeness classification and a SLAM / 3D-LIDAR control dashboard.
+
+<video src="https://raw.githubusercontent.com/DanielWLiu07/daniel-w-liu-portfolio-website/main/public/pomme/pomme-demo.mp4" poster="https://raw.githubusercontent.com/DanielWLiu07/daniel-w-liu-portfolio-website/main/public/pomme/pomme-poster.jpg" controls muted playsinline width="360"></video>
+
+▶️ [Watch the Pomme demo](https://raw.githubusercontent.com/DanielWLiu07/daniel-w-liu-portfolio-website/main/public/pomme/pomme-demo.mp4) — the inline player appears once `public/pomme/` is committed and pushed to `main`.
+
 ![Landing Page](/public/projects/projects/portfolio_website/main.webp)
 
 ## Pages
