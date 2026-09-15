@@ -1,0 +1,176 @@
+{
+  "version": 3,
+  "model": "/models/casino-dealer-v3.glb?v=f2ac98e82c2d",
+  "height": 1.8,
+  "parts": {
+    "HandLeft": {
+      "group": "HandLeft",
+      "vertices": 854,
+      "faces": 1628
+    },
+    "Jaw": {
+      "group": "Jaw",
+      "vertices": 2262,
+      "faces": 2163
+    },
+    "Skull": {
+      "group": "Skull",
+      "vertices": 7778,
+      "faces": 7641
+    },
+    "ShoeLeft": {
+      "group": "ShoeLeft",
+      "vertices": 454,
+      "faces": 865
+    },
+    "HandRight": {
+      "group": "HandRight",
+      "vertices": 846,
+      "faces": 1614
+    },
+    "Trousers": {
+      "group": "Trousers",
+      "vertices": 646,
+      "faces": 1290
+    },
+    "ShoeRight": {
+      "group": "ShoeRight",
+      "vertices": 276,
+      "faces": 515
+    },
+    "Shirt": {
+      "group": "Shirt",
+      "vertices": 6354,
+      "faces": 6992
+    },
+    "Collar": {
+      "group": "Collar",
+      "vertices": 508,
+      "faces": 502
+    },
+    "Neck": {
+      "group": "Neck",
+      "vertices": 666,
+      "faces": 720
+    },
+    "ForearmLeft": {
+      "group": "ForearmLeft",
+      "vertices": 812,
+      "faces": 788
+    },
+    "ForearmRight": {
+      "group": "ForearmRight",
+      "vertices": 812,
+      "faces": 788
+    },
+    "Waistcoat": {
+      "group": "Waistcoat",
+      "vertices": 9719,
+      "faces": 9276
+    },
+    "Tie": {
+      "group": "Tie",
+      "vertices": 356,
+      "faces": 352
+    },
+    "Hat": {
+      "group": "Hat",
+      "vertices": 436,
+      "faces": 632
+    },
+    "Hatband": {
+      "group": "Hatband",
+      "vertices": 576,
+      "faces": 576
+    },
+    "MouthInterior": {
+      "group": "Skull",
+      "vertices": 266,
+      "faces": 288
+    }
+  },
+  "bones": [
+    "Root",
+    "Hips",
+    "LeftUpLeg",
+    "LeftLeg",
+    "LeftFoot",
+    "LeftToeBase",
+    "RightUpLeg",
+    "RightLeg",
+    "RightFoot",
+    "RightToeBase",
+    "Spine02",
+    "Spine01",
+    "Spine",
+    "LeftShoulder",
+    "LeftArm",
+    "LeftForeArm",
+    "LeftHand",
+    "LeftThumb1",
+    "LeftThumb2",
+    "LeftThumb3",
+    "LeftIndex1",
+    "LeftIndex2",
+    "LeftIndex3",
+    "LeftMiddle1",
+    "LeftMiddle2",
+    "LeftMiddle3",
+    "LeftRing1",
+    "LeftRing2",
+    "LeftRing3",
+    "LeftPinky1",
+    "LeftPinky2",
+    "LeftPinky3",
+    "LeftHandSocket",
+    "RightShoulder",
+    "RightArm",
+    "RightForeArm",
+    "RightHand",
+    "RightThumb1",
+    "RightThumb2",
+    "RightThumb3",
+    "RightIndex1",
+    "RightIndex2",
+    "RightIndex3",
+    "RightMiddle1",
+    "RightMiddle2",
+    "RightMiddle3",
+    "RightRing1",
+    "RightRing2",
+    "RightRing3",
+    "RightPinky1",
+    "RightPinky2",
+    "RightPinky3",
+    "RightHandSocket",
+    "neck",
+    "Head",
+    "head_end",
+    "headfront",
+    "JawHinge"
+  ],
+  "expressions": [
+    "blinkLeft",
+    "squintLeft",
+    "browRaiseLeft",
+    "browDownLeft",
+    "blinkRight",
+    "squintRight",
+    "browRaiseRight",
+    "browDownRight",
+    "smile",
+    "frown",
+    "jawOpen",
+    "socketWideLeft",
+    "socketTiltInLeft",
+    "socketTiltOutLeft",
+    "socketWideRight",
+    "socketTiltInRight",
+    "socketTiltOutRight"
+  ],
+  "limitations": [
+    "Clothing is detachable; a complete naked skeleton is not modelled beneath shirt and trousers.",
+    "First-pass socket morphs, not a FACS or ARKit facial rig.",
+    "Jaw morph and JawHinge bone are alternative controls; do not apply both simultaneously."
+  ]
+}
