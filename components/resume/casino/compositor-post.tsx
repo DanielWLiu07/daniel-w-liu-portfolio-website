@@ -13,6 +13,7 @@ import { MeshBasicNodeMaterial, QuadMesh, type Renderer } from 'three/webgpu'
 import { Compositor, compGraph, withOverlay, type CompGraph, type CompInput, type CompositorOptions } from 'blender-to-threejs'
 import { CardRenderLayers } from './card-render-layers'
 import { revealWarmupActors } from './scene-warmup'
+import { compileScene } from './compile-scene'
 
 type Uniforms = Compositor['uniforms']
 
@@ -96,7 +97,7 @@ export default function CompositorPost({
       object.frustumCulled = false
     })
     renderer.setRenderTarget(compRef.current.sceneTarget)
-    const job = renderer.compileAsync(scene, camera)
+    const job = compileScene(renderer, scene, camera)
     // compileAsync does not own the render target while its GPU work is pending.
     renderer.setRenderTarget(previous)
     for (const [object, visible, culled] of visibility) {
