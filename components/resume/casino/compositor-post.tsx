@@ -7,13 +7,14 @@
  */
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
-import { HalfFloatType, RenderTarget, Vector2, type Object3D } from 'three'
+import { HalfFloatType, RenderTarget, Vector2 } from 'three'
 import { texture } from 'three/tsl'
 import { MeshBasicNodeMaterial, QuadMesh, type Renderer } from 'three/webgpu'
 import { Compositor, compGraph, withOverlay, type CompGraph, type CompInput, type CompositorOptions } from 'blender-to-threejs'
 import { CardRenderLayers } from './card-render-layers'
 import { revealWarmupActors } from './scene-warmup'
-import { compileScene } from './compile-scene'
+import { compileRenderPasses } from './compile-passes'
+import { compileVisibleScene } from './compile-scene'
 
 type Uniforms = Compositor['uniforms']
 
@@ -49,6 +50,7 @@ export default function CompositorPost({
   const prepared = useRef(warmupReady === undefined)
   const preparation = useRef<Promise<void> | null>(null)
   const renderWarmup = useRef(false)
+  const passesPrepared = useRef(false)
   const preparationId = useRef(0)
 
   useEffect(() => {
@@ -81,72 +83,65 @@ export default function CompositorPost({
 
   useEffect(() => {
     const id = ++preparationId.current
-    renderWarmup.current = false
+    renderWarmup.current = Boolean(warmupReady && compRef.current)
+    passesPrepared.current = false
     prepared.current = warmupReady === undefined
-    if (!warmupReady || !compRef.current) return
-    let cancelled = false
-    const renderer = gl as unknown as Renderer
-    cardLayers.prepare(scene)
-    const previous = renderer.getRenderTarget()
-    // compileAsync gathers its render list synchronously before yielding. Include
-    // props below the frame and actors hidden until impact, then restore them.
-    const visibility: [Object3D, boolean, boolean][] = []
-    scene.traverse((object) => {
-      visibility.push([object, object.visible, object.frustumCulled])
-      object.visible = true
-      object.frustumCulled = false
-    })
-    renderer.setRenderTarget(compRef.current.sceneTarget)
-    const job = compileScene(renderer, scene, camera)
-    // compileAsync does not own the render target while its GPU work is pending.
-    renderer.setRenderTarget(previous)
-    for (const [object, visible, culled] of visibility) {
-      object.visible = visible
-      object.frustumCulled = culled
-    }
-    preparation.current = job.catch((error: unknown) => {
-      console.warn('Casino shader preparation failed; continuing with normal rendering.', error)
-    }).then(() => {
-      if (!cancelled && preparationId.current === id) renderWarmup.current = true
-    })
-    return () => { cancelled = true; preparationId.current = id + 1 }
+    return () => { preparationId.current = id + 1 }
   }, [gl, scene, camera, build, rawOutput, positionPass, warmupReady, cardLayers])
 
   useFrame(({ clock }) => {
     const comp = compRef.current
     if (!comp || (!prepared.current && !renderWarmup.current)) return
     const warming = renderWarmup.current
-    const restore = warming ? revealWarmupActors(scene) : null
-    try {
-      cardLayers.prepare(scene)
-      // Resize existing targets; rebuilding the graph here discards warmed GPU
-      // pipelines and introduces a hitch each time adaptive quality changes.
-      comp.setRenderScale(renderScale)
-      onFrame?.(comp.uniforms, clock.elapsedTime)
-      if (positionDirty?.()) comp.invalidatePosition()
-      const output = outputRef.current
-      if (rawOutput && renderScale < 1 && output) {
-        const size = gl.getDrawingBufferSize(bufferSize.current)
-        const scale = Math.min(1, Math.max(0.25, renderScale))
-        const width = Math.max(1, Math.floor(size.x * scale))
-        const height = Math.max(1, Math.floor(size.y * scale))
-        if (output.target.width !== width || output.target.height !== height) output.target.setSize(width, height)
-        const previous = gl.getRenderTarget()
-        // Crisp print and editor helpers belong after the upscale. withOverlay
-        // rebuilds their occlusion depth on the final target, not the paint target.
-        withOverlay(gl as unknown as Renderer, scene, camera, () => {
-          comp.render(output.target)
-          gl.setRenderTarget(previous)
-          output.quad.render(gl as unknown as Renderer)
-        })
-      } else comp.render()
-    } finally {
-      restore?.()
+    const renderFrame = () => {
+      const restore = warming ? revealWarmupActors(scene) : null
+      try {
+        cardLayers.prepare(scene)
+        // Resize existing targets; rebuilding the graph here discards warmed GPU
+        // pipelines and introduces a hitch each time adaptive quality changes.
+        comp.setRenderScale(renderScale)
+        onFrame?.(comp.uniforms, clock.elapsedTime)
+        if (positionDirty?.()) comp.invalidatePosition()
+        const output = outputRef.current
+        if (rawOutput && renderScale < 1 && output) {
+          const size = gl.getDrawingBufferSize(bufferSize.current)
+          const scale = Math.min(1, Math.max(0.25, renderScale))
+          const width = Math.max(1, Math.floor(size.x * scale))
+          const height = Math.max(1, Math.floor(size.y * scale))
+          if (output.target.width !== width || output.target.height !== height) output.target.setSize(width, height)
+          const previous = gl.getRenderTarget()
+          // Crisp print and editor helpers belong after the upscale. withOverlay
+          // rebuilds their occlusion depth on the final target, not the paint target.
+          withOverlay(gl as unknown as Renderer, scene, camera, () => {
+            comp.render(output.target)
+            gl.setRenderTarget(previous)
+            output.quad.render(gl as unknown as Renderer)
+          })
+        } else comp.render()
+      } finally {
+        restore?.()
+      }
     }
+    if (warming && !passesPrepared.current) {
+      passesPrepared.current = true
+      const renderer = gl as unknown as Renderer
+      const job = compileRenderPasses(renderer, renderFrame) ?? Promise.resolve()
+      renderWarmup.current = false
+      comp.invalidatePosition()
+      const id = preparationId.current
+      preparation.current = job.then(() => {
+        if (preparationId.current === id) return compileVisibleScene(renderer, scene, camera, comp.sceneTarget)
+      }).catch(error => {
+        console.warn('Casino render-pass preparation failed.', error)
+      }).then(() => {
+        if (preparationId.current === id) renderWarmup.current = true
+      })
+      return
+    }
+    renderFrame()
     if (warming) {
       renderWarmup.current = false
-      // compileAsync above covers only the colour target. The covered render
-      // also exercises shadow, position, overlay-depth and final blit variants.
+      // The real covered render fills every target after async pass discovery.
       // A one-pixel readback fences GPU work; readiness is not just submission.
       comp.invalidatePosition()
       const id = preparationId.current

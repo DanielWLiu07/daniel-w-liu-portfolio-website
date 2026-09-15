@@ -1,9 +1,30 @@
-import { REVISION, type Camera, type Object3D } from 'three'
+import { REVISION, type Camera, type Object3D, type RenderTarget } from 'three'
 import type { Renderer } from 'three/webgpu'
 
 type PipelineBackend = {
   isWebGPUBackend?: boolean
   createRenderPipeline: (object: unknown, promises: Promise<unknown>[] | null) => void
+}
+
+/** Collect the colour-only variants not exercised by the all-pass preflight. */
+export function compileVisibleScene(renderer: Renderer, scene: Object3D, camera: Camera, target: RenderTarget): Promise<void> {
+  const previous = renderer.getRenderTarget()
+  const saved: [Object3D, boolean, boolean][] = []
+  scene.traverse(object => {
+    saved.push([object, object.visible, object.frustumCulled])
+    object.visible = true
+    object.frustumCulled = false
+  })
+  try {
+    renderer.setRenderTarget(target)
+    return compileScene(renderer, scene, camera)
+  } finally {
+    renderer.setRenderTarget(previous)
+    for (const [object, visible, culled] of saved) {
+      object.visible = visible
+      object.frustumCulled = culled
+    }
+  }
 }
 
 /** r185 builds nodes serially, but needlessly waits for each GPU pipeline too.

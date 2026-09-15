@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
-import { Group, PerspectiveCamera } from 'three'
+import { Group, PerspectiveCamera, RenderTarget } from 'three'
 import type { Renderer } from 'three/webgpu'
-import { batchPipelineCompilation, compileScene } from '../components/resume/casino/compile-scene'
+import { batchPipelineCompilation, compileScene, compileVisibleScene } from '../components/resume/casino/compile-scene'
 
 async function check(fail: boolean) {
   let pending = 0, peak = 0, completed = 0
@@ -45,6 +45,25 @@ async function main() {
   const fallback = { backend: { isWebGPUBackend: false }, async compileAsync() { fallbackCalls++ } }
   await compileScene(fallback as unknown as Renderer, new Group(), new PerspectiveCamera())
   assert.equal(fallbackCalls, 1, 'WebGL keeps the ordinary compiler')
+  const scene = new Group(), hidden = new Group(), target = new RenderTarget()
+  hidden.visible = false; scene.add(hidden)
+  let selected: RenderTarget | null = null
+  const renderer = {
+    backend: { isWebGPUBackend: false },
+    getRenderTarget: () => selected,
+    setRenderTarget: (value: RenderTarget | null) => { selected = value },
+    async compileAsync() {
+      assert.equal(hidden.visible, true)
+      assert.equal(hidden.frustumCulled, false)
+      assert.equal(selected, target)
+      await Promise.resolve()
+      assert.equal(hidden.visible, false, 'restore while asynchronous work is pending')
+    },
+  }
+  await compileVisibleScene(renderer as unknown as Renderer, scene, new PerspectiveCamera(), target)
+  assert.equal(selected, null)
+  assert.equal(hidden.frustumCulled, true)
+  target.dispose()
   console.log('PASS: bounded compilation, partial final batch, failure draining and method restoration')
 }
 void main()
