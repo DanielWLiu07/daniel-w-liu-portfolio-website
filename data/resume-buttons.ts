@@ -1,3 +1,5 @@
+import { SOCIAL_URLS } from "./social-links";
+
 export interface InteractiveButton {
   id: string;
   imageName: string;
@@ -31,7 +33,7 @@ export const createInteractiveButtons = (): InteractiveButton[] => [
     width: "12.00%",
     height: "21.52%",
     rotation: 0,
-    action: () => window.open("https://github.com/DanielWLiu07", "_blank"),
+    action: () => window.open(SOCIAL_URLS.github, "_blank"),
   },
   {
     id: "linkedin",
@@ -42,7 +44,7 @@ export const createInteractiveButtons = (): InteractiveButton[] => [
     width: "12.83%",
     height: "19.85%",
     rotation: 0,
-    action: () => window.open("https://www.linkedin.com/in/danielliu2007/", "_blank"),
+    action: () => window.open(SOCIAL_URLS.linkedin, "_blank"),
   },
   {
     id: "email",

@@ -12,6 +12,11 @@ export default function Navbar(){
 
     const isQualitySelector = mode === null && pathname === '/';
 
+    // Panel windows are torn-off tool windows on a second monitor, not pages.
+    // Site chrome over them costs the top of the panel and reads as a bug:
+    // measured, the nav bar covered the first two controls outright.
+    const isPanel = pathname?.startsWith('/panel') ?? false;
+
     const [delayedSlideUp, setDelayedSlideUp] = useState(false);
 
     const handleHomeClick = () => {
@@ -52,6 +57,8 @@ export default function Navbar(){
         const isActive = pathname === href;
         return `${baseLinkClass} ${isActive ? activeClass : ''}`;
     };
+
+    if (isPanel) return null;
 
     return (
         <nav className={`fixed top-5 left-1/2 -translate-x-1/2 md:left-5 md:translate-x-0 z-[10000] pointer-events-none transition-transform duration-700 ${shouldSlideUp ? 'ease-in-out -translate-y-20' : 'ease-out translate-y-0'}`}>

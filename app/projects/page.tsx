@@ -19,7 +19,23 @@ import { clamp } from '@/lib/animation-utils'
 
 const SOCIAL_LINKS_SELECTOR = '.projects-social-links'
 
+// ?v3: the section on the WebGPU + node-graph stack, printed by the manga
+// compositor graph. Behind a switch so the shipping carousel is untouched.
+const ProjectsManga = dynamic(() => import('@/components/projects/manga/projects-manga'), { ssr: false })
+
 export default function ProjectsPage() {
+  // Read on the CLIENT only, after mount: a `typeof window` branch in render is
+  // a hydration mismatch by construction, since the server takes one arm and the
+  // client the other. The resume route gates the same way on isHydrated.
+  const [v3, setV3] = useState<boolean | null>(null)
+  useEffect(() => {
+    setV3(new URLSearchParams(window.location.search).has('v3'))
+  }, [])
+  if (v3 === null) return null
+  return v3 ? <ProjectsManga /> : <ProjectsCarousel />
+}
+
+function ProjectsCarousel() {
   const [expandedProject, setExpandedProject] = useState<number | null>(null)
   const [isPaused, setIsPaused] = useState(false)
   const [introFinished, setIntroFinished] = useState(false)

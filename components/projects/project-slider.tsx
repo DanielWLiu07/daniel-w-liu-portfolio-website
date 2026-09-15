@@ -356,6 +356,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
       allProjects.push(projects[(projects.length - 1 - (i % projects.length))])
     }
 
+    const cullSphere = new THREE.Sphere()
     const planes: THREE.Mesh[] = []
     planesRef.current = planes
 
@@ -1351,9 +1352,68 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
     const _tempAxisZ = new THREE.Vector3(0, 0, 1)
     const _tempAxisX = new THREE.Vector3(1, 0, 0)
 
+    /**
+     * Only let the cards you can actually see decode video.
+     *
+     * Every project's thumbnail is a looping <video> behind a THREE.VideoTexture,
+     * and three uploads a VideoTexture on every frame the video reports a new
+     * picture. Measured on the shipping page that was four videos re-uploaded
+     * every frame — 290 MB over three seconds, 97 MB/s of CPU-to-GPU traffic —
+     * for cards that are mostly off the side of the carousel.
+     *
+     * Pausing rather than merely skipping the upload is deliberate: a paused
+     * video stops DECODING too, which is the larger of the two costs and the one
+     * that shows up as fan noise on a laptop.
+     *
+     * Cheap to run: one bounding-sphere test per plane against the camera
+     * frustum, and play/pause are no-ops when the state already matches.
+     */
+    const visibleProjects = new Set<string | number>()
+    const frustum = new THREE.Frustum()
+    const frustumMatrix = new THREE.Matrix4()
+    let cullAccumulator = 0
+    const updateVideoPlayback = (dt: number) => {
+      // A card cannot enter or leave the screen in a frame, so this does not
+      // need to run at frame rate. Eight times a second is well inside the
+      // time it takes a card to travel its own width.
+      cullAccumulator += dt
+      if (cullAccumulator < 125) return
+      cullAccumulator = 0
+
+      camera.updateMatrixWorld()
+      frustumMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
+      frustum.setFromProjectionMatrix(frustumMatrix)
+
+      visibleProjects.clear()
+      for (const plane of planes) {
+        if (!plane.visible) continue
+        const geo = plane.geometry
+        if (!geo.boundingSphere) geo.computeBoundingSphere()
+        if (!geo.boundingSphere) continue
+        cullSphere.copy(geo.boundingSphere).applyMatrix4(plane.matrixWorld)
+        if (frustum.intersectsSphere(cullSphere)) {
+          visibleProjects.add(plane.userData.projectId)
+        }
+      }
+      // The expanded card is the one being looked at even mid-flight, when its
+      // plane may have left the frustum on the way to its target.
+      if (expandedProjectRef.current !== null) {
+        visibleProjects.add(expandedProjectRef.current)
+      }
+
+      for (const [projectId, assets] of projectAssetsCache) {
+        const video = assets.thumbnailVideo
+        if (!video) continue
+        const wanted = visibleProjects.has(projectId)
+        if (wanted && video.paused) video.play().catch(() => {})
+        else if (!wanted && !video.paused) video.pause()
+      }
+    }
+
     const animate = (currentTime: number) => {
       const timePassed = currentTime - previousTime
       const anim = animStateRef.current  // SINGLE SOURCE OF TRUTH
+      updateVideoPlayback(timePassed)
       let expandedPlane = expandedPlaneRef.current
       const isExpanded = expandedProjectRef.current !== null
 
