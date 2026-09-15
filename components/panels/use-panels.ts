@@ -23,16 +23,19 @@ import {
   type ScreenInfo,
 } from "blender-to-threejs";
 
-export function usePanelHost(): PanelHost | null {
-  // Built in the initialiser, not assigned from an effect. Creating it in an
-  // effect means setting state inside one, which cascades a second render on
-  // every mount; the initialiser runs once and is already client-only after
-  // hydration. Null on the server, where BroadcastChannel and window.open do
-  // not exist and nothing can be popped out anyway.
-  const [host] = useState<PanelHost | null>(() =>
-    typeof window === "undefined" ? null : new PanelHost(),
-  );
-  useEffect(() => () => host?.dispose(), [host]);
+import { PANEL_EDIT_EVENT } from './panel-events';
+
+export function usePanelHost(options?: ConstructorParameters<typeof PanelHost>[0]): PanelHost | null {
+  // The connection must be created and destroyed in the SAME lifecycle.
+  // A state initialiser survives StrictMode's effect remount, so disposing
+  // that host in cleanup leaves the remounted page using a closed channel.
+  const [host, setHost] = useState<PanelHost | null>(null);
+  const initialOptions = useRef(options);
+  useEffect(() => {
+    const connection = new PanelHost(initialOptions.current);
+    setHost(connection);
+    return () => connection.dispose();
+  }, []);
   return host;
 }
 
@@ -66,11 +69,20 @@ export function usePanel(
     // 94-object graph.
     host.register(schema, {
       get: () => ref.current.get(),
-      set: (k, v) => ref.current.set(k, v),
-      press: (k) => ref.current.press?.(k),
+      set: (k, v) => {
+        ref.current.set(k, v);
+        window.dispatchEvent(new Event(PANEL_EDIT_EVENT));
+      },
+      press: (k) => {
+        ref.current.press?.(k);
+        window.dispatchEvent(new Event(PANEL_EDIT_EVENT));
+      },
       snippets: () => ref.current.snippets?.() ?? {},
       trees: () => ref.current.trees?.() ?? {},
-      select: (k, node, visible) => ref.current.select?.(k, node, visible),
+      select: (k, node, visible) => {
+        ref.current.select?.(k, node, visible);
+        window.dispatchEvent(new Event(PANEL_EDIT_EVENT));
+      },
     });
     return () => host.unregister(schema.id);
   }, [host, schema]);

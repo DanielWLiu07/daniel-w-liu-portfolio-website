@@ -27,6 +27,15 @@ import NodeGraphView from "@/components/three/node-graph-view";
 import RunTuner from "@/components/three/run-tuner";
 import type { PanelValue } from "blender-to-threejs";
 import PopOut from "@/components/panels/pop-out";
+import WorkspaceBar from "@/components/panels/workspace";
+import PanelRenderBridge from "@/components/panels/panel-render-bridge";
+import {
+  shaderReadouts,
+  shaderSchema,
+  shaderSet,
+  shaderSnippets,
+  shaderValues,
+} from "@/components/panels/shader-editor-panel";
 import {
   OUTLINER_PANEL,
   outlinerCounts,
@@ -523,6 +532,27 @@ export default function PlayPage() {
    */
   const liveScene = () =>
     (window as unknown as { __scene?: THREE.Scene }).__scene ?? null;
+  /**
+   * The shader editor, over this library's own graph registry.
+   *
+   * The schema is built rather than declared: an application registers its
+   * graphs at import time, so the list of names only exists once those have
+   * run. Memoised so the identity is stable — usePanel re-registers when the
+   * schema changes, and re-registering every render would resend it endlessly.
+   */
+  const shaderPanel = useMemo(() => shaderSchema(), []);
+  const shaderBinding = {
+    get: () => shaderValues(),
+    set: (key: string, value: PanelValue) => {
+      shaderSet(key, value);
+      panelHost?.readouts(shaderPanel.id, shaderReadouts());
+    },
+    snippets: () => shaderSnippets(),
+  };
+  useEffect(() => {
+    panelHost?.readouts(shaderPanel.id, shaderReadouts());
+  }, [panelHost, shaderPanel]);
+
   const outlinerBinding = {
     // No editable controls: an outliner is a view, and the two buttons are
     // presses rather than values.
@@ -611,6 +641,7 @@ export default function PlayPage() {
           onGrab={setHolding}
           showBones={showBones}
         />
+        <PanelRenderBridge />
       </Canvas>
 
       <div className="absolute top-24 left-6 font-mono text-[11px] text-neutral-700 bg-white/70 rounded px-3 py-2 leading-relaxed">
@@ -655,6 +686,23 @@ export default function PlayPage() {
             label="pop out the outliner"
           />
         </div>
+        <div className="mt-1">
+          <PopOut
+            host={panelHost}
+            schema={shaderPanel}
+            binding={shaderBinding}
+            label="pop out the shader editor"
+          />
+        </div>
+        <WorkspaceBar
+          host={panelHost}
+          workspaces={[
+            // Blender's own tabs, named the same, holding the panels Blender
+            // puts in them.
+            { name: "layout", panels: [OUTLINER_PANEL.id, RUN_PANEL.id] },
+            { name: "shading", panels: [OUTLINER_PANEL.id, shaderPanel.id] },
+          ]}
+        />
         <RunTuner
           value={tuning}
           onChange={setTuning}

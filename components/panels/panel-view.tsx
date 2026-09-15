@@ -35,6 +35,24 @@ function Slider({
   onChange: (v: number) => void;
 }) {
   const dp = precisionOf(control);
+  const dragging = useRef(false);
+  const lastSent = useRef<number | null>(null);
+  const [dragValue, setDragValue] = useState<number | null>(null);
+  const shown = dragValue ?? value;
+  const moveTo = (input: HTMLInputElement, clientX: number) => {
+    const rect = input.getBoundingClientRect();
+    // Match the native thumb's travel, including its half-width at each end.
+    const fraction = Math.min(1, Math.max(0, (clientX - rect.left - 8) / Math.max(1, rect.width - 16)));
+    const step = control.step ?? 0.01;
+    const raw = control.min + fraction * (control.max - control.min);
+    const next = Number(Math.min(control.max, Math.max(control.min,
+      control.min + Math.round((raw - control.min) / step) * step)).toFixed(dp));
+    setDragValue(next);
+    if (lastSent.current !== next) {
+      lastSent.current = next;
+      onChange(next);
+    }
+  };
   return (
     <label className="flex items-center gap-2 py-0.5">
       <span className="w-20 shrink-0 truncate text-neutral-500">
@@ -42,15 +60,38 @@ function Slider({
       </span>
       <input
         type="range"
-        className="min-w-0 flex-1 accent-neutral-700"
+        className="min-w-0 flex-1 touch-none accent-neutral-700"
         min={control.min}
         max={control.max}
         step={control.step ?? 0.01}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
+        value={shown}
+        onPointerDown={(e) => {
+          if (e.button !== 0) return;
+          e.preventDefault();
+          e.currentTarget.focus();
+          e.currentTarget.setPointerCapture(e.pointerId);
+          dragging.current = true;
+          lastSent.current = null;
+          moveTo(e.currentTarget, e.clientX);
+        }}
+        onPointerMove={(e) => {
+          if (dragging.current) moveTo(e.currentTarget, e.clientX);
+        }}
+        onPointerUp={(e) => {
+          if (!dragging.current) return;
+          moveTo(e.currentTarget, e.clientX);
+          dragging.current = false;
+          setDragValue(null);
+          e.currentTarget.releasePointerCapture(e.pointerId);
+        }}
+        onLostPointerCapture={() => { dragging.current = false; setDragValue(null); }}
+        onChange={(e) => {
+          // Keyboard and assistive input retain the native range semantics.
+          if (!dragging.current) onChange(Number(e.target.value));
+        }}
       />
       <span className="w-12 shrink-0 text-right tabular-nums text-neutral-400">
-        {value.toFixed(dp)}
+        {shown.toFixed(dp)}
       </span>
     </label>
   );
@@ -125,6 +166,94 @@ function Snippet({ label, text }: { label: string; text: string }) {
 }
 
 /**
+ * A node graph, drawn as a pannable, zoomable picture.
+ *
+ * Rendered as an IMAGE rather than injected markup. An `<img>` cannot execute
+ * script whatever ends up in a node's parameters, and it gives pan and zoom for
+ * nothing — which a node graph needs, because the interesting ones are wider
+ * than any window you would park on a second monitor.
+ */
+function GraphView({ label, svg }: { label: string; svg: string }) {
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const drag = useRef<{ x: number; y: number } | null>(null);
+
+  const src = svg
+    ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
+    : "";
+
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex items-center justify-between pb-1">
+        <span className="text-neutral-500">{label}</span>
+        <span className="space-x-2 text-neutral-400">
+          <button
+            type="button"
+            onClick={() => setZoom((z) => Math.min(4, z * 1.25))}
+            className="px-1 hover:text-neutral-800"
+          >
+            +
+          </button>
+          <button
+            type="button"
+            onClick={() => setZoom((z) => Math.max(0.15, z / 1.25))}
+            className="px-1 hover:text-neutral-800"
+          >
+            −
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setZoom(1);
+              setPan({ x: 0, y: 0 });
+            }}
+            className="px-1 hover:text-neutral-800"
+          >
+            fit
+          </button>
+        </span>
+      </div>
+      <div
+        className="min-h-0 flex-1 cursor-grab overflow-hidden bg-[#1d1d1d] active:cursor-grabbing"
+        onPointerDown={(e) => {
+          drag.current = { x: e.clientX - pan.x, y: e.clientY - pan.y };
+          e.currentTarget.setPointerCapture(e.pointerId);
+        }}
+        onPointerMove={(e) => {
+          if (!drag.current) return;
+          setPan({ x: e.clientX - drag.current.x, y: e.clientY - drag.current.y });
+        }}
+        onPointerUp={() => {
+          drag.current = null;
+        }}
+        onWheel={(e) => {
+          // Blender zooms the node editor on the wheel, so this does too.
+          setZoom((z) =>
+            Math.min(4, Math.max(0.15, z * (e.deltaY < 0 ? 1.1 : 1 / 1.1))),
+          );
+        }}
+      >
+        {src ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            alt={label}
+            src={src}
+            draggable={false}
+            style={{
+              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+              transformOrigin: "0 0",
+              maxWidth: "none",
+            }}
+          />
+        ) : (
+          <div className="p-2 text-neutral-500">no graph selected</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
  * One hierarchy row, and its children.
  *
  * Collapsed by default below the top level, which is Blender's behaviour and
@@ -140,14 +269,14 @@ function Row({
   node: TreeNode;
   depth: number;
   onSelect: (id: string) => void;
-  onVisible: (id: string, visible: boolean) => void;
+  onVisible?: (id: string, visible: boolean) => void;
 }) {
   const [open, setOpen] = useState(depth < 1);
   const kids = node.children ?? [];
   return (
     <>
       <div
-        className="flex items-center gap-1 py-px hover:bg-neutral-100"
+        className={`flex items-center gap-1 py-px hover:bg-neutral-100 ${node.selected ? 'bg-blue-100 outline outline-1 outline-blue-400' : ''}`}
         style={{ paddingLeft: depth * 12 }}
       >
         {kids.length > 0 ? (
@@ -165,6 +294,7 @@ function Row({
         <button
           type="button"
           onClick={() => onSelect(node.id)}
+          aria-pressed={node.selected ?? false}
           className={`min-w-0 flex-1 truncate text-left ${
             node.visible ? "text-neutral-700" : "text-neutral-400 line-through"
           }`}
@@ -180,7 +310,7 @@ function Row({
               : node.tris}
           </span>
         ) : null}
-        <button
+        {onVisible && <button
           type="button"
           onClick={() => onVisible(node.id, !node.visible)}
           className="w-4 shrink-0 text-neutral-400 hover:text-neutral-800"
@@ -188,7 +318,7 @@ function Row({
           title={node.visible ? "hide" : "show"}
         >
           {node.visible ? "◉" : "○"}
-        </button>
+        </button>}
       </div>
       {open
         ? kids.map((k) => (
@@ -317,6 +447,12 @@ export default function PanelView({
                   text={snippets[c.key] ?? ""}
                 />
               );
+            case "svg":
+              return (
+                <div key={c.key} className="h-[70vh] min-h-0 py-1">
+                  <GraphView label={c.label} svg={snippets[c.key] ?? ""} />
+                </div>
+              );
             case "tree": {
               const roots = trees[c.key] ?? [];
               return (
@@ -330,7 +466,7 @@ export default function PanelView({
                         node={n}
                         depth={0}
                         onSelect={(id) => onSelect(c.key, id)}
-                        onVisible={(id, v) => onSelect(c.key, id, v)}
+                        onVisible={c.visibility === false ? undefined : (id, v) => onSelect(c.key, id, v)}
                       />
                     ))
                   )}

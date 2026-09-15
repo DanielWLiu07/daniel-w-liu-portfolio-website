@@ -27,9 +27,19 @@ export async function generateMetadata({
 
 export default async function PanelPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { id } = await params;
-  return <PanelClientView id={id} />;
+  const query = await searchParams;
+  // Any tool can group its existing schemas into one window without changing
+  // the panel protocol. IDs are still the address of each live connection.
+  const tabs = (typeof query.tabs === "string" ? query.tabs : "")
+    .split("|").slice(0, 8).map((entry) => {
+      const [key, label] = entry.split(":");
+      return { id: key, label: label?.slice(0, 60) || key };
+    }).filter((tab, i, all) => /^[a-zA-Z0-9_-]{1,80}$/.test(tab.id) && all.findIndex(t => t.id === tab.id) === i);
+  return <PanelClientView id={id} tabs={tabs} terminal={query.theme === "terminal"} />;
 }
