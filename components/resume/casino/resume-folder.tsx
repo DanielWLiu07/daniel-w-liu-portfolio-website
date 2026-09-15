@@ -19,11 +19,13 @@ import * as THREE from 'three'
 import { bakedSpin, contactPlane, planeAt, planeTilt, unbakeSpin } from 'blender-to-threejs'
 import { claimPointer } from './cursor'
 import { contactShadowTexture, paperSheet, tapeTexture, type Sheet } from './paper'
+import { createFolderTape } from './folder-tape'
 import { getTune } from './tune'
 import { drivePresent } from './materials'
 import FolderLeaf, { RESUME_PDF, type LeafFace } from './folder-leaf'
-import { folderMaterial, sheetMaterial, stockMaterial } from './materials'
+import { folderMaterial, sheetMaterial, stockMaterial, tapeMaterial } from './materials'
 import type { ImpactFx } from './hero-chip'
+import { markPropMotion } from './prop-arrival'
 
 export const RESUME_PAGE = { url: '/resume/resume-page1.jpg', w: 1583, h: 2048 }
 /**
@@ -204,6 +206,16 @@ function PageLink({ page, mount, active, size, lift, onHover }: { page: THREE.Me
 }
 
 /** the master shape of the whole move: smootherstep, zero slope AND zero acceleration at both ends */
+/**
+ * How far the paper stack is pressed down while the cover is lying on it.
+ *
+ * Measured: at full height the page's top surface clears the cover's inner face
+ * by 0.0013 of a world unit, which the depth buffer cannot hold apart once the
+ * folder tilts, and the page speckles through the manila. At 0.28 it clears by
+ * 0.0063, and since the cover is on top of it nobody can tell the difference.
+ */
+const PRESS_SHUT = 0.28
+
 function smoother(x: number): number {
   const t = Math.min(1, Math.max(0, x))
   return t * t * t * (t * (t * 6 - 15) + 10)
@@ -433,9 +445,13 @@ export default function ResumeFolder({
     // rather than as one document with heft: a cream band along the bottom and side of the white page. They
     // are 3 percent smaller than the top sheet now, which is more than the fan and the lean together can
     // move them, so they can never emerge however the curl or the tilt goes.
+    // every sheet's resting height above the leaf's plane, so the stack can be
+    // pressed down while the cover is lying on it (see press below)
+    const stack: { mesh: THREE.Mesh; base: number }[] = []
     for (let i = 0; i < 2; i++) {
       const u = paperSheet({ w: pw * 0.97, h: ph * 0.97, t: thick }, edge, { across: 'x', foldAt, up: -1, rise: rise * (0.4 + i * 0.25), skew: i === 0 ? 0.08 : -0.06 })
       u.mesh.position.set(cx + 0.003 * (i + 1), cy - 0.003 * (i + 1), lift(0.55 + i * 0.7))
+      stack.push({ mesh: u.mesh, base: 0.55 + i * 0.7 })
       u.mesh.rotation.set(0, tilt, (i === 0 ? 1 : -1) * 0.005)
       root.add(u.mesh)
       // nothing is printed on the sheets underneath, so their face plane is simply never added
@@ -456,12 +472,38 @@ export default function ResumeFolder({
     sheets.push(top)
     page.name = 'folder_page'
     page.position.set(cx, cy, lift(1.95))
+    stack.push({ mesh: page, base: 1.95 })
     page.rotation.y = tilt
     // the face plane is only added in ?sharp: otherwise the print lives on the sheet itself
     if (sharp) {
       top.face.position.copy(page.position)
       top.face.rotation.copy(page.rotation)
       root.add(top.face)
+      stack.push({ mesh: top.face, base: 1.95 })
+    }
+
+    /**
+     * PRESSED FLAT WHILE SHUT.
+     *
+     * The stack's resting height is 2.45 stock-thicknesses above the leaf's plane
+     * and the cover's inner face is 2.81 above it, which leaves 0.0013 of world
+     * between the page and the manila lying on it. That is about a thousandth of
+     * a unit in a scene twenty-four across: far too little for the depth buffer to
+     * keep them apart once the folder lifts off the table and tilts, and the page
+     * comes through the cover in speckles. The note above this stack reads "0.16
+     * was well under that", but the stock is 0.26 of the leaf's depth now, which
+     * is 87 percent of the way to the documented ceiling, so there was no margin
+     * left to lose.
+     *
+     * Height is not a thing that has to be paid for while the folder is shut,
+     * because nothing can see it. So the stack is pressed down against the leaf
+     * and rises to its full height as the cover comes off, exactly as the stock's
+     * own thickness and the curl already do. At p = 0.28 the page's top surface
+     * sits 0.0063 clear of the cover instead of 0.0013, and the open folder is
+     * unchanged because p reaches 1 with the curl.
+     */
+    const press = (p: number) => {
+      for (const s of stack) s.mesh.position.z = lift(s.base * p)
     }
     if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('fdbg')) {
       const f = (v: number) => v.toFixed(4)
@@ -474,34 +516,19 @@ export default function ResumeFolder({
     page.userData.sheet = true
     root.add(page)
 
-    // Taped down. Two strips across opposite corners, each sitting ON the paper's corner and pitching down
-    // onto the manila, which is what makes it read as HOLDING the sheet rather than decorating it.
-    //
-    // The height is not a guess and the first attempt was wrong: the tape went 2.35 stock-thicknesses above
-    // the leaf's plane and vanished, because the page's own CURL lifts its corners far higher than its
-    // thickness does (the rise is about seven times the stock). It rides the corner's real height now, and
-    // pitches by the angle that carries its outboard end down to the leaf.
-    {
-      // DoubleSide, and that is why the first two attempts drew nothing at all: a plane faces +z, the page's
-      // printed side faces -z here, so the strips were presenting their backs to the camera and being culled
-      const tapeMat = new THREE.MeshBasicMaterial({ map: tapeTexture(), transparent: true, depthWrite: false, toneMapped: false, side: THREE.DoubleSide })
-      const len = pw * 0.26
-      const cornerH = 0.94 * rise + 3.35 * thick // paper's corner above the leaf's plane, curl and stock
-      const pitch = Math.atan2(cornerH, len / 2)
-      const AXY = new THREE.Vector3(0, 1, 0)
-      const AXZ = new THREE.Vector3(0, 0, 1)
-      for (const [sx, sy] of [[-1, 1], [1, -1]] as const) {
-        const strip = new THREE.Mesh(new THREE.PlaneGeometry(len, len * 0.3), tapeMat)
-        strip.position.set(cx + sx * (pw / 2) * 0.96, cy + sy * (ph / 2) * 0.97, lift(0) - cornerH - thick * 0.5)
-        const spin = (sx * sy > 0 ? 1 : -1) * (Math.PI / 4) + sx * 0.05
-        strip.quaternion
-          .setFromAxisAngle(AXY, tilt)
-          .multiply(new THREE.Quaternion().setFromAxisAngle(AXZ, spin))
-          .multiply(new THREE.Quaternion().setFromAxisAngle(AXY, -pitch))
-        strip.renderOrder = 2
-        root.add(strip)
-      }
+    const tapeBuilt = createFolderTape(page, { w: pw, h: ph, thick, rise, foldAt, skew: 0.05, sharp },
+      [tapeMaterial(tapeTexture(1)), tapeMaterial(tapeTexture(2))])
+    const tape = {
+      meshes: tapeBuilt.meshes,
+      update: (curl: number) => {
+        // The fitted leaf is parallel to the page's local XY plane. Transform
+        // its separation into that frame, including the animated stack press.
+        const leafZ = (planeAt(plane, cx) - page.position.z) * Math.cos(tilt)
+        tapeBuilt.update(curl, leafZ)
+      },
     }
+    root.add(...tape.meshes)
+    tape.update(1)
 
     // hinge: the fold is the leaf edge away from the tab, on the face the two leaves share (measured
     // above, since the sheets have to bend away from it)
@@ -523,7 +550,7 @@ export default function ResumeFolder({
       w: cb.max.x - cb.min.x,
       h: cb.max.y - cb.min.y,
     }
-    return { root, pivot, page, sheets, curlClearAngle, pageLift: -(rise + thick * 3 + 0.004), pageSize: { w: pw, h: ph }, layoutX: Math.PI / 2, openAxis: 'y' as const, openSign, coverFace, frame: { up: [0, 1, 0] as const, right: [1, 0, 0] as const, normal: [0, 0, -1] as const } }
+    return { root, pivot, page, sheets, press, tape, curlClearAngle, pageLift: -(rise + thick * 3 + 0.004), pageSize: { w: pw, h: ph }, layoutX: Math.PI / 2, openAxis: 'y' as const, openSign, coverFace, frame: { up: [0, 1, 0] as const, right: [1, 0, 0] as const, normal: [0, 0, -1] as const } }
   }, [ogScene, mats, useGenerated])
 
   const genBuilt = useMemo(() => {
@@ -576,6 +603,10 @@ export default function ResumeFolder({
     sheets.push(top)
     page.name = 'folder_page'
     page.position.set(0, LEAF_H / 2, LEAF_T + 0.012 + sheetT / 2)
+    const stack: { mesh: THREE.Mesh; base: number }[] = [
+      { mesh: page, base: 0.012 + sheetT / 2 },
+      { mesh: top.face, base: 0.012 + sheetT / 2 },
+    ]
     page.userData.sheet = true
     root.add(page)
     top.face.position.copy(page.position)
@@ -584,10 +615,17 @@ export default function ResumeFolder({
     for (let i = 1; i <= 2; i++) {
       const u = paperSheet({ w: pLong * 0.97, h: pShort * 0.97, t: sheetT * 0.8 }, edge, { across: 'y', foldAt: -1, up: 1, rise: rise * (0.65 - i * 0.2), skew: i === 1 ? 0.08 : -0.06 })
       u.mesh.position.set(0.003 * i, LEAF_H / 2 - 0.003 * i, LEAF_T + 0.012 - i * sheetT * 0.75)
+      stack.push({ mesh: u.mesh, base: 0.012 - i * sheetT * 0.75 })
       u.mesh.rotation.z = (i === 1 ? 1 : -1) * 0.005
       root.add(u.mesh)
       // nothing is printed on the sheets underneath, so their face plane is simply never added
       sheets.push(u)
+    }
+
+    // the same press as the modelled branch: the stack lies flat against the leaf
+    // while the cover is on it and rises as the cover comes off
+    const press = (p: number) => {
+      for (const s of stack) s.mesh.position.z = LEAF_T + s.base * p
     }
 
     // the hinge: the crease edge (y = 0) at the leaves' shared face
@@ -620,7 +658,7 @@ export default function ResumeFolder({
     label.position.set(0, LEAF_H / 2, LEAF_T + 0.012)
     pivot.add(label)
 
-    return { root, pivot, page, sheets, curlClearAngle, pageLift: rise + sheetT * 3 + 0.004, pageSize: { w: pShort, h: pLong }, layoutX: -Math.PI / 2, openAxis: 'x' as const, openSign: -1, coverFace: { cx: 0, cy: LEAF_H / 2, z: 0, w: LEAF_W, h: LEAF_H } as LeafFace, frame: { up: [1, 0, 0] as const, right: [0, 1, 0] as const, normal: [0, 0, 1] as const } }
+    return { root, pivot, page, sheets, press, tape: null, curlClearAngle, pageLift: rise + sheetT * 3 + 0.004, pageSize: { w: pShort, h: pLong }, layoutX: -Math.PI / 2, openAxis: 'x' as const, openSign: -1, coverFace: { cx: 0, cy: LEAF_H / 2, z: 0, w: LEAF_W, h: LEAF_H } as LeafFace, frame: { up: [1, 0, 0] as const, right: [0, 1, 0] as const, normal: [0, 0, 1] as const } }
   }, [mats])
 
   const built = ogBuilt ?? genBuilt
@@ -628,6 +666,9 @@ export default function ResumeFolder({
   const parts = useRef(built)
   useEffect(() => {
     parts.current = built
+    // Rebuilt sheet geometry starts curled even if the previous model was shut.
+    // Invalidate the cached pose so a texture/model refresh presses it flat again.
+    curlAt.current = -1
   }, [built])
 
   useLayoutEffect(() => {
@@ -654,6 +695,7 @@ export default function ResumeFolder({
   const outer = useRef<THREE.Group>(null)
   const swell = useRef<THREE.Group>(null)
   const hover = useRef({ on: false, amt: 0, off: 0 })
+  const closing = useRef(false)
   /**
    * The hover is CLAIM-COUNTED, not a boolean, and that is the fidget.
    *
@@ -665,6 +707,7 @@ export default function ResumeFolder({
    * another still holds changes nothing.
    */
   const claimHover = useCallback((id: string, on: boolean) => {
+    if (on && closing.current) return
     const c = hoverClaims.current
     if (on) c.add(id)
     else c.delete(id)
@@ -699,8 +742,10 @@ export default function ResumeFolder({
     my: 0,
     /** the float's own integrated phase (see the frame loop) */
     phase: 0,
+    dist: 0,
   })
   useEffect(() => {
+    closing.current = !open && openLin.current > 0
     openState.current = open
     // Drop the hover whenever it opens or closes. The folder moves a long way out from under a STATIONARY
     // cursor on both of those, and r3f only re-raycasts on pointer events: with no mouse movement no
@@ -709,13 +754,25 @@ export default function ResumeFolder({
     // It re-engages the moment the pointer actually moves, which is the correct source for it anyway.
     hoverClaims.current.clear()
     hover.current.on = false
+    hover.current.off = 0.1
+    markPropMotion(open ? FOLDER_TIME.open + 0.2 : FOLDER_TIME.shut + 0.2)
   }, [open])
 
+  // ?nosheet hides the paper and leaves the manila standing, which is how you find
+  // out whether a pale edge belongs to the page or to the folder itself
+  const noSheet = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('nosheet')
+  // ?fopen=<0..1> pins the open gesture, so the folder holds still at one point of
+  // its swing and two runs can be compared pixel for pixel
+  const pinOpen = (() => {
+    if (typeof window === 'undefined') return null
+    const v = new URLSearchParams(window.location.search).get('fopen')
+    return v === null ? null : Math.min(1, Math.max(0, Number(v)))
+  })()
   useFrame(({ camera, pointer, clock }, dt) => {
     const d = Math.min(dt, 0.05)
     const dur = openState.current ? FOLDER_TIME.open : FOLDER_TIME.shut
     openLin.current = Math.min(1, Math.max(0, openLin.current + (openState.current ? d / dur : -d / dur)))
-    const l = openLin.current
+    const l = pinOpen ?? openLin.current
     // ONE gesture, not two at once. Both the travel and the cover swing used to run off the same value, so
     // they started together, peaked together and stopped together: two different kinds of motion perfectly
     // synchronised, which is exactly what reads as two things happening rather than one movement. The
@@ -723,6 +780,13 @@ export default function ResumeFolder({
     // and on the way back the cover shuts before the folder has finished going down. Same total time.
     const a = smoother(l / 0.84)
     const swing = smoother((l - 0.16) / 0.84)
+    if (closing.current && l === 0) {
+      closing.current = false
+      hoverClaims.current.clear()
+      hover.current.on = false
+      hover.current.amt = 0
+      hover.current.off = 0.1
+    }
     const tn = getTune()
     if (parts.current.openAxis === 'y') parts.current.pivot.rotation.y = parts.current.openSign * Math.PI * tn.fldTurn * swing
     else parts.current.pivot.rotation.x = parts.current.openSign * Math.PI * tn.fldTurn * swing
@@ -747,8 +811,22 @@ export default function ResumeFolder({
     const curl = cu * cu * (3 - 2 * cu)
     if (Math.abs(curl - curlAt.current) > 0.004 || (curl !== curlAt.current && (curl === 0 || curl === 1))) {
       for (const sh of parts.current.sheets) sh.curl(curl)
+      // and the stack rides up on the same driver, so it is only ever at its full
+      // height when there is no cover lying on it to fight with
+      parts.current.press(PRESS_SHUT + (1 - PRESS_SHUT) * curl)
+      parts.current.tape?.update(curl)
       curlAt.current = curl
     }
+
+    // No interior paper is drawable while the cover occupies the same space.
+    // Hide the separate sharp-print face too: hiding its stock mesh alone does
+    // not remove that sibling from the compositor's overlay pass.
+    const paperVisible = !noSheet && swing > clearAt
+    for (const sh of parts.current.sheets) {
+      sh.mesh.visible = paperVisible
+      sh.face.visible = paperVisible
+    }
+    for (const strip of parts.current.tape?.meshes ?? []) strip.visible = paperVisible
 
     const h = hover.current
     // and a short grace on RELEASE, on top of the claims: a pointer crossing a gap between two of the
@@ -756,15 +834,16 @@ export default function ResumeFolder({
     // twitch. Re-entering inside the grace costs nothing at all.
     if (h.on) h.off = 0
     else h.off += d
-    const held = h.on || h.off < 0.1
+    const held = !closing.current && (h.on || h.off < 0.1)
     // slower than it was, both ways: the lift is 0.055 of the spread's height and arriving in a tenth of a
     // second reads as a pop rather than as the folder noticing the pointer
     h.amt += ((held ? 1 : 0) - h.amt) * ease(held ? 6 : 3.5, d)
+    if (!held && h.amt < 0.001) h.amt = 0
     if (swell.current) {
       // faded out as it presents: a scale INSIDE the group is invisible there, since the framing measures
       // what is actually in the group and simply settles further back. The presented pose runs its own
       // hover response (it comes closer and takes more tilt) instead.
-      const sw = 1 - a
+      const sw = closing.current ? 0 : 1 - a
       swell.current.scale.setScalar(1 + 0.06 * h.amt * sw)
       swell.current.position.y = 0.05 * h.amt * sw
     }
@@ -823,6 +902,7 @@ export default function ResumeFolder({
       g.rotation.set(0, yaw + (1 - e) * turns * Math.PI * 2 + (readYaw.current ?? 0) * a, 0)
       g.visible = ia >= deal.at
     } else {
+      g.position.set(...position)
       g.rotation.set(0, yaw + (readYaw.current ?? 0) * a, 0)
     }
 
@@ -863,76 +943,82 @@ export default function ResumeFolder({
     if (a > 0.001) {
       const p = pv.current
       const cam = camera as THREE.PerspectiveCamera
-      p.mx += (pointer.x - p.mx) * ease(4.5, d)
-      p.my += (pointer.y - p.my) * ease(4.5, d)
+      // Once closing begins, return from the last presented target. Continuing
+      // to chase pointer/bob here makes the closed cover float during descent.
+      if (openState.current) {
+        p.mx += (pointer.x - p.mx) * ease(4.5, d)
+        p.my += (pointer.y - p.my) * ease(4.5, d)
 
-      // face it at the camera: the spread's normal is the group's +y, its up is the group's +z
-      cam.getWorldDirection(p.fwd)
-      p.n.copy(p.fwd).negate().normalize()
-      p.up.set(0, 1, 0).addScaledVector(p.n, -p.n.y).normalize()
-      p.x.crossVectors(p.n, p.up).normalize()
-      p.m.makeBasis(p.x, p.n, p.up)
-      p.q.setFromRotationMatrix(p.m)
-      // Leaned by fldLean, then AIMED by the pointer: the edge the cursor is nearest goes away, which swings
-      // the sheet's normal round toward the cursor, so it reads as the folder turning to point at it. The
-      // pointer touches the rotation only and never the position: moving as well made it swim.
-      //
-      // The two axes are the screen's own, which is the point of building the pose from the camera's basis
-      // rather than from world axes. Their SENSE is not the obvious one and was measured, not assumed:
-      // this basis has to keep local +y at the camera and local +z up and stay right-handed, which leaves
-      // local +x pointing screen LEFT (projected, the box's local min.x lands at ndc +0.89 and its max.x
-      // at -0.89). Both pointer terms are signed for that, and the first version had both backwards.
-      const gain = tn.fldTilt * (1 + 0.25 * h.amt)
-      p.q.multiply(p.qa.setFromAxisAngle(AX, -tn.fldLean + p.my * gain))
-      p.q.multiply(p.qb.setFromAxisAngle(AZ, tn.fldSpin + p.mx * gain))
+        // face it at the camera: the spread's normal is the group's +y, its up is the group's +z
+        cam.getWorldDirection(p.fwd)
+        p.n.copy(p.fwd).negate().normalize()
+        p.up.set(0, 1, 0).addScaledVector(p.n, -p.n.y).normalize()
+        p.x.crossVectors(p.n, p.up).normalize()
+        p.m.makeBasis(p.x, p.n, p.up)
+        p.q.setFromRotationMatrix(p.m)
+        // Leaned by fldLean, then AIMED by the pointer: the edge the cursor is nearest goes away, which swings
+        // the sheet's normal round toward the cursor, so it reads as the folder turning to point at it. The
+        // pointer touches the rotation only and never the position: moving as well made it swim.
+        //
+        // The two axes are the screen's own, which is the point of building the pose from the camera's basis
+        // rather than from world axes. Their SENSE is not the obvious one and was measured, not assumed:
+        // this basis has to keep local +y at the camera and local +z up and stay right-handed, which leaves
+        // local +x pointing screen LEFT (projected, the box's local min.x lands at ndc +0.89 and its max.x
+        // at -0.89). Both pointer terms are signed for that, and the first version had both backwards.
+        const gain = tn.fldTilt * (1 + 0.25 * h.amt)
+        p.q.multiply(p.qa.setFromAxisAngle(AX, -tn.fldLean + p.my * gain))
+        p.q.multiply(p.qb.setFromAxisAngle(AZ, tn.fldSpin + p.mx * gain))
 
-      // what is on screen is the OPEN SPREAD, not the closed folder: the cover swings out to one side, so
-      // the group's origin stops being the middle of what the viewer sees, and the leaf furniture and the
-      // tab hang past it. Measure the spread in the group's own frame and centre and fit THAT, or the
-      // folder sits half a leaf off to the side of the shot and overruns the edge.
-      const lb = localBounds(parts.current.root, g, p.bounds)
-      const lc = lb.getCenter(p.lc)
-      const ls = lb.getSize(p.ls)
-      // The FOLD goes on the screen's centre line, not the spread's middle. The two leaves are not equal
-      // (the tab is on one of them), so centring the bounding box puts the crease off to one side, and the
-      // crease is the thing the eye reads an open folder by. p.bounds.mi is already the inverse of the
-      // group's world matrix from localBounds, so the hinge lands in the same frame as the bounds.
-      const hinge = parts.current.pivot
-      hinge.updateWorldMatrix(true, false)
-      p.crease.setFromMatrixPosition(hinge.matrixWorld).applyMatrix4(p.bounds.mi)
-      // and the fit has to be measured FROM the crease, or the wider leaf runs off the edge
-      const armX = Math.max(p.crease.x - lb.min.x, lb.max.x - p.crease.x) * 2
-      const half = Math.tan(THREE.MathUtils.degToRad(cam.fov) / 2)
-      // fit BOTH extents: local x runs across the screen, local z up it
-      const dist = Math.max(ls.z / 2 / half, armX / 2 / (half * cam.aspect)) * tn.fldFit * (1 - 0.035 * h.amt)
-      const t = clock.elapsedTime
-      p.tgt.copy(cam.position).addScaledVector(p.fwd, dist)
-      // a slow breath and a drift after the pointer, so a held document is not a frozen one
-      // fldUp and fldSide are read as the SCREEN's up and right: p.up is screen up, and p.x is screen LEFT
-      // (see above), so the side term is negated to make positive mean right.
-      //
-      // The only thing that moves it is its own float: a slow rise and fall that deepens and quickens while
-      // it is hovered, on top of a lift. Held documents are not still, and a bob the viewer's own hand
-      // brings on reads as the object noticing them.
-      // THE FLOAT'S PHASE IS INTEGRATED, never sin(t * w). The hover changes the frequency, and multiplying
-      // a CHANGING frequency by an absolute clock jumps the argument by t * dw: a minute into the page that
-      // is tens of radians, so the float snapped every time the pointer arrived or left.
-      p.phase += d * (0.9 + 0.55 * h.amt)
-      // The hover shows itself as a LIFT far more than as a bigger bob. At 2.8x the swing measured 0.137 in
-      // ndc, about 55 screen px, wider than a link mark: the furniture swims out from under the pointer and
-      // the marks become genuinely hard to hit. The lift costs nothing to aim at.
-      const bob = Math.sin(p.phase) * ls.z * tn.fldFloat * (1 + 0.7 * h.amt)
-      // and it MOVES with the pointer in all three axes: across and up the screen toward it, and pushed
-      // back as it goes, so the parallax is a real one and not a slide across a flat plane
-      const away = (p.mx * p.mx + p.my * p.my) * tn.fldMove * 0.9
-      p.tgt.addScaledVector(p.up, ls.z * (tn.fldUp + tn.fldRise * h.amt) + bob + p.my * ls.z * tn.fldMove)
-      p.tgt.addScaledVector(p.x, -ls.x * (tn.fldSide + p.mx * tn.fldMove))
-      p.tgt.addScaledVector(p.n, -ls.x * away)
-      // put the CREASE on the camera's axis horizontally, and the spread's middle on it vertically
-      // the crease's OWN depth, not the spread's: the folder is leaned, so putting the fold's x on the axis
-      // at the wrong depth still leaves it off centre in projection (measured, 20 px of 1280)
-      p.off.set(p.crease.x, p.crease.y, lc.z).applyQuaternion(p.q)
-      p.tgt.sub(p.off)
+        // what is on screen is the OPEN SPREAD, not the closed folder: the cover swings out to one side, so
+        // the group's origin stops being the middle of what the viewer sees, and the leaf furniture and the
+        // tab hang past it. Measure the spread in the group's own frame and centre and fit THAT, or the
+        // folder sits half a leaf off to the side of the shot and overruns the edge.
+        const lb = localBounds(parts.current.root, g, p.bounds)
+        const lc = lb.getCenter(p.lc)
+        const ls = lb.getSize(p.ls)
+        // The FOLD goes on the screen's centre line, not the spread's middle. The two leaves are not equal
+        // (the tab is on one of them), so centring the bounding box puts the crease off to one side, and the
+        // crease is the thing the eye reads an open folder by. p.bounds.mi is already the inverse of the
+        // group's world matrix from localBounds, so the hinge lands in the same frame as the bounds.
+        const hinge = parts.current.pivot
+        hinge.updateWorldMatrix(true, false)
+        p.crease.setFromMatrixPosition(hinge.matrixWorld).applyMatrix4(p.bounds.mi)
+        // and the fit has to be measured FROM the crease, or the wider leaf runs off the edge
+        const armX = Math.max(p.crease.x - lb.min.x, lb.max.x - p.crease.x) * 2
+        const half = Math.tan(THREE.MathUtils.degToRad(cam.fov) / 2)
+        // fit BOTH extents: local x runs across the screen, local z up it
+        const dist = Math.max(ls.z / 2 / half, armX / 2 / (half * cam.aspect)) * tn.fldFit * (1 - 0.035 * h.amt)
+        p.dist = dist
+        const t = clock.elapsedTime
+        p.tgt.copy(cam.position).addScaledVector(p.fwd, dist)
+        // a slow breath and a drift after the pointer, so a held document is not a frozen one
+        // fldUp and fldSide are read as the SCREEN's up and right: p.up is screen up, and p.x is screen LEFT
+        // (see above), so the side term is negated to make positive mean right.
+        //
+        // The only thing that moves it is its own float: a slow rise and fall that deepens and quickens while
+        // it is hovered, on top of a lift. Held documents are not still, and a bob the viewer's own hand
+        // brings on reads as the object noticing them.
+        // THE FLOAT'S PHASE IS INTEGRATED, never sin(t * w). The hover changes the frequency, and multiplying
+        // a CHANGING frequency by an absolute clock jumps the argument by t * dw: a minute into the page that
+        // is tens of radians, so the float snapped every time the pointer arrived or left.
+        p.phase += d * (0.9 + 0.55 * h.amt)
+        // The hover shows itself as a LIFT far more than as a bigger bob. At 2.8x the swing measured 0.137 in
+        // ndc, about 55 screen px, wider than a link mark: the furniture swims out from under the pointer and
+        // the marks become genuinely hard to hit. The lift costs nothing to aim at.
+        const bob = Math.sin(p.phase) * ls.z * tn.fldFloat * (1 + 0.7 * h.amt)
+        // and it MOVES with the pointer in all three axes: across and up the screen toward it, and pushed
+        // back as it goes, so the parallax is a real one and not a slide across a flat plane
+        const away = (p.mx * p.mx + p.my * p.my) * tn.fldMove * 0.9
+        p.tgt.addScaledVector(p.up, ls.z * (tn.fldUp + tn.fldRise * h.amt) + bob + p.my * ls.z * tn.fldMove)
+        p.tgt.addScaledVector(p.x, -ls.x * (tn.fldSide + p.mx * tn.fldMove))
+        p.tgt.addScaledVector(p.n, -ls.x * away)
+        // put the CREASE on the camera's axis horizontally, and the spread's middle on it vertically
+        // the crease's OWN depth, not the spread's: the folder is leaned, so putting the fold's x on the axis
+        // at the wrong depth still leaves it off centre in projection (measured, 20 px of 1280)
+        p.off.set(p.crease.x, p.crease.y, lc.z).applyQuaternion(p.q)
+        p.tgt.sub(p.off)
+      }
+      const ls = p.ls
 
       // e is the master curve itself now, not a second easing stacked on top of it. Smoothing an already
       // smoothed value flattens both ends so hard that the middle has to race, which is the other half of
@@ -953,6 +1039,9 @@ export default function ResumeFolder({
         // to be rebuilt first: localBounds refreshed it from the TABLE pose set earlier this frame, which
         // the present lerp has just overwritten.
         g.updateWorldMatrix(true, false)
+        const lb = p.bounds.box
+        const lc = p.lc
+        const t = clock.elapsedTime
         let x0 = 1, y0 = 1, x1 = -1, y1 = -1
         for (let i = 0; i < 8; i++) {
           p.ndc.set(i & 1 ? lb.max.x : lb.min.x, i & 2 ? lb.max.y : lb.min.y, i & 4 ? lb.max.z : lb.min.z)
@@ -972,13 +1061,13 @@ export default function ResumeFolder({
         // where the FOLD actually lands, so the centring can be checked against the maths rather than
         // against a pixel hunt through the pass's brushwork
         p.ndc.set(p.crease.x, p.crease.y, lc.z).applyMatrix4(g.matrixWorld).project(cam)
-        w.__fp = { creaseNdc: [p.ndc.x, p.ndc.y], mid: midXY, a: [a], ndc: [x0, y0, x1, y1], centre: [(x0 + x1) / 2, (y0 + y1) / 2], size: [ls.x, ls.y, ls.z], dist: [dist], pointer: [pointer.x, pointer.y, p.mx, p.my], hover: [h.amt] }
+        w.__fp = { creaseNdc: [p.ndc.x, p.ndc.y], mid: midXY, a: [a], ndc: [x0, y0, x1, y1], centre: [(x0 + x1) / 2, (y0 + y1) / 2], size: [ls.x, ls.y, ls.z], dist: [p.dist], pointer: [pointer.x, pointer.y, p.mx, p.my], hover: [h.amt] }
       }
     }
   })
 
   return (
-    <group ref={outer} position={deal ? [deal.from[0], position[1], deal.from[1]] : position} rotation={[0, yaw, 0]} visible={!deal}>
+    <group ref={outer} name="resume-folder-deal" position={deal ? [deal.from[0], position[1], deal.from[1]] : position} rotation={[0, yaw, 0]} visible={!deal}>
       <group
         ref={swell}
         onPointerOver={(e) => {

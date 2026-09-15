@@ -47,7 +47,8 @@ export interface DiceOptions {
   segments?: number
 }
 
-export const DEFAULTS: Required<DiceOptions> = { size: 0.42, round: 0.1, pip: 0.09, sink: 0.5, segments: 40 }
+// 32 retains smooth pip rims in close-ups while removing 36% of the old 40-grid triangles.
+export const DEFAULTS: Required<DiceOptions> = { size: 0.42, round: 0.1, pip: 0.09, sink: 0.5, segments: 32 }
 
 /**
  * The six faces, as an outward normal and the two in-plane axes the layout is
@@ -245,8 +246,9 @@ export function diceGeometry(o: Required<DiceOptions>): THREE.BufferGeometry {
   const all = pips(o)
   const mark = new Float32Array(pos.count * 3).fill(1)
   const v = new THREE.Vector3()
-  // the rim is feathered over about one cell, so the colour edge is not a staircase
-  const cell = o.size / o.segments
+  // Keep the authored ink radius when lowering tessellation: tying this to the
+  // larger new cells would shrink/soften the black pips as geometry gets cheaper.
+  const cell = o.size / Math.max(40, o.segments)
 
   for (let i = 0; i < pos.count; i++) {
     v.fromBufferAttribute(pos, i)

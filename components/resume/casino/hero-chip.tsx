@@ -10,10 +10,10 @@
  *   THE DROP  anticipation hop (0.18s) -> stretched fall, spin finishing
  *             upright via a Hermite spin-down that arrives at zero spin on the
  *             hit -> HITSTOP (world holds 160ms) -> deep squash (0.72) with
- *             backOut recover -> micro-bounce
- *   IMPACT    ground shockwave (expanding ink ring + 8 radial dashes over
- *             0.5s raw time), five 12fps impact frames in the pass (2 inverted
- *             two-tone, 3 gritty mono), an afterimage veil, a camera jolt
+ *             backOut recovery with the underside staying on the felt
+ *   IMPACT    ground shockwave, eyes and suits slow through their
+ *             authored layout, then accelerate offscreen as normal paint
+ *             expands from the centre; one opening flash and a camera jolt
  *
  * The chip lands and stays: it becomes part of the table.
  */
@@ -26,6 +26,10 @@ import { applyPainterlyStyle, modalTransform } from 'blender-to-threejs'
 import { drawSuit, SUITS } from './card-art'
 import { EYE_PLANE, inkFor, openAt } from './eye'
 import { beatTime, easeFall, easeRise, FALL_FOR, getLetter, getTune, placingSuits, setLetter, type Tune } from './tune'
+import { IMPACT_DURATION, impactBurstMotion, impactDrift, impactEyeMotion, impactExitPosition } from './impact-eye-motion'
+import { markPropMotion } from './prop-arrival'
+import type { createInteractiveChip } from './chip-interaction'
+import { fitChipInGap } from './chip-home'
 
 export interface ImpactFx {
   /** seconds since the chip hit the felt, <0 before */
@@ -44,11 +48,33 @@ const backOut = (u: number) =>
 /** frames held on the impact before the settle runs. The pause IS the hit: nothing else in the beat
  *  stops, so stopping is what makes this one land. */
 const HITSTOP = 0.26
+/**
+ * ?perf records [performance.now(), impact age] per frame on window.__hit.
+ *
+ * A frame-time trace on its own cannot tell you WHERE in the beat a stall landed, and guessing from the
+ * loop period is how a compile at mount gets read as a cost at the hit. Same base as the rAF timestamps,
+ * so the two line up directly.
+ */
+let perfLog: number[][] | null | undefined
+function perfMark(ia: number) {
+  if (perfLog === undefined) {
+    perfLog =
+      typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('perf')
+        ? ((window as unknown as { __hit: number[][] }).__hit = [])
+        : null
+  }
+  perfLog?.push([performance.now(), ia])
+}
+
+/** frames the burst is drawn at nothing for, at mount, so its shaders compile off the beat */
+const WARM_FRAMES = 3
+/** the eye ring keeps being drawn at nothing until this many seconds before the hit */
+const WARM_UNTIL = 0.45
 const HOVER_HOLD = 0.9 // seconds of tumbling hover before the drop
 const FLICK_HOLD = 2.4 // seconds tumbling at the apex while the word writes itself
 
 /** reused so the per-frame suit placement allocates nothing */
-const scratch = { right: new THREE.Vector3(), up: new THREE.Vector3() }
+const scratch = { right: new THREE.Vector3(), up: new THREE.Vector3(), warm: new THREE.Vector3() }
 
 /**
  * The burst as it was placed, baked in as the starting point.
@@ -62,6 +88,16 @@ const BURST_HOME: Record<string, { s: number; dx: number; dy: number; r: number 
   'suit:1': { s: 1, dx: 0.445, dy: 1.122, r: 0 },
   'suit:2': { s: 1, dx: -0.04, dy: 1.029, r: 0 },
   'suit:3': { s: 1, dx: -0.338, dy: 0.868, r: 0.417 },
+  'eye:0': { dx: 3.812, dy: 3.008, s: 1.597, r: 0 },
+  'eye:1': { dx: -1.017, dy: 3.263, s: 0.913, r: -0.031 },
+  'eye:2': { dx: -1.331, dy: 3.227, s: 1, r: 0 },
+  'eye:3': { dx: 3.693, dy: 1.517, s: 1.278, r: -0.577 },
+  'eye:4': { dx: -3.201, dy: 2.345, s: 1, r: 0.159 },
+  'eye:5': { dx: -0.93, dy: 1.846, s: 1, r: -0.499 },
+  'eye:6': { dx: -0.475, dy: 1.588, s: 1, r: 0.207 },
+  'eye:7': { dx: -0.046, dy: 1.088, s: 1, r: 0.184 },
+  'eye:8': { dx: -0.863, dy: 1.111, s: 1.458, r: 0.249 },
+  'eye:9': { dx: 0.391, dy: 0.813, s: 1.446, r: 0 },
 }
 
 /** one suit's placed offset in the plane facing the lens */
@@ -126,13 +162,16 @@ export default function HeroChip({
   report,
   painterly = false,
   watercolorMaterial = false,
-  size = 1,
+  size: authoredSize = 1,
   flick,
   onWord,
   onStart,
   armed = true,
   perch,
   shed = false,
+  folderObstacle,
+  feltRear = -Infinity,
+  folderRestPose,
 }: {
   landing?: [number, number, number]
   /**
@@ -149,6 +188,10 @@ export default function HeroChip({
   perch?: { at: number; height: number }
   /** the thing it perches on opens: the chip hops off to the side and settles on the felt (returns when false) */
   shed?: boolean
+  folderObstacle?: THREE.Group | null
+  /** Frontmost edge of the padded rear rail, in the landing coordinate frame. */
+  feltRear?: number
+  folderRestPose?: { position: [number, number, number]; yaw: number }
   /** called every frame with the word state (position, write on/off clocks) for the ResumeWord */
   onWord?: (s: ChipWordState) => void
   /** chip diameter multiplier (the drop choreography is unchanged) */
@@ -162,6 +205,28 @@ export default function HeroChip({
 }) {
   const chip = useRef<THREE.Group>(null)
   const chipMesh = useRef<THREE.Mesh>(null)
+  const home = useRef({ x: 0, z: 0, size: authoredSize, locked: false, requestedX: NaN, requestedZ: NaN, authoredSize: NaN, rear: NaN })
+  const restFolder = useRef({ box: new THREE.Box3(), inverse: new THREE.Matrix4(), pose: new THREE.Matrix4(), mesh: new THREE.Matrix4(), part: new THREE.Box3() })
+  const folderCollision = useRef({ box: new THREE.Box3(), lastBox: new THREE.Box3(), part: new THREE.Box3(), inverse: new THREE.Matrix4(), min: new THREE.Vector3(), max: new THREE.Vector3(), origin: new THREE.Vector3() })
+  const folderSolids = useMemo(() => {
+    const meshes: THREE.Mesh[] = []
+    folderObstacle?.traverse((object) => {
+      if (object.name === 'folder_back' || object.name === 'folder_cover' || object.name === 'folder_tab' || object.name === 'folder_page') {
+        const mesh = object as THREE.Mesh
+        if (mesh.geometry) meshes.push(mesh)
+      }
+    })
+    return meshes
+  }, [folderObstacle])
+  useEffect(() => { restFolder.current.box.makeEmpty() }, [folderObstacle, folderRestPose])
+  const interaction = useRef<{
+    hovered: boolean; scale: number; ready: boolean; loading: boolean; pending: number; generation: number
+    physics: Awaited<ReturnType<typeof createInteractiveChip>> | null; p: THREE.Vector3; q: THREE.Quaternion
+  }>({ hovered: false, scale: 1, ready: false, loading: false, pending: 0, generation: 0, physics: null, p: new THREE.Vector3(0, 0.065, 0), q: new THREE.Quaternion() })
+  useEffect(() => {
+    const state = interaction.current
+    return () => { state.generation++; state.physics?.dispose(); state.physics = null }
+  }, [])
   const normalMap = useTexture('/models/watercolor_normal.png')
   useEffect(() => {
     if (!painterly || !chipMesh.current) return
@@ -250,7 +315,9 @@ export default function HeroChip({
   const eyeMats = useMemo(
     () =>
       Array.from({ length: 12 }, (_, i) => {
-        const m = eyeMaterial(`hit${i}`, inkFor(i), true)
+        // no paper wobble: see eyeMaterial. Twelve of these appear and leave inside six inverted frames,
+        // and the wander costs a perlin field per fragment that none of those frames can show.
+        const m = eyeMaterial(`hit${i}`, inkFor(i), true, false)
         m.depthTest = false
         m.depthWrite = false
         return m
@@ -301,7 +368,77 @@ export default function HeroChip({
     spinX: 0,
     spinZ: 0,
     lastT: -1,
+    /** frames of the shader warm still owed. See warmBurst. */
+    warm: WARM_FRAMES,
+    /** the flight's impact age, stashed for the warm: -999 before the flight has run at all */
+    ia: -999,
+    /** clock at the first warm frame, so a page with no flight still lets go of the ring */
+    warmT: -1,
   })
+
+  /**
+   * DRAW THE FLASH ONCE, at nothing, before the beat needs it.
+   *
+   * Everything in the burst is hidden until the hit and then all of it appears on ONE frame: the ring, the
+   * dashes, twenty-two rays, four suits and twelve eyes, and the eyes are a procedural line-art shader
+   * each. A pipeline is compiled the first time its object is actually drawn, so that frame was compiling
+   * twenty-six of them at once. Measured on the first hit of a page load: a 600 ms frame and then a
+   * 1383 ms one, against a 16.7 ms budget. Every later hit in the same load was clean, which is the
+   * signature of compilation rather than of cost.
+   *
+   * So they are drawn during the opening instead, at a ten-thousandth of their size at the chip's landing
+   * spot. Sub-pixel, so nothing lands on screen, but a real draw call, so the pipelines are real. The
+   * stall moves to the cover, where there is already loading happening and nothing to interrupt.
+   *
+   * It has to be the LAST write of the frame: the burst's own code sets visible from the beat clock every
+   * frame, and whatever is written last is what the renderer reads.
+   */
+  const warmBurst = (camera: THREE.Camera) => {
+    const st = state.current
+    if (st.warm <= 0) return
+    /**
+     * The EYES are warmed right up to the drop, the rest for two frames.
+     *
+     * Two frames is enough for the plain materials and measurably is not enough for the eyes: they went
+     * on recompiling at the hit anyway, which says something between mount and the landing invalidates
+     * them - a node material is rebuilt when the scene it is built against changes, and the whole opening
+     * is the table lighting itself. Keeping them drawn through that means whatever rebuild is coming
+     * happens on the frame that caused it, spread across the approach, rather than all of it arriving on
+     * the one frame the flash needs.
+     *
+     * They are a ten-thousandth of their size the whole time, so the cost is twelve draw calls of no
+     * pixels, and it ends before the flash is anywhere near.
+     */
+    const groups = [burst.current, rays.current, suitRing.current, eyeRing.current, lines.current]
+    st.warm -= 1
+    if (st.warmT < 0) st.warmT = st.lastT
+    // the second clause is the way out on a page that never plays the flight at all: nothing would ever
+    // set an impact age there, and the ring would sit in front of the lens for the life of the page
+    const done = st.warm <= 0 && (st.ia > -WARM_UNTIL || st.lastT - st.warmT > 20)
+    // PARKED IN FRONT OF THE LENS, not left where they live. A group at the landing spot is off screen for
+    // most of the opening and gets frustum culled, and a culled object is never drawn and so never
+    // compiled - the first warm did nothing for exactly that reason. Culling stays off afterwards too:
+    // these are billboards that travel a long way from their group's origin, so the bounding sphere the
+    // cull tests is the wrong shape for them anyway.
+    // BEHIND the lens, not in front of it at a small size. A sub-pixel quad still covers a pixel centre
+    // now and then, which is a speck blinking in the middle of the shot; everything behind the near plane
+    // is clipped away with certainty. The draw is still recorded either way, which is all the compile needs.
+    const at = scratch.warm.set(0, 0, 0.6).applyMatrix4(camera.matrixWorld)
+    const short = st.warm <= 0
+    for (const g of groups) {
+      if (!g) continue
+      // the plain materials are done after their two frames; only the eye ring keeps going
+      const hold = !done && (!short || g === eyeRing.current)
+      g.visible = hold
+      g.scale.setScalar(hold ? 1e-4 : 1)
+      if (hold) {
+        g.position.copy(at)
+        for (const c of g.children) c.frustumCulled = false
+      } else g.position.set(landing[0], landing[1], landing[2])
+    }
+    if (done) st.warm = 0
+    else st.warm = Math.max(st.warm, 0.5)
+  }
 
   useFrame(({ clock, camera }) => {
     const g = chip.current
@@ -311,6 +448,7 @@ export default function HeroChip({
     if (st.t0 < 0) {
       if (!armed) {
         g.scale.setScalar(0.0001)
+        warmBurst(camera)
         return
       }
       st.t0 = t
@@ -320,12 +458,39 @@ export default function HeroChip({
     // ?jack=loop replays it, both at the same instant everything else does. A coin on its own clock would
     // either hold at a frame the beat never passes through, or restart out of step with the title.
     const te = beatTime(t - st.t0)
-    const [lx, ly, lz] = landing
+    const [requestedX, ly, requestedZ] = landing
+    const obstacle = folderCollision.current
+    obstacle.box.makeEmpty()
+    if (folderObstacle) {
+      // Only solid folder pieces, not oversized soft-shadow or link planes.
+      for (const mesh of folderSolids) {
+        mesh.updateWorldMatrix(true, false)
+        if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox()
+        obstacle.part.copy(mesh.geometry.boundingBox!).applyMatrix4(mesh.matrixWorld)
+        obstacle.box.union(obstacle.part)
+      }
+      if (g.parent) {
+        g.parent.updateWorldMatrix(true, false)
+        obstacle.box.applyMatrix4(obstacle.inverse.copy(g.parent.matrixWorld).invert())
+      }
+    }
+    const rest = restFolder.current
+    if (rest.box.isEmpty() && folderObstacle && folderRestPose) {
+      let motionRoot: THREE.Object3D = folderObstacle
+      while (motionRoot.parent && motionRoot.name !== 'resume-folder-deal') motionRoot = motionRoot.parent
+      motionRoot.updateWorldMatrix(true, false)
+      rest.inverse.copy(motionRoot.matrixWorld).invert()
+      rest.pose.makeRotationY(folderRestPose.yaw).setPosition(...folderRestPose.position)
+      for (const mesh of folderSolids) {
+        rest.mesh.copy(rest.pose).multiply(rest.inverse).multiply(mesh.matrixWorld)
+        rest.part.copy(mesh.geometry.boundingBox!).applyMatrix4(rest.mesh)
+        rest.box.union(rest.part)
+      }
+    }
     // clamped at both ends: a replay steps the clock BACKWARDS, and a negative dt integrated into the
     // tumble would unwind it
     const dt = st.lastT >= 0 ? Math.min(0.05, Math.max(0, t - st.lastT)) : 0
     st.lastT = t
-    const chipH = CHIP_H * size
     let lineFloor = 0
     // the flight's numbers, live off the panel. HIT is the drop's length and everything after it - the
     // hitstop, the squash, the settle - is measured relative to it, so they follow it on their own.
@@ -337,6 +502,18 @@ export default function HeroChip({
     const LAND_RATE = TN.jkSpinLand
     const hold = flick?.hold ?? FLICK_HOLD
     const preDrop = flick ? flick.at + RISE + hold : 1.1 + HOVER_HOLD
+    const targetHome = home.current
+    const retuned = targetHome.requestedX !== requestedX || targetHome.requestedZ !== requestedZ || targetHome.authoredSize !== authoredSize || targetHome.rear !== feltRear
+    if (te < preDrop || !targetHome.locked || retuned) {
+      fitChipInGap(targetHome, requestedX, requestedZ, authoredSize, feltRear, rest.box)
+      targetHome.locked = te >= preDrop
+      targetHome.requestedX = requestedX; targetHome.requestedZ = requestedZ
+      targetHome.authoredSize = authoredSize; targetHome.rear = feltRear
+    }
+    const { x: lx, z: lz, size: landedSize } = targetHome
+    const fitProgress = THREE.MathUtils.smoothstep(te, preDrop, preDrop + HIT)
+    const size = THREE.MathUtils.lerp(authoredSize, landedSize, fitProgress)
+    const chipH = CHIP_H * size
     const w = onWord ? wordLocal.current : null
 
     if (te < preDrop) {
@@ -448,8 +625,9 @@ export default function HeroChip({
           sy = near * (1 + 0.22 * u)
           sxz = near * (1 - 0.1 * u)
         } else {
-          const b = cl((Td - HIT) / 0.22)
-          y = 0.12 * Math.sin(b * Math.PI) * (1 - b)
+          // No second launch after impact: squash recovers with its underside
+          // planted on the felt, rather than adding a separate scripted hop.
+          y = 0
           const k = backOut(cl((Td - HIT) / 0.28))
           // deep on purpose: it falls a long way, and flattening by a quarter is a coin being set down
           // rather than one arriving. The backOut brings it up past its own height before it settles.
@@ -508,44 +686,52 @@ export default function HeroChip({
 
       // IMPACT: shockwave on RAW time so it expands through the held frames
       const ia = T - HIT
+      st.ia = ia
+      perfMark(ia)
       // The camera takes the hit, and it is the ONLY shake in the beat, which is what lets it be this big.
       report(ia, ia >= 0 && ia < 0.5 ? Math.sin(ia * 38) * 0.22 * Math.exp(-ia * 8) : 0)
-      const bT = ia / 0.5
+      // Slow through the layout, keep coasting, then accelerate out while normal paint returns behind.
+      const placing = placingSuits()
+      const burstMotion = impactBurstMotion(ia, placing)
+      const eOut = burstMotion.arrival
+      const alive = ia > 0 && ia < IMPACT_DURATION
+      const pc = camera as THREE.PerspectiveCamera
+      const distance = Math.hypot(camera.position.x - lx, camera.position.y - ly, camera.position.z - lz)
+      const viewHeight = 2 * distance * Math.tan(THREE.MathUtils.degToRad(pc.fov) / 2)
+      // Twice the viewport diagonal also clears sprites whose origin is below the screen centre.
+      const exitDistance = 2 * viewHeight * Math.hypot(1, pc.aspect) + 8
       const b = burst.current
       if (b) {
-        b.visible = bT > 0 && bT < 1
+        b.visible = alive
         if (b.visible) {
-          const e = 1 - Math.pow(1 - bT, 3)
-          ;(b.children[0] as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>).material.opacity = 0.65 * (1 - bT)
+          const e = eOut
+          ;(b.children[0] as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>).material.opacity = 0.65
           // out to the rail, not a third of the way: the wave is what carries the reveal and the suits
-          b.children[0].scale.setScalar(0.6 + 12 * e)
+          b.children[0].scale.setScalar(0.6 + 12 * e + exitDistance * burstMotion.exit)
           for (let i = 1; i < b.children.length; i++) {
             const d = b.children[i]
-            const r = 0.45 + 7 * e
+            const r = 0.45 + 7 * e + exitDistance * burstMotion.exit
             const a = dashAng[i - 1]
             d.position.set(Math.cos(a) * r, 0.04, Math.sin(a) * r)
-            d.scale.setScalar(1 - 0.6 * bT)
+            d.scale.setScalar(1 - 0.6 * e)
           }
         }
       }
 
-      const placing = placingSuits()
       const right = scratch.right.setFromMatrixColumn(camera.matrixWorld, 0)
       const up = scratch.up.setFromMatrixColumn(camera.matrixWorld, 1)
-      const eOut = 1 - Math.pow(1 - bT, 3)
       // out along each thing's OWN vector, from suitFrom of the way to all of it. At suitFrom 0 they are
       // EMITTED from the chip and the placed values are the end of the throw.
-      const out = TN.suitFrom + (1 - TN.suitFrom) * eOut
+      const out = impactEyeMotion(ia, TN.suitFrom, placing).spread
       spread.current = out
 
       const ry = rays.current
       if (ry) {
-        ry.visible = bT > 0 && bT < 1
+        ry.visible = alive
         if (ry.visible) {
           // they LEAVE: the near end runs away from the chip rather than the line simply growing, which is
           // what makes them read as thrown off it instead of as a fixed star
-          const near = 0.3 + 2.5 * eOut
-          const fade = Math.sin(Math.PI * Math.min(1, bT * 1.3))
+          const near = 0.3 + 2.5 * eOut + exitDistance * burstMotion.exit
           for (let i = 0; i < ry.children.length; i++) {
             const m = ry.children[i] as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>
             const spx = raySpec[i]
@@ -553,8 +739,8 @@ export default function HeroChip({
             m.position.set(0, 0, 0).addScaledVector(right, Math.cos(spx.a) * d).addScaledVector(up, Math.sin(spx.a) * d)
             m.quaternion.copy(camera.quaternion)
             m.rotateZ(spx.a - Math.PI / 2)
-            m.scale.set(1, 1 - 0.45 * bT, 1)
-            m.material.opacity = 0.9 * fade
+            m.scale.set(1, 1 - 0.45 * eOut + burstMotion.exit, 1)
+            m.material.opacity = 0.9
           }
         }
       }
@@ -562,37 +748,42 @@ export default function HeroChip({
       /**
        * The suits ride the same wave, billboarded so they stay square to the lens as they travel out.
        *
-       * Gated on exactly the burst window, which is the same half second the impact frames run for - so
-       * they exist only inside the flash and never appear as objects on the table afterwards.
+       * They stay visible throughout outward flight and are retired only after clearing the viewport.
        */
       const sr = suitRing.current
       if (sr) {
-        sr.visible = bT > 0 && bT < 1
+        sr.visible = alive
         if (sr.visible) {
-          const fade = Math.sin(Math.PI * Math.min(1, bT * 1.15))
           for (let i = 0; i < sr.children.length; i++) {
             const m = sr.children[i] as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>
             const key = `suit:${i}`
             const tw = getLetter(key, BURST_HOME[key])
             const home = suitPlace(TN, i)
             const px = { x: home.x + tw.dx, y: home.y + tw.dy }
-            m.position.set(0, 0, 0).addScaledVector(right, px.x * out).addScaledVector(up, px.y * out)
+            const bo = impactDrift(ia, i)
+            // Small rotational drift settles while outward translation keeps coasting.
+            const jitter = TN.hitBoil * burstMotion.drift
+            const pos = impactExitPosition(px.x * out, px.y * out, burstMotion.exit, exitDistance + TN.suitSize * tw.s * 2, i)
+            m.position
+              .set(0, 0, 0)
+              .addScaledVector(right, pos.x + bo.x * jitter)
+              .addScaledVector(up, pos.y + bo.y * jitter)
             m.quaternion.copy(camera.quaternion)
-            m.rotateZ(tw.r)
+            m.rotateZ(tw.r + bo.turn * jitter * 1.2)
             m.scale.setScalar(TN.suitSize * tw.s)
-            m.material.opacity = 0.95 * fade
+            m.material.opacity = 0.95
           }
         }
       }
 
       const er = eyeRing.current
       if (er) {
-        er.visible = bT > 0 && bT < 1
+        er.visible = alive
         if (er.visible) {
-          const fade = Math.sin(Math.PI * Math.min(1, bT * 1.15))
           // real seconds since the hit, which is what the eye's own wake curve is written against
-          const eyeT = bT * 0.5
+          const eyeT = Math.max(0, ia)
           const n = Math.round(TN.hitEyeN)
+          const eyeMotion = impactEyeMotion(ia, TN.suitFrom, placing)
           for (let i = 0; i < er.children.length; i++) {
             const m = er.children[i] as THREE.Mesh<THREE.BufferGeometry, THREE.Material>
             m.visible = i < n
@@ -601,10 +792,17 @@ export default function HeroChip({
             const home = eyeHome(i, n)
             const tw = getLetter(key, BURST_HOME[key])
             const px = { x: home.x + tw.dx, y: home.y + tw.dy }
-            m.position.set(0, 0, 0).addScaledVector(right, px.x * out).addScaledVector(up, px.y * out)
-            m.quaternion.copy(camera.quaternion)
+            const bo = impactDrift(ia, i + 41)
+            const jitter = TN.hitBoil * burstMotion.drift
             const v = eyeVary(i)
-            m.rotateZ(tw.r + v.r)
+            const extent = Math.hypot(EYE_PLANE.w, EYE_PLANE.h) * TN.hitEyeSize * tw.s * v.s
+            const pos = impactExitPosition(px.x * eyeMotion.spread, px.y * eyeMotion.spread, burstMotion.exit, exitDistance + extent, i + 41)
+            m.position
+              .set(0, 0, 0)
+              .addScaledVector(right, pos.x + bo.x * jitter)
+              .addScaledVector(up, pos.y + bo.y * jitter)
+            m.quaternion.copy(camera.quaternion)
+            m.rotateZ(tw.r + v.r + bo.turn * jitter * 1.2)
             m.scale.setScalar(TN.hitEyeSize * tw.s * v.s)
             /**
              * Each eye WAKES, on the eye stage's own curve, and they do not wake together.
@@ -616,12 +814,13 @@ export default function HeroChip({
              * WIDE OPEN while placing, though: the placer freezes one instant, and an eye whose delay has
              * not elapsed there is a closed lid - impossible to judge and nearly impossible to grab.
              */
-            const open = placing ? 1 : openAt(eyeT, { delay: 0.02 + ((i * 5) % 7) * 0.022, wake: 0.13 + ((i * 3) % 4) * 0.03 })
+            // Twelve distinct slots instead of seven shared ones; the order skips around the layout.
+            const openingOrder = (i * 5) % 12
+            const open = placing ? 1 : openAt(eyeT, { delay: TN.hitEyeDelay + openingOrder * TN.hitEyeStagger, wake: 0.13 + ((i * 3) % 4) * 0.03 })
             const uni = (m.material.userData.uniforms ?? {}) as Record<string, { value: number }>
             if (uni.eyeOpen) uni.eyeOpen.value = open
             if (uni.eyeIrisX) uni.eyeIrisX.value = 0
             if (uni.eyeIrisY) uni.eyeIrisY.value = 0
-            void fade
           }
         }
       }
@@ -657,6 +856,49 @@ export default function HeroChip({
         })
       }
     }
+
+    // Layer interaction after the authored intro and air-line calculation. Only
+    // the chip transforms: titles, impact clock and all saved anchors stay put.
+    const interactionState = interaction.current
+    interactionState.ready = te > preDrop + HIT + 2 && !placingSuits()
+    if (!interactionState.ready) {
+      if (interactionState.physics || interactionState.loading) {
+        interactionState.generation++
+        interactionState.physics?.dispose()
+        interactionState.physics = null
+        interactionState.loading = false
+        interactionState.pending = 0
+      }
+      interactionState.scale = 1
+      interactionState.hovered = false
+    } else {
+      // Freeze size in flight so hover cannot change a falling body's dimensions.
+      const target = interactionState.physics && !interactionState.physics.sleeping()
+        ? interactionState.scale : interactionState.hovered ? 1.18 : 1
+      interactionState.scale += (target - interactionState.scale) * (1 - Math.exp(-16 * dt))
+      if (Math.abs(target - interactionState.scale) < 0.001) interactionState.scale = target
+      g.scale.multiplyScalar(interactionState.scale)
+      const physics = interactionState.physics
+      if (physics && !obstacle.box.isEmpty()) {
+        const scale = size * interactionState.scale
+        obstacle.origin.set(lx, ly, lz)
+        obstacle.min.copy(obstacle.box.min).sub(obstacle.origin).divideScalar(scale)
+        obstacle.max.copy(obstacle.box.max).sub(obstacle.origin).divideScalar(scale)
+        physics.setFolder(obstacle.min, obstacle.max, !obstacle.lastBox.equals(obstacle.box))
+        obstacle.lastBox.copy(obstacle.box)
+      }
+      const moving = physics?.step(dt, interactionState.p, interactionState.q) ?? false
+      if (physics) {
+        const scale = size * interactionState.scale
+        g.position.x += interactionState.p.x * scale
+        g.position.z += interactionState.p.z * scale
+        g.position.y += interactionState.p.y * scale - CHIP_H * size / 2
+        g.quaternion.copy(interactionState.q)
+      } else g.position.y += CHIP_H * size / 2 * (interactionState.scale - 1)
+      if (moving || interactionState.scale !== target) markPropMotion(0.1)
+    }
+    g.scale.multiplyScalar(size / authoredSize)
+    warmBurst(camera)
   })
 
   /**
@@ -835,8 +1077,43 @@ export default function HeroChip({
   return (
     <>
       <group ref={chip} scale={0.0001}>
-        <mesh ref={chipMesh} material={mats} castShadow>
-          <cylinderGeometry args={[CHIP_R * size, CHIP_R * size, CHIP_H * size, 40]} />
+        <mesh ref={chipMesh} material={mats} castShadow
+          onPointerOver={(event) => {
+            if (!interaction.current.ready) return
+            event.stopPropagation()
+            interaction.current.hovered = true
+            markPropMotion(0.6)
+          }}
+          onPointerOut={() => { interaction.current.hovered = false; markPropMotion(0.6) }}
+          onClick={(event) => {
+            if (!interaction.current.ready) return
+            event.stopPropagation()
+            const state = interaction.current
+            if (state.physics) state.physics.kick()
+            else {
+              state.pending++
+              if (!state.loading) {
+                state.loading = true
+                const generation = state.generation
+                void import('./chip-interaction').then(async ({ createInteractiveChip }) => {
+                  if (generation !== state.generation || !chip.current) return
+                  const physics = await createInteractiveChip(chip.current.quaternion)
+                  if (generation !== state.generation) { physics.dispose(); return }
+                  state.physics = physics
+                  state.loading = false
+                  while (state.pending > 0) { physics.kick(); state.pending-- }
+                  markPropMotion(1)
+                }).catch((error) => {
+                  if (generation !== state.generation) return
+                  state.loading = false
+                  state.pending = 0
+                  console.error('Chip physics failed to load', error)
+                })
+              }
+            }
+            markPropMotion(1)
+          }}>
+          <cylinderGeometry args={[CHIP_R * authoredSize, CHIP_R * authoredSize, CHIP_H * authoredSize, 40]} />
         </mesh>
       </group>
       <group ref={lines} visible={false}>

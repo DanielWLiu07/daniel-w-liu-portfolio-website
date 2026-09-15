@@ -14,8 +14,10 @@ import * as THREE from 'three'
 import type { MutableRefObject } from 'react'
 import type { ChipWordState } from './hero-chip'
 import { loadRansomFaces, ransomPick, ransomScrap } from './ransom'
-import type { WordMotion, WordShot } from './stop-motion'
-import { SM_DEFAULTS, WORD_DEFAULTS, boilAt, slideAt, smFrame, smTime, wordAt, wordGroups, wordOf, wordShot } from './stop-motion'
+import type { Landing, WordMotion, WordShot } from './stop-motion'
+import { SM_DEFAULTS, WORD_DEFAULTS, boilAt, landingFor, offscreenPlaneTravel, placeAt, slideAt, smFrame, smTime, wordAt, wordGroups, wordOf, wordShot } from './stop-motion'
+import { markPropMotion } from './prop-arrival'
+import { hoverCorrection, proximityInfluence } from './word-hover'
 
 const KFONT = "'KatieRoze', 'Marker Felt', 'Bradley Hand', 'Comic Sans MS', cursive"
 const FONT_URL = '/shared/fonts/Katie%20Roze%20Watercolour%20Font%20-%20By%20Lef/KatieRoze.woff2'
@@ -261,6 +263,8 @@ export default function ResumeWord({
   spacing,
   ransom,
   ransomWord = 0,
+  hoverAdjust = false,
+  offscreenEntry = false,
 }: {
   state: MutableRefObject<ChipWordState>
   text?: string
@@ -329,10 +333,14 @@ export default function ResumeWord({
   ransom?: number
   /** which word this is, so two lines with the same seed are not cut identically */
   ransomWord?: number
+  /** Settled title letters react individually within a cursor-distance radius. */
+  hoverAdjust?: boolean
+  /** Carry every whole word across a viewport edge before settling. */
+  offscreenEntry?: boolean
 }) {
   const group = useRef<THREE.Group>(null)
   const letters = useRef<(Letter | null)[]>([])
-  const { camera } = useThree()
+  const { camera, gl, pointer, size: viewportSize } = useThree()
   const chars = useMemo(() => text.split(''), [text])
   // the line cut into scraps, and each character's place inside its own scrap
   const groups = useMemo(() => wordGroups(text), [text])
@@ -345,6 +353,22 @@ export default function ResumeWord({
       return { w, k: seen[w] }
     })
   }, [text])
+
+  const hover = useRef({ active: false, projected: new THREE.Vector3(), poses: new Map<number, { lift: number; entered: number; near: boolean }>() })
+  useEffect(() => {
+    if (!hoverAdjust) return
+    const el = gl.domElement
+    const enter = (event: PointerEvent) => { hover.current.active = event.pointerType !== 'touch' }
+    const leave = () => { hover.current.active = false }
+    el.addEventListener('pointermove', enter)
+    el.addEventListener('pointerleave', leave)
+    window.addEventListener('blur', leave)
+    return () => {
+      el.removeEventListener('pointermove', enter)
+      el.removeEventListener('pointerleave', leave)
+      window.removeEventListener('blur', leave)
+    }
+  }, [gl, hoverAdjust])
 
   useEffect(() => {
     let alive = true
@@ -380,6 +404,7 @@ export default function ResumeWord({
   const fwdRef = useRef(new THREE.Vector3())
   const flatQ = useRef(new THREE.Quaternion())
   const spinQ = useRef(new THREE.Quaternion())
+  const entryView = useRef({ frustum: new THREE.Frustum(), matrix: new THREE.Matrix4(), centre: new THREE.Vector3(), direction: new THREE.Vector3() })
   const eul = useRef(new THREE.Euler())
   // where the word was standing when the drop began. The chip keeps reporting its own falling position, so
   // without this the whole ring rides the chip down as one rigid object and no amount of per-letter
@@ -387,7 +412,7 @@ export default function ResumeWord({
   const anchor = useRef({ set: false, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0 })
   // the anchor's motion over the last frame, so detaching can carry it instead of stopping dead
   const track = useRef({ t: -1, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, vys: 0 })
-  useFrame(({ clock }) => {
+  useFrame(({ clock }, delta) => {
     const Ls = letters.current
     if (!Ls.length) return
     /**
@@ -402,6 +427,8 @@ export default function ResumeWord({
     const t = sm ? smTime(raw, sm.fps) : raw
     const exposure = sm ? smFrame(raw, sm.fps) : 0
     const s = state.current
+    const now = performance.now() / 1000
+    const h = hover.current
     const N = Ls.length
     // camera-right on the ground plane, so the arc faces the viewer like pomme's
     const right = rightRef.current
@@ -490,7 +517,13 @@ export default function ResumeWord({
      * different move entirely, so the pivot has to be the mean of that word's own
      * letters and it has to be recomputed with the sway.
      */
-    const wordTx: ({ shot: WordShot; px: number; py: number } | null)[] = []
+    const view = entryView.current
+    if (offscreenEntry && group.current) {
+      group.current.updateWorldMatrix(true, false)
+      view.matrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse).multiply(group.current.matrixWorld)
+      view.frustum.setFromProjectionMatrix(view.matrix)
+    }
+    const wordTx: ({ shot: WordShot; land: Landing; px: number; py: number; entryX: number; entryY: number } | null)[] = []
     if (wm) {
       for (let w = 0; w < groups.length; w++) {
         const g = groups[w]
@@ -500,7 +533,32 @@ export default function ResumeWord({
           px += Math.cos(thAt(gi)) * radiusUsed
           py += Math.sin(thAt(gi)) * radiusUsed * 0.92
         }
-        wordTx[w] = { shot: wordShot(w, groups.length, wm, ransomWord), px: px / g.idx.length, py: py / g.idx.length }
+        px /= g.idx.length
+        py /= g.idx.length
+        const shot = wordShot(w, groups.length, wm, ransomWord)
+        let entryX = 0, entryY = 0
+        if (offscreenEntry) {
+          // A sphere enclosing all letter quads is safe at ANY entry rotation.
+          let bound = 0
+          for (const gi of g.idx) {
+            bound = Math.max(bound, Math.hypot(Math.cos(thAt(gi)) * radiusUsed - px, Math.sin(thAt(gi)) * radiusUsed * 0.92 - py) + Math.hypot(0.44, 0.52) * size / 2)
+          }
+          bound += (sm?.boil ?? 0) * size + 0.15
+          const side = w === 0 && groups.length > 1 ? -1 : w === groups.length - 1 && groups.length > 1 ? 1 : 0
+          const plane = view.frustum.planes[side < 0 ? 1 : side > 0 ? 0 : 3]
+          view.centre.set(ax + right.x * px, ay + py, az + right.z * px)
+          view.direction.set(side * right.x, side === 0 ? 1 : 0, side * right.z)
+          const distance = offscreenPlaneTravel(plane.distanceToPoint(view.centre), bound, plane.normal.dot(view.direction))
+          // Replace only the approach, not the smaller authored overshoot.
+          entryX = side * distance - shot.ox
+          entryY = (side === 0 ? distance : 0) - shot.oy
+        }
+        wordTx[w] = {
+          shot,
+          // its own ending, so the words of a line do not all stop on one exposure
+          land: landingFor(ransomWord, w),
+          px, py, entryX, entryY,
+        }
       }
     }
 
@@ -552,6 +610,7 @@ export default function ResumeWord({
        * whole, or the letter's 0.12 s stagger in letter mode.
        */
       if (sm) o = o > 0.001 ? 1 : 0
+      if (offscreenEntry && s.offT < 0) o = s.onT >= revealAt ? 1 : 0
       L.o = o
       if (Math.abs(o - L.wip) > 0.001) {
         drawWipe(L, o)
@@ -736,6 +795,7 @@ export default function ResumeWord({
       let bx = 0
       let by = 0
       let smTurn = 0
+      let hoverReady = false
       const smT = s.onT >= 0 ? s.onT : 0
       if (sm && wm) {
         /**
@@ -756,7 +816,8 @@ export default function ResumeWord({
            * the POSE, not on the exposure, so holding a pose for two exposures
            * holds its registration too: the piece is not being touched in between.
            */
-          const m = wordAt(smT, W.shot, wm, sm.fps, stagger)
+          const m = wordAt(smT, W.shot, wm, sm.fps, stagger, W.land)
+          hoverReady = s.onT >= 0 && !m.moving && smT >= stagger + W.shot.cue
           const cx = Math.cos(th) * radiusUsed
           const cy = Math.sin(th) * radiusUsed * 0.92
           const dxw = cx - W.px
@@ -765,6 +826,11 @@ export default function ResumeWord({
           const sn = Math.sin(m.turn)
           bx += W.px + (dxw * c - dyw * sn) + m.x - cx
           by += W.py + (dxw * sn + dyw * c) + m.y - cy
+          if (offscreenEntry) {
+            const entry = Math.max(0, 1 - placeAt(smT, stagger + W.shot.cue, sm.fps, wm.step).k)
+            bx += W.entryX * entry
+            by += W.entryY * entry
+          }
           smTurn += m.turn
           if (m.moving) {
             const b = boilAt(i + 1, m.pose)
@@ -792,6 +858,24 @@ export default function ResumeWord({
         yArc + dy + by,
         az + right.z * (Math.cos(th) * radiusUsed + dx + bx) + fwd.z * dz,
       )
+      if (hoverAdjust) {
+        // Measure from the unmodified home, so lift never chases its own hit area.
+        const projected = h.projected.copy(L.mesh.position)
+        group.current!.localToWorld(projected).project(camera)
+        const distance = Math.hypot((projected.x - pointer.x) * viewportSize.width / 2, (projected.y - pointer.y) * viewportSize.height / 2)
+        const target = h.active && hoverReady ? proximityInfluence(distance, Math.min(140, Math.max(75, viewportSize.width * 0.085))) : 0
+        let p = h.poses.get(i)
+        if (!p) { p = { lift: 0, entered: -Infinity, near: false }; h.poses.set(i, p) }
+        if (target > 0.03 && !p.near) p.entered = now
+        p.near = target > 0.03
+        p.lift += (target - p.lift) * (1 - Math.exp(-18 * Math.min(delta, 0.1)))
+        if (Math.abs(target - p.lift) < 0.001) p.lift = target
+        const correction = hoverCorrection(now - p.entered, i + ransomWord)
+        if (p.lift > 0 || p.lift !== target) markPropMotion(0.1)
+        L.mesh.position.addScaledVector(right, p.lift * correction.x * size)
+        L.mesh.position.y += p.lift * (0.09 + correction.y) * size
+        smTurn += p.lift * correction.turn
+      }
       // billboarded, then turned along the arc's tangent: pomme's badge-style wrap, which is what makes
       // the word read as bent around the object rather than laid in front of it
       L.mesh.quaternion.copy(camera.quaternion)
