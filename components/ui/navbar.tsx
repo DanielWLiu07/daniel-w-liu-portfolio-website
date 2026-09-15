@@ -61,7 +61,7 @@ export default function Navbar(){
     if (isPanel) return null;
 
     return (
-        <nav className={`fixed top-5 left-1/2 -translate-x-1/2 md:left-5 md:translate-x-0 z-[10000] pointer-events-none transition-transform duration-700 ${shouldSlideUp ? 'ease-in-out -translate-y-20' : 'ease-out translate-y-0'}`}>
+        <nav className={`${pathname?.startsWith('/resume') ? 'casino-nav ' : ''}fixed top-5 left-1/2 -translate-x-1/2 md:left-5 md:translate-x-0 z-[10000] pointer-events-none transition-transform duration-700 ${shouldSlideUp ? 'ease-in-out -translate-y-20' : 'ease-out translate-y-0'}`}>
             <NavigationMenu.Root className={`relative z-[1] flex justify-start ${isInteractive ? 'pointer-events-auto' : 'pointer-events-none'}`}>
                 <NavigationMenu.List className="center shadow-blackA4 m-0 flex list-none rounded-[6px] bg-white p-1 shadow-[0_2px_10px]">
                     <NavigationMenu.Item>

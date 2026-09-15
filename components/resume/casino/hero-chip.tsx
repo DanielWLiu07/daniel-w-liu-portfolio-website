@@ -172,8 +172,11 @@ export default function HeroChip({
   folderObstacle,
   feltRear = -Infinity,
   folderRestPose,
+  worldPositionRef,
 }: {
   landing?: [number, number, number]
+  /** Live prop position, including physics, for the character’s pointing gesture. */
+  worldPositionRef?: MutableRefObject<THREE.Vector3 | null>
   /**
    * opening beat: the chip waits in a hand at `from` (world) until `at` seconds, is flicked
    * up to `apex` above the landing height, tumbles there while the word writes, then drops.
@@ -227,7 +230,7 @@ export default function HeroChip({
     const state = interaction.current
     return () => { state.generation++; state.physics?.dispose(); state.physics = null }
   }, [])
-  const normalMap = useTexture('/models/watercolor_normal.png')
+  const normalMap = useTexture('/models/watercolor_normal-delivery.webp')
   useEffect(() => {
     if (!painterly || !chipMesh.current) return
     const handle = applyPainterlyStyle(chipMesh.current, { normalMap })
@@ -898,6 +901,10 @@ export default function HeroChip({
       if (moving || interactionState.scale !== target) markPropMotion(0.1)
     }
     g.scale.multiplyScalar(size / authoredSize)
+    if(worldPositionRef) {
+      worldPositionRef.current ??= new THREE.Vector3()
+      g.getWorldPosition(worldPositionRef.current)
+    }
     warmBurst(camera)
   })
 
@@ -1076,17 +1083,17 @@ export default function HeroChip({
 
   return (
     <>
-      <group ref={chip} scale={0.0001}>
+      <group ref={chip} scale={0.0001} userData={{ cardRenderLayer: 2 }}>
         <mesh ref={chipMesh} material={mats} castShadow
           onPointerOver={(event) => {
-            if (!interaction.current.ready) return
+            if (!interaction.current.ready || !chip.current?.visible) return
             event.stopPropagation()
             interaction.current.hovered = true
             markPropMotion(0.6)
           }}
           onPointerOut={() => { interaction.current.hovered = false; markPropMotion(0.6) }}
           onClick={(event) => {
-            if (!interaction.current.ready) return
+            if (!interaction.current.ready || !chip.current?.visible) return
             event.stopPropagation()
             const state = interaction.current
             if (state.physics) state.physics.kick()

@@ -117,7 +117,7 @@ export default function FlightRoyalFlush({ clock0, cardHandoff }: { clock0: Muta
     const bob = tn.rfBob * Math.sin(age * tn.rfBobSpeed)
     const sweep = tn.rfSway * Math.sin(age * tn.rfSwaySpeed)
     root.position.set(hw * tn.rfX + rootEntry + travel * leave ** 2 + hw * 0.08 * sweep,
-      hh * (tn.rfY + age * tn.rfDrift + bob), -11 + tn.rfDepth)
+      hh * (tn.rfY + age * tn.rfDrift + bob + (pc.aspect < .9 ? .28 : 0)), -11 + tn.rfDepth)
     root.position.applyQuaternion(camera.quaternion).add(camera.position)
     angles.set(tn.rfTilt + (0.06 + 0.10 * tn.rfFlow) * Math.sin(age * 2.2),
       tn.rfYaw,
@@ -202,7 +202,7 @@ export default function FlightRoyalFlush({ clock0, cardHandoff }: { clock0: Muta
     if(root.visible!==wasVisible) flightEditor.refresh()
   },.75) // after the dealer poses its receiving hand, before the compositor
 
-  return <><group ref={group} name="flight-royal-flush" visible={false} dispose={null}
+  return <><group ref={group} name="flight-royal-flush" visible={false} dispose={null} userData={{ cardRenderLayer: 2 }}
     onPointerDown={event => { event.stopPropagation(); flightEditor.pick(event.object); gl.domElement.focus() }}>
     {ROYAL_FLUSH.map((rank, i) => <mesh key={rank} ref={node => { cards.current[i] = node }} name={`${rank} of hearts`}
       geometry={STOCK_GEOMETRY} material={materials[i]} />)}

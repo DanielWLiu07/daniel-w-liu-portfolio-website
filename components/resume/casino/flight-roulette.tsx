@@ -158,7 +158,7 @@ export default function FlightRoulette({ clock0 }: { clock0: MutableRefObject<nu
     const extent = radius * Math.max(Math.abs(tn.rouScaleX), Math.abs(tn.rouScaleY), Math.abs(tn.rouScaleZ)) * 1.15
     const clearance = 1.35 + extent / hh + extent / distance + Math.abs(tn.rouY)
     const rhythm = age * tn.rouSwaySpeed
-    const y = -clearance * (1 - enter) ** 3 + age * tn.rouDrift + clearance * leave ** 2 + tn.rouY
+    const y = -clearance * (1 - enter) ** 3 + age * tn.rouDrift + clearance * leave ** 2 + tn.rouY + (pc.aspect < .9 ? -.2 : 0)
       + 0.065 * Math.sin(rhythm + 0.35)
     g.position.set(-hw + baseRadius * 1.16 + hw * tn.rouX + baseRadius * 0.18 * Math.sin(rhythm - 0.4), hh * y, -distance + tn.rouDepth)
     g.position.applyQuaternion(camera.quaternion).add(camera.position)
@@ -174,7 +174,7 @@ export default function FlightRoulette({ clock0 }: { clock0: MutableRefObject<nu
   })
 
   return (
-    <><group ref={group} visible={false} name="flight-roulette" onPointerDown={event => { event.stopPropagation(); flightEditor.pick(event.object); gl.domElement.focus() }}>
+    <><group ref={group} visible={false} name="flight-roulette" userData={{ cardRenderLayer: 2 }} onPointerDown={event => { event.stopPropagation(); flightEditor.pick(event.object); gl.domElement.focus() }}>
       <Roulette size={1} time={time} orbit fill={0.95} shadows={false} ballSpeed={-tune.rouBall} wheelSpeed={tune.rouWheel} />
     </group>
     <FlightCallout kind="roulette" objectRef={caption} anchor={group} /></>

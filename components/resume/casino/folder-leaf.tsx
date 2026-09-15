@@ -2,7 +2,7 @@
 
 /**
  * What is laid out on the open folder's right leaf: a QR to the resume up top, a download button under it,
- * and a row of link tokens along the bottom. They are printed on the cover's inner face, so they are tucked
+ * a row of link tokens along the bottom, and a close tab. They are printed on the cover's inner face, so they are tucked
  * inside while the folder is shut and face the reader once it opens.
  *
  * Links come from data/social-links (SOCIAL_URLS), never from here. The marks are the site's own logo
@@ -11,6 +11,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
+import { MeshBasicNodeMaterial } from 'three/webgpu'
 import { SOCIAL_URLS } from '@/data/social-links'
 import { claimPointer, releasePointer } from './cursor'
 import { markMaterial, sheetMaterial } from './materials'
@@ -34,7 +35,7 @@ export interface LeafFace {
 
 interface Item {
   key: string
-  kind: 'qr' | 'button' | 'logo'
+  kind: 'qr' | 'button' | 'logo' | 'close'
   label: string
   /** logo artwork: an image from the site, or a path in a 24 x 24 box */
   image?: string
@@ -102,6 +103,25 @@ function itemCanvas(item: Item, onReady: (() => void) | null, aspect: number): H
   c.height = H
   const x = c.getContext('2d')!
 
+  if (item.kind === 'close') {
+    // Ink on the actual manila, like the other marks on this leaf.
+    // Transparent stock lets the folder's lighting and paint show through.
+    x.strokeStyle = INK
+    x.lineWidth = 7
+    x.lineCap = 'round'
+    const cx = W * 0.16, cy = H / 2, r = H * 0.14
+    x.beginPath()
+    x.moveTo(cx - r, cy - r * 0.9); x.lineTo(cx + r, cy + r)
+    x.moveTo(cx + r * 0.9, cy - r); x.lineTo(cx - r, cy + r * 0.85)
+    x.stroke()
+    x.fillStyle = INK
+    x.font = `bold ${Math.round(H * 0.38)}px "Courier New", monospace`
+    x.textAlign = 'center'
+    x.textBaseline = 'middle'
+    x.fillText('CLOSE', W * 0.61, H * 0.52)
+    return c
+  }
+
   if (item.kind === 'button') {
     // the download mark only: a stroke down into a tray, drawn rather than set as a glyph so its weight
     // matches the lettering
@@ -168,7 +188,7 @@ function downloadResume() {
   a.remove()
 }
 
-export default function FolderLeaf({ face, mount, active, onHover }: { face: LeafFace; mount: THREE.Object3D | null; active: boolean; onHover?: (on: boolean) => void }) {
+export default function FolderLeaf({ face, mount, active, onHover, onClose }: { face: LeafFace; mount: THREE.Object3D | null; active: boolean; onHover?: (on: boolean) => void; onClose?: () => void }) {
   // ?noleaf renders the leaf bare: capture with and without, diff, and whatever the furniture does to what
   // is behind it shows up as itself
   const off = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('noleaf')
@@ -200,7 +220,7 @@ export default function FolderLeaf({ face, mount, active, onHover }: { face: Lea
     const mat = sheetMaterial(white, { printed: true, painted: true })
     const shadow = new THREE.Mesh(
       new THREE.PlaneGeometry(w * 1.15, w * 1.15),
-      new THREE.MeshBasicMaterial({ map: contactShadowTexture(), transparent: true, opacity: 0.45, depthWrite: false }),
+      new MeshBasicNodeMaterial({ map: contactShadowTexture(), transparent: true, opacity: 0.45, depthWrite: false }),
     )
     shadow.renderOrder = -1
     // and a flat shade to stand in for the curl the resume's page has and this flat patch does not. Without
@@ -236,8 +256,9 @@ export default function FolderLeaf({ face, mount, active, onHover }: { face: Lea
         x: across - row / 2 + logoSide / 2 + k * (logoSide + gap),
         y: rowY,
       })),
+      { key: 'close', kind: 'close', label: 'Close folder', w: face.w * 0.3, h: face.h * 0.11, x: face.cx + face.w * 0.3, y: face.cy - face.h * 0.4 },
     ]
-  }, [across, face.cy, qrSide, btnH, logoSide, gap])
+  }, [across, face.cx, face.cy, face.w, face.h, qrSide, btnH, logoSide, gap])
 
   const built = useMemo(
     () =>
@@ -263,7 +284,7 @@ export default function FolderLeaf({ face, mount, active, onHover }: { face: Lea
         // (measured with a barcode detector on the rendered pixels, not on the source image).
         const mat =
           it.kind === 'qr'
-            ? new THREE.MeshBasicMaterial({ map: tex, transparent: true, toneMapped: false })
+            ? new MeshBasicNodeMaterial({ map: tex, transparent: true, toneMapped: false })
             : markMaterial(tex, mask, `leaf:${it.key}`)
         return { it, tex, mask, geo, mat }
       }),
@@ -303,17 +324,19 @@ export default function FolderLeaf({ face, mount, active, onHover }: { face: Lea
       // +1: the QR's paper is this group's FIRST child, so the marks start at index 1
       const o = g.children[i + 1]
       if (!o) continue
-      o.scale.setScalar(1 + 0.1 * s)
+      const close = built[i].it.kind === 'close'
+      o.scale.setScalar(1 + (close ? 0.025 : 0.1) * s)
       // a mark is printed ON the leaf and has to stay on it: the old hover popped it 0.05 of the QR's own
       // width off the surface, which at this framing is enough to read as a sticker floating in front of
       // the folder rather than as ink turning with it
-      o.position.z = face.z + qrSide * 0.012 + s * qrSide * 0.006
+      o.position.z = face.z + qrSide * 0.012 + (close ? 0 : s * qrSide * 0.006)
     }
   })
 
   const onPick = (it: Item) => {
     if (!active) return
-    if (it.kind === 'button') downloadResume()
+    if (it.kind === 'close') onClose?.()
+    else if (it.kind === 'button') downloadResume()
     else if (it.kind === 'qr') openResume()
     else if (it.href) window.open(it.href, '_blank', 'noopener,noreferrer')
     // a mark with no URL yet (X) is inert rather than sending anyone somewhere wrong
@@ -340,11 +363,13 @@ export default function FolderLeaf({ face, mount, active, onHover }: { face: Lea
           // position buffer. Even a hair's offset there is a discontinuity, and the pass's grain and edge
           // terms amplify it into a visible rectangle around every mark. compNoPosition keeps it out (the
           // QR is an overlay, which is excluded already).
-          // The QR is the ONE thing here that cannot go through the painterly pass. Tried it: it stops
+          // The close mark takes the same paint and lighting as the other leaf ink.
+          // The QR cannot go through the painterly pass. Tried it: it stops
           // decoding at every scale, and enlarging it to 0.78 of the leaf did not rescue it either, so the
           // pass's brushwork breaks the modules whatever size they are. It is lit and warmed by the same
           // presented light as the rest (markMaterial), it just is not painted. A QR that does not scan is
           // not a QR.
+          name={`folder-${it.key}`}
           userData={it.kind === 'qr' ? { compOverlay: true } : { compNoPosition: true }}
           onPointerOver={(e) => {
             if (!active) return

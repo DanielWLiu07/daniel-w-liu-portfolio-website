@@ -10,7 +10,7 @@ def intro_time(t):return t if t<=.46 else .46+(t-.46)/1.6
 stress_review='--stress-grip-review' in sys.argv
 reveal_stress='--stress-reveal-review' in sys.argv or '--wrist-review' in sys.argv
 motion_review='--motion-review' in sys.argv
-idle_review=stress_review or '--idle-review' in sys.argv or motion_review or '--hands-review' in sys.argv or '--card-grip-review' in sys.argv
+idle_review='--point-review' in sys.argv or '--point-motion-review' in sys.argv or stress_review or '--idle-review' in sys.argv or motion_review or '--hands-review' in sys.argv or '--card-grip-review' in sys.argv
 baked=WORK/('dealer-stress.glb' if '--extreme' in sys.argv else 'dealer-idle.glb' if idle_review else 'dealer-entrance.glb')
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=str(ROOT/'public/models/casino-dealer-v3.glb'))
@@ -82,6 +82,21 @@ elif '--card-grip-review' in sys.argv:
     for view,position in [('front',(.20,-3,1.55)),('profile',(3,-.32,1.55)),('rear',(1.6,2,1.55))]:
         camera.location=position;aim(camera,(.20,-.32,1.44))
         scene.render.filepath=str(WORK/f'card-grip-{view}.png');bpy.ops.render.render(write_still=True)
+elif '--point-review' in sys.argv or '--point-motion-review' in sys.argv:
+    chipmat=bpy.data.materials.new('Red chip reference');chipmat.diffuse_color=(.55,.02,.035,1)
+    bpy.ops.mesh.primitive_cylinder_add(vertices=48,radius=.10,depth=.012,location=(0,-.90,1.08))
+    bpy.context.object.data.materials.append(chipmat)
+    if '--point-motion-review' in sys.argv:
+        (WORK/'point-motion').mkdir(exist_ok=True)
+        camera.data.ortho_scale=.95;camera.location=(-1.2,-3,1.7);aim(camera,(-.14,-.45,1.27))
+        scene.render.resolution_x=scene.render.resolution_y=420;scene.cycles.samples=3
+        scene.frame_start=1;scene.frame_end=145;scene.frame_step=2
+        scene.render.filepath=str(WORK/'point-motion/frame-');bpy.ops.render.render(animation=True)
+    else:
+        scene.frame_set(1+round(2.5*24))
+        for view,position,at,scale in [('full',(.25,-4,2),(.04,-.25,1.45),1.45),('front',(-.2,-3,1.38),(-.20,-.42,1.18),.62),('side',(-3,-.45,1.38),(-.20,-.42,1.18),.74)]:
+            camera.location=position;aim(camera,at);camera.data.ortho_scale=scale
+            scene.render.filepath=str(WORK/f'point-{view}.png');bpy.ops.render.render(write_still=True)
 elif '--hands-review' in sys.argv:
     scene.frame_set(1);scene.render.resolution_x=scene.render.resolution_y=640;scene.cycles.samples=8
     camera.data.ortho_scale=.43
@@ -102,14 +117,26 @@ elif '--hat-motion-review' in sys.argv:
     scene.render.resolution_x=scene.render.resolution_y=420;scene.cycles.samples=3
     scene.frame_start=1+round(1.45*24);scene.frame_end=1+round(4.3*24)
     scene.render.filepath=str(WORK/'hat-motion/frame-');bpy.ops.render.render(animation=True)
-elif '--snap-review' in sys.argv:
+elif '--snap-sync-review' in sys.argv:
+    scene.render.resolution_x=scene.render.resolution_y=420;scene.cycles.samples=2
+    camera.data.ortho_scale=1.22
+    for view,position in [('front',(.25,-4,1.85)),('quarter',(2.5,-3,1.8))]:
+        camera.location=position;aim(camera,(0,-.25,1.47))
+        for i,age in enumerate([.35,1.06,1.42,1.72]):
+            scene.frame_set(1+round((timing['cardActionStart']+age)*24))
+            scene.render.filepath=str(WORK/f'snap-sync-{view}-{i:02d}.png');bpy.ops.render.render(write_still=True)
+elif '--snap-review' in sys.argv or '--snap-side-review' in sys.argv:
     camera.data.ortho_scale=.70;camera.location=(.27,-3,1.75);aim(camera,(.16,-.24,1.44))
-    scene.render.resolution_x=scene.render.resolution_y=540;scene.cycles.samples=8
-    for i,age in enumerate([.86,1.02,1.10,1.16,1.24,1.42,1.8]):
+    side='--snap-side-review' in sys.argv
+    if side:
+        camera.location=(3,-.32,1.55);aim(camera,(.20,-.32,1.49))
+    scene.render.resolution_x=scene.render.resolution_y=420;scene.cycles.samples=4
+    for i,age in enumerate([.10,.72,1.10,1.32,1.48,1.64,1.90]):
         scene.frame_set(1+math.ceil((timing.get('cardActionStart',timing['end'])+age)*24))
-        scene.render.filepath=str(WORK/f'snap-{i:02d}.png');bpy.ops.render.render(write_still=True)
-elif any(flag in sys.argv for flag in ['--snap-motion-review','--snap-close-motion-review','--snap-side-motion-review']):
-    folder='finger-snap-side' if '--snap-side-motion-review' in sys.argv else 'finger-snap' if '--snap-close-motion-review' in sys.argv else 'card-snap'
+        scene.render.filepath=str(WORK/f"snap-{'side-' if side else ''}{i:02d}.png");bpy.ops.render.render(write_still=True)
+elif any(flag in sys.argv for flag in ['--snap-sync-motion-review','--snap-motion-review','--snap-close-motion-review','--snap-side-motion-review']):
+    sync='--snap-sync-motion-review' in sys.argv
+    folder='snap-sync-motion' if sync else 'finger-snap-side' if '--snap-side-motion-review' in sys.argv else 'finger-snap' if '--snap-close-motion-review' in sys.argv else 'arm-snap'
     (WORK/folder).mkdir(exist_ok=True)
     if '--snap-close-motion-review' in sys.argv:
         camera.data.ortho_scale=.68;camera.location=(.27,-3,1.75);aim(camera,(.14,-.24,1.43))
@@ -117,7 +144,12 @@ elif any(flag in sys.argv for flag in ['--snap-motion-review','--snap-close-moti
     if '--snap-side-motion-review' in sys.argv:
         camera.data.ortho_scale=.62;camera.location=(3,-.32,1.55);aim(camera,(.20,-.32,1.49))
         scene.render.resolution_x=scene.render.resolution_y=540
-    scene.frame_start=1+round((timing.get('cardActionStart',timing['end'])+.35)*24);scene.frame_end=1+round((timing.get('cardActionStart',timing['end'])+3.0)*24);scene.frame_step=1
+    scene.cycles.samples=2
+    scene.frame_start=1+round(timing.get('cardActionStart',timing['end'])*24);scene.frame_end=1+round((timing.get('cardActionStart',timing['end'])+3.0)*24);scene.frame_step=1
+    if sync:
+        camera.location=(1.1,-4,1.85);aim(camera,(0,-.25,1.47));camera.data.ortho_scale=1.22
+        scene.render.resolution_x=scene.render.resolution_y=360
+        scene.frame_end=1+round((timing['cardActionStart']+2.5)*24);scene.frame_step=2
     scene.render.filepath=str(WORK/folder/'frame-');bpy.ops.render.render(animation=True)
 elif '--assembly-motion-review' in sys.argv:
     (WORK/'assembly-motion').mkdir(exist_ok=True)

@@ -1,0 +1,10 @@
+{
+  "sourceModel": "/models/casino-dealer-v3.glb?v=f2ac98e82c2d",
+  "sourceSha256": "f2ac98e82c2dd48b7e1b19a38a12adb9332bd56cc5ee84199bb06b90fa96af61",
+  "model": "/models/casino-dealer-v3-compact.glb?v=1578bb1694de",
+  "sourceBytes": 11523332,
+  "bytes": 5084088,
+  "originalImageBytes": 7547653,
+  "optimizedImageBytes": 1108566,
+  "texture": "WebP quality 94; original resolution; geometry and rig unchanged"
+}

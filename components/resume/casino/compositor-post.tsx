@@ -5,12 +5,13 @@
  * Priority 1 in useFrame takes over rendering from R3F. The graph is built once
  * per mount by `build`; per-frame knobs go through `onFrame(uniforms)`.
  */
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { HalfFloatType, RenderTarget, Vector2, type Object3D } from 'three'
 import { texture } from 'three/tsl'
 import { MeshBasicNodeMaterial, QuadMesh, type Renderer } from 'three/webgpu'
 import { Compositor, compGraph, withOverlay, type CompGraph, type CompInput, type CompositorOptions } from 'blender-to-threejs'
+import { CardRenderLayers } from './card-render-layers'
 
 type Uniforms = Compositor['uniforms']
 
@@ -38,6 +39,7 @@ export default function CompositorPost({
   warmupReady?: boolean
 }) {
   const { gl, scene, camera } = useThree()
+  const cardLayers = useMemo(() => new CardRenderLayers(camera), [camera])
   const compRef = useRef<Compositor | null>(null)
   const ready = useRef(false)
   const outputRef = useRef<{ target: RenderTarget; quad: QuadMesh } | null>(null)
@@ -49,6 +51,8 @@ export default function CompositorPost({
     const c = compGraph()
     const out = build(c)
     const comp = new Compositor(gl as never, scene, camera, out, { rawOutput, positionPass })
+    comp.setPositionDepth(cardLayers.depth)
+    cardLayers.prepare(scene)
     compRef.current = comp
     // The paint expression used to run on the full-size canvas even when every
     // input was scaled. Finish it at the same resolution, then only upscale a
@@ -69,13 +73,14 @@ export default function CompositorPost({
       else comp.dispose()
       compRef.current = null
     }
-  }, [gl, scene, camera, build, rawOutput, positionPass])
+  }, [gl, scene, camera, build, rawOutput, positionPass, cardLayers])
 
   useEffect(() => {
     prepared.current = warmupReady === undefined
     if (!warmupReady || !compRef.current) return
     let cancelled = false
     const renderer = gl as unknown as Renderer
+    cardLayers.prepare(scene)
     const previous = renderer.getRenderTarget()
     // compileAsync gathers its render list synchronously before yielding. Include
     // props below the frame and actors hidden until impact, then restore them.
@@ -99,11 +104,12 @@ export default function CompositorPost({
       if (!cancelled) prepared.current = true
     })
     return () => { cancelled = true }
-  }, [gl, scene, camera, build, rawOutput, positionPass, warmupReady])
+  }, [gl, scene, camera, build, rawOutput, positionPass, warmupReady, cardLayers])
 
   useFrame(({ clock }) => {
     const comp = compRef.current
     if (!comp || !prepared.current) return
+    cardLayers.prepare(scene)
     // Resize existing targets; rebuilding the graph here discards warmed GPU
     // pipelines and introduces a hitch each time adaptive quality changes.
     comp.setRenderScale(renderScale)

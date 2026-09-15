@@ -10,6 +10,7 @@
 import { useEffect, useMemo, useRef, type MutableRefObject } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
+import { MeshBasicNodeMaterial } from 'three/webgpu'
 import { modalTransform, type ModalGesture } from 'blender-to-threejs'
 import { cardShape, planarUV } from './playing-cards'
 import { loadRansomFaces, ransomPick, ransomScrap, rnd } from './ransom'
@@ -18,6 +19,7 @@ import { isJackEditor, subscribeJackClock } from './jack-editor-clock'
 import { JACK_PARTS, jackSceneEditor, registerJackPart } from './jack-scene-editor'
 import { FallingCardDepth } from './falling-card-depth'
 import { ScreenExit } from './screen-exit'
+import { PORTRAIT_JACK_CARRIERS } from './responsive-layout'
 import { jackStraightAt, jackRedBackAt, jackSeedAt, jackBlastAt, JACK_SEED_LEAD } from './jack-composition'
 import { JACK_FAN, JACK_CARRIERS, JACK_GRID, JACK_GRID_CENTRES, jackTileAt, jackEchoAt, jackSpiralAt, jackKeeperAt, jackWallRevealAt, JACK_HEADLINE_SPAN, includeJackRect, jackPaperProjection, jackDealAt, jackFraming } from './jack-composition'
 
@@ -392,7 +394,7 @@ function makeEntry(seed: number, w: number): Entry {
 
 type RansomWord = ReturnType<typeof ransomWord>
 function ransomWord(text: string, seed: number, w: number, forced: number, initial: number, vary: number, scatter: number) {
-  const out: { mesh: THREE.Mesh; mat: THREE.MeshBasicMaterial; x: number; dy: number; rot: number; rx: number; ry: number; dz: number; k: number; ox: number; oy: number; lag: number }[] = []
+  const out: { mesh: THREE.Mesh; mat: MeshBasicNodeMaterial; x: number; dy: number; rot: number; rx: number; ry: number; dz: number; k: number; ox: number; oy: number; lag: number }[] = []
   let cursor = 0
   const chars = [...text]
   /**
@@ -434,7 +436,7 @@ function ransomWord(text: string, seed: number, w: number, forced: number, initi
     tex.anisotropy = 4
     // alphaTest with depthWrite: the torn silhouette is cut out per pixel AND the solid part writes depth,
     // which is what lets a scrap in front actually hide the one behind it instead of blending over it
-    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0, alphaTest: 0.4, depthWrite: true, toneMapped: false, fog: false })
+    const mat = new MeshBasicNodeMaterial({ map: tex, transparent: true, opacity: 0, alphaTest: 0.4, depthWrite: true, toneMapped: false, fog: false })
     /**
      * FLAT again. The scraps were briefly solids with a real cut edge, and thickness that reads at this
      * size is thickness paper does not have - they came out as slabs. The depth is carried by the tilt,
@@ -501,7 +503,7 @@ function ransomWord(text: string, seed: number, w: number, forced: number, initi
 function wordMesh(text: string, size: number, o: Parameters<typeof wordCanvas>[1]) {
   const { tex, aspect, boxToGlyph } = wordCanvas(text, o)
   const h = size * boxToGlyph
-  const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0, depthWrite: false, toneMapped: false, fog: false })
+  const mat = new MeshBasicNodeMaterial({ map: tex, transparent: true, opacity: 0, depthWrite: false, toneMapped: false, fog: false })
   const mesh = asDecal(new THREE.Mesh(new THREE.PlaneGeometry(h * aspect, h), mat))
   return { mesh, mat }
 }
@@ -520,7 +522,10 @@ export default function JackIntro({
   riseFor,
   holdFor,
   chipState,
+  onReady,
 }: {
+  /** Signals actual font/texture construction, not just component mount. */
+  onReady?: (ready: boolean) => void
   /** the beat's clock only starts once the page cover has cleared, exactly like the chip's */
   armed: boolean
   /** the CHIP's start time, so the two share one clock instead of two that drift */
@@ -539,6 +544,7 @@ export default function JackIntro({
   const t0 = useRef(-1)
   const cardImpact = useRef({ at: Infinity, x: 0, y: 0, speed: 0, previousWorldY: 0, previousY: -Infinity, previousT: -1 })
   const paperExit = useMemo(() => new ScreenExit(), [])
+  const portraitFraming = useRef<boolean | null>(null)
   const retiredPaper = useRef({ at: Infinity, last: -1 })
   /** what G / S / R will act on: set by clicking or dragging something, cleared by clicking empty space */
   const sel = useRef<string | null>(null)
@@ -551,12 +557,12 @@ export default function JackIntro({
   const framing = useRef({ halfWidth: 2.7, halfHeight: 1.65 })
   const built = useRef<null | {
     card: THREE.Mesh
-    cardMat: THREE.MeshBasicMaterial
-    backMat: THREE.MeshBasicMaterial
-    fan: { mesh: THREE.Mesh; face: THREE.MeshBasicMaterial; back: THREE.MeshBasicMaterial }[]
+    cardMat: MeshBasicNodeMaterial
+    backMat: MeshBasicNodeMaterial
+    fan: { mesh: THREE.Mesh; face: MeshBasicNodeMaterial; back: MeshBasicNodeMaterial }[]
     textures: THREE.Texture[]
     depth: FallingCardDepth
-    snake: { mesh: THREE.Mesh; mat: THREE.MeshBasicMaterial; faceMat: THREE.MeshBasicMaterial; mixedTex: THREE.Texture; jackTex: THREE.Texture; i: number }[]
+    snake: { mesh: THREE.Mesh; mat: MeshBasicNodeMaterial; faceMat: MeshBasicNodeMaterial; mixedTex: THREE.Texture; jackTex: THREE.Texture; i: number }[]
     /** what each grabbable mesh edits: its two position keys and its size key */
     pick: { mesh: THREE.Mesh; name: string; i: number; x: keyof Tune; y: keyof Tune; r: keyof Tune; s: keyof Tune }[]
     /** the card and the words, offset as one so the line can be centred on its own bounds */
@@ -618,7 +624,7 @@ export default function JackIntro({
       const ch = cw * 1.5
       tex.colorSpace = THREE.SRGBColorSpace
       tex.anisotropy = 4
-      const cardMat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0, depthWrite: false, toneMapped: false, fog: false })
+      const cardMat = new MeshBasicNodeMaterial({ map: tex, transparent: true, opacity: 0, depthWrite: false, toneMapped: false, fog: false })
       const shape = planarUV(new THREE.ShapeGeometry(cardShape(cw, ch, cw * 0.075), 12))
       const card = asCard(new THREE.Mesh(shape, cardMat))
       card.renderOrder = 20
@@ -629,7 +635,7 @@ export default function JackIntro({
       const backTex = maps[4]
       backTex.colorSpace = THREE.SRGBColorSpace
       backTex.anisotropy = 4
-      const backMat = new THREE.MeshBasicMaterial({ map: backTex, transparent: true, opacity: 0, depthWrite: false, toneMapped: false, fog: false })
+      const backMat = new MeshBasicNodeMaterial({ map: backTex, transparent: true, opacity: 0, depthWrite: false, toneMapped: false, fog: false })
       const back = asCard(new THREE.Mesh(shape.clone(), backMat))
       back.rotation.y = Math.PI
       back.position.z = -0.003
@@ -663,7 +669,7 @@ export default function JackIntro({
         const jackTex = maps[keeper >= 0 ? keeper : (col + row * 3) % 4]
         const mixedTex = maps[5 + (col * 3 + row * 5) % 8]
         const faceTex = mixedTex
-        const mat = new THREE.MeshBasicMaterial({ map: faceUp ? faceTex : backTex, transparent: true, opacity: 1, depthWrite: false, toneMapped: false, side: THREE.FrontSide, fog: false })
+        const mat = new MeshBasicNodeMaterial({ map: faceUp ? faceTex : backTex, transparent: true, opacity: 1, depthWrite: false, toneMapped: false, side: THREE.FrontSide, fog: false })
         const m = asCard(new THREE.Mesh(snakeGeo, mat))
         const reverseMat = mat.clone()
         reverseMat.map = faceUp ? backTex : faceTex
@@ -722,6 +728,7 @@ export default function JackIntro({
       ])
       built.current = { card, cardMat, backMat, fan, snake, pick, lock, jack, of, all, trades, textures: maps, depth }
       needsFraming.current = true
+      onReady?.(true)
     }).catch(error => console.error('Jack intro artwork failed to load', error))
     return () => {
       dead = true
@@ -733,15 +740,16 @@ export default function JackIntro({
         const all2: THREE.Mesh[] = []
         for (const tile of b.snake) tile.mesh.traverse(object => { if (object instanceof THREE.Mesh) all2.push(object) })
         b.lock.traverse(object => { if (object instanceof THREE.Mesh) all2.push(object) })
-        const textures = new Set([...b.textures, ...all2.map(o => (o.material as THREE.MeshBasicMaterial).map)])
+        const textures = new Set([...b.textures, ...all2.map(o => (o.material as MeshBasicNodeMaterial).map)])
         textures.forEach(texture => texture?.dispose())
         new Set(all2.map(o => o.geometry)).forEach(geometry => geometry.dispose())
         new Set(all2.map(o => o.material as THREE.Material)).forEach(material => material.dispose())
         group.current.remove(...b.snake.map(piece => piece.mesh))
       }
       built.current = null
+      onReady?.(false)
     }
-  }, [D, fj, fo, fa, ft, seed, initial, vary, scatter])
+  }, [D, fj, fo, fa, ft, seed, initial, vary, scatter, onReady])
 
   /**
    * Drag to move, shift-drag to resize, straight in the frame.
@@ -974,11 +982,11 @@ export default function JackIntro({
     const b = built.current
     if (!g || !b) return
     b.depth.restore(g)
-    if (!armed) {
+    if (!armed || clock0.current < 0) {
       g.visible = false
       return
     }
-    if (t0.current < 0) t0.current = clock0.current >= 0 ? clock0.current : state.clock.elapsedTime
+    if (t0.current < 0) t0.current = clock0.current
     const t = beatTime(state.clock.elapsedTime - t0.current)
     // Speed the complete card choreography together, preserving its easing,
     // overlaps and word handoffs without speeding up the camera/table exit.
@@ -992,7 +1000,29 @@ export default function JackIntro({
      * thing an eye reads as intent - so the frame rate grid is gone and the poses alone set the rhythm,
      * every one of them held exactly as long as the last.
      */
-    const tn = getTune()
+    const authoredTune = getTune()
+    const portrait = state.size.width / Math.max(1, state.size.height) < .9
+    const carriers = portrait ? PORTRAIT_JACK_CARRIERS : JACK_CARRIERS
+    // A compact two-by-two collage on portrait screens. Keep the same four
+    // deals/flips and preserve editor offsets relative to their desktop defaults.
+    const tn = portrait ? { ...authoredTune,
+      jkCardX: authoredTune.jkCardX - D.jkCardX - .92,
+      jkCardY: authoredTune.jkCardY - D.jkCardY + 1.2,
+      jkOfX: authoredTune.jkOfX - D.jkOfX + .92,
+      jkOfY: authoredTune.jkOfY - D.jkOfY + 1.25,
+      jkAllX: authoredTune.jkAllX - D.jkAllX - .92,
+      jkAllY: authoredTune.jkAllY - D.jkAllY - 1.18,
+      jkTrX: authoredTune.jkTrX - D.jkTrX + .92,
+      jkTrY: authoredTune.jkTrY - D.jkTrY - 1.25,
+      jkJackS: authoredTune.jkJackS * .8,
+      jkOfS: authoredTune.jkOfS * .82,
+      jkAllS: authoredTune.jkAllS * .8,
+      jkTrS: authoredTune.jkTrS * .58,
+    } : authoredTune
+    if (portraitFraming.current !== portrait) {
+      portraitFraming.current = portrait
+      needsFraming.current = true
+    }
     // the beats, live: dragging one of these while the page is open re-cuts the timing on the next loop
     const B = { cardIn: tn.jkTCardIn, cardLand: tn.jkTCardLand, jack: tn.jkTJack, of: tn.jkTOf, all: tn.jkTAll, trades: tn.jkTTrades }
     const dropAt = flickAt + riseFor + holdFor
@@ -1038,7 +1068,7 @@ export default function JackIntro({
       const textBounds = { left: Infinity, right: -Infinity, bottom: Infinity, top: -Infinity }
       const span = (word: RansomWord, x: number, y: number, scale: number, roll: number) => {
         const wi = word === b.jack ? 0 : word === b.of ? 1 : word === b.all ? 2 : 3
-        const carrier = JACK_CARRIERS[wi]
+        const carrier = carriers[wi]
         includeJackRect(bounds, x + carrier.x, y + carrier.y, carrier.width, carrier.width * 1.5, carrier.roll)
         const c = Math.cos(roll), s = Math.sin(roll)
         word.letters.forEach((letter, i) => {
@@ -1197,7 +1227,7 @@ export default function JackIntro({
         for (const child of k.mesh.children) {
           child.renderOrder = k.mesh.renderOrder
           if (child instanceof THREE.Mesh) {
-            const material = child.material as THREE.MeshBasicMaterial
+            const material = child.material as MeshBasicNodeMaterial
             material.color.copy(k.mat.color)
             material.depthWrite = t > impact.at
           }
@@ -1248,7 +1278,7 @@ export default function JackIntro({
       // the words keep their individual character without a long trailing settle.
       const localTime = at() + cardTime - t
       const deal = jackDealAt(localTime * 1.35, wi)
-      const carrier = JACK_CARRIERS[wi]
+      const carrier = carriers[wi]
       const rollU = Math.max(0, Math.min(1, (deal.progress - .35) / .65))
       const motion = { x: 0, y: 0, turn: -carrier.roll * (1 - rollU * rollU * (3 - 2 * rollU)), moving: deal.moving, pose: Math.floor(localTime * tn.smFps) }
       // Match travel relative to cap height across the two differently-sized layouts.
@@ -1368,14 +1398,14 @@ export default function JackIntro({
     place('TRADES', b.trades, tn.jkTrX, tn.jkTrY, tn.jkTrR, tn.jkTrS, () => t - B.trades, 3)
 
     b.lock.position.set(centre.current[0] + tn.jkLockX, centre.current[1] + tn.jkLockY, 0)
+    g.userData.cardRenderLayer = t > impact.at ? 1 : 0
     if (t > impact.at) b.depth.resolve(g)
   })
 
-  useFrame(({ camera, scene, clock }) => {
+  useFrame(({ camera, clock }) => {
     const g = group.current
     const b = built.current
     if (g?.visible && b && beatTime(clock.elapsedTime - t0.current) > cardImpact.current.at) {
-      b.depth.behindForeground(g, camera, scene)
       const t = beatTime(clock.elapsedTime - t0.current)
       // Allow the upward kick and camera dive to finish before retiring below
       // the frame. A fixed lifetime used to chop the slowest papers in half.
@@ -1386,7 +1416,7 @@ export default function JackIntro({
     }
   }, .9) // after the .75 dealer handoff, before the priority-1 paint compositor
 
-  return <group ref={group} renderOrder={20} />
+  return <group ref={group} renderOrder={20} userData={{ cardRenderLayer: 0 }} />
 }
 
 const scratch = { fwd: new THREE.Vector3(), p: new THREE.Vector3(), q: new THREE.Vector3(), tan: new THREE.Vector3(), sourceQuaternion: new THREE.Quaternion(), targetQuaternion: new THREE.Quaternion(), reverseQuaternion: new THREE.Quaternion(0, 1, 0, 0), wallQuaternion: new THREE.Quaternion() }
@@ -1484,7 +1514,7 @@ export function FallStreaks({
     tex.wrapS = THREE.RepeatWrapping
     tex.wrapT = THREE.RepeatWrapping
     tex.needsUpdate = true
-    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0, depthWrite: false, depthTest: false, toneMapped: false, fog: false })
+    const mat = new MeshBasicNodeMaterial({ map: tex, transparent: true, opacity: 0, depthWrite: false, depthTest: false, toneMapped: false, fog: false })
     return { tex, mat }
   }, [])
 

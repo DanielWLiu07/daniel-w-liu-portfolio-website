@@ -135,7 +135,7 @@ export default function FlightCallout({ kind, objectRef, anchor }: {
   if (!art) return null
   // Render with the props through the existing paint compositor. Transparent
   // stock is excluded only from its world-position pass, never from the paint.
-  return <group ref={objectRef} name={`${kind}-caption`} renderOrder={40} visible={false} dispose={null}
+  return <group ref={objectRef} name={`${kind}-caption`} renderOrder={40} visible={false} dispose={null} userData={{ cardRenderLayer: 2 }}
     onPointerDown={event => {
       event.stopPropagation(); flightEditor.pick(anchor.current); gl.domElement.focus()
     }}>

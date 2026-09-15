@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { Canvas } from '@react-three/fiber'
+import { canStartCasinoIntro } from './intro-ready'
 import { WebGPURenderer } from 'three/webgpu'
 import type { MangaUniforms } from 'blender-to-threejs'
 import { createInteractiveButtons } from '@/data/resume-buttons'
@@ -94,15 +95,18 @@ export default function CasinoResume({ layoutTuning = false, jackEditing = false
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [fileOpen])
-  // the beat (hand in, flick, RESUME, drop) starts once the paper cover starts peeling, never under it
-  const armed = transitionStage === 'revealing' || transitionStage === 'hidden'
+  // Never spend the opening beat under either loading cover. All actors share
+  // the chip's start clock, which remains unset until this gate opens.
+  const armed = canStartCasinoIntro(sceneReady, transitionStage)
   // per-frame impact state from the hero chip (age, camera jolt)
   const report = useCallback((impactAge: number, jolt: number) => {
     const f = fx.current
     f.impactAge = impactAge
     f.jolt = jolt
-    f.landed = f.landed || impactAge >= 0
-    if (SHOW_COPY && f.landed) setLanded(true)
+    if (!f.landed && impactAge >= 0) {
+      f.landed = true
+      setLanded(true)
+    }
   }, [])
   // the desk scene's links (github, linkedin, email, waterloo), minus the
   // photo props that only made sense on the desk
@@ -164,7 +168,9 @@ export default function CasinoResume({ layoutTuning = false, jackEditing = false
             const canvas = props.canvas as HTMLCanvasElement
             const renderer = new WebGPURenderer({
               canvas,
-              antialias: true,
+              // The scene target already has 4x MSAA. This canvas only receives
+              // the painted fullscreen blit, so another 4x resolve adds no detail.
+              antialias: false,
             })
             // Allocate the initial GPU attachments at the measured stage size,
             // not the canvas element's default 300×150 during async init.
@@ -181,7 +187,7 @@ export default function CasinoResume({ layoutTuning = false, jackEditing = false
             return renderer as unknown as never
           }}
         >
-          <CasinoScene armed={armed} folderOpen={fileOpen} onFolderOpen={openFile} scroll={scroll} fx={fx} report={report} onReady={onReady} uniformsRef={uniforms} />
+          <CasinoScene armed={armed} folderOpen={fileOpen} onFolderOpen={openFile} onFolderClose={closeFile} scroll={scroll} fx={fx} report={report} onReady={onReady} uniformsRef={uniforms} />
           {(showFlightTune || showTools || eyeEditing) && <PanelRenderBridge enabled />}
         </Canvas>
         {eyeEditing ? <TitleEyeWorkspace /> : jackEditing ? <JackWorkspace /> : layoutTuning ? <CasinoLayoutPanel /> : <>
@@ -197,10 +203,14 @@ export default function CasinoResume({ layoutTuning = false, jackEditing = false
         {!showTune && !showFolderTune && !showSuitTune && !showFlightTune && !showJackTune && !showEyeTune && showTitleTune && <TunePanel only={TITLE_KEYS} title="always bet on daniel w liu" />}
         </>}
 
-        {/* the open file lives in the scene (pages inside the folder); only a close control here */}
-        <button type="button" className={`casino-file-close ${fileOpen ? 'is-open' : ''}`} onClick={closeFile} aria-label="Close the file">
+        {/* Revealed on keyboard focus; the visible close mark lives on the folder. */}
+        <button type="button" className={`casino-file-close ${fileOpen ? 'is-open' : ''}`} onClick={closeFile} aria-label="Close the folder" tabIndex={fileOpen ? 0 : -1}>
           Close
         </button>
+        {landed && !jackEditing && !eyeEditing && <div className={`casino-mobile-actions${fileOpen ? ' is-file-open' : ''}`}>
+          {!fileOpen && <button type="button" onClick={openFile}>Open folder</button>}
+          <a href="/assets/resume.pdf" target="_blank" rel="noopener noreferrer">Read résumé ↗</a>
+        </div>}
 
         {SHOW_COPY && (<>
         <section className={`casino-copy casino-marquee ${inMarquee && landed ? 'is-on' : ''}`}>
