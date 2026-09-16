@@ -1,13 +1,30 @@
 {
   "sourceModel": "/models/casino-dealer-v3.glb?v=f2ac98e82c2d",
   "sourceSha256": "f2ac98e82c2dd48b7e1b19a38a12adb9332bd56cc5ee84199bb06b90fa96af61",
-  "model": "/models/casino-dealer-v3-meshopt.glb?v=16fb461b65a8",
+  "model": "/models/casino-dealer-v3-meshopt.glb?v=6cc4961457e8",
   "sourceBytes": 11523332,
-  "bytes": 2993972,
+  "bytes": 2670444,
   "originalImageBytes": 7547653,
   "optimizedImageBytes": 641582,
-  "texture": "WebP quality 86; original resolution; geometry and rig unchanged",
+  "texture": "WebP quality 86; original resolution; rig unchanged; vertex precision recorded separately",
   "compactBytes": 4617084,
   "compressedViews": 232,
-  "geometry": "meshopt v0 including sparse morph targets; byte-exact decode; no quantization or reordering"
+  "geometry": "meshopt v0; bounded float precision reduction; no topology, skinning or animation changes",
+  "precision": {
+    "POSITION": {
+      "values": 250158,
+      "maxError": 0.00000762939453125,
+      "mantissaBits": 16
+    },
+    "NORMAL": {
+      "values": 315180,
+      "maxError": 0.00012123584747314453,
+      "mantissaBits": 12
+    },
+    "TEXCOORD_0": {
+      "values": 70734,
+      "maxError": 0.000003814697265625,
+      "mantissaBits": 16
+    }
+  }
 }

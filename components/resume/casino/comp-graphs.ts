@@ -11,7 +11,7 @@ import { withImpactReveal } from './impact-reveal'
 import { getTune } from './tune'
 
 // pomme's paper texture for the watercolour compose step
-const paper = new THREE.TextureLoader().load('/models/paper.png')
+const paper = new THREE.TextureLoader().load('/models/paper-delivery.webp')
 paper.colorSpace = THREE.SRGBColorSpace
 
 type Uniforms = Compositor['uniforms']

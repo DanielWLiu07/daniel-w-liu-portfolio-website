@@ -1,15 +1,18 @@
 import assert from 'node:assert/strict'
 import {readFileSync} from 'node:fs'
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js'
+import {MeshoptDecoder} from 'three-stdlib'
 import {Group,PerspectiveCamera,Texture,Vector3,type SkinnedMesh} from 'three'
 import {BODY_LOOP_SECONDS,DealerBodyRig,dealerBodyPose,dealerHandGesture,dealerArmPerformance} from '../components/resume/casino/dealer-idle'
 import {DealerHandGrip} from '../components/resume/casino/dealer-grip'
 import {DealerFaceRig,FACE_LOOP_SECONDS,facePose} from '../components/resume/face/face-rig'
 import {FACE_DEFAULTS} from '../components/resume/face/face-settings'
-import {dealerPart,dealerPlacement,poseDealerAtTable} from '../components/resume/casino/dealer-pose'
+import {dealerPart,dealerPlacement,poseDealerAtTable,SKELETON_DEALER_URL} from '../components/resume/casino/dealer-pose'
 
-const loader=new GLTFLoader();loader.register(()=>({name:'T',loadTexture:()=>Promise.resolve(new Texture())}))
-const bytes=readFileSync('public/models/casino-dealer-v3.glb')
+// three-stdlib's factory declarations include its unsupported-platform branch.
+const decoder=(typeof MeshoptDecoder==='function'?MeshoptDecoder():MeshoptDecoder) as unknown as NonNullable<Parameters<GLTFLoader['setMeshoptDecoder']>[0]>
+const loader=new GLTFLoader().setMeshoptDecoder(decoder);loader.register(()=>({name:'EXT_texture_webp',loadTexture:()=>Promise.resolve(new Texture())}))
+const bytes=readFileSync(process.argv.includes('--delivery')?`public${SKELETON_DEALER_URL.split('?')[0]}`:'public/models/casino-dealer-v3.glb')
 const {scene:root}=await loader.parseAsync(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength),'')
 poseDealerAtTable(root)
 const body=new DealerBodyRig(root),face=new DealerFaceRig(root)

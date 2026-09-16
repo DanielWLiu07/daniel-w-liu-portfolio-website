@@ -7,7 +7,7 @@ for source, target in [
     ('public/fonts/ARCADECLASSIC.TTF', 'public/fonts/ARCADECLASSIC.woff2'),
     ('public/shared/fonts/weddingday-font/WeddingdayPersonalUseRegular-1Gvo0.ttf', 'public/fonts/Weddingday.woff2'),
 ]:
-    original = TTFont(source)
+    original = TTFont(source, recalcTimestamp=False)
     cmap, metrics, glyphs = original.getBestCmap(), dict(original['hmtx'].metrics), original.getGlyphOrder()
     original.flavor = 'woff2'
     original.save(target)

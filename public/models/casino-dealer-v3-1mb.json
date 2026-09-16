@@ -1,0 +1,190 @@
+{
+  "sourceModel": "/models/casino-dealer-v3.glb?v=f2ac98e82c2d",
+  "sourceSha256": "f2ac98e82c2dd48b7e1b19a38a12adb9332bd56cc5ee84199bb06b90fa96af61",
+  "model": "/models/casino-dealer-v3-1mb.glb?v=4f63c6260f28",
+  "bytes": 930416,
+  "experiment": true,
+  "ratio": 0.3,
+  "originalTriangles": 65958,
+  "triangles": 17620,
+  "textureBytes": 80260,
+  "texture": "1024px WebP quality 75",
+  "simplification": "Attribute-aware vertex removal; original hand surfaces plus skinned joint connectors; lower-body meshes omitted",
+  "omittedParts": [
+    "Trousers",
+    "ShoeLeft",
+    "ShoeRight"
+  ],
+  "parts": [
+    {
+      "name": "Collar",
+      "before": 1008,
+      "after": 302,
+      "relativeError": 0.006462790537625551
+    },
+    {
+      "name": "ForearmLeft",
+      "before": 1616,
+      "after": 484,
+      "relativeError": 0.0023317693267017603
+    },
+    {
+      "name": "ForearmRight",
+      "before": 1616,
+      "after": 484,
+      "relativeError": 0.0021330639719963074
+    },
+    {
+      "name": "HandLeft",
+      "before": 1628,
+      "after": 2348,
+      "relativeError": 0,
+      "preserved": true,
+      "addedJoints": 15
+    },
+    {
+      "name": "HandRight",
+      "before": 1614,
+      "after": 2334,
+      "relativeError": 0,
+      "preserved": true,
+      "addedJoints": 15
+    },
+    {
+      "name": "Hat",
+      "before": 632,
+      "after": 188,
+      "relativeError": 0.02244904637336731
+    },
+    {
+      "name": "Hatband",
+      "before": 1152,
+      "after": 344,
+      "relativeError": 0.010991668328642845
+    },
+    {
+      "name": "Jaw",
+      "before": 4326,
+      "after": 1297,
+      "relativeError": 0.0035742982290685177
+    },
+    {
+      "name": "MouthInterior",
+      "before": 528,
+      "after": 158,
+      "relativeError": 0.01432043220847845
+    },
+    {
+      "name": "Neck",
+      "before": 1320,
+      "after": 396,
+      "relativeError": 0.01596280187368393
+    },
+    {
+      "name": "Shirt",
+      "before": 12016,
+      "after": 2282,
+      "relativeError": 0.003990169148892164,
+      "targetRatio": 0.08,
+      "errorLimit": 0.004,
+      "skinAware": true,
+      "lockedBorders": true
+    },
+    {
+      "name": "Shirt",
+      "before": 640,
+      "after": 108,
+      "relativeError": 0.003975669853389263,
+      "targetRatio": 0.08,
+      "errorLimit": 0.004,
+      "skinAware": true,
+      "lockedBorders": true
+    },
+    {
+      "name": "ShoeLeft",
+      "before": 865,
+      "after": 0,
+      "omitted": true
+    },
+    {
+      "name": "ShoeRight",
+      "before": 515,
+      "after": 0,
+      "omitted": true
+    },
+    {
+      "name": "Skull",
+      "before": 13278,
+      "after": 3982,
+      "relativeError": 0.0014235620619729161
+    },
+    {
+      "name": "Skull",
+      "before": 2004,
+      "after": 601,
+      "relativeError": 0.000844660447910428
+    },
+    {
+      "name": "Tie",
+      "before": 704,
+      "after": 210,
+      "relativeError": 0.005282399244606495
+    },
+    {
+      "name": "Trousers",
+      "before": 1290,
+      "after": 0,
+      "omitted": true
+    },
+    {
+      "name": "Waistcoat",
+      "before": 14150,
+      "after": 1678,
+      "relativeError": 0.007929789833724499,
+      "targetRatio": 0.08,
+      "errorLimit": 0.008,
+      "skinAware": true,
+      "lockedBorders": true
+    },
+    {
+      "name": "Waistcoat",
+      "before": 1824,
+      "after": 144,
+      "relativeError": 0.005103654228150845,
+      "targetRatio": 0.08,
+      "errorLimit": 0.008,
+      "skinAware": true,
+      "lockedBorders": true
+    },
+    {
+      "name": "Waistcoat",
+      "before": 3232,
+      "after": 280,
+      "relativeError": 0.007947900332510471,
+      "targetRatio": 0.08,
+      "errorLimit": 0.008,
+      "skinAware": true,
+      "lockedBorders": true
+    }
+  ],
+  "compactBytes": 2069900,
+  "compressedViews": 170,
+  "geometry": "Simplified comparison mesh; bounded float precision reduction; original skeleton and morph channels retained",
+  "precision": {
+    "POSITION": {
+      "values": 187257,
+      "maxError": 0.00000762939453125,
+      "mantissaBits": 16
+    },
+    "NORMAL": {
+      "values": 187257,
+      "maxError": 0.00010347366333007812,
+      "mantissaBits": 12
+    },
+    "TEXCOORD_0": {
+      "values": 22480,
+      "maxError": 0.000003814697265625,
+      "mantissaBits": 16
+    }
+  }
+}

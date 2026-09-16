@@ -14,7 +14,7 @@ export const experiences: Experience[] = [
     company: "PlayStation",
     period: "May 2026 - Aug 2026",
     description: "Incoming S26",
-    logo: "/experience/images/playstation_logo.png",
+    logo: "/experience/images/playstation-logo.webp",
     logoScale: 1.0
   },
   {

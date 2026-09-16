@@ -1,3 +1,4 @@
+import { cardArtUrl } from './card-art-url'
 /** Plain data only: the route must not import Three or the scene to start downloads. */
 /**
  * Faces in panel order. KatieRoze is the table's own hand. Its shipped woff2
@@ -17,8 +18,8 @@ export const JACK_FONTS: { key: string; label: string; url: string }[] = [
 
 export const CASINO_STARTUP_IMAGES = [
   '/resume/resume-page1-lossless.webp',
-  '/textures/royal-flush/delivery/casino-back.webp',
-  ...['hearts', 'spades'].flatMap(suit => ['10', 'J', 'Q', 'K', 'A'].map(rank => `/textures/royal-flush/delivery/${rank}-${suit}.webp`)),
-  '/textures/royal-flush/delivery/J-clubs.webp',
-  '/textures/royal-flush/delivery/J-diamonds.webp',
+  cardArtUrl('casino-back'),
+  ...['hearts', 'spades'].flatMap(suit => ['10', 'J', 'Q', 'K', 'A'].map(rank => cardArtUrl(`${rank}-${suit}`))),
+  cardArtUrl('J-clubs'),
+  cardArtUrl('J-diamonds'),
 ]

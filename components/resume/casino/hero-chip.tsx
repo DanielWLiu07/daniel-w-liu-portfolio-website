@@ -232,7 +232,7 @@ export default function HeroChip({
   }, [])
   // Only the optional cel/painterly mode uses this map. The default graph does
   // not sample it: don't download/upload 704KB merely to throw it away.
-  const [normalMap] = useTexture(painterly ? ['/models/watercolor_normal-delivery.webp'] : [])
+  const [normalMap] = useTexture(painterly ? ['/models/watercolor-normal-optimized.webp'] : [])
   useEffect(() => {
     if (!painterly || !chipMesh.current) return
     const handle = applyPainterlyStyle(chipMesh.current, { normalMap })

@@ -1,8 +1,10 @@
-import { Bone, BoxGeometry, BufferGeometry, Color, Float32BufferAttribute, Mesh, MeshStandardMaterial, Matrix4, Object3D, Quaternion, Vector3 } from 'three'
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
+import { cardArtUrl } from './card-art-url'
+import { Bone, BufferGeometry, Mesh, MeshStandardMaterial, Matrix4, Object3D, Quaternion, SRGBColorSpace, Vector3, type Texture } from 'three'
 import { DealerArmRig } from './dealer-arms'
 import { DealerHandGrip } from './dealer-grip'
 import { dealerCardReveal } from './dealer-card-reveal'
+import { cardGeometry } from './card-stock'
+import { ASPECT } from './card-art'
 
 const clamp=(x:number)=>Math.max(0,Math.min(1,x))
 const smooth=(x:number)=>{const t=clamp(x);return t*t*t*(t*(t*6-15)+10)}
@@ -11,7 +13,13 @@ export const DEALER_CARD_COUNT=2
 export const DEALER_CARD_THICKNESS=.00054
 // The thumb mesh is wider than its tip joint; clearance includes its full pad.
 export const DEALER_CARD_PAD=.017
-const WIDTH=.090,LENGTH=.130,H=DEALER_CARD_THICKNESS
+const LENGTH=.130,WIDTH=LENGTH*2/3,H=DEALER_CARD_THICKNESS
+/** The same full-face plates and ornate back used by the opening card sequence. */
+export const DEALER_CARD_ART=[
+  cardArtUrl('K-hearts'),
+  cardArtUrl('A-hearts'),
+  cardArtUrl('casino-back'),
+] as const
 /** A poker player quietly studies a two-card hand, held up near the face.
  * Grip study: https://images.unsplash.com/photo-1617286931389-9082553de6be — thumb along the
  * lower overlap, bent index behind it, spare fingers progressively curled.
@@ -43,33 +51,33 @@ export class DealerShuffleRig {
     this.cardArmHomes=['LeftArm','LeftForeArm','LeftHand'].map(name=>{const bone=root.getObjectByName(name)!;return {bone,rotation:bone.quaternion.clone()}})
     this.anchor=root.getObjectByName('Spine')!
     this.anchorPoint=this.anchor.worldToLocal(root.localToWorld(new Vector3(.025,1.27,.32)))
-    const material=new MeshStandardMaterial({color:0xffffff,vertexColors:true,roughness:.8})
-    material.name='Dealer printed card';this.materials.push(material)
-    const pieces:BufferGeometry[]=[]
-    const part=(x:number,y:number,z:number,color:number,height=0,turn=0)=>{
-      const geometry=new BoxGeometry(x,y,z,8,1,1)
-      geometry.rotateY(turn);geometry.translate(0,-height,0)
-      const rgb=new Color(color),count=geometry.attributes.position.count
-      geometry.setAttribute('color',new Float32BufferAttribute(Array.from({length:count},()=>rgb.toArray()).flat(),3))
-      pieces.push(geometry)
-    }
-    part(WIDTH,H,LENGTH,0xf2e4c9)
-    part(WIDTH-.004,.00006,LENGTH-.004,0x982634,H/2+.000035)
-    part(WIDTH-.012,.00006,LENGTH-.012,0xf2e4c9,H/2+.00010)
-    part(WIDTH-.014,.00006,LENGTH-.014,0x982634,H/2+.000165)
-    part(.013,.00006,.013,0xf2e4c9,H/2+.00023,Math.PI/4)
-    const geometry=mergeGeometries(pieces)!
-    pieces.forEach(g=>g.dispose())
-    const positions=geometry.attributes.position
-    for(let i=0;i<positions.count;i++) positions.setY(i,positions.getY(i)+.0003*(1-(positions.getX(i)/(WIDTH/2))**2))
-    geometry.computeVertexNormals();this.geometries.push(geometry)
+    const printed=DEALER_CARD_ART.map(url=>{
+      const material=new MeshStandardMaterial({color:0xffffff,roughness:.8})
+      material.name=`Dealer card art:${url.split('/').pop()}`
+      return material
+    })
+    const rim=new MeshStandardMaterial({color:0xefe9da,roughness:.8})
+    rim.name='Dealer card stock edge';this.materials.push(...printed,rim)
+    // Keep the existing pinch frame: face toward the dealer (+Y), back toward
+    // the viewer (-Y), and artwork upright along the card's long side (+Z).
+    const geometry=cardGeometry(LENGTH,H,6).scale(WIDTH/(LENGTH*ASPECT),1,1)
+      .rotateZ(Math.PI).rotateX(-Math.PI/2)
+    this.geometries.push(geometry)
     for(let i=0;i<DEALER_CARD_COUNT;i++) {
       const card=new Bone();card.name=`DealerHeldCard${i}`;this.group.add(card);this.cards.push(card)
-      const mesh=new Mesh(geometry,material);mesh.name=`DealerCards_${i}`;mesh.castShadow=true;card.add(mesh)
+      const mesh=new Mesh(geometry,[printed[i],printed[2],rim]);mesh.name=`DealerCards_${i}`;mesh.castShadow=true;card.add(mesh)
       card.position.y=i*H
     }
     this.group.position.set(.025,1.27,.32);this.group.visible=false
     root.updateWorldMatrix(true,true)
+  }
+  /** Textures are owned by the scene loader and shared with its cache. */
+  setArtwork(maps:readonly Texture[]) {
+    if(maps.length!==DEALER_CARD_ART.length)throw new Error('Dealer cards need two faces and the shared casino back')
+    maps.forEach((map,i)=>{
+      map.colorSpace=SRGBColorSpace;map.anisotropy=4
+      this.materials[i].map=map;this.materials[i].needsUpdate=true
+    })
   }
   reset() {this.group.visible=false;this.grips.Left.reset();this.grips.Right.reset()}
   private local(point:Vector3) {return this.root.worldToLocal(this.group.localToWorld(point.clone()))}

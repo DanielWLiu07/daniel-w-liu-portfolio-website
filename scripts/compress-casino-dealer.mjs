@@ -1,20 +1,25 @@
 /** Lossless meshopt delivery: run after optimize-casino-dealer.mjs --compact,
  * or pass --delivery to both scripts for the smaller same-resolution texture.
- * No quantization, vertex reordering, decimation or animation changes.
+ * Optional --precision trims float mantissas with measured error bounds.
+ * No vertex reordering, decimation, skinning or animation changes.
  */
 import assert from 'node:assert/strict'
 import { readFile, writeFile } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
 import { MeshoptEncoder, MeshoptDecoder } from 'meshoptimizer'
 import { MeshoptDecoder as createRuntimeDecoder } from 'three-stdlib'
+import { reduceDealerPrecision } from './dealer-delivery-precision.mjs'
 
 await Promise.all([MeshoptEncoder.ready, MeshoptDecoder.ready])
 const runtimeDecoder = typeof createRuntimeDecoder === 'function' ? createRuntimeDecoder() : createRuntimeDecoder
 await runtimeDecoder.ready
-const manifestPath = process.argv.includes('--delivery')
+const folder = process.argv.includes('--folder')
+const experiment = process.argv.includes('--experiment')
+const outputStem = folder ? 'resume-folder-meshopt' : experiment ? 'casino-dealer-v3-1mb' : 'casino-dealer-v3-meshopt'
+const manifestPath = experiment ? 'public/models/casino-dealer-v3-experiment.json' : process.argv.includes('--delivery')
   ? 'public/models/casino-dealer-v3-delivery.json'
   : 'public/models/casino-dealer-v3-compact.json'
-const manifest = JSON.parse(await readFile(manifestPath, 'utf8'))
+const manifest = folder ? { model: '/models/resume-folder-split.glb' } : JSON.parse(await readFile(manifestPath, 'utf8'))
 const sourcePath = `public${manifest.model.split('?')[0]}`
 const source = await readFile(sourcePath)
 assert.equal(source.readUInt32LE(0), 0x46546c67)
@@ -22,7 +27,10 @@ const jsonLength = source.readUInt32LE(12)
 const original = JSON.parse(source.subarray(20, 20 + jsonLength))
 assert.equal(original.buffers.length, 1)
 const gltf = structuredClone(original)
-const bin = source.subarray(28 + jsonLength)
+const originalBin = source.subarray(28 + jsonLength)
+const precision = process.argv.includes('--precision') ? reduceDealerPrecision(gltf, originalBin) : null
+const bin = precision?.bin ?? originalBin
+const expectedAccessors = structuredClone(gltf.accessors)
 const chunks = []
 let offset = 0, compressedViews = 0
 const append = data => {
@@ -75,7 +83,8 @@ gltf.buffers = [{ byteLength: offset }, {
   extensions: { EXT_meshopt_compression: { fallback: true } },
 }]
 for (const key of ['extensionsUsed', 'extensionsRequired']) gltf[key] = [...new Set([...(gltf[key] ?? []), 'EXT_meshopt_compression'])]
-for (const key of ['accessors', 'meshes', 'skins', 'animations', 'nodes', 'images', 'materials']) assert.deepEqual(gltf[key], original[key])
+assert.deepEqual(gltf.accessors, expectedAccessors)
+for (const key of ['meshes', 'skins', 'animations', 'nodes', 'images', 'materials']) assert.deepEqual(gltf[key], original[key])
 const json = Buffer.from(JSON.stringify(gltf))
 const paddedJson = Buffer.concat([json, Buffer.alloc((4 - json.length % 4) % 4, 0x20)])
 const packed = Buffer.concat(chunks)
@@ -88,11 +97,13 @@ const output = Buffer.concat([header, paddedJson, binHeader, packed])
 assert.ok(output.length < source.length)
 const digest = data => createHash('sha256').update(data).digest('hex')
 assert.equal(digest(await readFile(sourcePath)), digest(source), 'Source changed during compression')
-assert.deepEqual(JSON.parse(await readFile(manifestPath, 'utf8')), manifest)
-await writeFile('public/models/casino-dealer-v3-meshopt.glb', output)
-await writeFile('public/models/casino-dealer-v3-meshopt.json', JSON.stringify({
-  ...manifest, model: `/models/casino-dealer-v3-meshopt.glb?v=${digest(output).slice(0, 12)}`,
+if (!folder) assert.deepEqual(JSON.parse(await readFile(manifestPath, 'utf8')), manifest)
+await writeFile(`public/models/${outputStem}.glb`, output)
+await writeFile(`public/models/${outputStem}.json`, JSON.stringify({
+  ...manifest, model: `/models/${outputStem}.glb?v=${digest(output).slice(0, 12)}`,
   compactBytes: source.length, bytes: output.length, compressedViews,
-  geometry: 'meshopt v0 including sparse morph targets; byte-exact decode; no quantization or reordering',
+  geometry: experiment ? 'Simplified comparison mesh; bounded float precision reduction; original skeleton and morph channels retained' : precision ? 'meshopt v0; bounded float precision reduction; no topology, skinning or animation changes' : 'meshopt v0 including sparse morph targets; byte-exact decode; no quantization or reordering',
+  ...(precision ? { texture: manifest.texture.replace('geometry and rig unchanged', 'rig unchanged; vertex precision recorded separately') } : {}),
+  ...(precision ? { precision: precision.stats } : {}),
 }, null, 2) + '\n')
 console.log(JSON.stringify({ before: source.length, after: output.length, compressedViews }))

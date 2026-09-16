@@ -60,7 +60,7 @@ for(const target of [new Vector3(-.3,1.08,.9),new Vector3(.3,1.08,1.15)]) {
 body.chip.pointTarget.set(0,1.08,.90)
 let introStep=0,introWorst="",previous:typeof first|null=null
 for(let i=0;i<=456;i++){
- const age=DEALER_CARD_ACTION_START+.30+i/120,bt=Math.max(0,age-DEALER_ENTRANCE_END),fade=Math.min(1,bt/1.4),w=fade*fade*(3-2*fade),seconds=Math.max(0,age-DEALER_IDLE_START)
+ const age=DEALER_CARD_ACTION_START+.22+i/120,bt=Math.max(0,age-DEALER_ENTRANCE_END),fade=Math.min(1,bt/1.4),w=fade*fade*(3-2*fade),seconds=Math.max(0,age-DEALER_IDLE_START)
  entrance.reset();body.reset()
  if(bt>0)body.apply(seconds,w,1,1,w,bt)
  face.apply(age<DEALER_ENTRANCE_END?blendEntranceFace(entranceFace(FACE_DEFAULTS,age),facePose(FACE_DEFAULTS,seconds),dealerEntrance(age).idle):facePose(FACE_DEFAULTS,seconds))

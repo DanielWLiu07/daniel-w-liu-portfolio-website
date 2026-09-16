@@ -30,6 +30,13 @@ for obj in scene.objects:
         if slot.material and slot.material.name.startswith('proof::'):
             key=slot.material.name[len('proof::'):]
             if key not in materials:key=re.sub(r'\.\d{3}$','',key)
+            if key.startswith('Dealer card art:') and key not in materials:
+                material=bpy.data.materials.new(key);material.use_nodes=True
+                texture=material.node_tree.nodes.new('ShaderNodeTexImage')
+                texture.image=bpy.data.images.load(str(ROOT/'public/textures/royal-flush'/key.split(':',1)[1]),check_existing=True)
+                shader=material.node_tree.nodes.get('Principled BSDF');shader.inputs['Roughness'].default_value=.8
+                material.node_tree.links.new(texture.outputs['Color'],shader.inputs['Base Color'])
+                materials[key]=material
             if key in materials:slot.material=materials[key]
     skull=obj.name.startswith(('Skull','Jaw','MouthInterior'))
     start=timing['chip'] if obj.name.startswith('DealerChip') else timing['cards'] if obj.name.startswith('DealerCards') else timing['hat'] if obj.name.startswith(('Hat','Hatband')) else timing['body']
@@ -122,7 +129,8 @@ elif '--snap-sync-review' in sys.argv:
     camera.data.ortho_scale=1.22
     for view,position in [('front',(.25,-4,1.85)),('quarter',(2.5,-3,1.8))]:
         camera.location=position;aim(camera,(0,-.25,1.47))
-        for i,age in enumerate([.35,1.06,1.42,1.72]):
+        snap=timing.get('cardSnap',timing['cardActionStart']+1.42)-timing['cardActionStart']
+        for i,age in enumerate([snap-.66,snap-.24,snap,snap+.24]):
             scene.frame_set(1+round((timing['cardActionStart']+age)*24))
             scene.render.filepath=str(WORK/f'snap-sync-{view}-{i:02d}.png');bpy.ops.render.render(write_still=True)
 elif '--snap-review' in sys.argv or '--snap-side-review' in sys.argv:
@@ -134,9 +142,10 @@ elif '--snap-review' in sys.argv or '--snap-side-review' in sys.argv:
     for i,age in enumerate([.10,.72,1.10,1.32,1.48,1.64,1.90]):
         scene.frame_set(1+math.ceil((timing.get('cardActionStart',timing['end'])+age)*24))
         scene.render.filepath=str(WORK/f"snap-{'side-' if side else ''}{i:02d}.png");bpy.ops.render.render(write_still=True)
-elif any(flag in sys.argv for flag in ['--snap-sync-motion-review','--snap-motion-review','--snap-close-motion-review','--snap-side-motion-review']):
-    sync='--snap-sync-motion-review' in sys.argv
-    folder='snap-sync-motion' if sync else 'finger-snap-side' if '--snap-side-motion-review' in sys.argv else 'finger-snap' if '--snap-close-motion-review' in sys.argv else 'arm-snap'
+elif any(flag in sys.argv for flag in ['--snap-fast-motion-review','--snap-sync-motion-review','--snap-motion-review','--snap-close-motion-review','--snap-side-motion-review']):
+    fast='--snap-fast-motion-review' in sys.argv
+    sync=fast or '--snap-sync-motion-review' in sys.argv
+    folder='snap-fast-motion' if fast else 'snap-sync-motion' if sync else 'finger-snap-side' if '--snap-side-motion-review' in sys.argv else 'finger-snap' if '--snap-close-motion-review' in sys.argv else 'arm-snap'
     (WORK/folder).mkdir(exist_ok=True)
     if '--snap-close-motion-review' in sys.argv:
         camera.data.ortho_scale=.68;camera.location=(.27,-3,1.75);aim(camera,(.14,-.24,1.43))
@@ -149,7 +158,7 @@ elif any(flag in sys.argv for flag in ['--snap-sync-motion-review','--snap-motio
     if sync:
         camera.location=(1.1,-4,1.85);aim(camera,(0,-.25,1.47));camera.data.ortho_scale=1.22
         scene.render.resolution_x=scene.render.resolution_y=360
-        scene.frame_end=1+round((timing['cardActionStart']+2.5)*24);scene.frame_step=2
+        scene.frame_end=1+round((timing['cardActionStart']+(1.6 if fast else 2.5))*24);scene.frame_step=1 if fast else 2
     scene.render.filepath=str(WORK/folder/'frame-');bpy.ops.render.render(animation=True)
 elif '--assembly-motion-review' in sys.argv:
     (WORK/'assembly-motion').mkdir(exist_ok=True)

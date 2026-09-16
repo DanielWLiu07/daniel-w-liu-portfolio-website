@@ -1,0 +1,125 @@
+{
+  "assets": {
+    "10-hearts": {
+      "url": "/textures/royal-flush/delivery/10-hearts.svg?v=90d5b2e935de",
+      "width": 720,
+      "height": 1080,
+      "originalWebpBytes": 29570,
+      "svgBytes": 10278,
+      "gzipBytes": 1832,
+      "rasterRMSE": 0.003207501495497921
+    },
+    "10-spades": {
+      "url": "/textures/royal-flush/delivery/10-spades.svg?v=080bdbf22013",
+      "width": 720,
+      "height": 1080,
+      "originalWebpBytes": 22376,
+      "svgBytes": 9006,
+      "gzipBytes": 1648,
+      "rasterRMSE": 0.003207501495497921
+    },
+    "A-hearts": {
+      "url": "/textures/royal-flush/delivery/A-hearts.svg?v=10a1b0f020ff",
+      "width": 720,
+      "height": 1080,
+      "originalWebpBytes": 11340,
+      "svgBytes": 3936,
+      "gzipBytes": 1457,
+      "rasterRMSE": 0.003207501495497921
+    },
+    "A-spades": {
+      "url": "/textures/royal-flush/delivery/A-spades.svg?v=a4b92c63ab53",
+      "width": 720,
+      "height": 1080,
+      "originalWebpBytes": 8242,
+      "svgBytes": 3345,
+      "gzipBytes": 1308,
+      "rasterRMSE": 0.0022680460581325722
+    },
+    "J-clubs": {
+      "url": "/textures/royal-flush/delivery/J-clubs.svg?v=aa61a9c67cbb",
+      "width": 720,
+      "height": 1080,
+      "originalWebpBytes": 168380,
+      "svgBytes": 177344,
+      "gzipBytes": 33320,
+      "rasterRMSE": 0.0025357525810424356
+    },
+    "J-diamonds": {
+      "url": "/textures/royal-flush/delivery/J-diamonds.svg?v=452988cd7dab",
+      "width": 720,
+      "height": 1080,
+      "originalWebpBytes": 158512,
+      "svgBytes": 162450,
+      "gzipBytes": 44647,
+      "rasterRMSE": 0.003207501495497921
+    },
+    "J-hearts": {
+      "url": "/textures/royal-flush/delivery/J-hearts.svg?v=c2247336ccfa",
+      "width": 720,
+      "height": 1080,
+      "originalWebpBytes": 187486,
+      "svgBytes": 192938,
+      "gzipBytes": 47616,
+      "rasterRMSE": 0.003207501495497921
+    },
+    "J-spades": {
+      "url": "/textures/royal-flush/delivery/J-spades.svg?v=74e1a4e9abf6",
+      "width": 720,
+      "height": 1080,
+      "originalWebpBytes": 153164,
+      "svgBytes": 176705,
+      "gzipBytes": 40800,
+      "rasterRMSE": 0.003207501495497921
+    },
+    "K-hearts": {
+      "url": "/textures/royal-flush/delivery/K-hearts.svg?v=30f94917b82a",
+      "width": 720,
+      "height": 1080,
+      "originalWebpBytes": 179714,
+      "svgBytes": 206754,
+      "gzipBytes": 49451,
+      "rasterRMSE": 0.003207501495497921
+    },
+    "K-spades": {
+      "url": "/textures/royal-flush/delivery/K-spades.svg?v=b664ba4e6fe0",
+      "width": 720,
+      "height": 1080,
+      "originalWebpBytes": 158350,
+      "svgBytes": 159945,
+      "gzipBytes": 47834,
+      "rasterRMSE": 0.003207501495497921
+    },
+    "Q-hearts": {
+      "url": "/textures/royal-flush/delivery/Q-hearts.svg?v=6735352ed9ac",
+      "width": 720,
+      "height": 1080,
+      "originalWebpBytes": 169636,
+      "svgBytes": 163980,
+      "gzipBytes": 37583,
+      "rasterRMSE": 0.003207501495497921
+    },
+    "Q-spades": {
+      "url": "/textures/royal-flush/delivery/Q-spades.svg?v=34b270853b6c",
+      "width": 720,
+      "height": 1080,
+      "originalWebpBytes": 171352,
+      "svgBytes": 164664,
+      "gzipBytes": 34950,
+      "rasterRMSE": 0.003207501495497921
+    },
+    "casino-back": {
+      "url": "/textures/royal-flush/delivery/casino-back.svg?v=76e0060c37da",
+      "width": 720,
+      "height": 1080,
+      "originalWebpBytes": 149808,
+      "svgBytes": 3467,
+      "gzipBytes": 1196,
+      "rasterRMSE": 0.018167978583656097
+    }
+  },
+  "totals": {
+    "webpBytes": 1567930,
+    "gzipBytes": 343642
+  }
+}

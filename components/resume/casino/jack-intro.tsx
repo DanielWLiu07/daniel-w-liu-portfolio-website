@@ -1,5 +1,7 @@
 'use client'
 
+import { cardArtUrl } from './card-art-url'
+
 /**
  * Jack of Hearts / JACK OF ALL TRADES: a layered collage before the chip throw.
  * The royal-flush Jack artwork anchors the left with JACK pasted across it;
@@ -613,7 +615,7 @@ export default function JackIntro({
     // early lays the lockup out in fallback metrics and it never corrects itself
     Promise.all([
       loadRansomFaces().then(() => document.fonts.ready),
-      Promise.all([...['hearts', ...JACK_FAN.map(card => card.suit)].map(suit => `/textures/royal-flush/delivery/J-${suit}.webp`), '/textures/royal-flush/delivery/casino-back.webp', ...['10', 'Q', 'K', 'A'].flatMap(rank => ['hearts', 'spades'].map(suit => `/textures/royal-flush/delivery/${rank}-${suit}.webp`))].map(url => new THREE.TextureLoader().loadAsync(url))),
+      Promise.all([...['hearts', ...JACK_FAN.map(card => card.suit)].map(suit => cardArtUrl(`J-${suit}`)), cardArtUrl('casino-back'), ...['10', 'Q', 'K', 'A'].flatMap(rank => ['hearts', 'spades'].map(suit => cardArtUrl(`${rank}-${suit}`)))].map(url => new THREE.TextureLoader().loadAsync(url))),
     ]).then(([, maps]) => {
       if (dead || mine !== version.current || !group.current) { maps.forEach(map => map.dispose()); return }
       for (const map of maps) { map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 4 }

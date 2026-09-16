@@ -1,5 +1,7 @@
 'use client'
 
+import { loadSharedFont } from '@/lib/fonts/load-font'
+
 /**
  * "RESUME" written under the tumbling chip (caps like pomme's LOADING, every glyph
  * fitted to one measured height so a script face reads uniform), exactly pomme's LOADING lettering
@@ -18,7 +20,6 @@ import type { Landing, WordMotion, WordShot } from './stop-motion'
 import { SM_DEFAULTS, WORD_DEFAULTS, boilAt, landingFor, offscreenPlaneTravel, placeAt, slideAt, smFrame, smTime, wordAt, wordGroups, wordOf, wordShot } from './stop-motion'
 import { markPropMotion } from './prop-arrival'
 import { hoverCorrection, proximityInfluence } from './word-hover'
-import { loadCasinoFont } from './font-loader'
 
 const KFONT = "'KatieRoze', 'Marker Felt', 'Bradley Hand', 'Comic Sans MS', cursive"
 const FONT_URL = '/fonts/KatieRoze-display-512.woff2'
@@ -47,7 +48,7 @@ function ensureFont(): Promise<void> {
   if (!fontLoad) {
     fontLoad = (async () => {
       try {
-        await loadCasinoFont('KatieRoze', FONT_URL)
+        await loadSharedFont('KatieRoze', FONT_URL)
       } catch {
         /* falls back to the cursive stack */
       }

@@ -1,5 +1,6 @@
-import localFont from 'next/font/local'
+import styles from './shared-display.module.css'
 
-export const weddingDayFont = localFont({
-  src: '../../public/shared/fonts/weddingday-font/ancient-wedding-font/AncientWeddingDemoRegular-MAm1n.woff2',
-})
+export const weddingDayFont = {
+  className: styles.weddingDay,
+  style: { fontFamily: "'JkAncient', Arial, sans-serif" },
+}

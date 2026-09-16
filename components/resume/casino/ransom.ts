@@ -1,3 +1,4 @@
+import { loadSharedFont } from '@/lib/fonts/load-font'
 /**
  * Ransom-note lettering, shared.
  *
@@ -11,7 +12,6 @@
  */
 import * as THREE from 'three'
 import { JACK_FONTS } from './tune'
-import { loadCasinoFont } from './font-loader'
 
 /**
  * Every face is fine for lowercase; only some are fine for CAPITALS.
@@ -346,7 +346,7 @@ export function loadRansomFaces(): Promise<void> {
       await Promise.all(
         JACK_FONTS.map(async (f) => {
           try {
-            await loadCasinoFont(f.key, f.url)
+            await loadSharedFont(f.key, f.url)
           } catch {
             /* that one falls back; the others still load */
           }

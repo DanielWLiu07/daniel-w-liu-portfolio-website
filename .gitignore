@@ -50,6 +50,8 @@ public/_originals/
 # Intermediate dealer texture build; shipped output is the meshopt GLB/manifest.
 public/models/casino-dealer-v3-delivery.glb
 public/models/casino-dealer-v3-delivery.json
+public/models/casino-dealer-v3-experiment.glb
+public/models/casino-dealer-v3-experiment.json
 
 # original full-size fonts (keep locally for re-subsetting)
 /fonts-original/

@@ -1,0 +1,7 @@
+{
+  "model": "/models/resume-folder-meshopt.glb?v=03ec300343c7",
+  "compactBytes": 663436,
+  "bytes": 271680,
+  "compressedViews": 23,
+  "geometry": "meshopt v0 including sparse morph targets; byte-exact decode; no quantization or reordering"
+}

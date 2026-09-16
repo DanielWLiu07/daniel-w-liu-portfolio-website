@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useLayoutEffect, useMemo, useRef, type MutableRefObject } from 'react'
-import { useFrame } from '@react-three/fiber'
+import { useFrame, useLoader } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import { clone } from 'three/addons/utils/SkeletonUtils.js'
-import { Group, Mesh, MeshStandardMaterial, Texture, type Vector3, type Material } from 'three'
+import { Group, Mesh, MeshStandardMaterial, Texture, TextureLoader, type Vector3, type Material } from 'three'
 import { compGraph, compileComp, compileMaterial, graph, lit } from 'blender-to-threejs'
 import { inkUniform, lamp, LIT_MATERIALS, trackLit } from './materials'
 import { startupStage } from './startup-timing'
@@ -24,6 +24,7 @@ import { disposeDealerWrist } from './dealer-wrist'
 import { disposeDealerHandSkin } from './dealer-hand-skin'
 import { DealerBodyRig } from './dealer-idle'
 import { applyDealerPointAction, applyDealerCardAction, type DealerCardHandoff } from './dealer-card-handoff'
+import { DEALER_CARD_ART } from './dealer-shuffle'
 
 type DealerRenderMesh = { mesh: Mesh; skull: boolean; hat: boolean; cards: boolean }
 
@@ -48,6 +49,7 @@ export default function SkeletonDealer({ feltY, chordZ, rail, fit, fx, motionRef
   pointTarget?: MutableRefObject<Vector3 | null>
 }) {
   const { scene } = useGLTF(SKELETON_DEALER_URL)
+  const cardMaps = useLoader(TextureLoader, [...DEALER_CARD_ART])
   const { dealerSize, dealerX, dealerY, dealerZ, dealerYaw, dealerPitch, dealerRoll, dealerBodyAmount } = useTune()
   const group = useRef<Group>(null)
   const modelRef = useRef<Group>(null)
@@ -65,6 +67,7 @@ export default function SkeletonDealer({ feltY, chordZ, rail, fit, fx, motionRef
     poseDealerAtTable(model)
     const entrance = new DealerEntranceRig(model)
     const body = new DealerBodyRig(model)
+    body.shuffle.setArtwork(cardMaps)
     // This graph contains only per-pixel math: reuse its exact noise/edge in the
     // body material without adding a render pass or sampling a scene texture.
     const unusedSource = new Texture()
@@ -97,8 +100,9 @@ export default function SkeletonDealer({ feltY, chordZ, rail, fit, fx, motionRef
       return mat
     }
     const renderMeshes: DealerRenderMesh[] = []
-    model.traverse((object) => {
-      if (!(object instanceof Mesh)) return
+    model.traverse((node) => {
+      const object = node as Mesh
+      if (!object.isMesh) return
       const part = dealerPart(object), skull = isDealerSkull(object)
       renderMeshes.push({ mesh: object, skull, hat: part === 'Hat' || part === 'Hatband', cards: object.name.startsWith('DealerCards_') })
       object.userData.dealerSkull = skull
@@ -109,7 +113,7 @@ export default function SkeletonDealer({ feltY, chordZ, rail, fit, fx, motionRef
     })
     finishSetup()
     return { model, materials, entrance, body, renderMeshes, revealUniforms: reveal.uniforms }
-  }, [scene])
+  }, [scene, cardMaps])
   const appearance = useRef({ renderMeshes, revealUniforms })
   const placement = useMemo(() => dealerPlacement(feltY, chordZ, rail, fit,
     { dealerSize, dealerX, dealerY, dealerZ, dealerYaw, dealerPitch, dealerRoll }),

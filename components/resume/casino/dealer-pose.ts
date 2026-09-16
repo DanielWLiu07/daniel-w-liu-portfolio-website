@@ -7,12 +7,12 @@ import manifest from '@/public/models/casino-dealer-v3.json'
 import webManifest from '@/public/models/casino-dealer-v3-web.json'
 import compactManifest from '@/public/models/casino-dealer-v3-compact.json'
 import meshoptManifest from '@/public/models/casino-dealer-v3-meshopt.json'
-import leanManifest from '@/public/models/casino-dealer-v3-lean.json'
+import optimizedManifest from '@/public/models/casino-dealer-v3-1mb.json'
 import { DEALER_DEFAULTS, type DealerControls } from './dealer-layout'
 import { impactBurstMotion } from './impact-eye-motion'
 
 // A rebuilt authored model takes precedence until its delivery copy is regenerated.
-export const SKELETON_DEALER_URL = leanManifest.sourceModel === manifest.model ? leanManifest.model
+export const SKELETON_DEALER_URL = optimizedManifest.sourceModel === manifest.model ? optimizedManifest.model
   : meshoptManifest.sourceModel === manifest.model ? meshoptManifest.model
   : compactManifest.sourceModel === manifest.model ? compactManifest.model
   : webManifest.sourceModel === manifest.model ? webManifest.model : manifest.model

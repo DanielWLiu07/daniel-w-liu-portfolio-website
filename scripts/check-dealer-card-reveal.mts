@@ -81,12 +81,12 @@ for(const time of [0,10,20]) {
  assert.ok(Object.values(closest).every(gap=>gap<.004),`Visible finger pads remain close enough to support the paper at ${time}: ${JSON.stringify(closest)}`)
 }
 for(let i=0;i<=240;i++) {
- const age=i/120,fade=Math.min(1,age/1.4),weight=fade*fade*(3-2*fade)
+ const age=i/120,weight=1
  body.reset();body.apply(age+.5,weight,1,1,weight,age)
  if(i) fingers.forEach((f,j)=>{const step=f.quaternion.clone().normalize().angleTo(previous[j].clone().normalize());if(step>snapStep){snapStep=step;worstSnap=`${f.name} at ${age}`}})
  previous=fingers.map(f=>f.quaternion.clone())
  assert.equal(body.shuffle.group.visible,age>=DEALER_CARD_REVEAL_START,'Both cards appear on the snap')
- if(age>.96&&age<1.04) snapGap=Math.max(snapGap,left.tip('Thumb').distanceTo(left.tip('Middle').addScaledVector(left.frame().normal,-.025)))
+ if(age>DEALER_CARD_SNAP-.24&&age<DEALER_CARD_SNAP-.22) snapGap=Math.max(snapGap,left.tip('Thumb').distanceTo(left.tip('Middle').addScaledVector(left.frame().normal,-.025)))
  if(body.shuffle.group.visible) {
   const points=body.shuffle.cards.map(c=>c.getWorldPosition(new Vector3()))
   if(cardPrevious) points.forEach((p,j)=>{const distance=p.distanceTo(cardPrevious![j]);if(distance>travelStep){travelStep=distance;worstTravel=age}})
@@ -103,7 +103,7 @@ for(let i=0;i<=240;i++) {
  }
 }
 const releaseSamples=[DEALER_CARD_SNAP-.24,DEALER_CARD_SNAP+.04].map(age=>{
- const fade=Math.min(1,age/1.4),weight=fade*fade*(3-2*fade)
+ const weight=1
  body.reset();body.apply(age+.5,weight,1,1,weight,age)
  return {index:root.getObjectByName('LeftIndex1')!.quaternion.clone(),middle:left.hand.worldToLocal(root.localToWorld(left.tip('Middle')))}
 })
@@ -113,9 +113,9 @@ assert.equal(dealerCardReveal(DEALER_CARD_REVEAL_START-.001).visible,false)
 assert.equal(dealerCardReveal(DEALER_CARD_REVEAL_START).turn,0,'Cards materialize directly in the held orientation')
 assert.equal(dealerCardReveal(DEALER_CARD_REVEAL_START).slide,dealerCardReveal(Infinity).slide,'The magical appearance is at the pinch, without overhead travel')
 assert.equal(dealerCardReveal(DEALER_CARD_SNAP).visible,false,'Cards wait for the finger release and grip transition')
-assert.ok(dealerCardReveal(DEALER_CARD_REVEAL_START+.10).width<.75,'The cards do not jump to full width immediately')
-assert.equal(dealerCardReveal(DEALER_CARD_REVEAL_START+.25).width,1,'The unfold finishes before the fan settles')
-assert.ok(dealerCardReveal(DEALER_CARD_REVEAL_START+.42).fan>1,'Fan briefly overshoots before settling')
+assert.ok(dealerCardReveal(DEALER_CARD_REVEAL_START+.05).width<.75,'The cards do not jump to full width immediately')
+assert.equal(dealerCardReveal(DEALER_CARD_REVEAL_START+.17).width,1,'The unfold finishes before the fan settles')
+assert.ok(dealerCardReveal(DEALER_CARD_REVEAL_START+.24).fan>1,'Fan briefly overshoots before settling')
 assert.equal(dealerCardReveal(3).fan,1)
 console.log({cardThumbGapMM:thumbGap*1000,snapGapMM:snapGap*1000,thumbBendDegrees:bend*180/Math.PI,snapStepDegrees:snapStep*180/Math.PI,indexSupportMM:indexGap*1000,thumbAlignmentDegrees:thumbAlignment*180/Math.PI,cardStepMM:travelStep*1000,worstTravel,worstSnap})
 assert.ok(travelStep<.012,'After the snap, the cards stay continuously attached to the grip')

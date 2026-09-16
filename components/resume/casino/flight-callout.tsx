@@ -1,12 +1,13 @@
 'use client'
 
+import { loadSharedFont } from '@/lib/fonts/load-font'
+
 import { useEffect, useState, type RefObject } from 'react'
 import { useThree } from '@react-three/fiber'
 import { CASINO_PALETTE, compileMaterial, graph, materialUniforms } from 'blender-to-threejs'
 import * as THREE from 'three'
 import { register } from './materials'
 import { flightEditor } from './flight-editor'
-import { loadCasinoFont } from './font-loader'
 
 type Callout = 'roulette' | 'royal-flush'
 type Artwork = { material: THREE.Material; geometry: THREE.PlaneGeometry }
@@ -16,7 +17,7 @@ let fontLoad: Promise<void> | null = null
 
 function ensureCaptionFont(): Promise<void> {
   if (!fontLoad) fontLoad = (async () => {
-    await loadCasinoFont('JkFastBlaze', '/fonts/FAST%20BLAZE.woff2')
+    await loadSharedFont('JkFastBlaze', '/fonts/FAST%20BLAZE.woff2')
   })()
   return fontLoad
 }

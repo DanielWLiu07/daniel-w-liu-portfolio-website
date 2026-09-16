@@ -8,6 +8,7 @@ import {DealerEntranceRig,DEALER_ENTRANCE_END,DEALER_IDLE_START,dealerEntrance,e
 import {DealerFaceRig,facePose} from '../components/resume/face/face-rig'
 import {FACE_DEFAULTS} from '../components/resume/face/face-settings'
 import {applyDealerCardAction,DEALER_CARD_CATCH} from '../components/resume/casino/dealer-card-handoff'
+import {DEALER_CARD_REVEAL_START} from '../components/resume/casino/dealer-card-reveal'
 const loader=new GLTFLoader();loader.register(()=>({name:'T',loadTexture:()=>Promise.resolve(new Texture())}))
 const bytes=readFileSync('public/models/casino-dealer-v3.glb')
 const {scene:root}=await loader.parseAsync(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength),'')
@@ -49,7 +50,7 @@ const reports=new Map<string,{depth:number,time:number,min:number,max:number}>()
 for(const [caseIndex,config] of cases.entries()) for(const mode of (handoff?['approach','catch']:['idle','reveal'])) for(let sample=0;sample<=(mode==='idle'?720:mode==='catch'?280:mode==='approach'?90:160);sample++) {
  // One complete 30-second animation phase at every supported speed endpoint.
  const approachProgress=.85+.15*sample/90
- const time=mode==='idle'?sample/24/config.speed:mode==='approach'?(DEALER_CARD_CATCH+.55)*approachProgress-.55:(mode==='catch'?DEALER_CARD_CATCH:.9)+sample/120
+ const time=mode==='idle'?sample/24/config.speed:mode==='approach'?(DEALER_CARD_CATCH+.55)*approachProgress-.55:(mode==='catch'?DEALER_CARD_CATCH:DEALER_CARD_REVEAL_START-.1)+sample/120
  // Exercise the outer scene transform without changing the rig's local coordinates.
  if(stress) {
   actor.scale.setScalar(caseIndex%2?5:.25)
@@ -65,7 +66,7 @@ for(const [caseIndex,config] of cases.entries()) for(const mode of (handoff?['ap
   face.apply(time<DEALER_ENTRANCE_END?blendEntranceFace(entranceFace(FACE_DEFAULTS,time),facePose(FACE_DEFAULTS,seconds),dealerEntrance(time).idle):facePose(FACE_DEFAULTS,seconds))
   entrance.apply(time);applyDealerCardAction(body.shuffle,time,seconds*config.speed)
  } else if(mode==='idle')body.apply(time,config.amount,config.speed,config.acting)
- else {const f=Math.min(1,time/1.4),w=f*f*(3-2*f);body.apply(time+.5,config.amount*w,config.speed,config.acting,w,time)}
+ else body.apply(time+.5,config.amount,config.speed,config.acting,1,time)
  frames++
  if(!body.shuffle.group.visible&&mode!=='approach')continue
  visibleFrames++

@@ -1,0 +1,20 @@
+/* HTML and canvas lettering share the same public URLs and font bytes. */
+@font-face {
+  font-family: 'JkFastBlaze';
+  src: url('/fonts/FAST%20BLAZE.woff2') format('woff2');
+  font-display: swap;
+}
+@font-face {
+  font-family: 'JkMochibop';
+  src: url('/fonts/MochibopBold-Demo.woff2') format('woff2');
+  font-display: swap;
+}
+@font-face {
+  font-family: 'JkAncient';
+  src: url('/shared/fonts/weddingday-font/ancient-wedding-font/AncientWeddingDemoRegular-MAm1n.woff2') format('woff2');
+  font-display: swap;
+}
+.fredericka { font-family: 'JkFredericka', Arial, sans-serif; }
+.fastBlaze { font-family: 'JkFastBlaze', Arial, sans-serif; }
+.mochi { font-family: 'JkMochibop', Arial, sans-serif; }
+.weddingDay { font-family: 'JkAncient', Arial, sans-serif; }

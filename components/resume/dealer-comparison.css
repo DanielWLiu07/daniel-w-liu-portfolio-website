@@ -1,0 +1,21 @@
+.dealer-compare{min-height:100dvh;padding:92px clamp(16px,3vw,48px) 28px;background:#101613;color:#eee7d8;font-family:Arial,sans-serif}
+.dealer-compare header>a,.dealer-compare .download{color:#d9c48e;font-size:13px;text-decoration:none}
+.dealer-compare .eyebrow{color:#caac6c;font-size:11px;letter-spacing:2px;margin:24px 0 8px}
+.dealer-compare h1{font-size:clamp(24px,3vw,38px);line-height:1.2;margin:0 0 10px;font-weight:500}
+.dealer-compare header>p:last-child{color:#acb7af;font-size:14px;line-height:1.6;margin:0}
+.comparison-controls{display:flex;align-items:center;flex-wrap:wrap;gap:14px;margin:22px 0 18px}
+.comparison-controls [role=group]{display:flex;gap:4px;flex-wrap:wrap}
+.comparison-controls button{border:1px solid #405045;border-radius:5px;padding:8px 11px;color:#e7e9e0;background:#1c2921;cursor:pointer;font-size:13px}
+.comparison-controls button[aria-pressed=true]{background:#d2bd87;color:#172019;border-color:#d2bd87}
+.comparison-controls label{font-size:13px;display:flex;align-items:center;gap:7px}
+.comparison-controls input{accent-color:#d2bd87}
+.comparison-panels{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.comparison-panels section{border:1px solid #36473c;border-radius:10px;overflow:hidden;background:#161c1a}
+.panel-heading{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:18px 20px;border-bottom:1px solid #2a382e}
+.panel-heading h2{font-size:18px;font-weight:500;margin:0 0 6px}
+.panel-heading p{font-size:12px;color:#aab5ae;margin:0}
+.panel-heading strong{color:#dcc892;font-size:22px;font-weight:500;white-space:nowrap}
+.comparison-canvas{height:clamp(340px,54vh,680px);touch-action:none}
+.dealer-compare .download{display:block;padding:12px 20px;border-top:1px solid #2a382e}
+.dealer-compare footer{max-width:900px;color:#aab5ae;font-size:13px;line-height:1.7;margin-top:20px}
+@media(max-width:640px){.dealer-compare{padding-top:80px}.comparison-panels{gap:8px}.panel-heading{padding:12px 8px;align-items:flex-start;flex-direction:column}.panel-heading h2{font-size:14px}.panel-heading p{font-size:10px;line-height:1.5}.panel-heading strong{font-size:18px}.comparison-canvas{height:360px}.dealer-compare .download{font-size:11px;padding:12px 8px}}

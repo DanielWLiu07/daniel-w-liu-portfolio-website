@@ -1,5 +1,6 @@
 'use client'
 
+
 /**
  * The resume folder: Daniel's own Blender model, split into leaves (scratchpad/split_folder.py) and
  * reassembled here so it opens.
@@ -47,7 +48,7 @@ export const FOLDER_TIME = { open: 1.05, shut: 0.75 }
  * window shape, and ?tune puts sliders on all of them.
  */
 /** Daniel's folder, split into clean leaves in Blender (see scratchpad/split_folder.py) */
-export const FOLDER_URL = '/models/resume-folder-split.glb'
+export const FOLDER_URL = '/models/resume-folder-meshopt.glb?v=03ec300343c7'
 
 // the model's proportions (Blender: leaf 2.0 x 1.837 local, 0.625 scale -> 1.25 x 1.148, thickness 0.028)
 const LEAF_W = 1.25

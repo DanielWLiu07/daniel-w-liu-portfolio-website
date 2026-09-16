@@ -1,5 +1,6 @@
-import localFont from 'next/font/local'
+import styles from './shared-display.module.css'
 
-export const mochiFont = localFont({
-  src: '../../public/fonts/MochibopBold-Demo.woff2',
-})
+export const mochiFont = {
+  className: styles.mochi,
+  style: { fontFamily: "'JkMochibop', Arial, sans-serif" },
+}

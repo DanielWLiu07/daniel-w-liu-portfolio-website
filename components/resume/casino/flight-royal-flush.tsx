@@ -1,5 +1,7 @@
 'use client'
 
+import { cardArtUrl } from './card-art-url'
+
 import { useEffect, useMemo, useRef, type MutableRefObject } from 'react'
 import { useFrame, useLoader, useThree } from '@react-three/fiber'
 import { CASINO_PALETTE, compileMaterial, graph, materialUniforms } from 'blender-to-threejs'
@@ -14,7 +16,7 @@ import { CardDepthStack } from './card-depth-stack'
 import { ScreenExit } from './screen-exit'
 import { DEALER_CARD_CATCH, FLIGHT_CARD_TO_GRIP, incomingCardMatrix, type DealerCardHandoff } from './dealer-card-handoff'
 
-const FACES = ROYAL_FLUSH.map(rank => `/textures/royal-flush/delivery/${rank}-hearts.webp`)
+const FACES = ROYAL_FLUSH.map(rank => cardArtUrl(`${rank}-hearts`))
 const TRANSFORM = {
   x: 'rfX', y: 'rfY', depth: 'rfDepth', size: 'rfSize',
   sx: 'rfScaleX', sy: 'rfScaleY', sz: 'rfScaleZ', tilt: 'rfTilt', yaw: 'rfYaw', bank: 'rfBank',
