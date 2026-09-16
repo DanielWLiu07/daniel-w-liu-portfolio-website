@@ -28,6 +28,30 @@ async function check() {
     physics.dispose()
     console.log({ scale, penetration, received })
   }
+  // Repeated right-side punches refresh the table through the controller.
+  // Resting chips across the table must stay asleep unless a chip reaches them.
+  const isolated = createChipController(() => ({ radius: 20, chord: -15, matrix: new Matrix4().makeRotationX(-Math.PI / 2) }), () => 0.55)
+  const resting = new Group(), punched = new Group()
+  resting.position.x = -6; punched.position.x = 6
+  const untouched = new Mesh(), target = new Mesh()
+  untouched.position.y = target.position.y = 0.065
+  resting.add(untouched); punched.add(target)
+  const removeResting = isolated.register({ root: resting, meshes: [untouched], radius: 0.55, height: 0.13 })
+  const removePunched = isolated.register({ root: punched, meshes: [target], radius: 0.55, height: 0.13 })
+  isolated.impact(target.getWorldPosition(new Vector3()), 0.1, new Vector3(0, -0.1, -1))
+  for (let i = 0; i < 200 && !isolated.active; i++) await new Promise(resolve => setTimeout(resolve, 5))
+  assert.ok(isolated.active)
+  isolated.step(1 / 120, 10)
+  const restingPosition = untouched.position.clone(), restingRotation = untouched.quaternion.clone()
+  let distantDrift = 0
+  for (let i = 0; i < 240; i++) {
+    if (i % 30 === 0) isolated.impact(target.getWorldPosition(new Vector3()), 0.1, new Vector3(0, -0.1, -1))
+    isolated.step(1 / 120, 10 + i / 120)
+    distantDrift = Math.max(distantDrift, untouched.position.distanceTo(restingPosition))
+    assert.ok(untouched.quaternion.angleTo(restingRotation) < 1e-6, 'Remote punches do not rotate untouched chips')
+  }
+  assert.ok(distantDrift < 1e-6, `Remote punches do not wake untouched chips: drift ${distantDrift}`)
+  removeResting(); removePunched(); isolated.dispose()
   const controller = createChipController(() => ({ radius: 20, chord: -15, matrix: new Matrix4().makeRotationX(-Math.PI / 2) }), () => 0.55)
   const left = new Group(), right = new Group()
   left.position.x = -2; right.position.x = 0

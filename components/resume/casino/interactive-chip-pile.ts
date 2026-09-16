@@ -38,6 +38,7 @@ export async function createChipPile(homes: { position: Vector3; quaternion: Qua
   world.integrationParameters.numAdditionalFrictionIterations = 4
   world.integrationParameters.maxCcdSubsteps = 4
   world.integrationParameters.allowedLinearError = radius * 0.001
+  let currentTableVertices = tableVertices.slice()
   const tableShape = tableCollider(tableVertices)
   const table = world.createCollider(tableShape.setFriction(0.75).setRestitution(0.02))
   // This is the room floor, well below the table—not an invisible extension of
@@ -59,7 +60,12 @@ export async function createChipPile(homes: { position: Vector3; quaternion: Qua
   const stable = homes.map(home => ({ position: home.position.clone(), quaternion: home.quaternion.clone(), age: 0 }))
   const simulation = {
     setTable(vertices: Float32Array) {
+      // Replacing a fixed collider wakes every resting body touching it. A
+      // punch refreshes the table transform, but must not wake distant piles
+      // when the actual surface has not changed.
+      if (vertices.length === currentTableVertices.length && vertices.every((v, i) => v === currentTableVertices[i])) return
       table.setShape(tableCollider(vertices).shape)
+      currentTableVertices = vertices.slice()
     },
     kick(index: number, direction: Vector3, strength = 1, point?: Vector3): void {
       const body = bodies[index]
