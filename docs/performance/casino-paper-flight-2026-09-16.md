@@ -18,3 +18,11 @@ Only the released paper cards participate in this simulation. The foreground roy
 Temporary evidence: `/private/tmp/paper-browser-{1,4}.json`, `/private/tmp/check-paper-browser.cjs`, `/private/tmp/check-paper-contacts.mts`, `/private/tmp/paper-{rise,apex,fall}.png`. Viewport tests use a desktop GPU, not physical mobile hardware. Timing-specific browser checks used local production builds; no claim of a startup-speed gain.
 
 Final moving-sequence validation captured 365 frames and checked 807,015 card pairs: zero visible-stock OBB intersections, zero rounded-face intersections, and no browser errors. Earlier candidates exposed brief starting/edge contacts; those candidates were not deployed. The final normal/4× CPU runs again matched all 67 world matrices exactly. Full temporary sequence: `/private/tmp/paper-sequence.json`; validator: `/private/tmp/check-paper-sequence-contacts.mts`. Final held view: `/private/tmp/paper-final-1.png`.
+
+## Follow-up: let the camera overtake the wall
+
+The broad launch carried much of the wall near the camera, weakening the sense of climbing. Pickup now affects a smaller area at lower speed, with less sideways scatter. Outer stock holds for up to 0.8 seconds before releasing, providing a stationary reference as the camera passes. The existing coin and camera choreography remains the source of the ascent.
+
+Delayed stock uses kinematic colliders until release, then receives a new dynamic body at the held pose. An isolated-body regression caught the bundled Rapier runtime leaving a body inactive after a direct kinematic-to-dynamic type switch. Contact margins were adjusted for the new interactions between moving and held stock.
+
+Validation: production build/TypeScript and the physics checks passed, including local upward pickup, delayed outer release, frame-gap determinism and reverse replay. The final moving browser capture checked 365 frames / 807,015 pairs with zero visible-stock OBB or rounded-face intersections and no browser errors. These are bounded checks on a desktop GPU, not a guarantee across every device or tuning configuration.

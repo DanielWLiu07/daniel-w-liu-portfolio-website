@@ -11,8 +11,8 @@ const STEP = 1 / 480
 export class PaperFlight {
   private world: R.World | null = null
   private ticks = 0
-  private seeds: { p: THREE.Vector3; q: THREE.Quaternion; size: THREE.Vector3; velocity: THREE.Vector3; spin: THREE.Vector3; parts: { mesh: THREE.Mesh; relative: THREE.Matrix4 }[] }[] = []
-  private bodies: { body: R.RigidBody; previousP: THREE.Vector3; previousQ: THREE.Quaternion }[] = []
+  private seeds: { p: THREE.Vector3; q: THREE.Quaternion; size: THREE.Vector3; velocity: THREE.Vector3; delay: number; spin: THREE.Vector3; parts: { mesh: THREE.Mesh; relative: THREE.Matrix4 }[] }[] = []
+  private bodies: { body: R.RigidBody; released: boolean; previousP: THREE.Vector3; previousQ: THREE.Quaternion }[] = []
   private matrix = new THREE.Matrix4()
   private inverse = new THREE.Matrix4()
   private pose = new THREE.Matrix4()
@@ -35,16 +35,21 @@ export class PaperFlight {
       card.matrixWorld.decompose(p, q, scale)
       if (!card.geometry.boundingBox) card.geometry.computeBoundingBox()
       const size = card.geometry.boundingBox!.getSize(new THREE.Vector3()).multiply(scale)
-      size.x += .03; size.y += .03 // keep numerical contact tolerance outside the printed edges
-      size.z = Math.max(size.z, .2) // invisible contact margin covers fast rotating edges
-      // Nearby paper inherits the punch; distant wall pieces peel away and fall.
+      size.x += .1; size.y += .1 // keep numerical contact tolerance outside the printed edges
+      size.z = Math.max(size.z, .4) // invisible contact margin covers fast rotating edges
+      // The coin punctures a small area; it does not lift the whole wall.
+      // Outer cards stay as a height reference while the lens climbs past,
+      // then peel away after the pressure wave reaches them.
       const distance = Math.hypot(p.x - centre.x, p.y - centre.y)
-      const pickup = Math.exp(-distance * distance / 50) * (1.08 + (index * 11 % 7) * .035)
-      const side = ((index * 13 % 17) - 8) * .11
-      const velocity = new THREE.Vector3(side + (p.x - centre.x) * .6, speed * pickup, (index % 5 - 2) * .35)
-      const spin = new THREE.Vector3((index % 3 - 1) * .7, (index % 2 === 0 ? 7 : 1.2) * (index % 4 < 2 ? 1 : -1), (index % 5 - 2) * .45)
+      const pickup = .6 * Math.exp(-distance * distance / 9)
+      const delay = Math.min(.8, Math.max(0, distance - 1.25) * .11)
+      const side = ((index * 13 % 17) - 8) * .025
+      const velocity = new THREE.Vector3(side + (p.x - centre.x) / Math.max(1, distance) * .45,
+        speed * pickup, (index % 5 - 2) * .08)
+      const spin = new THREE.Vector3((index % 3 - 1) * .35,
+        (index % 2 === 0 ? 7 : 1.2) * (index % 4 < 2 ? 1 : -1), (index % 5 - 2) * .22)
       const rigid = new THREE.Matrix4().compose(p, q, new THREE.Vector3(1, 1, 1)).invert()
-      this.seeds.push({ p, q, size, velocity, spin, parts: parts.map(mesh => {
+      this.seeds.push({ p, q, size, velocity, delay, spin, parts: parts.map(mesh => {
         mesh.updateWorldMatrix(true, false)
         return { mesh, relative: new THREE.Matrix4().multiplyMatrices(rigid, mesh.matrixWorld) }
       }) })
@@ -82,20 +87,27 @@ export class PaperFlight {
     this.world.integrationParameters.maxCcdSubsteps = 4
     this.ticks = 0
     this.bodies = this.seeds.map(seed => {
-      const body = this.world!.createRigidBody(R.RigidBodyDesc.dynamic()
-        .setTranslation(seed.p.x, seed.p.y, seed.p.z).setRotation(seed.q)
-        .setLinearDamping(.35).setAngularDamping(2).setCcdEnabled(true))
-      this.world!.createCollider(R.ColliderDesc.cuboid(seed.size.x / 2, seed.size.y / 2, seed.size.z / 2)
-        .setMass(.01).setFriction(.25).setRestitution(.18), body)
-      return { body, previousP: seed.p.clone(), previousQ: seed.q.clone() }
+      const body = this.createBody(seed, seed.delay === 0)
+      return { body, released: seed.delay === 0, previousP: seed.p.clone(), previousQ: seed.q.clone() }
     })
     this.world.gravity = { x: 0, y: -40, z: 0 }
     this.bodies.forEach((b, i) => {
       b.previousP.copy(b.body.translation())
       b.previousQ.copy(b.body.rotation())
-      b.body.setLinvel(this.seeds[i].velocity, true)
-      b.body.setAngvel(this.seeds[i].spin, true)
+      if (b.released) {
+        b.body.setLinvel(this.seeds[i].velocity, true)
+        b.body.setAngvel(this.seeds[i].spin, true)
+      }
     })
+  }
+
+  private createBody(seed: typeof this.seeds[number], released: boolean) {
+    const body = this.world!.createRigidBody((released ? R.RigidBodyDesc.dynamic() : R.RigidBodyDesc.kinematicPositionBased())
+      .setTranslation(seed.p.x, seed.p.y, seed.p.z).setRotation(seed.q)
+      .setLinearDamping(.35).setAngularDamping(2).setCcdEnabled(true))
+    this.world!.createCollider(R.ColliderDesc.cuboid(seed.size.x / 2, seed.size.y / 2, seed.size.z / 2)
+      .setMass(.01).setFriction(.25).setRestitution(.18), body)
+    return body
   }
 
   sample(time: number) {
@@ -106,7 +118,18 @@ export class PaperFlight {
     const ticks = Math.ceil(target)
     if (ticks < this.ticks) this.reset()
     while (this.ticks < ticks) {
-      for (const b of this.bodies) {
+      for (let i = 0; i < this.bodies.length; i++) {
+        const b = this.bodies[i], seed = this.seeds[i]
+        if (!b.released && this.ticks * STEP >= seed.delay) {
+          // Recreate at the held pose so Rapier registers a fresh active body.
+          // Switching an isolated kinematic body to dynamic can leave it out
+          // of the active simulation islands in the bundled runtime.
+          this.world!.removeRigidBody(b.body)
+          b.body = this.createBody(seed, true)
+          b.body.setLinvel(seed.velocity, true)
+          b.body.setAngvel(seed.spin, true)
+          b.released = true
+        }
         b.previousP.copy(b.body.translation())
         b.previousQ.copy(b.body.rotation())
       }
