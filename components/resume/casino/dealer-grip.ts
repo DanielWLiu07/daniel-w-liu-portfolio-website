@@ -89,7 +89,7 @@ export class DealerHandGrip {
     // The index bends gently behind the overlap. Each spare finger closes a
     // little farther toward the pinky, rather than repeating one rigid claw.
     const poses=this.side==='Left'
-      ? [[12,18,12],[16,24,3],[58,80,42],[64,84,46],[68,88,50]]
+      ? [[12,18,12],[16,28,12],[58,80,42],[64,84,46],[68,88,50]]
       : [[24,22,16],[8,12,8],[12,18,10],[24,46,32],[30,54,38]]
     for(const {bone,home,axis,fanAxis,cardFan} of this.fingers) {
       const digit=['Thumb','Index','Middle','Ring','Pinky'].findIndex(name=>bone.name.includes(name))

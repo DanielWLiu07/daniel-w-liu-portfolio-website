@@ -12,7 +12,7 @@ export const DEALER_SHUFFLE_SECONDS=10
 export const DEALER_CARD_COUNT=2
 export const DEALER_CARD_THICKNESS=.00054
 // The thumb mesh is wider than its tip joint; clearance includes its full pad.
-export const DEALER_CARD_PAD=.0135
+export const DEALER_CARD_PAD=.014
 const LENGTH=.130,WIDTH=LENGTH*2/3,H=DEALER_CARD_THICKNESS
 /** Download face plates only; the ornate spade back is shared with the opening wall. */
 export const DEALER_CARD_ART=[
@@ -135,12 +135,11 @@ export class DealerShuffleRig {
       const index=this.root.getObjectByName('LeftIndex2')!
       const cardFront=this.root.worldToLocal(index.localToWorld(new Vector3(0,.02,0))).sub(this.root.worldToLocal(index.getWorldPosition(new Vector3()))).normalize()
       const cardRight=up.clone().cross(cardFront).normalize(),cardUp=cardFront.clone().cross(cardRight).normalize()
-      // Pinch against the middle index pad; its relaxed distal segment braces
-      // the back of the cards instead of curling into a fingertip hook.
-      const indexPad=this.root.worldToLocal(index.localToWorld(new Vector3(0,.012,0))).addScaledVector(cardUp,.0115)
-      // Run the thumb pad up the lower overlap rather than hooking its last
-      // joint sideways across the index. The contact point stays fixed.
-      const thumbDirection=cardFront.clone().multiplyScalar(.92).addScaledVector(cardRight,-.35).addScaledVector(cardUp,-.12).normalize()
+      // Set the paper against the curled index pad, leaving clearance for
+      // its distal segment throughout the receiving gesture.
+      const indexPad=this.root.worldToLocal(index.localToWorld(new Vector3(0,.012,0))).addScaledVector(cardUp,.0162)
+      // Turn the thumb inward across the lower overlap to close the pinch.
+      const thumbDirection=cardFront.clone().multiplyScalar(.92).addScaledVector(cardRight,-.35).addScaledVector(cardUp,-.10).normalize()
       const pinch=indexPad.addScaledVector(cardRight,.012).addScaledVector(cardFront,-.008).addScaledVector(cardUp,DEALER_CARD_PAD+.001)
       grip.pinchThumb(pinch,weight,cardUp,thumbDirection,true)
       const orientation=new Quaternion().setFromRotationMatrix(new Matrix4().makeBasis(cardRight,cardUp,cardFront))

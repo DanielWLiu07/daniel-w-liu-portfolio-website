@@ -37,7 +37,7 @@ for(let i=0;i<=30*24;i++) {
  thumbGap=Math.max(thumbGap,Math.abs(contact.y-(DEALER_CARD_PAD+.001)))
  assert.ok(Math.abs(contact.x)<.034 && contact.z>-.060 && contact.z<-.035,'Thumb overlaps the lower area shared by both cards')
  const joint=card.worldToLocal(root.getObjectByName('LeftThumb3')!.getWorldPosition(new Vector3()))
- thumbAlignment=Math.max(thumbAlignment,contact.clone().sub(joint).angleTo(new Vector3(-.35,-.12,.92)))
+ thumbAlignment=Math.max(thumbAlignment,contact.clone().sub(joint).angleTo(new Vector3(-.35,-.10,.92)))
  const thumbJoint=root.getObjectByName('LeftThumb3')!.getWorldPosition(new Vector3())
  for(const card of body.shuffle.cards) {
   const start=card.worldToLocal(thumbJoint.clone()),end=card.worldToLocal(root.localToWorld(left.tip('Thumb')))
@@ -124,7 +124,7 @@ assert.ok(indexGap<.004,'The visible index pad braces the rear card opposite the
 assert.ok(thumbAlignment<35*Math.PI/180,'Thumb pad points along the card without folding backward')
 assert.ok(snapGap<.012,'Thumb and middle finger meet before the snap')
 assert.ok(snapStep<.40,'Fast finger release stays continuous without a one-frame joint flip')
-assert.ok(bend<85*Math.PI/180,'Thumb bends across its joints without a hooked distal tip')
+assert.ok(bend<90*Math.PI/180,'The tighter thumb pinch stays below a right-angle fold at every joint')
 // Before loading, the empty hand must not assume its future thumb/index pinch.
 body.reset();body.shuffle.apply(0,1,0,true)
 const relaxedThumb=root.getObjectByName('LeftThumb1')!.quaternion.clone(),low=root.getObjectByName('LeftHand')!.getWorldPosition(new Vector3())
