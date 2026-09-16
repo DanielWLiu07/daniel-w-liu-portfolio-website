@@ -20,7 +20,7 @@ import { loadRansomFaces, ransomPick, ransomScrap, rnd } from './ransom'
 import { beatHold, beatTime, camLift, getLetter, getTune, JACK_FONTS, popUndo, pushUndo, setLetter, setTune, takeRecentre, TUNE_DEFAULTS, TUNE_RANGES, undoTune, useTune, type Tune } from './tune'
 import { isJackEditor, subscribeJackClock } from './jack-editor-clock'
 import { JACK_PARTS, jackSceneEditor, registerJackPart } from './jack-scene-editor'
-import { PaperFlight, paperPhysicsReady } from './paper-flight'
+import { PaperFlight } from './paper-flight'
 import { ScreenExit } from './screen-exit'
 import { PORTRAIT_JACK_CARRIERS } from './responsive-layout'
 import { jackStraightAt, jackRedBackAt, jackSeedAt, jackBlastAt, JACK_SEED_LEAD } from './jack-composition'
@@ -614,7 +614,7 @@ export default function JackIntro({
     // waits on document.fonts so every word is MEASURED against the face it will be drawn in; measuring
     // early lays the lockup out in fallback metrics and it never corrects itself
     Promise.all([
-      Promise.all([loadRansomFaces().then(() => document.fonts.ready), paperPhysicsReady]),
+      loadRansomFaces().then(() => document.fonts.ready),
       Promise.all([...['hearts', ...JACK_FAN.map(card => card.suit)].map(suit => cardArtUrl(`J-${suit}`)), cardArtUrl('casino-back'), ...['10', 'Q', 'K', 'A'].flatMap(rank => ['hearts', 'spades'].map(suit => cardArtUrl(`${rank}-${suit}`)))].map(url => loadCardArtwork(url))),
     ]).then(([, maps]) => {
       if (dead || mine !== version.current || !group.current) return
@@ -1389,22 +1389,22 @@ export default function JackIntro({
     if (poseTime === undefined && t >= prepareAt) {
       const preparedNow = !b.flight.active
       if (preparedNow) {
-        // Prepare the exact launch pose during the back flip so collision
-        // packing does not shift the whole field on the release frame.
+        // Prepare the exact launch pose during the back flip so depth
+        // spacing does not shift the whole field on the release frame.
         animate(state, 0, impact.at)
         g.updateWorldMatrix(true, true)
         b.flight.start(b.bodies, impact.speed, g.getWorldPosition(new THREE.Vector3()), g.getWorldQuaternion(new THREE.Quaternion()))
       }
       if (t < impact.at) {
         // Restore this frame after sampling the future launch, then ease only
-        // the required depth clearance into its existing authored motion.
+        // the required depth spacing into its existing authored motion.
         if (preparedNow) animate(state, 0, t)
         b.flight.stage((t - prepareAt) / (impact.at - prepareAt))
         g.updateWorldMatrix(true, true)
         return
       }
       b.flight.sample(t - impact.at)
-      // All compositor passes must see the new rigid poses on the release frame.
+      // All compositor passes must see the new authored poses on the release frame.
       g.updateWorldMatrix(true, true)
       g.userData.cardRenderLayer = 1
       for (const body of b.bodies) body[0].traverse(object => {
