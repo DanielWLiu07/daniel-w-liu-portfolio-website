@@ -17,8 +17,8 @@ export const JACK_FONTS: { key: string; label: string; url: string }[] = [
 
 export const CASINO_STARTUP_IMAGES = [
   '/resume/resume-page1-lossless.webp',
-  '/textures/royal-flush/casino-back.webp',
-  ...['hearts', 'spades'].flatMap(suit => ['10', 'J', 'Q', 'K', 'A'].map(rank => `/textures/royal-flush/${rank}-${suit}.webp`)),
-  '/textures/royal-flush/J-clubs.webp',
-  '/textures/royal-flush/J-diamonds.webp',
+  '/textures/royal-flush/delivery/casino-back.webp',
+  ...['hearts', 'spades'].flatMap(suit => ['10', 'J', 'Q', 'K', 'A'].map(rank => `/textures/royal-flush/delivery/${rank}-${suit}.webp`)),
+  '/textures/royal-flush/delivery/J-clubs.webp',
+  '/textures/royal-flush/delivery/J-diamonds.webp',
 ]

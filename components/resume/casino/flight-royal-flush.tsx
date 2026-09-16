@@ -14,7 +14,7 @@ import { CardDepthStack } from './card-depth-stack'
 import { ScreenExit } from './screen-exit'
 import { DEALER_CARD_CATCH, FLIGHT_CARD_TO_GRIP, incomingCardMatrix, type DealerCardHandoff } from './dealer-card-handoff'
 
-const FACES = ROYAL_FLUSH.map(rank => `/textures/royal-flush/${rank}-hearts.webp`)
+const FACES = ROYAL_FLUSH.map(rank => `/textures/royal-flush/delivery/${rank}-hearts.webp`)
 const TRANSFORM = {
   x: 'rfX', y: 'rfY', depth: 'rfDepth', size: 'rfSize',
   sx: 'rfScaleX', sy: 'rfScaleY', sz: 'rfScaleZ', tilt: 'rfTilt', yaw: 'rfYaw', bank: 'rfBank',

@@ -209,6 +209,7 @@ export const HAND = experiences.filter((e) => !e.comingSoon)
 /** Face textures load once; sRGB so the art keeps its colour before quantise. */
 function useCardFaces() {
   return useMemo(() => {
+    if (SET_ONLY) return [] // Role cards are not rendered in the public casino set.
     const loader = new THREE.TextureLoader()
     return HAND.map((e) => {
       const t = loader.load(e.logo ?? '/resume/button_img/waterloo_selected.webp')

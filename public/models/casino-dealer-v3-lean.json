@@ -1,0 +1,13 @@
+{
+  "sourceModel": "/models/casino-dealer-v3.glb?v=f2ac98e82c2d",
+  "sourceSha256": "f2ac98e82c2dd48b7e1b19a38a12adb9332bd56cc5ee84199bb06b90fa96af61",
+  "model": "/models/casino-dealer-v3-lean.glb?v=928d1fba3d46",
+  "sourceBytes": 11523332,
+  "bytes": 2435548,
+  "originalImageBytes": 7547653,
+  "optimizedImageBytes": 83194,
+  "texture": "1024px WebP quality76 from original PNG; geometry/rig/morph data unchanged",
+  "compactBytes": 4617084,
+  "compressedViews": 232,
+  "geometry": "meshopt v0 including sparse morph targets; byte-exact decode; no quantization or reordering"
+}
