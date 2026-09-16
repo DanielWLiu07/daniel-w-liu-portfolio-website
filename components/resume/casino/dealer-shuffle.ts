@@ -138,7 +138,9 @@ export class DealerShuffleRig {
       // Pinch against the middle index pad; its relaxed distal segment braces
       // the back of the cards instead of curling into a fingertip hook.
       const indexPad=this.root.worldToLocal(index.localToWorld(new Vector3(0,.012,0))).addScaledVector(cardUp,.013)
-      const thumbDirection=cardFront.clone().multiplyScalar(.55).addScaledVector(cardRight,-.83).addScaledVector(cardUp,-.10).normalize()
+      // Run the thumb pad up the lower overlap rather than hooking its last
+      // joint sideways across the index. The contact point stays fixed.
+      const thumbDirection=cardFront.clone().multiplyScalar(.92).addScaledVector(cardRight,-.35).addScaledVector(cardUp,-.12).normalize()
       const pinch=indexPad.addScaledVector(cardRight,.012).addScaledVector(cardFront,-.008).addScaledVector(cardUp,DEALER_CARD_PAD+.001)
       grip.pinchThumb(pinch,weight,cardUp,thumbDirection,true)
       const orientation=new Quaternion().setFromRotationMatrix(new Matrix4().makeBasis(cardRight,cardUp,cardFront))

@@ -32,19 +32,21 @@ export function dealerEntrance(age:number) {
   // Smooth compression and recovery give contact weight without an abrupt
   // velocity change at the instant the neck catches the skull.
   const seatBounce=-.012*phase(t,HEAD_SEATED,2.30)*(1-phase(t,2.30,2.70))
-  // A cocky swoop stays on the free side of the skull and receiving cards.
-  // Finish the brim flourish while high, then descend squarely onto the crown.
-  const u=phase(t,1.95,3.50),v=1-u,drop=phase(t,3.50,HAT_LAND)
-  const hatOffset=new Vector3(-1.05,8,-.10).multiplyScalar(v*v*v)
-    .addScaledVector(new Vector3(-.90,.95,-.12),3*v*v*u)
-    .addScaledVector(new Vector3(-.24,.46,-.04),3*v*u*u)
-    .addScaledVector(new Vector3(0,.15,0),u*u*u)
+  // Keep the performance in view: a fast side sweep, a cocky brim tip,
+  // then a decisive seat. The rotation finishes above the crown before contact.
+  const u=phase(t,1.95,3.50),v=1-u,drop=phase(t,3.62,HAT_LAND)
+  const hatOffset=new Vector3(-.82,1.65,-.10).multiplyScalar(v*v*v)
+    .addScaledVector(new Vector3(-1.02,.68,.10),3*v*v*u)
+    .addScaledVector(new Vector3(.28,.64,.04),3*v*u*u)
+    .addScaledVector(new Vector3(0,.32,0),u*u*u)
     .multiplyScalar(1-drop)
-  const hatSettle=phase(t,HAT_LAND,4.57)*(1-phase(t,4.57,5.02))
-  hatOffset.y+=.028*hatSettle
+  const hatSettle=phase(t,HAT_LAND,4.54)*(1-phase(t,4.54,4.92))
+  hatOffset.y+=6.35*(1-phase(t,.8,1.95))
+  hatOffset.y-=.17*phase(t,3.30,3.50)*(1-drop)
+  hatOffset.y+=.055*hatSettle
   const flourish=Math.sin(Math.PI*u)
-  // A small brim tip remains visible after the broad, offscreen wind-up.
-  const tip=Math.sin(Math.PI*phase(t,3.03,3.50))**2
+  const tip=Math.sin(Math.PI*phase(t,2.95,3.50))**2
+  const spin=phase(t,2.02,3.28)
   const impact=1-phase(t,.46,.94)
   const nod=phase(t,1.64,HEAD_SEATED)*(1-phase(t,HEAD_SEATED,2.68))
   const lift=phase(t,.35,1.16)*(1-seat)
@@ -66,11 +68,11 @@ export function dealerEntrance(age:number) {
     headRoll:(6*Math.sin(t*5)+3*Math.sin(t*11)-18*Math.exp(-t*8))*impact+(2.8*Math.sin(t*2.5)-2*nod+3*Math.sin(Math.PI*u))*(1-impact),
     squash:(.5*Math.sin(t*6)+.15*Math.sin(t*13)+.45*Math.sin(t*19)*Math.exp(-t*5))*impact+(.28*Math.sin(t*3.5)-seatBounce*12-.08*hatSettle)*(1-impact),
     hatOffset,
-    hatAttach:phase(t,2.95,3.48),
+    hatAttach:phase(t,3.50,3.72),
     hatScale:1,
-    hatTurn:.62*(1-u)-.25*flourish-.40*tip,
-    hatTilt:-.72*(1-u)+.30*Math.sin(2*Math.PI*u)*flourish+.22*tip,
-    hatPitch:.22*flourish,
+    hatTurn:2*Math.PI*(1-spin)-.48*tip,
+    hatTilt:-.68*(1-u)+.40*Math.sin(2*Math.PI*u)*flourish+.28*tip,
+    hatPitch:.26*flourish+.16*tip,
   }
 }
 
@@ -86,11 +88,12 @@ export function entranceFace(settings:FaceSettings,age:number):FacePose {
   const nod=phase(t,1.64,HEAD_SEATED)*(1-phase(t,HEAD_SEATED,2.68))
   const hatDip=phase(t,4.12,HAT_LAND)*(1-phase(t,HAT_LAND,4.95))
   const assembly=phase(t,.46,.94)
+  const pleased=phase(t,4.48,4.60)*(1-phase(t,4.70,4.98))
   const seatBlink=.45*phase(t,2.08,2.14)*(1-phase(t,2.19,2.35))
   return facePose({...settings,idle:false,headYaw:-5*wink+(5-2*assembly)*Math.sin(t*(3.4-.9*assembly)),headPitch:4*Math.sin(t*4.8)*(1-assembly)+(2*Math.sin(t*2.4)+4*nod+5*hatDip)*assembly-7*hatLook,headRoll:state.headRoll-5*wink,
-    jawOpen:.16+.32*surprise-.06*grin+.07*Math.sin(t*7)+.16*hatLook,jawSide:.22*wink+.16*Math.sin(t*5),smile:.48+.32*grin+.12*Math.sin(t*4),squash:state.squash-.15*wink,
+    jawOpen:.16+.32*surprise-.06*grin+.07*Math.sin(t*7)+.16*hatLook,jawSide:.22*wink+.16*Math.sin(t*5),smile:.48+.32*grin+.12*Math.sin(t*4)+.15*pleased,squash:state.squash-.15*wink,
     skullWidth:.20*Math.sin(t*5-.3)+.12*grin,socketLeft:.2+.25*Math.sin(t*5),socketRight:.22+.4*surprise+.2*wink+.2*Math.sin(t*4+.6),
-    blinkLeft:Math.max(wink,seatBlink),blinkRight:seatBlink,browLeft:.35-.6*wink+.25*Math.sin(t*4),browRight:.35+.5*wink+.18*Math.sin(t*5+.3),tiltLeft:.12*Math.sin(t*3),tiltRight:-.18*wink},0)
+    blinkLeft:Math.max(wink,seatBlink,.8*pleased),blinkRight:seatBlink,browLeft:.35-.6*wink+.25*Math.sin(t*4),browRight:.35+.5*wink+.18*Math.sin(t*5+.3)+.25*pleased,tiltLeft:.12*Math.sin(t*3),tiltRight:-.18*wink},0)
 }
 
 export function blendEntranceFace(intro:FacePose,idle:FacePose,weight:number):FacePose {

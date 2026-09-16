@@ -62,8 +62,11 @@ assert.ok(dealerEntrance(dealerEntranceTime(1.3)).headOffset.y>.08,'Placement in
 assert.equal(entranceFace(FACE_DEFAULTS,.6).expressions.blinkLeft,0,'Wink releases before the hand assembly')
 for(let age=0;age<DEALER_ENTRANCE_END;age+=1/24) {
  const state=dealerEntrance(age),pose=entranceFace(FACE_DEFAULTS,age)
- assert.ok(Math.abs(state.hatTurn)<.8 && pose.head.every(v=>Math.abs(v)<30),'Hat banks while skull acting stays restrained without a full spin')
+ assert.ok(pose.head.every(v=>Math.abs(v)<30),'Head acting stays restrained beneath the independent hat flourish')
+ if(age>=dealerEntranceTime(1.95))assert.ok(state.hatOffset.y<1.71,'The hat flourish stays close enough to the dealer to remain readable')
 }
+assert.ok(dealerEntrance(dealerEntranceTime(2.02)).hatTurn-dealerEntrance(dealerEntranceTime(3.50)).hatTurn>6,'Hat completes its visible spin before descent')
+assert.ok(Math.abs(dealerEntrance(dealerEntranceTime(3.62)).hatTurn)<1e-8,'Hat aligns before crown contact')
 for(const start of [.8,1.3,1.8,2.3,2.8].map(dealerEntranceTime)) {
  const poses=Array.from({length:13},(_,i)=>entranceFace(FACE_DEFAULTS,start+i/24))
  const span=(values:number[])=>Math.max(...values)-Math.min(...values)
