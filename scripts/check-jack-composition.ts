@@ -288,3 +288,21 @@ for (let i = 0; i < 4; i++) {
   assert.ok(Math.hypot(before.x - after.x, before.y - after.y) < 0.0001, 'no jump at the central pass')
 }
 console.log('PASS: crossing lanes retain offscreen starts, continuous pass and exact final placement')
+
+// The pre-impact wall is back-up. During the upward flight, approximately half
+// the visible broadside normals must turn over to reveal the printed faces.
+for (const age of [.5, .8, 1.1]) {
+  let fronts = 0, backs = 0
+  const orientations = new Set<string>()
+  for (let row = 0; row < JACK_GRID.rows; row++) for (let col = 0; col < JACK_GRID.columns; col++) {
+    const index = row * JACK_GRID.columns + col
+    const pose = jackBlastAt(age, index, (col - 4) * 1.3, (3 - row) * 1.95, 70)
+    const normalZ = -Math.cos(pose.pitch) * Math.cos(pose.yaw)
+    if (normalZ > .2) fronts++
+    if (normalZ < -.2) backs++
+    orientations.add([pose.pitch, pose.yaw, pose.roll].map(v => v.toFixed(2)).join(','))
+  }
+  assert.ok(fronts >= 20 && backs >= 20, `mixed readable faces and backs at ${age}s: ${fronts}/${backs}`)
+  assert.ok(orientations.size > 40, 'burst cards have independent orientations')
+}
+console.log('PASS: burst presents a balanced mix of faces/backs with varied continuous orientations')

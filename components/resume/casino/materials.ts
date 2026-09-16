@@ -601,10 +601,12 @@ export function markMaterial(map: Texture, mask: Texture, key: string) {
   return trackPresent(trackLit(compileMaterial(register(`mark:${key}`, col), { opacity: a, alphaTest: 0.5 })))
 }
 
-/** the printed art on a playing card (face or back), lit by the lamp; the card lies flat, so a flat up normal */
+/** Faces follow the table lamp; ornate backs retain the opening artwork brightness. */
 export function cardArtMaterial(map: Texture, key: string) {
   const g = graph()
-  const col = lit(g, g.texture(map, g.uv()), lamp(g, [0, 1, 0]))
+  const art = g.texture(map, g.uv())
+  // Preserve the opening plate's gold/spade detail on small upright backs.
+  const col = key === 'back' ? art : lit(g, art, lamp(g, [0, 1, 0]))
   return trackLit(compileMaterial(register(`cardArt:${key}`, col)))
 }
 

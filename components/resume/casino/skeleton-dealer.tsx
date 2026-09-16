@@ -51,6 +51,7 @@ export default function SkeletonDealer({ feltY, chordZ, rail, fit, fx, motionRef
 }) {
   const { scene } = useGLTF(SKELETON_DEALER_URL)
   const cardMaps = useLoader(TextureLoader, [...DEALER_CARD_ART])
+  const cardBack = sharedCardBackTexture()
   const { dealerSize, dealerX, dealerY, dealerZ, dealerYaw, dealerPitch, dealerRoll, dealerBodyAmount } = useTune()
   const group = useRef<Group>(null)
   const modelRef = useRef<Group>(null)
@@ -68,7 +69,7 @@ export default function SkeletonDealer({ feltY, chordZ, rail, fit, fx, motionRef
     poseDealerAtTable(model)
     const entrance = new DealerEntranceRig(model)
     const body = new DealerBodyRig(model)
-    body.shuffle.setArtwork([...cardMaps, sharedCardBackTexture()])
+    body.shuffle.setArtwork([...cardMaps, cardBack])
     // This graph contains only per-pixel math: reuse its exact noise/edge in the
     // body material without adding a render pass or sampling a scene texture.
     const unusedSource = new Texture()
@@ -92,8 +93,8 @@ export default function SkeletonDealer({ feltY, chordZ, rail, fit, fx, motionRef
       // Retain the skull artwork and outfit colours through the room's paint pass.
       // Match cardArtMaterial's lighting for the common flying-deck back, while
       // retaining the dealer's own material/reveal lifecycle.
-      const light = source.name === 'Dealer card back' ? lamp(g, [0, 1, 0]) : g.add(.48, g.multiply(lamp(g), .75))
-      const mat = trackLit(compileMaterial(lit(g, base, light)))
+      const col = source.name === 'Dealer card back' ? base : lit(g, base, g.add(.48, g.multiply(lamp(g), .75)))
+      const mat = trackLit(compileMaterial(col))
       if (!skull) {
         mat.opacityNode = reveal.output.r
         mat.alphaTest = .5
@@ -117,7 +118,7 @@ export default function SkeletonDealer({ feltY, chordZ, rail, fit, fx, motionRef
     })
     finishSetup()
     return { model, materials, entrance, body, renderMeshes, revealUniforms: reveal.uniforms }
-  }, [scene, cardMaps])
+  }, [scene, cardMaps, cardBack])
   const appearance = useRef({ renderMeshes, revealUniforms })
   const placement = useMemo(() => dealerPlacement(feltY, chordZ, rail, fit,
     { dealerSize, dealerX, dealerY, dealerZ, dealerYaw, dealerPitch, dealerRoll }),

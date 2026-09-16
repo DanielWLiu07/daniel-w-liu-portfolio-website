@@ -14,7 +14,7 @@ export const DEALER_CARD_THICKNESS=.00054
 // The thumb mesh is wider than its tip joint; clearance includes its full pad.
 export const DEALER_CARD_PAD=.017
 const LENGTH=.130,WIDTH=LENGTH*2/3,H=DEALER_CARD_THICKNESS
-/** Download face plates only; the shared flying-deck back is drawn on canvas. */
+/** Download face plates only; the ornate spade back is shared with the opening wall. */
 export const DEALER_CARD_ART=[
   cardArtUrl('K-hearts'),
   cardArtUrl('A-hearts'),

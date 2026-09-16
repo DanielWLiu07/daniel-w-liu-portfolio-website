@@ -45,9 +45,18 @@ export function jackBlastAt(time: number, index: number, x: number, y: number, c
   const impulse = 17 / (1 + distance * distance * .5)
   const dragTravel = (1 - Math.exp(-2.1 * launch)) / 2.1
   const radius = Math.max(.45, distance)
+  const turnU = Math.min(1, launch / .34)
+  const turn = turnU * turnU * (3 - 2 * turnU)
+  const direction = index % 4 < 2 ? 1 : -1
+  const faceTurn = index % 2 === 0 ? direction * Math.PI : 0
+  // Alternate broadside faces/backs during the readable upward beat, with
+  // different pitch/roll on each card rather than a synchronized wall of backs.
+  const pitch = (((index * 7) % 11) - 5) * .065 * turn + fall.pitch
+  const roll = (((index * 11) % 13) - 6) * .09 * turn + fall.roll
   return { ...fall, x: fall.x + x / radius * impulse * dragTravel,
     y: fall.y + y / radius * impulse * dragTravel,
-    yaw: fall.yaw + (x < 0 ? -1 : 1) * impulse * dragTravel * .3 }
+    pitch, roll,
+    yaw: faceTurn * turn + fall.yaw * .35 + (x < 0 ? -1 : 1) * impulse * dragTravel * .12 }
 }
 /** Keeper flourish returns smoothly to its moving grid anchor at the word cue. */
 export function jackKeeperAt(_time: number, _index: number, _revealAt: number) {
