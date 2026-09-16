@@ -5,8 +5,8 @@ import { PaperFlight, paperPhysicsReady } from '../components/resume/casino/pape
 
 async function main() {
   await paperPhysicsReady
-  // The lens must overtake the wall, rather than having the whole field
-  // inherit the coin's launch speed and follow it to the apex.
+  // Protect the upward punch while reducing sideways breakup. Isolated stock
+  // measures launch height independently of the surrounding card contacts.
   const isolatedPaper = (x: number, time: number) => {
     const root = new THREE.Group(), geometry = new THREE.PlaneGeometry(1.3, 1.95)
     const mesh = new THREE.Mesh(geometry)
@@ -18,11 +18,9 @@ async function main() {
     flight.dispose(); geometry.dispose()
     return position
   }
-  assert.ok(isolatedPaper(0, .2).y > 5, 'the puncture still gives nearby paper an upward kick')
-  assert.ok(isolatedPaper(0, 1).y < 25, 'even the strongest kick stays below the camera climb')
-  assert.ok(isolatedPaper(8, .5).distanceTo(new THREE.Vector3(8, 0, 0)) < 1e-6,
-    'outer wall remains a stationary height reference during the initial climb')
-  assert.ok(isolatedPaper(8, 1.2).y < -2, 'outer stock releases and falls after the camera passes')
+  assert.ok(isolatedPaper(0, 1).y > 40, 'central cards retain their full launch height')
+  assert.ok(isolatedPaper(8, .5).y > 4, 'outer cards rise immediately with the burst')
+  assert.ok(Math.abs(isolatedPaper(8, 1).x - 8) < 1.5, 'lateral scatter stays small compared with the climb')
   const run = (times: number[], collide = true, overlap = false) => {
     const scene = new THREE.Group()
     const geometry = new THREE.PlaneGeometry(1.3, 1.95)

@@ -26,3 +26,11 @@ The broad launch carried much of the wall near the camera, weakening the sense o
 Delayed stock uses kinematic colliders until release, then receives a new dynamic body at the held pose. An isolated-body regression caught the bundled Rapier runtime leaving a body inactive after a direct kinematic-to-dynamic type switch. Contact margins were adjusted for the new interactions between moving and held stock.
 
 Validation: production build/TypeScript and the physics checks passed, including local upward pickup, delayed outer release, frame-gap determinism and reverse replay. The final moving browser capture checked 365 frames / 807,015 pairs with zero visible-stock OBB or rounded-face intersections and no browser errors. These are bounded checks on a desktop GPU, not a guarantee across every device or tuning configuration.
+
+## Correction: restore launch height
+
+The smaller pickup and delayed release from the preceding follow-up were rejected visually: too few cards rose, and their height was too low. Both changes are reverted, along with the delayed-body machinery and enlarged contact margins. The broad upward velocity, immediate release, gravity, damping and spin from 062aab1 are restored. Only lateral launch spread is reduced (radial X coefficient 0.6 to 0.15, X variation 0.11 to 0.035, Z variation 0.35 to 0.12), to preserve the rising burst while reducing outward breakup.
+
+Regression checks now require central stock to rise more than 40 world units after one second and outer stock to rise immediately, in addition to the existing contact, frame-gap and replay checks. Production build and TypeScript passed.
+
+The corrected moving sequence checked 355 frames / 784,905 card pairs with no visible-stock OBB or rounded-face intersections and no browser errors. Normal and 4× CPU-throttled held views included all 67 bodies and matched within floating-point tolerance.
