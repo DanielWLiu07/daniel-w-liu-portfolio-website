@@ -6,7 +6,7 @@ import { useGLTF } from '@react-three/drei'
 import { clone } from 'three/addons/utils/SkeletonUtils.js'
 import { Group, Mesh, MeshStandardMaterial, Texture, type Vector3, type Material } from 'three'
 import { compGraph, compileComp, compileMaterial, graph, lit } from 'blender-to-threejs'
-import { lamp, LIT_MATERIALS, trackLit } from './materials'
+import { inkUniform, lamp, LIT_MATERIALS, trackLit } from './materials'
 import { dealerActing, dealerPart, dealerPlacement, isDealerSkull, poseDealerAtTable, SKELETON_DEALER_URL } from './dealer-pose'
 import type { ImpactFx } from './hero-chip'
 import { getTune, useTune } from './tune'
@@ -75,14 +75,14 @@ export default function SkeletonDealer({ feltY, chordZ, rail, fit, fx, motionRef
       if (cached) return cached
       const g = graph()
       const pbr = source as MeshStandardMaterial
-      const color = g.rgb(pbr.color.r, pbr.color.g, pbr.color.b)
+      const color = inkUniform(g, 'ink', [pbr.color.r, pbr.color.g, pbr.color.b])
       let base = pbr.map ? g.multiplyColor(1, g.texture(pbr.map, g.uv()), color) : color
       if (pbr.vertexColors) base = g.multiplyColor(1, base, g.vertexColor())
       if (part === 'Hat') {
         // Mid-tone warm gray felt: a black albedo disappears under the night pass.
         const shape = g.mapRange(g.separate(g.normal('world'), 'y'), { from: [-1, 1], to: [.72, 1.2], clamp: true })
-        base = g.multiplyColor(1, g.rgb(.28, .25, .21), shape)
-      } else if (part === 'Hatband') base = g.rgb(.4, .055, .035)
+        base = g.multiplyColor(1, inkUniform(g, 'ink', [.28, .25, .21]), shape)
+      } else if (part === 'Hatband') base = inkUniform(g, 'ink', [.4, .055, .035])
       // Retain the skull artwork and outfit colours through the room's paint pass.
       const mat = trackLit(compileMaterial(lit(g, base, g.add(.48, g.multiply(lamp(g), .75)))))
       if (!skull) {

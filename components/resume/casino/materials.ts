@@ -125,6 +125,14 @@ export const CHIP_VALUE: Record<ChipInk, number> = {
 /** every chip colour, in denomination order */
 export const CHIP_INKS: ChipInk[] = ['white', 'red', 'blue', 'green', 'black', 'purple', 'orange', 'gold']
 
+/** Keep ink values out of shader source so all denominations reuse programs.
+ * Graph channels are already linear: no Color constructor/sRGB conversion.
+ * Uniforms remain material-owned, so colours cannot leak between draw calls.
+ */
+export function inkUniform(g: Graph, name: string, rgb: readonly [number, number, number]) {
+  return g.combine(g.uniform(`${name}R`, rgb[0]), g.uniform(`${name}G`, rgb[1]), g.uniform(`${name}B`, rgb[2]))
+}
+
 /**
  * The edge inserts and the face ring are PAPER on every chip except the white
  * one, where paper on paper would erase them. That one takes its own ink.
@@ -139,25 +147,25 @@ export function chipTrim(ink: ChipInk): readonly [number, number, number] {
  */
 export function chipMaterial(ink: ChipInk) {
   const g = graph()
-  const body = g.rgb(...CHIP_INK[ink])
+  const body = inkUniform(g, 'ink', CHIP_INK[ink])
   const uv = g.uv()
   const u = g.separate(uv, 'x')
   // cylinder side UV: u runs around the rim. 8 inserts, each 45 percent duty.
   const spot = g.greaterThan(g.math('FRACT', g.multiply(u, 8)), 0.55)
-  const side = g.blend(spot, body, g.rgb(...chipTrim(ink)))
+  const side = g.blend(spot, body, inkUniform(g, 'trim', chipTrim(ink)))
   return compileMaterial(register(`chip:${ink}`, g.multiplyColor(1, side, lift(g, 0.6, 1.0))))
 }
 
 export function chipFaceMaterial(ink: ChipInk) {
   const g = graph()
-  const body = g.rgb(...CHIP_INK[ink])
+  const body = inkUniform(g, 'ink', CHIP_INK[ink])
   const uv = g.uv()
   const cx = g.subtract(g.separate(uv, 'x'), 0.5)
   const cy = g.subtract(g.separate(uv, 'y'), 0.5)
   const r = g.math('SQRT', g.add(g.multiply(cx, cx), g.multiply(cy, cy)))
   // paper ring between two radii
   const ring = g.multiply(g.greaterThan(r, 0.3), g.greaterThan(0.4, r))
-  return compileMaterial(register(`chipFace:${ink}`, g.blend(ring, body, g.rgb(...chipTrim(ink)))))
+  return compileMaterial(register(`chipFace:${ink}`, g.blend(ring, body, inkUniform(g, 'trim', chipTrim(ink)))))
 }
 
 /** Black ink for the deck box, marquee, and anything that should print solid. */
@@ -286,22 +294,22 @@ export function characterMaterial(opts: { clipScreenX?: number } = {}) {
  */
 export function chipWatercolorMaterial(ink: ChipInk) {
   const g = graph()
-  const body = g.rgb(...CHIP_INK[ink])
+  const body = inkUniform(g, 'ink', CHIP_INK[ink])
   const uv = g.uv()
   const u = g.separate(uv, 'x')
   const spot = g.greaterThan(g.math('FRACT', g.multiply(u, 8)), 0.55)
-  const base = g.blend(spot, body, g.rgb(...chipTrim(ink)))
+  const base = g.blend(spot, body, inkUniform(g, 'trim', chipTrim(ink)))
   return trackLit(compileMaterial(register(`chipWC:${ink}`, lit(g, watercolorMaterialGraph(g, { base, scale: 2.5, wobble: 0.04, bands: 3, edge: 0.6 }), lamp(g)))))
 }
 export function chipFaceWatercolorMaterial(ink: ChipInk) {
   const g = graph()
-  const body = g.rgb(...CHIP_INK[ink])
+  const body = inkUniform(g, 'ink', CHIP_INK[ink])
   const uv = g.uv()
   const cx = g.subtract(g.separate(uv, 'x'), 0.5)
   const cy = g.subtract(g.separate(uv, 'y'), 0.5)
   const r = g.math('SQRT', g.add(g.multiply(cx, cx), g.multiply(cy, cy)))
   const ring = g.multiply(g.greaterThan(r, 0.3), g.greaterThan(0.4, r))
-  const base = g.blend(ring, body, g.rgb(...chipTrim(ink)))
+  const base = g.blend(ring, body, inkUniform(g, 'trim', chipTrim(ink)))
   return trackLit(compileMaterial(register(`chipFaceWC:${ink}`, lit(g, watercolorMaterialGraph(g, { base, scale: 2.5, wobble: 0.04, bands: 3, edge: 0.6 }), lamp(g)))))
 }
 
@@ -315,7 +323,7 @@ export function chipFaceWatercolorMaterial(ink: ChipInk) {
  */
 export function solidWatercolorMaterial(ink: ChipInk, key = 'solid') {
   const g = graph()
-  const base = g.rgb(...CHIP_INK[ink])
+  const base = inkUniform(g, 'ink', CHIP_INK[ink])
   return trackLit(
     compileMaterial(
       register(
@@ -340,7 +348,7 @@ export function solidWatercolorMaterial(ink: ChipInk, key = 'solid') {
 export function diceMaterial(body: ChipInk, pip: ChipInk) {
   const g = graph()
   const mask = g.separate(g.vertexColor(), 'x')
-  const base = g.blend(mask, g.rgb(...CHIP_INK[pip]), g.rgb(...CHIP_INK[body]))
+  const base = g.blend(mask, inkUniform(g, 'pip', CHIP_INK[pip]), inkUniform(g, 'ink', CHIP_INK[body]))
   return trackLit(
     compileMaterial(
       register(
@@ -366,7 +374,7 @@ export function roomMaterial(kind: 'wall' | 'floor') {
   const gap = smoothStep(g, g.math('FRACT', g.divide(px, 1.7)), 0.0, 0.03)
   const grain = g.mapRange(g.noise(g.combine(g.multiply(px, 6), g.multiply(g.separate(co, 'y'), 0.4), 0), { scale: 1, detail: 1 }), { from: [0, 1], to: [0.9, 1.08], clamp: true })
   const tone = g.multiply(g.multiply(panelTone, grain), g.add(0.6, g.multiply(0.4, gap)))
-  const col = g.multiplyColor(1, g.rgb(...base), g.combine(tone, tone, tone))
+  const col = g.multiplyColor(1, inkUniform(g, 'ink', base), g.combine(tone, tone, tone))
   // the main lamp cone (driven with the beat: tight before the drop, opening after) plus a faint spill so
   // the wall keeps a gradient; the spill has its own uniform names so the driver never touches it
   // 'room' prefix: the driver holds the floor dark before the landing while the chip's lamp stays on
@@ -409,7 +417,7 @@ export function folderMaterial(kind: 'body' | 'tab' | 'sheet' | 'ink') {
   const base: [number, number, number] =
     kind === 'sheet' ? [0.92, 0.9, 0.84] : kind === 'tab' ? [0.66, 0.5, 0.27] : kind === 'ink' ? [0.09, 0.06, 0.05] : [0.8, 0.63, 0.36]
   const fibre = g.mapRange(g.noise(g.position('object'), { scale: 40, detail: 1 }), { from: [0, 1], to: [0.94, 1.05], clamp: true })
-  const col = g.multiplyColor(1, g.rgb(...base), g.combine(fibre, fibre, fibre))
+  const col = g.multiplyColor(1, inkUniform(g, 'ink', base), g.combine(fibre, fibre, fibre))
   // two-sided lighting: the cover's inside faces have flipped normals once it opens, and a one-sided
   // Lambert term made them read as the texture breaking up
   const m = trackPresent(
@@ -740,7 +748,7 @@ export function eyeMaterial(key = 'eye', ink: EyeInk = 'gold', flat = false, wob
   // stroke is pigment on paper rather than a flat fill: it bands, it mottles,
   // and it darkens where the wash pools
   const col = watercolorMaterialGraph(g, {
-    base: g.rgb(...CHIP_INK[ink]),
+    base: inkUniform(g, 'ink', CHIP_INK[ink]),
     scale: 4.2,
     wobble: 0.06,
     bands: 3,
