@@ -4,7 +4,7 @@ export const DEALER_CARD_SNAP=.82
 export const DEALER_CARD_REVEAL_START=DEALER_CARD_SNAP+.02
 export const DEALER_CARD_UNFOLD=.16
 export function dealerCardReveal(age=Infinity) {
-  if(!Number.isFinite(age)||age>=2) return {visible:true,prepare:0,release:1,grip:1,thumbGrip:1,wind:0,flick:0,point:1,bank:0,wrist:0,lift:0,reach:0,side:0,fan:1,turn:0,slide:.067,support:1,width:1}
+  if(!Number.isFinite(age)||age>=2) return {visible:true,prepare:0,release:1,grip:1,thumbGrip:1,wind:0,flick:0,point:1,bank:0,wrist:0,lift:0,reach:0,side:0,fan:1,turn:0,slide:.050,support:1,width:1}
   const prepare=smooth((age-.08)/.50)
   const release=smooth((age-DEALER_CARD_SNAP+.045)/.045)
   const grip=smooth((age-DEALER_CARD_SNAP-.025)/.15)
@@ -25,5 +25,5 @@ export function dealerCardReveal(age=Infinity) {
     lift:-.11*rest+.015*wind+.048*flick-.006*recoil,
     reach:-.065*rest-.085*wind+.090*flick,
     side:-.025*rest-.045*wind+.045*flick,
-    fan,turn:0,slide:.067,support:1,width}
+    fan,turn:0,slide:.050,support:1,width}
 }

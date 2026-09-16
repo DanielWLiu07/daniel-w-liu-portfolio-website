@@ -13,6 +13,11 @@ stock.add(word); paper.add(stock); scene.add(paper, foreground)
 assert.equal(cardRenderLayer(word), 1)
 foreground.add(stock)
 assert.equal(cardRenderLayer(word), 2, 'layer follows current parent, not a stale cache')
+stock.userData.cardRenderLayer = 0
+assert.equal(cardRenderLayer(word), 0, 'caught stock uses physical depth despite its foreground parent')
+stock.userData.cardRenderLayer = 2
+assert.equal(cardRenderLayer(word), 2, 'replay restores the flying stock foreground layer')
+delete stock.userData.cardRenderLayer
 paper.add(stock)
 paper.userData.cardRenderLayer = 0
 assert.equal(cardRenderLayer(word), 0, 'replaying intact wall restores native depth')

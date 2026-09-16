@@ -12,7 +12,7 @@ export const DEALER_SHUFFLE_SECONDS=10
 export const DEALER_CARD_COUNT=2
 export const DEALER_CARD_THICKNESS=.00054
 // The thumb mesh is wider than its tip joint; clearance includes its full pad.
-export const DEALER_CARD_PAD=.017
+export const DEALER_CARD_PAD=.0135
 const LENGTH=.130,WIDTH=LENGTH*2/3,H=DEALER_CARD_THICKNESS
 /** Download face plates only; the ornate spade back is shared with the opening wall. */
 export const DEALER_CARD_ART=[
@@ -137,7 +137,7 @@ export class DealerShuffleRig {
       const cardRight=up.clone().cross(cardFront).normalize(),cardUp=cardFront.clone().cross(cardRight).normalize()
       // Pinch against the middle index pad; its relaxed distal segment braces
       // the back of the cards instead of curling into a fingertip hook.
-      const indexPad=this.root.worldToLocal(index.localToWorld(new Vector3(0,.012,0))).addScaledVector(cardUp,.013)
+      const indexPad=this.root.worldToLocal(index.localToWorld(new Vector3(0,.012,0))).addScaledVector(cardUp,.0115)
       // Run the thumb pad up the lower overlap rather than hooking its last
       // joint sideways across the index. The contact point stays fixed.
       const thumbDirection=cardFront.clone().multiplyScalar(.92).addScaledVector(cardRight,-.35).addScaledVector(cardUp,-.12).normalize()
@@ -151,7 +151,7 @@ export class DealerShuffleRig {
       for(const i of [0,1]) {
         const fan=(i===0?-.13:.13)*reveal.fan
         const rotation=orientation.clone().multiply(new Quaternion().setFromAxisAngle(new Vector3(0,1,0),fan))
-        const center=pinch.clone().addScaledVector(cardNormal,-DEALER_CARD_PAD-.001+i*.0012)
+        const center=pinch.clone().addScaledVector(cardNormal,-DEALER_CARD_PAD-.001+i*H)
           .add(new Vector3(.016*reveal.width,0,reveal.slide).applyQuaternion(rotation))
         this.cards[i].scale.set(reveal.width,1,1)
         this.cards[i].position.copy(this.group.worldToLocal(this.root.localToWorld(center)))

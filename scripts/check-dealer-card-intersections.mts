@@ -19,7 +19,7 @@ const actor=new Group();actor.add(root)
 const stress=process.argv.includes('--stress')
 const handoff=process.argv.includes('--handoff')
 const cases=stress?[.05,1,1.5].flatMap(amount=>[.5,1,2].flatMap(speed=>[0,1,1.5].map(acting=>({amount,speed,acting})))):[{amount:1,speed:1,acting:1}]
-let frames=0,visibleFrames=0
+let frames=0,visibleFrames=0,gripChecks=0,maxGripGap=0
 const failures:string[]=[]
 const meshes:SkinnedMesh[]=[]
 root.traverse(o=>{const m=o as SkinnedMesh;if(m.isSkinnedMesh&&m.name.includes('HandLeft'))meshes.push(m)})
@@ -70,6 +70,8 @@ for(const [caseIndex,config] of cases.entries()) for(const mode of (handoff?['ap
  frames++
  if(!body.shuffle.group.visible&&mode!=='approach')continue
  visibleFrames++
+ const checkGrip=mode==='idle'||(mode==='reveal'&&time>=2)||(mode==='catch'&&time>=DEALER_CARD_CATCH+.2)
+ const gripGaps={Index:Infinity,Thumb:Infinity}
  for(const {mesh,triangles} of meshData) {
   mesh.skeleton.update()
   const vertices=Array.from({length:mesh.geometry.attributes.position.count},(_,i)=>mesh.getVertexPosition(i,new Vector3()))
@@ -88,10 +90,13 @@ for(const [caseIndex,config] of cases.entries()) for(const mode of (handoff?['ap
     // Clipping only narrows a triangle's height interval. Skip triangles whose
     // conservative interval cannot exceed the worst already measured clearance.
     const bound=Math.min(.00085-Math.min(...poly.map(p=>p.y)),Math.max(...poly.map(p=>p.y))+.00085)
-    if(reports.has(key)&&bound<=reports.get(key)!.depth)continue
+    const contactDigit=(cardIndex===0&&digit==='Index')||(cardIndex===1&&digit==='Thumb')
+    if(!(checkGrip&&contactDigit)&&reports.has(key)&&bound<=reports.get(key)!.depth)continue
     for(const [axis,limit,sign] of [['x',-.045,1],['x',.045,-1],['z',-.065,1],['z',.065,-1]] as const)poly=clip(poly,axis,limit,sign)
     if(!poly.length)continue
     const min=Math.min(...poly.map(p=>p.y)),max=Math.max(...poly.map(p=>p.y))
+    if(checkGrip&&cardIndex===0&&digit==='Index'&&max<0)gripGaps.Index=Math.min(gripGaps.Index,-max-.00027)
+    if(checkGrip&&cardIndex===1&&digit==='Thumb'&&min>0)gripGaps.Thumb=Math.min(gripGaps.Thumb,min-.00027)
     // Spare fingers can lie wholly on either side of the tilted paper.
     // A collision requires the clipped triangle to enter its thickness.
     const depth=Math.min(.00085-min,max+.00085)
@@ -99,11 +104,17 @@ for(const [caseIndex,config] of cases.entries()) for(const mode of (handoff?['ap
    }
   }
  }
+ if(checkGrip){
+  for(const [digit,gap] of Object.entries(gripGaps)){
+   gripChecks++;maxGripGap=Math.max(maxGripGap,gap)
+   assert.ok(gap>=0&&gap<.0025,`${digit} must oppose the other digit within 2.5 mm of its outer card face at ${mode} ${time}: ${gap*1000} mm`)
+  }
+ }
 }
 for(const card of [0,1])for(const digit of ['Thumb','Index'])assert.ok(reports.has(`0 ${handoff?'catch':'idle'} card${card} ${digit}`),'Both sheets and both gripping digits were inspected; relaxed fingers are checked wherever they overlap a sheet')
 for(const [part,result] of reports) if(result.depth>=0)failures.push(`${part} intersects the paper at ${result.time}: ${(result.depth*1000).toFixed(3)} mm`)
 if(stress)writeFileSync(`blender-bridge/casino-dealer-v3/${handoff?'card-catch':'card-stress'}-results.json`,JSON.stringify({cases,frames,visibleFrames,failures,reports:Object.fromEntries(reports)},null,2))
-console.log({cases:cases.length,frames,visibleFrames,failures:failures.slice(0,20)})
+console.log({cases:cases.length,frames,visibleFrames,gripChecks,maxGripGapMM:maxGripGap*1000,failures:failures.slice(0,20)})
 assert.equal(failures.length,0,'All tested skin triangles must remain clear of both cards')
 console.log(`Both cards: triangle-clipped skin clearance passed ${handoff?'through the combined entrance catch and following 2.33 seconds':'over 30 seconds at 24 fps and the reveal at 120 fps'}. Minimum conservative clearance ${(-Math.max(...[...reports.values()].map(r=>r.depth))*1000).toFixed(3)} mm.`)
 

@@ -137,6 +137,7 @@ export default function FlightRoyalFlush({ clock0, cardHandoff }: { clock0: Muta
     for (let i = 0; i < 5; i++) {
       const card = cards.current[i]
       if (!card) continue
+      card.userData.cardRenderLayer=2
       card.matrixAutoUpdate=true
       const cardAge = age - i * stagger
       card.visible = cardAge >= 0
@@ -189,6 +190,8 @@ export default function FlightRoyalFlush({ clock0, cardHandoff }: { clock0: Muta
           .multiply(new THREE.Matrix4().makeScale(1/Math.max(.001,target.scale.x),1,1))
           .multiply(new THREE.Matrix4().makeTranslation(.016*(1-target.scale.x),0,0))
           .multiply(FLIGHT_CARD_TO_GRIP)
+        // At the dealer, use physical depth so the fingers can occlude the stock.
+        card.userData.cardRenderLayer=0
         const world=incomingCardMatrix(end,progress,i)
         card.matrixAutoUpdate=false
         card.matrix.copy(root.matrixWorld.clone().invert().multiply(world))

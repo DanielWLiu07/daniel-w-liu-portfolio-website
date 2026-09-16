@@ -35,9 +35,9 @@ for(let i=0;i<=30*24;i++) {
  }
  const contact=card.worldToLocal(root.localToWorld(left.tip('Thumb')))
  thumbGap=Math.max(thumbGap,Math.abs(contact.y-(DEALER_CARD_PAD+.001)))
- assert.ok(Math.abs(contact.x)<.034 && contact.z>-.072 && contact.z<-.060,'Thumb presses the lower corner shared by both cards')
+ assert.ok(Math.abs(contact.x)<.034 && contact.z>-.060 && contact.z<-.035,'Thumb overlaps the lower area shared by both cards')
  const joint=card.worldToLocal(root.getObjectByName('LeftThumb3')!.getWorldPosition(new Vector3()))
- thumbAlignment=Math.max(thumbAlignment,contact.clone().sub(joint).angleTo(new Vector3(-.89,0,.45)))
+ thumbAlignment=Math.max(thumbAlignment,contact.clone().sub(joint).angleTo(new Vector3(-.35,-.12,.92)))
  const thumbJoint=root.getObjectByName('LeftThumb3')!.getWorldPosition(new Vector3())
  for(const card of body.shuffle.cards) {
   const start=card.worldToLocal(thumbJoint.clone()),end=card.worldToLocal(root.localToWorld(left.tip('Thumb')))
@@ -121,7 +121,7 @@ console.log({cardThumbGapMM:thumbGap*1000,snapGapMM:snapGap*1000,thumbBendDegree
 assert.ok(travelStep<.012,'After the snap, the cards stay continuously attached to the grip')
 assert.ok(thumbGap<.003,'Thumb stays against the front of the two-card overlap')
 assert.ok(indexGap<.004,'The visible index pad braces the rear card opposite the thumb')
-assert.ok(thumbAlignment<35*Math.PI/180,'Thumb pad crosses the lower card edge in a shallow diagonal, without folding backward')
+assert.ok(thumbAlignment<35*Math.PI/180,'Thumb pad points along the card without folding backward')
 assert.ok(snapGap<.012,'Thumb and middle finger meet before the snap')
 assert.ok(snapStep<.40,'Fast finger release stays continuous without a one-frame joint flip')
 assert.ok(bend<85*Math.PI/180,'Thumb bends across its joints without a hooked distal tip')
