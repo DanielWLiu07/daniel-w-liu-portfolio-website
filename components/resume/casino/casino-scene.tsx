@@ -26,6 +26,7 @@ import {
   type ChipInk,
 } from './materials'
 import SkeletonDealer from './skeleton-dealer'
+import { DealerCardHandoff } from './dealer-card-handoff'
 import TitleDepth from './title-depth'
 import { casinoViewport, PORTRAIT_TITLE } from './responsive-layout'
 import { dealerPlacement } from './dealer-pose'
@@ -788,6 +789,8 @@ export default function CasinoScene({
   const faces = useCardFaces()
   const [jackReady, setJackReady] = useState(false)
   const [tableFit, setTableFit] = useState<TableFit | null>(null)
+  // The opening King/Ace remain the same printed meshes when caught by the dealer.
+  const cardHandoff = useMemo(() => new DealerCardHandoff(), [])
   const tableFitRef = useRef<TableFit | null>(null)
   const folderRestPose = useMemo(() => ({ position: [0.15, (tableFit?.feltY ?? 0) + 0.004, 0.95] as [number, number, number], yaw: Math.PI / 2 - 0.1 }), [tableFit?.feltY])
   const folderOpenRef = useRef(false)
@@ -976,7 +979,7 @@ export default function CasinoScene({
               {!noJack && <IntroBackdrop clock0={chipClock0} fx={fx} />}
               {showDealer && <Suspense fallback={null}>
                 <SkeletonDealer feltY={tableFit.feltY} chordZ={spec.chordZ} rail={spec.rail}
-                  fit={responsive.dealerFit} fx={fx} motionRef={dealerMotion} onReady={setDealerGroup} pointTarget={redChipPosition} />
+                  fit={responsive.dealerFit} fx={fx} motionRef={dealerMotion} onReady={setDealerGroup} pointTarget={redChipPosition} cardHandoff={cardHandoff} />
               </Suspense>}
               {/* graph materials are unlit and cannot receive shadows: an invisible catcher disc on the felt
                   carries them; it sits a hair above the felt and BELOW the props' bases, and paints in with the table */}
@@ -1007,7 +1010,7 @@ export default function CasinoScene({
               {!noJack && <FallStreaks armed={armed} clock0={chipClock0} flickAt={tune.jkFlick} dropAt={jackDropAt} />}
               {!noJack && <FlightRoulette clock0={chipClock0} />}
               <Suspense fallback={null}>
-                {!noJack && <FlightRoyalFlush clock0={chipClock0} />}
+                {!noJack && <FlightRoyalFlush clock0={chipClock0} cardHandoff={cardHandoff} />}
               </Suspense>
               {/* the eyes, off by default over the title: ?eyes puts the field back on the same beat clock */}
               {!noJack && eyesOn && <EyeField clock0={chipClock0} />}
