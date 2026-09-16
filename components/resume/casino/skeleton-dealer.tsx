@@ -25,6 +25,7 @@ import { disposeDealerHandSkin } from './dealer-hand-skin'
 import { DealerBodyRig } from './dealer-idle'
 import { applyDealerPointAction, applyDealerCardAction, type DealerCardHandoff } from './dealer-card-handoff'
 import { DEALER_CARD_ART } from './dealer-shuffle'
+import { sharedCardMaterials } from './playing-cards'
 
 type DealerRenderMesh = { mesh: Mesh; skull: boolean; hat: boolean; cards: boolean }
 
@@ -68,6 +69,8 @@ export default function SkeletonDealer({ feltY, chordZ, rail, fit, fx, motionRef
     const entrance = new DealerEntranceRig(model)
     const body = new DealerBodyRig(model)
     body.shuffle.setArtwork(cardMaps)
+    const stock = sharedCardMaterials()
+    body.shuffle.setStockMaterials(stock.back, stock.rim)
     // This graph contains only per-pixel math: reuse its exact noise/edge in the
     // body material without adding a render pass or sampling a scene texture.
     const unusedSource = new Texture()
@@ -106,7 +109,12 @@ export default function SkeletonDealer({ feltY, chordZ, rail, fit, fx, motionRef
       const part = dealerPart(object), skull = isDealerSkull(object)
       renderMeshes.push({ mesh: object, skull, hat: part === 'Hat' || part === 'Hatband', cards: object.name.startsWith('DealerCards_') })
       object.userData.dealerSkull = skull
-      object.material = Array.isArray(object.material) ? object.material.map((m) => painted(m, part, skull)) : painted(object.material, part, skull)
+      // Back and rim are the same material objects as the flying cards. Repainting
+      // them with the dealer's body shader would change their colour and lighting.
+      const heldCard = object.name.startsWith('DealerCards_')
+      object.material = Array.isArray(object.material)
+        ? object.material.map((m, index) => heldCard && index > 0 ? m : painted(m, part, skull))
+        : painted(object.material, part, skull)
       object.visible = skull
       object.castShadow = true
       object.frustumCulled = false

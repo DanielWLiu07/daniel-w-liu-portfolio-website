@@ -1,5 +1,5 @@
 import { cardArtUrl } from './card-art-url'
-import { Bone, BufferGeometry, Mesh, MeshStandardMaterial, Matrix4, Object3D, Quaternion, SRGBColorSpace, Vector3, type Texture } from 'three'
+import { Bone, BufferGeometry, Mesh, MeshStandardMaterial, Matrix4, Object3D, Quaternion, SRGBColorSpace, Vector3, type Texture, type Material } from 'three'
 import { DealerArmRig } from './dealer-arms'
 import { DealerHandGrip } from './dealer-grip'
 import { dealerCardReveal } from './dealer-card-reveal'
@@ -14,11 +14,10 @@ export const DEALER_CARD_THICKNESS=.00054
 // The thumb mesh is wider than its tip joint; clearance includes its full pad.
 export const DEALER_CARD_PAD=.017
 const LENGTH=.130,WIDTH=LENGTH*2/3,H=DEALER_CARD_THICKNESS
-/** The same full-face plates and ornate back used by the opening card sequence. */
+/** Face plates only; back and rim materials come from the flying deck at runtime. */
 export const DEALER_CARD_ART=[
   cardArtUrl('K-hearts'),
   cardArtUrl('A-hearts'),
-  cardArtUrl('casino-back'),
 ] as const
 /** A poker player quietly studies a two-card hand, held up near the face.
  * Grip study: https://images.unsplash.com/photo-1617286931389-9082553de6be — thumb along the
@@ -56,8 +55,10 @@ export class DealerShuffleRig {
       material.name=`Dealer card art:${url.split('/').pop()}`
       return material
     })
+    const back=new MeshStandardMaterial({color:0xffffff,roughness:.8})
+    back.name='Dealer card back placeholder'
     const rim=new MeshStandardMaterial({color:0xefe9da,roughness:.8})
-    rim.name='Dealer card stock edge';this.materials.push(...printed,rim)
+    rim.name='Dealer card stock edge';this.materials.push(...printed,back,rim)
     // Keep the existing pinch frame: face toward the dealer (+Y), back toward
     // the viewer (-Y), and artwork upright along the card's long side (+Z).
     const geometry=cardGeometry(LENGTH,H,6).scale(WIDTH/(LENGTH*ASPECT),1,1)
@@ -65,7 +66,7 @@ export class DealerShuffleRig {
     this.geometries.push(geometry)
     for(let i=0;i<DEALER_CARD_COUNT;i++) {
       const card=new Bone();card.name=`DealerHeldCard${i}`;this.group.add(card);this.cards.push(card)
-      const mesh=new Mesh(geometry,[printed[i],printed[2],rim]);mesh.name=`DealerCards_${i}`;mesh.castShadow=true;card.add(mesh)
+      const mesh=new Mesh(geometry,[printed[i],back,rim]);mesh.name=`DealerCards_${i}`;mesh.castShadow=true;card.add(mesh)
       card.position.y=i*H
     }
     this.group.position.set(.025,1.27,.32);this.group.visible=false
@@ -73,11 +74,19 @@ export class DealerShuffleRig {
   }
   /** Textures are owned by the scene loader and shared with its cache. */
   setArtwork(maps:readonly Texture[]) {
-    if(maps.length!==DEALER_CARD_ART.length)throw new Error('Dealer cards need two faces and the shared casino back')
+    if(maps.length!==DEALER_CARD_ART.length)throw new Error('Dealer cards need two face plates')
     maps.forEach((map,i)=>{
       map.colorSpace=SRGBColorSpace;map.anisotropy=4
       this.materials[i].map=map;this.materials[i].needsUpdate=true
     })
+  }
+  /** Borrow the exact flying-deck materials; their lifetime belongs to the scene. */
+  setStockMaterials(back:Material,rim:Material) {
+    for(const card of this.cards) {
+      const mesh=card.children[0] as Mesh
+      const materials=mesh.material as Material[]
+      mesh.material=[materials[0],back,rim]
+    }
   }
   reset() {this.group.visible=false;this.grips.Left.reset();this.grips.Right.reset()}
   private local(point:Vector3) {return this.root.worldToLocal(this.group.localToWorld(point.clone()))}
