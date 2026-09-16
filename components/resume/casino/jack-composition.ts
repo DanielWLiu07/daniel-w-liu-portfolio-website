@@ -146,11 +146,11 @@ export function jackWallRevealAt(time: number, col: number, row: number) {
 }
 
 /** Once the full Jack wall reads, turn each physical card onto its red back. */
-export function jackRedBackAt(time: number, col: number, row: number) {
+export function jackRedBackAt(time: number, col: number, row: number, start = 3.335) {
   const cohort = (col * 3 + row * 5) % 7
   const distance = Math.abs(col - 4) + Math.abs(row - 3)
   // The last Jack completes at 3.32: immediately pass into a tight red wave.
-  const u = Math.max(0, Math.min(1, (time - 3.335 - cohort * .015 - distance * .005) / .34))
+  const u = Math.max(0, Math.min(1, (time - start - cohort * .015 - distance * .005) / .34))
   return Math.max(0, Math.min(1, u * u * u * (u * (u * 6 - 15) + 10)))
 }
 

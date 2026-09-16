@@ -23,6 +23,25 @@ async function main() {
     }
     flight.dispose(); mesh.geometry.dispose()
   }
+  // Overlapping authored stock must reach the packed pose before physics
+  // starts, without a visible position or scale discontinuity at release.
+  {
+    const root = new THREE.Group(), geometry = new THREE.PlaneGeometry(1.3, 1.95)
+    const cards = [new THREE.Mesh(geometry), new THREE.Mesh(geometry)]
+    cards[1].position.x = .8; root.add(...cards)
+    const homes = cards.map(c => c.position.clone())
+    const flight = new PaperFlight(); flight.start(cards.map(c => [c]), 70, new THREE.Vector3())
+    flight.stage(0)
+    cards.forEach((c, i) => assert.ok(c.position.distanceTo(homes[i]) < 1e-8, 'preparation starts at the authored pose'))
+    flight.stage(1)
+    const prepared = cards.map(c => c.position.clone())
+    flight.sample(0)
+    cards.forEach((c, i) => {
+      assert.ok(c.position.distanceTo(prepared[i]) < 1e-6, 'prepared clearance joins physics without a position jump')
+      assert.ok(c.scale.distanceTo(new THREE.Vector3(1, 1, 1)) < 1e-8, 'preparation does not inflate cards')
+    })
+    flight.dispose(); geometry.dispose()
+  }
   const run = (times: number[], collide = true, overlap = false) => {
     const scene = new THREE.Group()
     const geometry = new THREE.PlaneGeometry(1.3, 1.95)

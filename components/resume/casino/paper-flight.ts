@@ -12,7 +12,7 @@ const STEP = 1 / 480
 export class PaperFlight {
   private world: R.World | null = null
   private ticks = 0
-  private seeds: { p: THREE.Vector3; q: THREE.Quaternion; size: THREE.Vector3; index: number; x: number; y: number; speed: number; orientation: THREE.Quaternion; parts: { mesh: THREE.Mesh; relative: THREE.Matrix4 }[] }[] = []
+  private seeds: { p: THREE.Vector3; q: THREE.Quaternion; size: THREE.Vector3; offset: THREE.Vector3; bodyIndex: number; index: number; x: number; y: number; speed: number; orientation: THREE.Quaternion; parts: { mesh: THREE.Mesh; relative: THREE.Matrix4 }[] }[] = []
   private bodies: { body: R.RigidBody; previousP: THREE.Vector3; previousQ: THREE.Quaternion; drive: THREE.Vector3 }[] = []
   private matrix = new THREE.Matrix4()
   private inverse = new THREE.Matrix4()
@@ -30,7 +30,6 @@ export class PaperFlight {
     for (const [index, parts] of groups.entries()) {
       const card = parts[0]
       if (!card.visible) continue
-      card.userData.paperFlightBody = index
       card.updateWorldMatrix(true, false)
       const p = new THREE.Vector3(), q = new THREE.Quaternion(), scale = new THREE.Vector3()
       card.matrixWorld.decompose(p, q, scale)
@@ -44,7 +43,7 @@ export class PaperFlight {
       const local = p.clone().sub(centre).applyQuaternion(orientation.clone().invert())
       const motionIndex = groups.length === 67 ? (index < 4 ? 67 + index * 3 : index - 4) : index
       const rigid = new THREE.Matrix4().compose(p, q, new THREE.Vector3(1, 1, 1)).invert()
-      this.seeds.push({ p, q, size, index: motionIndex, x: local.x, y: local.y, speed, orientation: orientation.clone(), parts: parts.map(mesh => {
+      this.seeds.push({ p, q, size, offset: new THREE.Vector3(), bodyIndex: index, index: motionIndex, x: local.x, y: local.y, speed, orientation: orientation.clone(), parts: parts.map(mesh => {
         mesh.updateWorldMatrix(true, false)
         return { mesh, relative: new THREE.Matrix4().multiplyMatrices(rigid, mesh.matrixWorld) }
       }) })
@@ -68,10 +67,27 @@ export class PaperFlight {
         }
         if (!moved) break
       }
-      seed.p.addScaledVector(normal, shift)
+      seed.offset.copy(normal).multiplyScalar(shift)
+      seed.p.add(seed.offset)
       occupied.push(box)
     }
     this.reset()
+  }
+
+  /** Ease collision clearance into the authored back flip before release.
+   * The launch then starts at exactly the pose the viewer already sees. */
+  stage(amount: number) {
+    const u = THREE.MathUtils.clamp(amount, 0, 1)
+    const blend = u * u * u * (u * (u * 6 - 15) + 10)
+    for (const seed of this.seeds) for (const { mesh } of seed.parts) {
+      mesh.updateWorldMatrix(true, false)
+      this.matrix.copy(mesh.matrixWorld)
+      this.matrix.elements[12] += seed.offset.x * blend
+      this.matrix.elements[13] += seed.offset.y * blend
+      this.matrix.elements[14] += seed.offset.z * blend
+      if (mesh.parent) this.matrix.premultiply(this.inverse.copy(mesh.parent.matrixWorld).invert())
+      this.matrix.decompose(mesh.position, mesh.quaternion, mesh.scale)
+    }
   }
 
   private reset() {
@@ -138,6 +154,7 @@ export class PaperFlight {
     }
     const alpha = ticks === 0 ? 0 : target - (ticks - 1)
     this.bodies.forEach((b, i) => {
+      this.seeds[i].parts[0].mesh.userData.paperFlightBody = this.seeds[i].bodyIndex
       this.position.copy(b.previousP).lerp(b.body.translation(), alpha)
       this.rotation.copy(b.previousQ).slerp(this.nextRotation.copy(b.body.rotation()), alpha)
       this.pose.compose(this.position, this.rotation, this.scale)

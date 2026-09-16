@@ -1156,7 +1156,8 @@ export default function JackIntro({
     impact.x = impact.y = 0
     impact.speed = Math.max(25, Math.min(100, 2 * (tn.jkFall + tn.jkApex)
       * (1 - (impact.at - flickAt) / riseFor) / riseFor))
-    if (t < impact.at) b.flight.dispose()
+    const prepareAt = impact.at - .40
+    if (t < prepareAt) b.flight.dispose()
 
     // Neighbor-to-neighbor checkerboard unfolding, then an accelerating fall.
     {
@@ -1194,7 +1195,7 @@ export default function JackIntro({
         applyWallTurn(k.mesh.quaternion, wallReveal, (col + row) % 2 !== 0)
         // Rotate the existing two-sided card; the reverse already carries the
         // red artwork. Keep the foreground word carriers face-up and readable.
-        const redTurn = jackRedBackAt(cardTime, col, row) * Math.PI
+        const redTurn = jackRedBackAt(cardTime, col, row, Math.max(3.335, prepareAt * 1.3 - JACK_SEED_LEAD)) * Math.PI
         scratch.wallQuaternion.set(0, Math.sin(redTurn / 2), 0, Math.cos(redTurn / 2))
         k.mesh.quaternion.multiply(scratch.wallQuaternion)
         const fall = jackBlastAt(t - impact.at, index, k.mesh.position.x * fit - impact.x, k.mesh.position.y * fit - impact.y, impact.speed)
@@ -1385,13 +1386,22 @@ export default function JackIntro({
 
     b.lock.position.set(centre.current[0] + tn.jkLockX, centre.current[1] + tn.jkLockY, 0)
     g.userData.cardRenderLayer = t > impact.at ? 1 : 0
-    if (poseTime === undefined && t >= impact.at) {
-      if (!b.flight.active) {
-        // Construct the launch pose at the exact beat even if a render frame
-        // skips over it. All subsequent movement is fixed-step rigid physics.
+    if (poseTime === undefined && t >= prepareAt) {
+      const preparedNow = !b.flight.active
+      if (preparedNow) {
+        // Prepare the exact launch pose during the back flip so collision
+        // packing does not shift the whole field on the release frame.
         animate(state, 0, impact.at)
         g.updateWorldMatrix(true, true)
         b.flight.start(b.bodies, impact.speed, g.getWorldPosition(new THREE.Vector3()), g.getWorldQuaternion(new THREE.Quaternion()))
+      }
+      if (t < impact.at) {
+        // Restore this frame after sampling the future launch, then ease only
+        // the required depth clearance into its existing authored motion.
+        if (preparedNow) animate(state, 0, t)
+        b.flight.stage((t - prepareAt) / (impact.at - prepareAt))
+        g.updateWorldMatrix(true, true)
+        return
       }
       b.flight.sample(t - impact.at)
       // All compositor passes must see the new rigid poses on the release frame.

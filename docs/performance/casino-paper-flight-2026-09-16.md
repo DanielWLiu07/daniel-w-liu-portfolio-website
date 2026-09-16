@@ -44,3 +44,15 @@ The preceding height/scatter adjustments did not reproduce the reference. The or
 Tests compare isolated positions and rotations to the poker arc at multiple distances and times, plus the existing contact, attachment, scale, frame-gap and reverse-replay checks. Production build/TypeScript passed. The first candidate passed collision checks but failed the visual field comparison: undamped contact impulses ejected stock from the frame. It was not deployed; a damped spring was added before final verification.
 
 Final validation after increasing contact margins: 367 captured frames / 811,437 pairs, zero visible-stock OBB or rounded-face intersections, and no browser errors. All 67 held world matrices matched exactly between normal and 4× CPU-throttled runs. Reviewed 4.1, 4.4 and 4.8 second views against the poker reference: the dense early burst remains visible and thins as the camera climbs. Temporary evidence: `/private/tmp/paper-{puncture,overtaking,clear}.png` and `/private/tmp/paper-overtake-{1,4}.json`.
+
+## Smooth the back-flip / burst boundary
+
+The exact boundary comparison at 3.4299 / 3.43 seconds found up to 2.67025 scene units of immediate displacement: collision packing ran only when the burst began. This made the whole field visibly rearrange at release even though the subsequent flight was deterministic.
+
+The launch pose is now prepared 0.4 seconds earlier. Its collision clearance eases into the authored back flip with a quintic blend, preserving scale and moving attached lettering with its card. At release, the physics body starts at the already-visible packed pose. The back-flip cue is also aligned closer to release, while preserving its per-card ripple and full completion before flight. Preparing the future pose happens only once; subsequent preparation frames use the normal authored animation.
+
+Research: Rapier's [position guidance](https://rapier.rs/docs/user_guides/javascript/rigid_body_position/) describes direct position changes as teleportation and recommends velocity/forces for dynamic motion. Its [velocity guidance](https://rapier.rs/docs/user_guides/javascript/rigid_body_velocity/) distinguishes linear and angular velocity; Three's [quaternion reference](https://threejs.org/docs/pages/Quaternion.html) describes normalized rotational interpolation. The observed bug was the instantaneous initial packing, not a reason to add more damping to the burst.
+
+The physics regression now checks that preparation starts at the authored pose and joins sample(0) without a position or scale jump. Existing arc, contact, rigid lettering, frame-gap and reverse-replay checks pass. Composition checks and production build/TypeScript pass.
+
+Final boundary measurement over the same 0.0001-second interval: maximum card translation change 4.18e-10 scene units (previously 2.67025). The moving capture checked 323 frames / 714,153 pairs with no visible-stock OBB or rounded-face intersections and no browser errors. These are bounded desktop measurements.
