@@ -1,0 +1,700 @@
+{
+  "baseline": "a986121",
+  "experiment": "Double colour pipeline concurrency from 8 to 16; rejected, source restored.",
+  "method": "Three interleaved trials per condition/version, fresh Chrome profile, HTTP and shader disk caches disabled, local production servers, Apple M4. Live Chrome testing window open during runs; do not compare absolute times against the earlier quiet-machine benchmark. CPU4 is simulated CPU throttling.",
+  "runs": [
+    {
+      "condition": "desktop",
+      "concurrency": 8,
+      "trial": 1,
+      "ready": 2.323399999976158,
+      "preparation": 1.0935,
+      "longestTaskMs": 246,
+      "stages": [
+        {
+          "name": "casino:renderer-device-init",
+          "start": 0.5298999999761581,
+          "duration": 0.00980000001192093
+        },
+        {
+          "name": "casino:compositor-graph-setup",
+          "start": 0.5506999999880791,
+          "duration": 0.005899999976158142
+        },
+        {
+          "name": "casino:dealer-rig-material-setup",
+          "start": 0.7795,
+          "duration": 0.08359999996423721
+        },
+        {
+          "name": "casino:yielding-colour-preparation",
+          "start": 1.1898999999761581,
+          "duration": 0.8225
+        },
+        {
+          "name": "casino:all-pass-pipeline-preparation",
+          "start": 2.012399999976158,
+          "duration": 0.256
+        },
+        {
+          "name": "casino:remaining-colour-pipelines",
+          "start": 2.2685,
+          "duration": 0.015
+        },
+        {
+          "name": "casino:covered-first-render",
+          "start": 2.287699999988079,
+          "duration": 0.014199999988079071
+        },
+        {
+          "name": "casino:gpu-completion-fence",
+          "start": 2.301899999976158,
+          "duration": 0.006100000023841858
+        }
+      ],
+      "errors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found) {\"url\":\"http://localhost:3142/_vercel/insights/script.js\"}"
+      ]
+    },
+    {
+      "condition": "desktop",
+      "concurrency": 8,
+      "trial": 2,
+      "ready": 2.948,
+      "preparation": 1.535199999988079,
+      "longestTaskMs": 317,
+      "stages": [
+        {
+          "name": "casino:renderer-device-init",
+          "start": 0.6156000000238419,
+          "duration": 0.005800000011920929
+        },
+        {
+          "name": "casino:compositor-graph-setup",
+          "start": 0.6327000000476837,
+          "duration": 0.0052999999523162845
+        },
+        {
+          "name": "casino:dealer-rig-material-setup",
+          "start": 0.8813000000119209,
+          "duration": 0.14569999998807906
+        },
+        {
+          "name": "casino:yielding-colour-preparation",
+          "start": 1.3685,
+          "duration": 1.1896000000238418
+        },
+        {
+          "name": "casino:all-pass-pipeline-preparation",
+          "start": 2.558100000023842,
+          "duration": 0.331
+        },
+        {
+          "name": "casino:remaining-colour-pipelines",
+          "start": 2.889200000047684,
+          "duration": 0.014599999964237213
+        },
+        {
+          "name": "casino:covered-first-render",
+          "start": 2.912900000035763,
+          "duration": 0.018699999988079072
+        },
+        {
+          "name": "casino:gpu-completion-fence",
+          "start": 2.931600000023842,
+          "duration": 0.005199999988079071
+        }
+      ],
+      "errors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found) {\"url\":\"http://localhost:3142/_vercel/insights/script.js\"}"
+      ]
+    },
+    {
+      "condition": "desktop",
+      "concurrency": 8,
+      "trial": 3,
+      "ready": 2.833,
+      "preparation": 1.5883999999761582,
+      "longestTaskMs": 336,
+      "stages": [
+        {
+          "name": "casino:renderer-device-init",
+          "start": 0.5305,
+          "duration": 0.012099999964237213
+        },
+        {
+          "name": "casino:compositor-graph-setup",
+          "start": 0.5586999999880791,
+          "duration": 0.00969999998807907
+        },
+        {
+          "name": "casino:dealer-rig-material-setup",
+          "start": 1.055399999976158,
+          "duration": 0.10719999998807907
+        },
+        {
+          "name": "casino:yielding-colour-preparation",
+          "start": 1.1985999999642372,
+          "duration": 1.193
+        },
+        {
+          "name": "casino:all-pass-pipeline-preparation",
+          "start": 2.391699999988079,
+          "duration": 0.37169999998807907
+        },
+        {
+          "name": "casino:remaining-colour-pipelines",
+          "start": 2.7635,
+          "duration": 0.02369999998807907
+        },
+        {
+          "name": "casino:covered-first-render",
+          "start": 2.7955,
+          "duration": 0.028399999976158143
+        },
+        {
+          "name": "casino:gpu-completion-fence",
+          "start": 2.8238999999761583,
+          "duration": 0.004399999976158142
+        }
+      ],
+      "errors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found) {\"url\":\"http://localhost:3142/_vercel/insights/script.js\"}"
+      ]
+    },
+    {
+      "condition": "desktop",
+      "concurrency": 16,
+      "trial": 1,
+      "ready": 2.349800000011921,
+      "preparation": 1.198399999976158,
+      "longestTaskMs": 267,
+      "stages": [
+        {
+          "name": "casino:renderer-device-init",
+          "start": 0.5004000000357628,
+          "duration": 0.003
+        },
+        {
+          "name": "casino:compositor-graph-setup",
+          "start": 0.5138000000119209,
+          "duration": 0.005100000023841858
+        },
+        {
+          "name": "casino:dealer-rig-material-setup",
+          "start": 0.7019000000357628,
+          "duration": 0.08289999997615814
+        },
+        {
+          "name": "casino:yielding-colour-preparation",
+          "start": 1.115800000011921,
+          "duration": 0.8933000000119209
+        },
+        {
+          "name": "casino:all-pass-pipeline-preparation",
+          "start": 2.009100000023842,
+          "duration": 0.28869999998807905
+        },
+        {
+          "name": "casino:remaining-colour-pipelines",
+          "start": 2.2978000000119208,
+          "duration": 0.016399999976158142
+        },
+        {
+          "name": "casino:covered-first-render",
+          "start": 2.315300000011921,
+          "duration": 0.01660000002384186
+        },
+        {
+          "name": "casino:gpu-completion-fence",
+          "start": 2.3319000000357626,
+          "duration": 0.006199999988079071
+        }
+      ],
+      "errors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found) {\"url\":\"http://localhost:3144/_vercel/insights/script.js\"}"
+      ]
+    },
+    {
+      "condition": "desktop",
+      "concurrency": 16,
+      "trial": 2,
+      "ready": 2.531,
+      "preparation": 1.3650000000000002,
+      "longestTaskMs": 293,
+      "stages": [
+        {
+          "name": "casino:renderer-device-init",
+          "start": 0.49719999998807907,
+          "duration": 0.019400000035762786
+        },
+        {
+          "name": "casino:compositor-graph-setup",
+          "start": 0.5325,
+          "duration": 0.006300000011920929
+        },
+        {
+          "name": "casino:dealer-rig-material-setup",
+          "start": 0.992300000011921,
+          "duration": 0.09339999997615814
+        },
+        {
+          "name": "casino:yielding-colour-preparation",
+          "start": 1.126300000011921,
+          "duration": 1.023800000011921
+        },
+        {
+          "name": "casino:all-pass-pipeline-preparation",
+          "start": 2.150300000011921,
+          "duration": 0.32189999997615815
+        },
+        {
+          "name": "casino:remaining-colour-pipelines",
+          "start": 2.472300000011921,
+          "duration": 0.019300000011920927
+        },
+        {
+          "name": "casino:covered-first-render",
+          "start": 2.4935,
+          "duration": 0.02019999998807907
+        },
+        {
+          "name": "casino:gpu-completion-fence",
+          "start": 2.513699999988079,
+          "duration": 0.002300000011920929
+        }
+      ],
+      "errors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found) {\"url\":\"http://localhost:3144/_vercel/insights/script.js\"}"
+      ]
+    },
+    {
+      "condition": "desktop",
+      "concurrency": 16,
+      "trial": 3,
+      "ready": 2.8470999999642372,
+      "preparation": 1.614599999964237,
+      "longestTaskMs": 388,
+      "stages": [
+        {
+          "name": "casino:renderer-device-init",
+          "start": 0.4962999999523163,
+          "duration": 0.005400000035762787
+        },
+        {
+          "name": "casino:compositor-graph-setup",
+          "start": 0.5141999999880791,
+          "duration": 0.008899999976158143
+        },
+        {
+          "name": "casino:dealer-rig-material-setup",
+          "start": 0.7360999999642373,
+          "duration": 0.10230000001192092
+        },
+        {
+          "name": "casino:yielding-colour-preparation",
+          "start": 1.180399999976158,
+          "duration": 1.139
+        },
+        {
+          "name": "casino:all-pass-pipeline-preparation",
+          "start": 2.3195,
+          "duration": 0.4510999999642372
+        },
+        {
+          "name": "casino:remaining-colour-pipelines",
+          "start": 2.770599999964237,
+          "duration": 0.0245
+        },
+        {
+          "name": "casino:covered-first-render",
+          "start": 2.8108999999761584,
+          "duration": 0.02180000001192093
+        },
+        {
+          "name": "casino:gpu-completion-fence",
+          "start": 2.832699999988079,
+          "duration": 0.0035
+        }
+      ],
+      "errors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found) {\"url\":\"http://localhost:3144/_vercel/insights/script.js\"}"
+      ]
+    },
+    {
+      "condition": "cpu4",
+      "concurrency": 8,
+      "trial": 1,
+      "ready": 8.852599999964237,
+      "preparation": 5.760400000035763,
+      "longestTaskMs": 1171,
+      "stages": [
+        {
+          "name": "casino:renderer-device-init",
+          "start": 1.1838000000119209,
+          "duration": 0.011899999976158142
+        },
+        {
+          "name": "casino:compositor-graph-setup",
+          "start": 1.256,
+          "duration": 0.032
+        },
+        {
+          "name": "casino:dealer-rig-material-setup",
+          "start": 2.192300000011921,
+          "duration": 0.3191999999880791
+        },
+        {
+          "name": "casino:yielding-colour-preparation",
+          "start": 2.966599999964237,
+          "duration": 4.4953000000119205
+        },
+        {
+          "name": "casino:all-pass-pipeline-preparation",
+          "start": 7.462399999976158,
+          "duration": 1.1856000000238418
+        },
+        {
+          "name": "casino:remaining-colour-pipelines",
+          "start": 8.648099999964238,
+          "duration": 0.0795
+        },
+        {
+          "name": "casino:covered-first-render",
+          "start": 8.741099999964238,
+          "duration": 0.09090000003576279
+        },
+        {
+          "name": "casino:gpu-completion-fence",
+          "start": 8.832,
+          "duration": 0.007399999976158142
+        }
+      ],
+      "errors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found) {\"url\":\"http://localhost:3142/_vercel/insights/script.js\"}"
+      ]
+    },
+    {
+      "condition": "cpu4",
+      "concurrency": 8,
+      "trial": 2,
+      "ready": 9.093100000023842,
+      "preparation": 5.834799999952317,
+      "longestTaskMs": 1164,
+      "stages": [
+        {
+          "name": "casino:renderer-device-init",
+          "start": 1.2804000000357627,
+          "duration": 0.013599999964237212
+        },
+        {
+          "name": "casino:compositor-graph-setup",
+          "start": 1.355800000011921,
+          "duration": 0.03240000003576279
+        },
+        {
+          "name": "casino:dealer-rig-material-setup",
+          "start": 2.286700000047684,
+          "duration": 0.336
+        },
+        {
+          "name": "casino:yielding-colour-preparation",
+          "start": 3.124700000047684,
+          "duration": 4.577799999952316
+        },
+        {
+          "name": "casino:all-pass-pipeline-preparation",
+          "start": 7.702600000023842,
+          "duration": 1.177699999988079
+        },
+        {
+          "name": "casino:remaining-colour-pipelines",
+          "start": 8.880400000035763,
+          "duration": 0.07930000001192093
+        },
+        {
+          "name": "casino:covered-first-render",
+          "start": 8.96430000001192,
+          "duration": 0.09510000002384186
+        },
+        {
+          "name": "casino:gpu-completion-fence",
+          "start": 9.059400000035764,
+          "duration": 0.006
+        }
+      ],
+      "errors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found) {\"url\":\"http://localhost:3142/_vercel/insights/script.js\"}"
+      ]
+    },
+    {
+      "condition": "cpu4",
+      "concurrency": 8,
+      "trial": 3,
+      "ready": 9.0485,
+      "preparation": 5.853699999988079,
+      "longestTaskMs": 1134,
+      "stages": [
+        {
+          "name": "casino:renderer-device-init",
+          "start": 1.1825,
+          "duration": 0.016799999952316284
+        },
+        {
+          "name": "casino:compositor-graph-setup",
+          "start": 1.2636999999880791,
+          "duration": 0.03180000001192093
+        },
+        {
+          "name": "casino:dealer-rig-material-setup",
+          "start": 2.2548999999761583,
+          "duration": 0.3028000000119209
+        },
+        {
+          "name": "casino:yielding-colour-preparation",
+          "start": 3.0673999999761583,
+          "duration": 4.612699999988079
+        },
+        {
+          "name": "casino:all-pass-pipeline-preparation",
+          "start": 7.680599999964238,
+          "duration": 1.148300000011921
+        },
+        {
+          "name": "casino:remaining-colour-pipelines",
+          "start": 8.83,
+          "duration": 0.09269999998807907
+        },
+        {
+          "name": "casino:covered-first-render",
+          "start": 8.940399999976158,
+          "duration": 0.08780000001192093
+        },
+        {
+          "name": "casino:gpu-completion-fence",
+          "start": 9.028599999964237,
+          "duration": 0.006800000011920929
+        }
+      ],
+      "errors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found) {\"url\":\"http://localhost:3142/_vercel/insights/script.js\"}"
+      ]
+    },
+    {
+      "condition": "cpu4",
+      "concurrency": 16,
+      "trial": 1,
+      "ready": 9.455299999952317,
+      "preparation": 5.7401999999880795,
+      "longestTaskMs": 1215,
+      "stages": [
+        {
+          "name": "casino:renderer-device-init",
+          "start": 1.7358999999761582,
+          "duration": 0.02
+        },
+        {
+          "name": "casino:compositor-graph-setup",
+          "start": 1.8223999999761582,
+          "duration": 0.028399999976158143
+        },
+        {
+          "name": "casino:dealer-rig-material-setup",
+          "start": 2.7461999999880793,
+          "duration": 0.33339999997615816
+        },
+        {
+          "name": "casino:yielding-colour-preparation",
+          "start": 3.603699999988079,
+          "duration": 4.405399999976158
+        },
+        {
+          "name": "casino:all-pass-pipeline-preparation",
+          "start": 8.00969999998808,
+          "duration": 1.2305999999642372
+        },
+        {
+          "name": "casino:remaining-colour-pipelines",
+          "start": 9.240299999952317,
+          "duration": 0.10420000004768372
+        },
+        {
+          "name": "casino:covered-first-render",
+          "start": 9.352299999952317,
+          "duration": 0.0795
+        },
+        {
+          "name": "casino:gpu-completion-fence",
+          "start": 9.432399999976159,
+          "duration": 0.005399999976158142
+        }
+      ],
+      "errors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found) {\"url\":\"http://localhost:3144/_vercel/insights/script.js\"}"
+      ]
+    },
+    {
+      "condition": "cpu4",
+      "concurrency": 16,
+      "trial": 2,
+      "ready": 8.675400000035763,
+      "preparation": 5.568899999976158,
+      "longestTaskMs": 1078,
+      "stages": [
+        {
+          "name": "casino:renderer-device-init",
+          "start": 1.142800000011921,
+          "duration": 0.0175
+        },
+        {
+          "name": "casino:compositor-graph-setup",
+          "start": 1.2341000000238418,
+          "duration": 0.039
+        },
+        {
+          "name": "casino:dealer-rig-material-setup",
+          "start": 2.221199999988079,
+          "duration": 0.3344000000357628
+        },
+        {
+          "name": "casino:yielding-colour-preparation",
+          "start": 3.021400000035763,
+          "duration": 4.391599999964237
+        },
+        {
+          "name": "casino:all-pass-pipeline-preparation",
+          "start": 7.413400000035763,
+          "duration": 1.093
+        },
+        {
+          "name": "casino:remaining-colour-pipelines",
+          "start": 8.5075,
+          "duration": 0.08430000001192092
+        },
+        {
+          "name": "casino:covered-first-render",
+          "start": 8.6045,
+          "duration": 0.04619999998807907
+        },
+        {
+          "name": "casino:gpu-completion-fence",
+          "start": 8.65069999998808,
+          "duration": 0.014700000047683716
+        }
+      ],
+      "errors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found) {\"url\":\"http://localhost:3144/_vercel/insights/script.js\"}"
+      ]
+    },
+    {
+      "condition": "cpu4",
+      "concurrency": 16,
+      "trial": 3,
+      "ready": 9.41630000001192,
+      "preparation": 5.502400000035762,
+      "longestTaskMs": 978,
+      "stages": [
+        {
+          "name": "casino:renderer-device-init",
+          "start": 1.5555999999642371,
+          "duration": 0.047600000023841856
+        },
+        {
+          "name": "casino:compositor-graph-setup",
+          "start": 1.7700999999642373,
+          "duration": 0.03590000003576279
+        },
+        {
+          "name": "casino:dealer-rig-material-setup",
+          "start": 3.438899999976158,
+          "duration": 0.3083000000119209
+        },
+        {
+          "name": "casino:yielding-colour-preparation",
+          "start": 3.774599999964237,
+          "duration": 4.411900000035763
+        },
+        {
+          "name": "casino:all-pass-pipeline-preparation",
+          "start": 8.186599999964237,
+          "duration": 0.9939000000357627
+        },
+        {
+          "name": "casino:remaining-colour-pipelines",
+          "start": 9.1815,
+          "duration": 0.09659999996423721
+        },
+        {
+          "name": "casino:covered-first-render",
+          "start": 9.292399999976158,
+          "duration": 0.06840000003576278
+        },
+        {
+          "name": "casino:gpu-completion-fence",
+          "start": 9.360899999976159,
+          "duration": 0.04310000002384186
+        }
+      ],
+      "errors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found) {\"url\":\"http://localhost:3144/_vercel/insights/script.js\"}"
+      ]
+    }
+  ],
+  "live": {
+    "marks": [
+      {
+        "name": "casino:scene-ready",
+        "seconds": 3.3596000000238417
+      },
+      {
+        "name": "casino:intro-start",
+        "seconds": 3.3645
+      }
+    ],
+    "stages": [
+      {
+        "name": "casino:renderer-device-init",
+        "start": 0.5916999999880791,
+        "duration": 0.0075
+      },
+      {
+        "name": "casino:compositor-graph-setup",
+        "start": 0.6134000000357628,
+        "duration": 0.007299999952316285
+      },
+      {
+        "name": "casino:dealer-rig-material-setup",
+        "start": 0.8899000000357628,
+        "duration": 0.108
+      },
+      {
+        "name": "casino:yielding-colour-preparation",
+        "start": 1.3411000000238418,
+        "duration": 1.4823999999761581
+      },
+      {
+        "name": "casino:all-pass-pipeline-preparation",
+        "start": 2.823699999988079,
+        "duration": 0.4205
+      },
+      {
+        "name": "casino:remaining-colour-pipelines",
+        "start": 3.244300000011921,
+        "duration": 0.052199999988079074
+      },
+      {
+        "name": "casino:covered-first-render",
+        "start": 3.3058000000119208,
+        "duration": 0.03510000002384186
+      },
+      {
+        "name": "casino:gpu-completion-fence",
+        "start": 3.341,
+        "duration": 0.003699999988079071
+      }
+    ],
+    "totalBytes": 3121714,
+    "lastDownloadSeconds": 1.1633889999939129,
+    "errors": []
+  }
+}
