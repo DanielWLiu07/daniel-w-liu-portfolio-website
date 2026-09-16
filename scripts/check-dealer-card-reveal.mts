@@ -5,7 +5,7 @@ import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js'
 import {DealerBodyRig} from '../components/resume/casino/dealer-idle'
 import {DealerHandGrip} from '../components/resume/casino/dealer-grip'
 import {poseDealerAtTable} from '../components/resume/casino/dealer-pose'
-import {DEALER_CARD_SNAP,DEALER_CARD_REVEAL_START,dealerCardReveal} from '../components/resume/casino/dealer-card-reveal'
+import {DEALER_CARD_SNAP,DEALER_CARD_REVEAL_START,DEALER_CARD_UNFOLD,dealerCardReveal} from '../components/resume/casino/dealer-card-reveal'
 import {DEALER_CARD_PAD} from '../components/resume/casino/dealer-shuffle'
 const loader=new GLTFLoader();loader.register(()=>({name:'T',loadTexture:()=>Promise.resolve(new Texture())}))
 const bytes=readFileSync('public/models/casino-dealer-v3.glb')
@@ -133,7 +133,9 @@ assert.ok(relaxedThumb.normalize().angleTo(root.getObjectByName('LeftThumb1')!.q
 assert.ok(root.getObjectByName('LeftHand')!.getWorldPosition(new Vector3()).distanceTo(low)>.08,'The forearm rises from a relaxed preparation')
 const stroke=[DEALER_CARD_SNAP-.22,DEALER_CARD_SNAP].map(age=>{body.reset();body.shuffle.apply(0,1,age,true);return root.getObjectByName('LeftHand')!.getWorldPosition(new Vector3())})
 assert.ok(stroke[0].distanceTo(stroke[1])>.065,'The snap includes a readable forearm stroke')
-assert.equal(dealerCardReveal(DEALER_CARD_REVEAL_START).grip,1,'Grip is ready before the cards appear')
+assert.equal(dealerCardReveal(DEALER_CARD_SNAP).release,1,'Finger release completes on the snap beat')
+assert.equal(dealerCardReveal(DEALER_CARD_SNAP).grip,0,'Snap is visible before the fingers form the catch pinch')
+assert.equal(dealerCardReveal(DEALER_CARD_REVEAL_START+DEALER_CARD_UNFOLD).grip,1,'Grip closes by the actual incoming-card catch')
 body.reset();assert.equal(body.shuffle.group.visible,false,'Replay clears the card reveal')
 body.dispose()
 console.log('Opposed grips, thumb articulation, loaded snap, progressive card production, supported fan contact and replay passed.')

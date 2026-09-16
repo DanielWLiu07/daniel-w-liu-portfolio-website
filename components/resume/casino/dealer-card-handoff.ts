@@ -60,22 +60,23 @@ export function incomingCardMatrix(source:Matrix4,target:Matrix4,progress:number
   if(p===1)return target.clone()
   const a=new Vector3(),b=new Vector3(),qa=new Quaternion(),qb=new Quaternion(),sa=new Vector3(),sb=new Vector3()
   source.decompose(a,qa,sa);target.decompose(b,qb,sb)
-  const travel=smooth(p),turn=smooth(p/.78)
-  const arch=Math.sin(Math.PI*p)**2
-  // Paper floats out of the fan, then descends along the receiving card plane.
-  // Both envelopes have zero endpoint velocity relative to the moving hand.
+  const turn=smooth(p/.84)
   const height=Math.max(sa.y*.65,sb.y*3)
   const top=new Vector3(0,1,0).applyQuaternion(qb)
-  const position=a.lerp(b,travel).addScaledVector(up,height*arch*(1-smooth((p-.45)/.35)))
-    .addScaledVector(top,sb.y*2.4*arch*smooth(p/.45))
-    .addScaledVector(right,(index===0?-1:1)*height*.18*arch*(1-travel))
-  const flutter=.22*Math.sin(p*Math.PI*4+index*.7)*arch*(1-turn)
+  // A short release lift, then a gravity-shaped descent. The final control
+  // point sits above the actual pinch, so the paper enters along its plane.
+  const c1=a.clone().addScaledVector(up,height*.18)
+    .addScaledVector(right,(index===0?-1:1)*height*.12)
+  const c2=b.clone().addScaledVector(top,sb.y*1.15)
+  const u=p*p*(2-p),v=1-u
+  const position=a.clone().multiplyScalar(v*v*v).addScaledVector(c1,3*v*v*u)
+    .addScaledVector(c2,3*v*u*u).addScaledVector(b,u*u*u)
+  const flutter=.16*Math.sin(p*Math.PI*3+index*.8)*Math.sin(Math.PI*p)*(1-turn)
   const rotation=qa.slerp(qb,turn).multiply(new Quaternion().setFromAxisAngle(new Vector3(0,0,1),flutter))
-  const matrix=new Matrix4().compose(position,rotation,sa.lerp(sb,smooth(p/.85)))
-  // Finish by sliding down the actual pinch plane, rather than cutting across
-  // the thumb on a diagonal. Keep the receiving torso shear throughout contact.
-  const landing=target.clone().multiply(new Matrix4().makeTranslation(0,1.2*(1-smooth((p-.70)/.30)),0))
-  const settle=smooth((p-.70)/.15)
-  if(settle>0)for(let i=0;i<16;i++)matrix.elements[i]+=(landing.elements[i]-matrix.elements[i])*settle
+  const matrix=new Matrix4().compose(position,rotation,sa.lerp(sb,smooth(p/.84)))
+  // Absorb the last few frames at the pinch, not a long hovering approach.
+  // Preserve the exact torso/grip shear at contact and during the catch recoil.
+  const settle=smooth((p-.92)/.08)
+  if(settle>0)for(let i=0;i<16;i++)matrix.elements[i]+=(target.elements[i]-matrix.elements[i])*settle
   return matrix
 }

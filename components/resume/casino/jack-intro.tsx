@@ -1401,7 +1401,7 @@ export default function JackIntro({
 
     b.lock.position.set(centre.current[0] + tn.jkLockX, centre.current[1] + tn.jkLockY, 0)
     g.userData.cardRenderLayer = t > impact.at ? 1 : 0
-    if (t > impact.at) b.depth.resolve(g)
+    if (t > impact.at) b.depth.resolve(g, state.camera)
   })
 
   useFrame(({ camera, clock }) => {

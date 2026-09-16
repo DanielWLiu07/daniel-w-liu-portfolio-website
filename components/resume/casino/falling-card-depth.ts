@@ -2,13 +2,12 @@ import * as THREE from 'three'
 
 const FLIGHT_FOREGROUND = ['flight-roulette', 'flight-royal-flush', 'roulette-caption', 'royal-flush-caption'] as const
 
-/** Conservative card/word volumes, in the common intro coordinate system.
- * Keep authored XY travel and rotations; overlapping volumes are separated
- * toward the back, never toward the chip/foreground flight props.
+/** Conservative card/word volumes in camera space.
+ * Keep the authored screen trajectory and rotations; overlapping volumes are
+ * separated by camera-centred dilation so depth changes never pop on screen.
  */
 export class FallingCardDepth {
   private boxes: THREE.Box3[]
-  private inverse = new THREE.Matrix4()
   private matrix = new THREE.Matrix4()
   private part = new THREE.Box3()
   private foreground = new THREE.Box3()
@@ -75,39 +74,45 @@ export class FallingCardDepth {
     })
   }
 
-  resolve(root: THREE.Object3D) {
+  resolve(root: THREE.Object3D, camera: THREE.Camera) {
     root.updateWorldMatrix(true, true)
-    this.inverse.copy(root.matrixWorld).invert()
+    camera.updateWorldMatrix(true, false)
+    const cameraPosition = this.cameraOrigin.setFromMatrixPosition(camera.matrixWorld)
     for (let i = 0; i < this.bodies.length; i++) {
       const box = this.boxes[i]
       box.makeEmpty()
       for (const mesh of this.bodies[i]) {
         if (!mesh.visible) continue
         if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox()
-        this.matrix.multiplyMatrices(this.inverse, mesh.matrixWorld)
+        this.matrix.multiplyMatrices(camera.matrixWorldInverse, mesh.matrixWorld)
         this.part.copy(mesh.geometry.boundingBox!).applyMatrix4(this.matrix)
         box.union(this.part)
       }
-      if (box.isEmpty()) continue
+      if (box.isEmpty() || box.max.z >= -.001) continue
       box.expandByScalar(.015)
-      let shift = 0
-      // Fixed order prevents transparent sorting from swapping front/back.
-      // Moving monotonically back cannot re-enter an already cleared volume.
+      let factor = 1
       for (let pass = 0; pass <= i; pass++) {
         let moved = false
         for (let j = 0; j < i; j++) {
           const other = this.boxes[j]
           if (other.isEmpty() || !box.intersectsBox(other)) continue
-          const dz = other.min.z - box.max.z - .015
-          box.min.z += dz; box.max.z += dz
-          shift += dz
+          const dilation = (other.min.z - .015) / box.max.z
+          if (dilation <= 1) continue
+          // Scale about the camera, not the card centre: every projected corner
+          // stays in exactly the same place even when overlap starts or ends.
+          box.min.multiplyScalar(dilation)
+          box.max.multiplyScalar(dilation)
+          factor *= dilation
           moved = true
         }
         if (!moved) break
       }
-      // Bodies live in translation-only groups under root; share the same
-      // correction between the card stock and every attached letter.
-      if (shift) for (const mesh of this.bodies[i]) mesh.position.z += shift
+      if (factor !== 1) for (const mesh of this.bodies[i]) {
+        this.origin.copy(cameraPosition)
+        if (mesh.parent) mesh.parent.worldToLocal(this.origin)
+        mesh.position.sub(this.origin).multiplyScalar(factor).add(this.origin)
+        mesh.scale.multiplyScalar(factor)
+      }
     }
   }
 }

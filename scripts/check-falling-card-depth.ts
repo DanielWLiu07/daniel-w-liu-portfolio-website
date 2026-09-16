@@ -9,24 +9,32 @@ const letter = new THREE.Mesh(new THREE.PlaneGeometry(.5, .3))
 root.add(...cards, letter)
 const solver = new FallingCardDepth(cards.map((c, i) => i ? [c] : [c, letter]))
 const boxes = cards.map(() => new THREE.Box3())
+const viewCamera = new THREE.PerspectiveCamera(50, 1.6, .1, 10000)
+viewCamera.position.z = 17
+viewCamera.updateWorldMatrix(true, false)
 let checks = 0
 for (let frame = 0; frame < 90; frame++) {
   const t = frame / 30
   for (let i = 0; i < cards.length; i++) {
     cards[i].position.set((i % 9 - 4) * 1.25 + Math.sin(t + i) * .5,
       (Math.floor(i / 9) - 3) * 1.85 - t * t * (1 + i % 5 * .08), 0)
+    cards[i].scale.setScalar(1)
     cards[i].rotation.set(.35 * Math.sin(t + i), t * (i % 7 - 3), .3 * Math.sin(t * 2 + i))
   }
   letter.position.copy(cards[0].position).add(new THREE.Vector3(.25, .2, .2))
-  const before = cards.map(c => [c.position.x, c.position.y, c.quaternion.clone()] as const)
-  const offset = letter.position.z - cards[0].position.z
-  solver.resolve(root)
-  assert.ok(Math.abs(letter.position.z - cards[0].position.z - offset) < 1e-10, 'word stays attached to its card')
+  letter.scale.setScalar(1)
+  root.updateWorldMatrix(true, true)
+  const before = cards.map(c => [new THREE.Vector3(.3,.5,0).applyMatrix4(c.matrixWorld).project(viewCamera), c.quaternion.clone()] as const)
+  const letterBefore = new THREE.Vector3().setFromMatrixPosition(letter.matrixWorld).project(viewCamera)
+  solver.resolve(root, viewCamera)
+  const letterAfter = letter.getWorldPosition(new THREE.Vector3()).project(viewCamera)
+  assert.ok(Math.hypot(letterAfter.x-letterBefore.x, letterAfter.y-letterBefore.y)<1e-10, 'word stays visually attached to its card')
   root.updateWorldMatrix(true, true)
   for (let i = 0; i < cards.length; i++) {
     const c = cards[i]
-    assert.equal(c.position.x, before[i][0]); assert.equal(c.position.y, before[i][1])
-    assert.ok(c.quaternion.equals(before[i][2]), 'solver preserves tumble')
+    const projected = new THREE.Vector3(.3,.5,0).applyMatrix4(c.matrixWorld).project(viewCamera)
+    assert.ok(Math.hypot(projected.x-before[i][0].x, projected.y-before[i][0].y)<1e-10, 'overlap correction cannot jump on screen')
+    assert.ok(c.quaternion.equals(before[i][1]), 'solver preserves tumble')
     if (!geometry.boundingBox) geometry.computeBoundingBox()
     boxes[i].copy(geometry.boundingBox!).applyMatrix4(c.matrixWorld)
     for (let j = 0; j < i; j++) {
@@ -35,7 +43,7 @@ for (let frame = 0; frame < 90; frame++) {
     }
   }
 }
-console.log(`PASS: ${checks} tumbling card-pair checks; XY motion, orientation and word attachment preserved`)
+console.log(`PASS: ${checks} tumbling card-pair checks; projected corners, orientation and word attachment preserved`)
 
 // Foreground protection must not visibly resize/reposition the paper, even with
 // a rotated camera/parent, and must never accumulate across replay frames.
