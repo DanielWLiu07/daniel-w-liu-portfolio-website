@@ -1,0 +1,468 @@
+{
+  "commit": "3448a9426a92c08d62c82af6a308133a288a074e",
+  "device": "Apple M4",
+  "browser": "Chrome 153.0.8010.48",
+  "runs": [
+    {
+      "run": "fast-1",
+      "downloadCompleteSeconds": 7.353968000039458,
+      "marks": [
+        {
+          "name": "casino:scene-ready",
+          "seconds": 8.856900000035763
+        },
+        {
+          "name": "casino:intro-start",
+          "seconds": 8.859100000023842
+        },
+        {
+          "name": "casino:table-landed",
+          "seconds": 14.788700000047683
+        }
+      ],
+      "stages": [
+        {
+          "name": "casino:renderer-device-init",
+          "start": 6.626300000011921,
+          "duration": 0.014600000023841857
+        },
+        {
+          "name": "casino:compositor-graph-setup",
+          "start": 6.654,
+          "duration": 0.006100000023841858
+        },
+        {
+          "name": "casino:dealer-rig-material-setup",
+          "start": 6.978100000023842,
+          "duration": 0.04369999998807907
+        },
+        {
+          "name": "casino:dealer-rig-material-setup",
+          "start": 7.166600000023842,
+          "duration": 0.03360000002384186
+        },
+        {
+          "name": "casino:all-pass-pipeline-preparation",
+          "start": 7.2679000000357625,
+          "duration": 1.0370999999642372
+        },
+        {
+          "name": "casino:remaining-colour-pipelines",
+          "start": 8.305,
+          "duration": 0.5121000000238418
+        },
+        {
+          "name": "casino:covered-first-render",
+          "start": 8.822300000011921,
+          "duration": 0.017100000023841856
+        },
+        {
+          "name": "casino:gpu-completion-fence",
+          "start": 8.839400000035763,
+          "duration": 0.003899999976158142
+        }
+      ],
+      "bytes": 3122759,
+      "errors": []
+    },
+    {
+      "run": "fast-2",
+      "downloadCompleteSeconds": 1.2844569999724627,
+      "marks": [
+        {
+          "name": "casino:scene-ready",
+          "seconds": 2.642799999952316
+        },
+        {
+          "name": "casino:intro-start",
+          "seconds": 2.645199999988079
+        },
+        {
+          "name": "casino:table-landed",
+          "seconds": 8.575
+        }
+      ],
+      "stages": [
+        {
+          "name": "casino:renderer-device-init",
+          "start": 0.8615999999642372,
+          "duration": 0.019699999988079073
+        },
+        {
+          "name": "casino:compositor-graph-setup",
+          "start": 0.8928999999761581,
+          "duration": 0.005100000023841858
+        },
+        {
+          "name": "casino:dealer-rig-material-setup",
+          "start": 1.1613999999761582,
+          "duration": 0.05660000002384186
+        },
+        {
+          "name": "casino:all-pass-pipeline-preparation",
+          "start": 1.4875999999642373,
+          "duration": 1.0795
+        },
+        {
+          "name": "casino:remaining-colour-pipelines",
+          "start": 2.5670999999642374,
+          "duration": 0.024400000035762787
+        },
+        {
+          "name": "casino:covered-first-render",
+          "start": 2.6080999999642374,
+          "duration": 0.018100000023841857
+        },
+        {
+          "name": "casino:gpu-completion-fence",
+          "start": 2.6262999999523164,
+          "duration": 0.0015
+        }
+      ],
+      "bytes": 3122578,
+      "errors": []
+    },
+    {
+      "run": "fast-3",
+      "downloadCompleteSeconds": 1.093641999992542,
+      "marks": [
+        {
+          "name": "casino:scene-ready",
+          "seconds": 2.3032999999523165
+        },
+        {
+          "name": "casino:intro-start",
+          "seconds": 2.3053999999761583
+        },
+        {
+          "name": "casino:table-landed",
+          "seconds": 8.235299999952316
+        }
+      ],
+      "stages": [
+        {
+          "name": "casino:renderer-device-init",
+          "start": 0.6055,
+          "duration": 0.0042999999523162845
+        },
+        {
+          "name": "casino:compositor-graph-setup",
+          "start": 0.619,
+          "duration": 0.0052999999523162845
+        },
+        {
+          "name": "casino:dealer-rig-material-setup",
+          "start": 0.9243999999761582,
+          "duration": 0.04619999998807907
+        },
+        {
+          "name": "casino:all-pass-pipeline-preparation",
+          "start": 1.2511999999880792,
+          "duration": 0.9790999999642372
+        },
+        {
+          "name": "casino:remaining-colour-pipelines",
+          "start": 2.230299999952316,
+          "duration": 0.023200000047683716
+        },
+        {
+          "name": "casino:covered-first-render",
+          "start": 2.268799999952316,
+          "duration": 0.011700000047683717
+        },
+        {
+          "name": "casino:gpu-completion-fence",
+          "start": 2.2805,
+          "duration": 0.008199999988079071
+        }
+      ],
+      "bytes": 3122587,
+      "errors": []
+    },
+    {
+      "run": "slow-1",
+      "downloadCompleteSeconds": 2.9469019999960437,
+      "marks": [
+        {
+          "name": "casino:scene-ready",
+          "seconds": 4.179599999964237
+        },
+        {
+          "name": "casino:intro-start",
+          "seconds": 4.183299999952316
+        },
+        {
+          "name": "casino:table-landed",
+          "seconds": 10.108899999976158
+        }
+      ],
+      "stages": [
+        {
+          "name": "casino:renderer-device-init",
+          "start": 2.0978999999761583,
+          "duration": 0.002899999976158142
+        },
+        {
+          "name": "casino:compositor-graph-setup",
+          "start": 2.110799999952316,
+          "duration": 0.005700000047683716
+        },
+        {
+          "name": "casino:dealer-rig-material-setup",
+          "start": 2.9630999999642373,
+          "duration": 0.061900000035762785
+        },
+        {
+          "name": "casino:all-pass-pipeline-preparation",
+          "start": 3.0295999999642373,
+          "duration": 1.072
+        },
+        {
+          "name": "casino:remaining-colour-pipelines",
+          "start": 4.101699999988079,
+          "duration": 0.02880000001192093
+        },
+        {
+          "name": "casino:covered-first-render",
+          "start": 4.142199999988079,
+          "duration": 0.0155
+        },
+        {
+          "name": "casino:gpu-completion-fence",
+          "start": 4.157699999988079,
+          "duration": 0.001300000011920929
+        }
+      ],
+      "bytes": 3122700,
+      "errors": []
+    },
+    {
+      "run": "slow-2",
+      "downloadCompleteSeconds": 3.0315839999821037,
+      "marks": [
+        {
+          "name": "casino:scene-ready",
+          "seconds": 4.299699999988079
+        },
+        {
+          "name": "casino:intro-start",
+          "seconds": 4.302300000011921
+        },
+        {
+          "name": "casino:table-landed",
+          "seconds": 10.230900000035763
+        }
+      ],
+      "stages": [
+        {
+          "name": "casino:renderer-device-init",
+          "start": 2.1994000000357627,
+          "duration": 0.004399999976158142
+        },
+        {
+          "name": "casino:compositor-graph-setup",
+          "start": 2.213600000023842,
+          "duration": 0.005599999964237213
+        },
+        {
+          "name": "casino:dealer-rig-material-setup",
+          "start": 3.024199999988079,
+          "duration": 0.054400000035762786
+        },
+        {
+          "name": "casino:all-pass-pipeline-preparation",
+          "start": 3.084699999988079,
+          "duration": 1.1397000000476838
+        },
+        {
+          "name": "casino:remaining-colour-pipelines",
+          "start": 4.224400000035763,
+          "duration": 0.02739999997615814
+        },
+        {
+          "name": "casino:covered-first-render",
+          "start": 4.264300000011921,
+          "duration": 0.0235
+        },
+        {
+          "name": "casino:gpu-completion-fence",
+          "start": 4.287800000011921,
+          "duration": 0.002399999976158142
+        }
+      ],
+      "bytes": 3122626,
+      "errors": []
+    },
+    {
+      "run": "slow-3",
+      "downloadCompleteSeconds": 2.8843660000129603,
+      "marks": [
+        {
+          "name": "casino:scene-ready",
+          "seconds": 4.0825
+        },
+        {
+          "name": "casino:intro-start",
+          "seconds": 4.085099999964237
+        },
+        {
+          "name": "casino:table-landed",
+          "seconds": 10.0145
+        }
+      ],
+      "stages": [
+        {
+          "name": "casino:renderer-device-init",
+          "start": 2.106099999964237,
+          "duration": 0.003600000023841858
+        },
+        {
+          "name": "casino:compositor-graph-setup",
+          "start": 2.1185,
+          "duration": 0.008599999964237213
+        },
+        {
+          "name": "casino:dealer-rig-material-setup",
+          "start": 2.905899999976158,
+          "duration": 0.05360000002384186
+        },
+        {
+          "name": "casino:all-pass-pipeline-preparation",
+          "start": 2.997099999964237,
+          "duration": 1.0344000000357627
+        },
+        {
+          "name": "casino:remaining-colour-pipelines",
+          "start": 4.031599999964238,
+          "duration": 0.024400000035762787
+        },
+        {
+          "name": "casino:covered-first-render",
+          "start": 4.063599999964238,
+          "duration": 0.011300000011920929
+        },
+        {
+          "name": "casino:gpu-completion-fence",
+          "start": 4.074899999976158,
+          "duration": 0.005800000011920929
+        }
+      ],
+      "bytes": 3122476,
+      "errors": []
+    },
+    {
+      "run": "profile",
+      "downloadCompleteSeconds": 1.1664819999714382,
+      "marks": [
+        {
+          "name": "casino:scene-ready",
+          "seconds": 2.5591000000238417
+        },
+        {
+          "name": "casino:intro-start",
+          "seconds": 2.562100000023842
+        },
+        {
+          "name": "casino:table-landed",
+          "seconds": 8.491100000023842
+        }
+      ],
+      "stages": [
+        {
+          "name": "casino:renderer-device-init",
+          "start": 0.6775,
+          "duration": 0.007400000035762787
+        },
+        {
+          "name": "casino:compositor-graph-setup",
+          "start": 0.6952000000476837,
+          "duration": 0.008299999952316284
+        },
+        {
+          "name": "casino:dealer-rig-material-setup",
+          "start": 1.0276000000238419,
+          "duration": 0.07339999997615815
+        },
+        {
+          "name": "casino:all-pass-pipeline-preparation",
+          "start": 1.3575,
+          "duration": 1.1216000000238417
+        },
+        {
+          "name": "casino:remaining-colour-pipelines",
+          "start": 2.4792000000476837,
+          "duration": 0.0295
+        },
+        {
+          "name": "casino:covered-first-render",
+          "start": 2.524,
+          "duration": 0.015100000023841858
+        },
+        {
+          "name": "casino:gpu-completion-fence",
+          "start": 2.5391000000238417,
+          "duration": 0.0075
+        }
+      ],
+      "bytes": 3122741,
+      "errors": []
+    },
+    {
+      "run": "cpu4",
+      "downloadCompleteSeconds": 2.6118399999686517,
+      "marks": [
+        {
+          "name": "casino:scene-ready",
+          "seconds": 7.614699999988079
+        },
+        {
+          "name": "casino:intro-start",
+          "seconds": 7.64
+        },
+        {
+          "name": "casino:table-landed",
+          "seconds": 13.5375
+        }
+      ],
+      "stages": [
+        {
+          "name": "casino:renderer-device-init",
+          "start": 1.3021000000238419,
+          "duration": 0.012800000011920928
+        },
+        {
+          "name": "casino:compositor-graph-setup",
+          "start": 1.363600000023842,
+          "duration": 0.030099999964237213
+        },
+        {
+          "name": "casino:dealer-rig-material-setup",
+          "start": 2.685,
+          "duration": 0.246
+        },
+        {
+          "name": "casino:all-pass-pipeline-preparation",
+          "start": 3.122100000023842,
+          "duration": 4.267699999988079
+        },
+        {
+          "name": "casino:remaining-colour-pipelines",
+          "start": 7.389800000011921,
+          "duration": 0.09419999998807907
+        },
+        {
+          "name": "casino:covered-first-render",
+          "start": 7.489699999988079,
+          "duration": 0.102
+        },
+        {
+          "name": "casino:gpu-completion-fence",
+          "start": 7.591699999988079,
+          "duration": 0.006900000035762787
+        }
+      ],
+      "bytes": 3122661,
+      "errors": []
+    }
+  ]
+}
