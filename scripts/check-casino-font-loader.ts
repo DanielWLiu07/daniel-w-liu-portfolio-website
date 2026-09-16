@@ -4,11 +4,13 @@ import { loadCasinoFont } from '../components/resume/casino/font-loader'
 async function main() {
   let loads = 0, adds = 0, cssLoads = 0
   const pending: (() => void)[] = []
+  const faces = new Set<unknown>([{ family: 'JkFredericka', async load() { cssLoads++ } }])
   Object.assign(globalThis, {
     FontFace: class {
+      constructor(public family: string) {}
       load() { loads++; return new Promise(resolve => pending.push(() => resolve(this))) }
     },
-    document: { fonts: { add() { adds++ }, async load() { cssLoads++; return [{}] } } },
+    document: { fonts: { [Symbol.iterator]: () => faces[Symbol.iterator](), add(face: unknown) { adds++; faces.add(face) } } },
   })
   const a = loadCasinoFont('KatieRoze', '/font.woff2')
   const b = loadCasinoFont('KatieRoze', '/font.woff2')

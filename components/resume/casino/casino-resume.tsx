@@ -84,7 +84,10 @@ export default function CasinoResume({ layoutTuning = false, jackEditing = false
     u.collapse.value = transitionStage === 'covering' ? 1 : 0
   }, [transitionStage])
 
-  const onReady = useCallback(() => setSceneReady(true), [])
+  const onReady = useCallback(() => {
+    if (!performance.getEntriesByName('casino:scene-ready').length) performance.mark('casino:scene-ready')
+    setSceneReady(true)
+  }, [])
   // the resume file: click the folder to open it (camera settles over it, the two-pane view slides up)
   const [fileOpen, setFileOpen] = useState(false)
   const openFile = useCallback(() => setFileOpen(true), [])
@@ -100,6 +103,9 @@ export default function CasinoResume({ layoutTuning = false, jackEditing = false
   // Never spend the opening beat under either loading cover. All actors share
   // the chip's start clock, which remains unset until this gate opens.
   const armed = canStartCasinoIntro(sceneReady, transitionStage)
+  useEffect(() => {
+    if (armed && !performance.getEntriesByName('casino:intro-start').length) performance.mark('casino:intro-start')
+  }, [armed])
   // per-frame impact state from the hero chip (age, camera jolt)
   const report = useCallback((impactAge: number, jolt: number) => {
     const f = fx.current
@@ -107,6 +113,7 @@ export default function CasinoResume({ layoutTuning = false, jackEditing = false
     f.jolt = jolt
     if (!f.landed && impactAge >= 0) {
       f.landed = true
+      if (!performance.getEntriesByName('casino:table-landed').length) performance.mark('casino:table-landed')
       setLanded(true)
     }
   }, [])

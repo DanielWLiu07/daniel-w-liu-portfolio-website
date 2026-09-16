@@ -9,7 +9,7 @@ export function loadSharedFont(family: string, url: string): Promise<void> {
     const face = new FontFace(family, `url('${url}')`)
     document.fonts.add(face)
     await face.load()
-  })()
+  })().catch(error => { pending.delete(family); throw error })
   pending.set(family, promise)
   return promise
 }
