@@ -44,17 +44,23 @@ for(const age of [-1,0,.46,1.5,2,2.7,3.2,3.48,4,5]){
  const expected=pose(age);pose(9,2);pose(.2,.5);pose(4,1,0);const actual=pose(age)
  assert.ok(actual.every((v,i)=>Math.abs(v-expected[i])<1e-8),`Backward scrub at ${age} is deterministic`)
 }
-const source=new Matrix4().compose(new Vector3(4,7,2),new Quaternion().setFromAxisAngle(new Vector3(0,1,0),1.2),new Vector3(2,2,2))
 pose(DEALER_CARD_CATCH)
 for(const [index,card] of body.shuffle.cards.entries()){
  const target=card.matrixWorld.clone().multiply(FLIGHT_CARD_TO_GRIP)
- const sample=(p:number)=>incomingCardMatrix(source,target,p,index,new Vector3(0,1,0),new Vector3(1,0,0))
- assert.deepEqual(sample(0).elements,source.elements)
+ const sample=(p:number)=>incomingCardMatrix(target,p,index)
+ const landing=new Vector3().setFromMatrixPosition(target)
+ let previousY=Infinity
+ const targetScale=new Vector3().setFromMatrixScale(target)
  assert.deepEqual(sample(1).elements,target.elements)
  const near=sample(1-1e-4)
  assert.ok(near.elements.every((v,i)=>Math.abs(v-target.elements[i])<1e-7),'Exact moving grip matrix is reached smoothly')
  for(let i=0;i<=1000;i++){
   const matrix=sample(i/1000)
+  const position=new Vector3().setFromMatrixPosition(matrix)
+  assert.ok(Math.abs(position.x-landing.x)<1e-8 && Math.abs(position.z-landing.z)<1e-8,'Drop stays at the hand depth without flying backwards')
+  assert.ok(position.y<=previousY+1e-8 && position.y>=landing.y-1e-8,'Card only descends into the grip')
+  previousY=position.y
+  if(i<920)assert.ok(new Vector3().setFromMatrixScale(matrix).distanceTo(targetScale)<1e-6,'Card starts at its held size')
   assert.ok(matrix.elements.every(Number.isFinite)&&matrix.determinant()>0,'Paper never collapses or flips its handedness')
  }
 }

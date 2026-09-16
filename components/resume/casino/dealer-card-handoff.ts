@@ -8,6 +8,7 @@ const clamp=(x:number)=>Math.max(0,Math.min(1,x))
 const smooth=(x:number)=>{const t=clamp(x);return t*t*t*(t*(t*6-15)+10)}
 // Start as the supporting hand releases the seated skull, while the hat lands.
 export const DEALER_CARD_ACTION_START=dealerEntranceTime(2.18)
+export const DEALER_CARD_DROP_DURATION=.8
 export const DEALER_CARD_CATCH=DEALER_CARD_ACTION_START+DEALER_CARD_REVEAL_START+DEALER_CARD_UNFOLD
 
 /** The free arm settles casually into its point, ready by the card hand's snap. */
@@ -53,29 +54,19 @@ export const FLIGHT_CARD_TO_GRIP=new Matrix4().makeRotationX(-Math.PI/2)
   .multiply(new Matrix4().makeRotationZ(Math.PI))
   .multiply(new Matrix4().makeScale(.090/(2/3),.130,.00054/(.177/52)))
 
-/** Absolute-time trajectory. No captured previous frame, so reverse scrubs agree. */
-export function incomingCardMatrix(source:Matrix4,target:Matrix4,progress:number,index:number,up:Vector3,right:Vector3) {
+/** Drop at the dealer's depth and card size, then attach to the moving grip. */
+export function incomingCardMatrix(target:Matrix4,progress:number,index:number) {
   const p=clamp(progress)
-  if(p===0)return source.clone()
   if(p===1)return target.clone()
-  const a=new Vector3(),b=new Vector3(),qa=new Quaternion(),qb=new Quaternion(),sa=new Vector3(),sb=new Vector3()
-  source.decompose(a,qa,sa);target.decompose(b,qb,sb)
-  const turn=smooth(p/.84)
-  const height=Math.max(sa.y*.65,sb.y*3)
-  const top=new Vector3(0,1,0).applyQuaternion(qb)
-  // A short release lift, then a gravity-shaped descent. The final control
-  // point sits above the actual pinch, so the paper enters along its plane.
-  const c1=a.clone().addScaledVector(up,height*.18)
-    .addScaledVector(right,(index===0?-1:1)*height*.12)
-  const c2=b.clone().addScaledVector(top,sb.y*1.15)
-  const u=p*p*(2-p),v=1-u
-  const position=a.clone().multiplyScalar(v*v*v).addScaledVector(c1,3*v*v*u)
-    .addScaledVector(c2,3*v*u*u).addScaledVector(b,u*u*u)
-  const flutter=.16*Math.sin(p*Math.PI*3+index*.8)*Math.sin(Math.PI*p)*(1-turn)
-  const rotation=qa.slerp(qb,turn).multiply(new Quaternion().setFromAxisAngle(new Vector3(0,0,1),flutter))
-  const matrix=new Matrix4().compose(position,rotation,sa.lerp(sb,smooth(p/.84)))
-  // Absorb the last few frames at the pinch, not a long hovering approach.
-  // Preserve the exact torso/grip shear at contact and during the catch recoil.
+  const position=new Vector3(),rotation=new Quaternion(),scale=new Vector3()
+  target.decompose(position,rotation,scale)
+  // Begin above the shot, already behind the table. Gravity accelerates the
+  // descent; there is no camera-to-dealer travel or giant-to-small scaling.
+  position.y+=scale.y*8*(1-p*p)
+  const flutter=(index===0?-1:1)*.12*Math.sin(p*Math.PI*2+.6)*(1-p)
+  rotation.multiply(new Quaternion().setFromAxisAngle(new Vector3(0,0,1),flutter))
+  const matrix=new Matrix4().compose(position,rotation,scale)
+  // The fingers absorb the final few frames and preserve the exact grip shear.
   const settle=smooth((p-.92)/.08)
   if(settle>0)for(let i=0;i<16;i++)matrix.elements[i]+=(target.elements[i]-matrix.elements[i])*settle
   return matrix

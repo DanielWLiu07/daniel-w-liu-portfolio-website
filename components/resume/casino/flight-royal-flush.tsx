@@ -14,7 +14,7 @@ import { beatTime, getTune } from './tune'
 import FlightCallout, { placeFlightCallout } from './flight-callout'
 import { CardDepthStack } from './card-depth-stack'
 import { ScreenExit } from './screen-exit'
-import { DEALER_CARD_CATCH, FLIGHT_CARD_TO_GRIP, incomingCardMatrix, type DealerCardHandoff } from './dealer-card-handoff'
+import { DEALER_CARD_CATCH, DEALER_CARD_DROP_DURATION, FLIGHT_CARD_TO_GRIP, incomingCardMatrix, type DealerCardHandoff } from './dealer-card-handoff'
 
 const FACES = ROYAL_FLUSH.map(rank => cardArtUrl(`${rank}-hearts`))
 const TRANSFORM = {
@@ -171,25 +171,23 @@ export default function FlightRoyalFlush({ clock0, cardHandoff }: { clock0: Muta
     depthStack.resolve(cards.current)
     if(receiving) {
       root.updateWorldMatrix(true,true)
-      const right=new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion)
-      const up=new THREE.Vector3(0,1,0).applyQuaternion(camera.quaternion)
-      const progress=(clockAge-leaveAt)/(catchAt-leaveAt)
-      for(let i=0;i<3;i++) {
+      const dropAt=catchAt-DEALER_CARD_DROP_DURATION
+      const progress=(clockAge-dropAt)/DEALER_CARD_DROP_DURATION
+      // Let the entire close-up fan exit. Only then reuse the two held cards
+      // for a short vertical drop at the dealer's depth.
+      for(let i=0;i<5;i++) {
         const card=cards.current[i]
         if(card && clockAge>=leaveAt+exitFor) card.visible=!screenExit.cleared(card,camera,'right')
       }
       for(let i=0;i<2;i++) {
+        if(clockAge<dropAt)continue
         const card=cards.current[i+3]!,target=cardHandoff!.targets![i]
-        const source=card.matrixWorld.clone()
-        // Remove only the old shared rightward exit. These two cards peel from
-        // their actual rolling fan positions and remain the same printed meshes.
-        source.setPosition(new THREE.Vector3().setFromMatrixPosition(source).addScaledVector(right,-travel*leave**2))
         target.updateWorldMatrix(true,false)
         const end=target.matrixWorld.clone()
           .multiply(new THREE.Matrix4().makeScale(1/Math.max(.001,target.scale.x),1,1))
           .multiply(new THREE.Matrix4().makeTranslation(.016*(1-target.scale.x),0,0))
           .multiply(FLIGHT_CARD_TO_GRIP)
-        const world=incomingCardMatrix(source,end,progress,i,up,right)
+        const world=incomingCardMatrix(end,progress,i)
         card.matrixAutoUpdate=false
         card.matrix.copy(root.matrixWorld.clone().invert().multiply(world))
         card.matrixWorldNeedsUpdate=true
