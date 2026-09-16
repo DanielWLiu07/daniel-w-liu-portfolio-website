@@ -7,6 +7,7 @@ import { clone } from 'three/addons/utils/SkeletonUtils.js'
 import { Group, Mesh, MeshStandardMaterial, Texture, type Vector3, type Material } from 'three'
 import { compGraph, compileComp, compileMaterial, graph, lit } from 'blender-to-threejs'
 import { inkUniform, lamp, LIT_MATERIALS, trackLit } from './materials'
+import { startupStage } from './startup-timing'
 import { dealerActing, dealerPart, dealerPlacement, isDealerSkull, poseDealerAtTable, SKELETON_DEALER_URL } from './dealer-pose'
 import type { ImpactFx } from './hero-chip'
 import { getTune, useTune } from './tune'
@@ -59,6 +60,7 @@ export default function SkeletonDealer({ feltY, chordZ, rail, fit, fx, motionRef
   const wasLive = useRef(false)
   const previous = useRef({ blink: -1, bodyReveal: -1, visible: false })
   const { model, materials, entrance, body, renderMeshes, revealUniforms } = useMemo(() => {
+    const finishSetup = startupStage('dealer-rig-material-setup')
     const model = clone(scene)
     poseDealerAtTable(model)
     const entrance = new DealerEntranceRig(model)
@@ -105,6 +107,7 @@ export default function SkeletonDealer({ feltY, chordZ, rail, fit, fx, motionRef
       object.castShadow = true
       object.frustumCulled = false
     })
+    finishSetup()
     return { model, materials, entrance, body, renderMeshes, revealUniforms: reveal.uniforms }
   }, [scene])
   const appearance = useRef({ renderMeshes, revealUniforms })

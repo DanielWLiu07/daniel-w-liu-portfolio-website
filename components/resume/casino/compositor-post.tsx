@@ -15,6 +15,7 @@ import { CardRenderLayers } from './card-render-layers'
 import { revealWarmupActors } from './scene-warmup'
 import { compileRenderPasses } from './compile-passes'
 import { compileVisibleScene } from './compile-scene'
+import { startupStage } from './startup-timing'
 
 type Uniforms = Compositor['uniforms']
 
@@ -54,6 +55,7 @@ export default function CompositorPost({
   const preparationId = useRef(0)
 
   useEffect(() => {
+    const finishGraph = startupStage('compositor-graph-setup')
     const c = compGraph()
     const out = build(c)
     const comp = new Compositor(gl as never, scene, camera, out, { rawOutput, positionPass })
@@ -71,6 +73,7 @@ export default function CompositorPost({
     material.depthWrite = false
     const quad = new QuadMesh(material)
     outputRef.current = { target, quad }
+    finishGraph()
     return () => {
       target.dispose()
       material.dispose()
@@ -125,12 +128,16 @@ export default function CompositorPost({
     if (warming && !passesPrepared.current) {
       passesPrepared.current = true
       const renderer = gl as unknown as Renderer
+      const finishPasses = startupStage('all-pass-pipeline-preparation')
       const job = compileRenderPasses(renderer, renderFrame) ?? Promise.resolve()
       renderWarmup.current = false
       comp.invalidatePosition()
       const id = preparationId.current
-      preparation.current = job.then(() => {
-        if (preparationId.current === id) return compileVisibleScene(renderer, scene, camera, comp.sceneTarget)
+      preparation.current = job.finally(finishPasses).then(() => {
+        if (preparationId.current === id) {
+          const finishColour = startupStage('remaining-colour-pipelines')
+          return compileVisibleScene(renderer, scene, camera, comp.sceneTarget).finally(finishColour)
+        }
       }).catch(error => {
         console.warn('Casino render-pass preparation failed.', error)
       }).then(() => {
@@ -138,14 +145,18 @@ export default function CompositorPost({
       })
       return
     }
+    const finishRender = warming ? startupStage('covered-first-render') : null
     renderFrame()
+    finishRender?.()
     if (warming) {
       renderWarmup.current = false
       // The real covered render fills every target after async pass discovery.
       // A one-pixel readback fences GPU work; readiness is not just submission.
       comp.invalidatePosition()
       const id = preparationId.current
+      const finishFence = startupStage('gpu-completion-fence')
       preparation.current = (gl as unknown as Renderer).readRenderTargetPixelsAsync(comp.sceneTarget, 0, 0, 1, 1)
+        .finally(finishFence)
         .then(() => { if (preparationId.current === id) prepared.current = true })
         .catch(error => {
           console.warn('Casino GPU warmup readback failed.', error)

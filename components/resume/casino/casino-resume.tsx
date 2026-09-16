@@ -10,6 +10,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { Canvas } from '@react-three/fiber'
 import { canStartCasinoIntro } from './intro-ready'
+import { startupStage } from './startup-timing'
+import { installSharedBufferShaders } from './shared-buffer-shaders'
 import { WebGPURenderer } from 'three/webgpu'
 import type { MangaUniforms } from 'blender-to-threejs'
 import { createInteractiveButtons } from '@/data/resume-buttons'
@@ -166,6 +168,7 @@ export default function CasinoResume({ layoutTuning = false, jackEditing = false
           shadows="soft"
           gl={async (props) => {
             const canvas = props.canvas as HTMLCanvasElement
+            const finishInit = startupStage('renderer-device-init')
             const renderer = new WebGPURenderer({
               canvas,
               // The scene target already has 4x MSAA. This canvas only receives
@@ -181,6 +184,9 @@ export default function CasinoResume({ layoutTuning = false, jackEditing = false
             }
             resize()
             await renderer.init()
+            // Same-build A/B switch for startup profiling; ordinary visitors share.
+            if (!new URLSearchParams(window.location.search).has('rawShaderNames')) installSharedBufferShaders(renderer)
+            finishInit()
             // Init can overlap a display/DPR change. Invalidate attachments once
             // it finishes as well, before Fiber starts the first render.
             resize()
