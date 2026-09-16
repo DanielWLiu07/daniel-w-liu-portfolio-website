@@ -1007,7 +1007,7 @@ export default function CasinoScene({
                 />
               </Suspense>
               {/* the title card, before any of this: it is carried off the top as the chip falls */}
-              {!noJack && <JackIntro onReady={setJackReady} armed={armed} clock0={chipClock0} flickAt={tune.jkFlick} riseFor={tune.jkRise} holdFor={tune.jkHold} chipState={wordState} />}
+              {!noJack && <JackIntro onReady={setJackReady} armed={armed} clock0={chipClock0} flickAt={tune.jkFlick} riseFor={tune.jkRise} holdFor={tune.jkHold} />}
               {!noJack && <FallStreaks armed={armed} clock0={chipClock0} flickAt={tune.jkFlick} dropAt={jackDropAt} />}
               {!noJack && <FlightRoulette clock0={chipClock0} />}
               <Suspense fallback={null}>

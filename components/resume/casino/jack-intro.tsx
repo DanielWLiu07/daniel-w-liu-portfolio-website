@@ -11,7 +11,7 @@ import { loadCardArtwork } from './card-art-textures'
  * Paper keeps real depth ordering, with perspective-compensated type sizes.
  */
 import { useEffect, useMemo, useRef, type MutableRefObject } from 'react'
-import { useFrame, useThree } from '@react-three/fiber'
+import { useFrame, useThree, type RootState } from '@react-three/fiber'
 import * as THREE from 'three'
 import { MeshBasicNodeMaterial } from 'three/webgpu'
 import { modalTransform, type ModalGesture } from 'blender-to-threejs'
@@ -20,7 +20,7 @@ import { loadRansomFaces, ransomPick, ransomScrap, rnd } from './ransom'
 import { beatHold, beatTime, camLift, getLetter, getTune, JACK_FONTS, popUndo, pushUndo, setLetter, setTune, takeRecentre, TUNE_DEFAULTS, TUNE_RANGES, undoTune, useTune, type Tune } from './tune'
 import { isJackEditor, subscribeJackClock } from './jack-editor-clock'
 import { JACK_PARTS, jackSceneEditor, registerJackPart } from './jack-scene-editor'
-import { FallingCardDepth } from './falling-card-depth'
+import { PaperFlight, paperPhysicsReady } from './paper-flight'
 import { ScreenExit } from './screen-exit'
 import { PORTRAIT_JACK_CARRIERS } from './responsive-layout'
 import { jackStraightAt, jackRedBackAt, jackSeedAt, jackBlastAt, JACK_SEED_LEAD } from './jack-composition'
@@ -524,7 +524,6 @@ export default function JackIntro({
   flickAt,
   riseFor,
   holdFor,
-  chipState,
   onReady,
 }: {
   /** Signals actual font/texture construction, not just component mount. */
@@ -538,14 +537,13 @@ export default function JackIntro({
   /** the chip's rise and apex hold, so the hard exit lands on the frame the chip starts falling */
   riseFor: number
   holdFor: number
-  chipState: MutableRefObject<{ x: number; y: number; z: number }>
 }) {
   const { camera, gl } = useThree()
   const group = useRef<THREE.Group>(null)
   /** the live scale factor, so a screen drag can be converted into the lockup's own units */
   const fitRef = useRef(1)
   const t0 = useRef(-1)
-  const cardImpact = useRef({ at: Infinity, x: 0, y: 0, speed: 0, previousWorldY: 0, previousY: -Infinity, previousT: -1 })
+  const cardImpact = useRef({ at: Infinity, x: 0, y: 0, speed: 0 })
   const paperExit = useMemo(() => new ScreenExit(), [])
   const portraitFraming = useRef<boolean | null>(null)
   const retiredPaper = useRef({ at: Infinity, last: -1 })
@@ -564,7 +562,8 @@ export default function JackIntro({
     backMat: MeshBasicNodeMaterial
     fan: { mesh: THREE.Mesh; face: MeshBasicNodeMaterial; back: MeshBasicNodeMaterial }[]
     textures: THREE.Texture[]
-    depth: FallingCardDepth
+    flight: PaperFlight
+    bodies: THREE.Mesh[][]
     snake: { mesh: THREE.Mesh; mat: MeshBasicNodeMaterial; faceMat: MeshBasicNodeMaterial; mixedTex: THREE.Texture; jackTex: THREE.Texture; i: number }[]
     /** what each grabbable mesh edits: its two position keys and its size key */
     pick: { mesh: THREE.Mesh; name: string; i: number; x: keyof Tune; y: keyof Tune; r: keyof Tune; s: keyof Tune }[]
@@ -615,7 +614,7 @@ export default function JackIntro({
     // waits on document.fonts so every word is MEASURED against the face it will be drawn in; measuring
     // early lays the lockup out in fallback metrics and it never corrects itself
     Promise.all([
-      loadRansomFaces().then(() => document.fonts.ready),
+      Promise.all([loadRansomFaces().then(() => document.fonts.ready), paperPhysicsReady]),
       Promise.all([...['hearts', ...JACK_FAN.map(card => card.suit)].map(suit => cardArtUrl(`J-${suit}`)), cardArtUrl('casino-back'), ...['10', 'Q', 'K', 'A'].flatMap(rank => ['hearts', 'spades'].map(suit => cardArtUrl(`${rank}-${suit}`)))].map(url => loadCardArtwork(url))),
     ]).then(([, maps]) => {
       if (dead || mine !== version.current || !group.current) return
@@ -723,11 +722,12 @@ export default function JackIntro({
         ...all.letters.map((L, li) => ({ mesh: L.mesh, name: 'ALL', i: li, x: 'jkAllX' as const, y: 'jkAllY' as const, r: 'jkAllR' as const, s: 'jkAllS' as const })),
         ...trades.letters.map((L, li) => ({ mesh: L.mesh, name: 'TRADES', i: li, x: 'jkTrX' as const, y: 'jkTrY' as const, r: 'jkTrR' as const, s: 'jkTrS' as const })),
       ]
-      const depth = new FallingCardDepth([
+      const bodies = [
         ...[card, ...fan.map(piece => piece.mesh)].map((mesh, i) => [mesh, ...words[i].letters.map(letter => letter.mesh)]),
         ...snake.map(piece => [piece.mesh]),
-      ])
-      built.current = { card, cardMat, backMat, fan, snake, pick, lock, jack, of, all, trades, textures: maps, depth }
+      ]
+      const flight = new PaperFlight()
+      built.current = { card, cardMat, backMat, fan, snake, pick, lock, jack, of, all, trades, textures: maps, flight, bodies }
       needsFraming.current = true
       onReady?.(true)
     }).catch(error => console.error('Jack intro artwork failed to load', error))
@@ -736,6 +736,7 @@ export default function JackIntro({
       workspaceSelection.current = jackSceneEditor.selectedId() ?? workspaceSelection.current
       unregister.reverse().forEach(remove => remove())
       const b = built.current
+      b?.flight.dispose()
       if (b && group.current) {
         group.current.remove(b.lock)
         const all2: THREE.Mesh[] = []
@@ -981,17 +982,16 @@ export default function JackIntro({
     return () => { stopClock(); disconnect(); canvas.removeEventListener('pointerdown', pick, true); window.removeEventListener('keydown', undo) }
   }, [gl, camera])
 
-  useFrame((state, dt) => {
+  const animate = (state: RootState, dt: number, poseTime?: number): void => {
     const g = group.current
     const b = built.current
     if (!g || !b) return
-    b.depth.restore(g)
     if (!armed || clock0.current < 0) {
       g.visible = false
       return
     }
     if (t0.current < 0) t0.current = clock0.current
-    const t = beatTime(state.clock.elapsedTime - t0.current)
+    const t = poseTime ?? beatTime(state.clock.elapsedTime - t0.current)
     // Speed the complete card choreography together, preserving its easing,
     // overlaps and word handoffs without speeding up the camera/table exit.
     const cardTime = t * 1.3 - JACK_SEED_LEAD
@@ -1117,7 +1117,7 @@ export default function JackIntro({
       // the same arc the camera is on, so the two can never drift apart
       // The camera follows the chip; cancel its climb on the paper so the
       // wall and words remain behind, as before the falling-paper change.
-      g.position.y -= tn.jkLag * camLift(t, flickAt, dropAt, tn.jkFallFor, 0).y
+      g.position.y -= tn.jkLag * camLift(poseTime === undefined ? t : beatTime(state.clock.elapsedTime - t0.current), flickAt, dropAt, tn.jkFallFor, 0).y
       g.quaternion.copy(cam.quaternion)
     } else {
       if (!frozen.current) frozen.current = { p: g.position.clone(), q: g.quaternion.clone(), s: g.scale.x }
@@ -1150,31 +1150,13 @@ export default function JackIntro({
 
     g.scale.setScalar(fit)
     const impact = cardImpact.current
-    if (t < impact.previousT || t <= flickAt) {
-      impact.at = Infinity
-      impact.speed = 0
-      impact.previousY = -Infinity
-    }
-    g.updateWorldMatrix(true, false)
-    fallPivot.set(chipState.current.x, chipState.current.y, chipState.current.z)
-    g.worldToLocal(fallPivot)
-    if (t > flickAt && t < dropAt && impact.at === Infinity && fallPivot.y >= 0) {
-      const span = fallPivot.y - impact.previousY
-      const crossing = Number.isFinite(span) && span > 0 ? Math.max(0, Math.min(1, -impact.previousY / span)) : 1
-      impact.at = impact.previousT >= flickAt ? impact.previousT + (t - impact.previousT) * crossing : t
-      impact.x = fallPivot.x * fit
-      impact.y = 0
-      const elapsed = t - impact.previousT
-      const measuredSpeed = elapsed > .0001 ? (chipState.current.y - impact.previousWorldY) / elapsed : 0
-      // Ballistic fallback also supports a paused editor crossing on a frame
-      // where the chip's state arrives after the timeline clock has advanced.
-      const riseU = Math.max(0, Math.min(1, (t - flickAt) / riseFor))
-      const estimatedSpeed = 2 * (tn.jkFall + tn.jkApex) * (1 - riseU) / riseFor
-      impact.speed = Math.max(25, Math.min(100, measuredSpeed > 0 ? measuredSpeed : estimatedSpeed))
-    }
-    impact.previousY = fallPivot.y
-    impact.previousWorldY = chipState.current.y
-    impact.previousT = t
+    // One authored punch beat; sampled frame velocity made dropped frames
+    // change the launch energy. Its ballistic derivative is now deterministic.
+    impact.at = flickAt + Math.min(Math.max(0, tn.jkDelay), riseFor * .5)
+    impact.x = impact.y = 0
+    impact.speed = Math.max(25, Math.min(100, 2 * (tn.jkFall + tn.jkApex)
+      * (1 - (impact.at - flickAt) / riseFor) / riseFor))
+    if (t < impact.at) b.flight.dispose()
 
     // Neighbor-to-neighbor checkerboard unfolding, then an accelerating fall.
     {
@@ -1403,8 +1385,27 @@ export default function JackIntro({
 
     b.lock.position.set(centre.current[0] + tn.jkLockX, centre.current[1] + tn.jkLockY, 0)
     g.userData.cardRenderLayer = t > impact.at ? 1 : 0
-    if (t > impact.at) b.depth.resolve(g, state.camera)
-  })
+    if (poseTime === undefined && t >= impact.at) {
+      if (!b.flight.active) {
+        // Construct the launch pose at the exact beat even if a render frame
+        // skips over it. All subsequent movement is fixed-step rigid physics.
+        animate(state, 0, impact.at)
+        g.updateWorldMatrix(true, true)
+        b.flight.start(b.bodies, impact.speed, g.getWorldPosition(new THREE.Vector3()), g.getWorldQuaternion(new THREE.Quaternion()))
+      }
+      b.flight.sample(t - impact.at)
+      // All compositor passes must see the new rigid poses on the release frame.
+      g.updateWorldMatrix(true, true)
+      g.userData.cardRenderLayer = 1
+      for (const body of b.bodies) body[0].traverse(object => {
+        if (object instanceof THREE.Mesh) {
+          const materials = Array.isArray(object.material) ? object.material : [object.material]
+          for (const material of materials) material.depthWrite = true
+        }
+      })
+    }
+  }
+  useFrame((state, dt) => animate(state, dt))
 
   useFrame(({ camera, clock }) => {
     const g = group.current
