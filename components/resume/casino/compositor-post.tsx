@@ -128,21 +128,28 @@ export default function CompositorPost({
     if (warming && !passesPrepared.current) {
       passesPrepared.current = true
       const renderer = gl as unknown as Renderer
-      const finishPasses = startupStage('all-pass-pipeline-preparation')
-      const job = compileRenderPasses(renderer, renderFrame) ?? Promise.resolve()
       renderWarmup.current = false
       comp.invalidatePosition()
       const id = preparationId.current
-      preparation.current = job.finally(finishPasses).then(() => {
-        if (preparationId.current === id) {
-          const finishColour = startupStage('remaining-colour-pipelines')
-          return compileVisibleScene(renderer, scene, camera, comp.sceneTarget).finally(finishColour)
-        }
-      }).catch(error => {
-        console.warn('Casino render-pass preparation failed.', error)
-      }).then(() => {
-        if (preparationId.current === id) renderWarmup.current = true
-      })
+      // Build the ordinary colour graphs through Three's yielding compiler
+      // first. The real-pass discovery then only builds the remaining variants.
+      cardLayers.prepare(scene)
+      const finishInitial = startupStage('yielding-colour-preparation')
+      preparation.current = compileVisibleScene(renderer, scene, camera, comp.sceneTarget)
+        .finally(finishInitial).then(() => {
+          if (preparationId.current !== id) return
+          const finishPasses = startupStage('all-pass-pipeline-preparation')
+          return (compileRenderPasses(renderer, renderFrame) ?? Promise.resolve()).finally(finishPasses)
+        }).then(() => {
+          if (preparationId.current === id) {
+            const finishColour = startupStage('remaining-colour-pipelines')
+            return compileVisibleScene(renderer, scene, camera, comp.sceneTarget).finally(finishColour)
+          }
+        }).catch(error => {
+          console.warn('Casino render-pass preparation failed.', error)
+        }).then(() => {
+          if (preparationId.current === id) renderWarmup.current = true
+        })
       return
     }
     const finishRender = warming ? startupStage('covered-first-render') : null

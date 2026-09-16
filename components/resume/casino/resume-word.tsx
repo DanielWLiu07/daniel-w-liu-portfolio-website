@@ -111,71 +111,71 @@ function makeLetter(ch: string, ink: string, size: number, probe: CanvasRenderin
   c.width = W
   c.height = H
   const x = c.getContext('2d')!
-  x.font = `${fitFont(ch, targetHeightFor(ch), probe).toFixed(1)}px ${KFONT}`
-  x.textBaseline = 'middle'
-  const mm = x.measureText(ch)
-  const ax = W / 2 - ((mm.actualBoundingBoxRight || 0) - (mm.actualBoundingBoxLeft || 0)) / 2
-  // weight: dilate the glyph by drawing it around a ring of offsets and stroking it (a script face at
-  // this size is hairline otherwise); pomme's 5 taps at 2 px is weight 2
-  const taps: [number, number][] = [[0, 0]]
-  const ring = weight <= 2 ? 4 : 12
-  for (let k = 0; k < ring; k++) taps.push([Math.cos((k / ring) * Math.PI * 2) * weight, Math.sin((k / ring) * Math.PI * 2) * weight])
-  for (const [dx, dy] of taps) x.fillText(ch, ax + dx, H / 2 + dy)
-  if (weight > 2) {
-    x.lineWidth = weight * 0.9
-    x.lineJoin = 'round'
-    x.strokeText(ch, ax, H / 2)
-  }
-  const mask = document.createElement('canvas')
-  mask.width = W
-  mask.height = H
-  mask.getContext('2d')!.drawImage(c, 0, 0)
-  x.globalCompositeOperation = 'source-in'
-  x.fillStyle = ink
-  x.fillRect(0, 0, W, H)
-  x.globalCompositeOperation = 'multiply'
-  x.globalAlpha = 0.15
-  x.drawImage(mask, 0, 0)
-  x.globalAlpha = 1
-  x.globalCompositeOperation = 'destination-in'
-  x.drawImage(mask, 0, 0)
-  x.globalCompositeOperation = 'source-over'
-  // the watercolour colour font is largely semi-transparent; on dark paper that reads as dim ink, so
-  // compound the alpha (a' = 1 - (1 - a)^3) by drawing the finished glyph over itself twice
-  const solid = document.createElement('canvas')
-  solid.width = W
-  solid.height = H
-  const sx = solid.getContext('2d')!
-  sx.drawImage(c, 0, 0)
-  x.drawImage(solid, 0, 0)
-  x.drawImage(solid, 0, 0)
   const art = document.createElement('canvas')
   art.width = W
   art.height = H
   const ax2 = art.getContext('2d')!
-  if (outline > 0) {
-    // a white halo behind the ink: the glyph's own silhouette drawn around a ring and filled white, so the
-    // lettering keeps its edge against the dark room (and against the felt)
-    const halo = document.createElement('canvas')
-    halo.width = W
-    halo.height = H
-    const hx = halo.getContext('2d')!
-    const ring = 16
-    for (let k = 0; k < ring; k++) {
-      hx.drawImage(mask, Math.cos((k / ring) * Math.PI * 2) * outline, Math.sin((k / ring) * Math.PI * 2) * outline)
-    }
-    hx.globalCompositeOperation = 'source-in'
-    hx.fillStyle = '#fdfaf2'
-    hx.fillRect(0, 0, W, H)
-    ax2.drawImage(halo, 0, 0)
-  }
-  ax2.drawImage(c, 0, 0)
   if (ransom) {
-    // replace the art entirely: the KatieRoze glyph above was built and thrown away, which costs one
-    // canvas per letter once and keeps this branch to three lines instead of threading a flag through
-    // the whole builder
-    ax2.clearRect(0, 0, W, H)
+    // The ransom art replaces the script glyph completely. Do not rasterize,
+    // recolour and thicken an expensive colour-font glyph just to discard it.
     drawRansom(ax2, ch, W, H, ransom.seed, ransom.word, ransom.i, ransom.prev)
+    x.drawImage(art, 0, 0)
+  } else {
+    x.font = `${fitFont(ch, targetHeightFor(ch), probe).toFixed(1)}px ${KFONT}`
+    x.textBaseline = 'middle'
+    const mm = x.measureText(ch)
+    const ax = W / 2 - ((mm.actualBoundingBoxRight || 0) - (mm.actualBoundingBoxLeft || 0)) / 2
+    // weight: dilate the glyph by drawing it around a ring of offsets and stroking it (a script face at
+    // this size is hairline otherwise); pomme's 5 taps at 2 px is weight 2
+    const taps: [number, number][] = [[0, 0]]
+    const ring = weight <= 2 ? 4 : 12
+    for (let k = 0; k < ring; k++) taps.push([Math.cos((k / ring) * Math.PI * 2) * weight, Math.sin((k / ring) * Math.PI * 2) * weight])
+    for (const [dx, dy] of taps) x.fillText(ch, ax + dx, H / 2 + dy)
+    if (weight > 2) {
+      x.lineWidth = weight * 0.9
+      x.lineJoin = 'round'
+      x.strokeText(ch, ax, H / 2)
+    }
+    const mask = document.createElement('canvas')
+    mask.width = W
+    mask.height = H
+    mask.getContext('2d')!.drawImage(c, 0, 0)
+    x.globalCompositeOperation = 'source-in'
+    x.fillStyle = ink
+    x.fillRect(0, 0, W, H)
+    x.globalCompositeOperation = 'multiply'
+    x.globalAlpha = 0.15
+    x.drawImage(mask, 0, 0)
+    x.globalAlpha = 1
+    x.globalCompositeOperation = 'destination-in'
+    x.drawImage(mask, 0, 0)
+    x.globalCompositeOperation = 'source-over'
+    // the watercolour colour font is largely semi-transparent; on dark paper that reads as dim ink, so
+    // compound the alpha (a' = 1 - (1 - a)^3) by drawing the finished glyph over itself twice
+    const solid = document.createElement('canvas')
+    solid.width = W
+    solid.height = H
+    const sx = solid.getContext('2d')!
+    sx.drawImage(c, 0, 0)
+    x.drawImage(solid, 0, 0)
+    x.drawImage(solid, 0, 0)
+    if (outline > 0) {
+      // a white halo behind the ink: the glyph's own silhouette drawn around a ring and filled white, so the
+      // lettering keeps its edge against the dark room (and against the felt)
+      const halo = document.createElement('canvas')
+      halo.width = W
+      halo.height = H
+      const hx = halo.getContext('2d')!
+      const ring = 16
+      for (let k = 0; k < ring; k++) {
+        hx.drawImage(mask, Math.cos((k / ring) * Math.PI * 2) * outline, Math.sin((k / ring) * Math.PI * 2) * outline)
+      }
+      hx.globalCompositeOperation = 'source-in'
+      hx.fillStyle = '#fdfaf2'
+      hx.fillRect(0, 0, W, H)
+      ax2.drawImage(halo, 0, 0)
+    }
+    ax2.drawImage(c, 0, 0)
   }
   const tex = new THREE.CanvasTexture(c)
   tex.colorSpace = THREE.SRGBColorSpace

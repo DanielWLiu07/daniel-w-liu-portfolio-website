@@ -14,7 +14,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, type MutableRefObject } from 'react'
 import * as THREE from 'three'
 import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
-import { chipFaceWatercolorMaterial, chipWatercolorMaterial, CHIP_INKS, LAMP, type ChipInk } from './materials'
+import { chipFaceWatercolorMaterial, chipWatercolorMaterial, CHIP_INKS, LAMP, LIT_MATERIALS, type ChipInk } from './materials'
 import { heroChipHeight, heroChipRadius, type ImpactFx } from './hero-chip'
 import { propArrival, bakedDiePose, diceEntranceYaw, markPropMotion } from './prop-arrival'
 import type { createInteractiveDie } from './interactive-die'
@@ -23,6 +23,8 @@ import { ROOM_FLOOR_DROP } from './room-geometry'
 import Die from './dice'
 import { impactPropFill } from './impact-eye-motion'
 import { getProp, getTune, setProp, useTune, type PropTweak } from './tune'
+
+const ChipMaterials = createContext<Map<ChipInk, THREE.Material[]> | null>(null)
 
 const ChipPhysics = createContext<ReturnType<typeof createChipController> | null>(null)
 
@@ -244,10 +246,13 @@ function useDrag(key: string, base: PropTweak, planeY: number, origin: [number, 
 }
 
 function ChipStack({ at, size, geo, chipH, drag, kickRef, fx }: { at: Placed; size: number; geo: THREE.BufferGeometry; chipH: number; drag: ReturnType<typeof useDrag>; kickRef: MutableRefObject<((event: ThreeEvent<PointerEvent>) => void) | null>; fx?: MutableRefObject<ImpactFx>; tableMesh?: THREE.Mesh | null }) {
-  const mats = useMemo(
-    () => [chipWatercolorMaterial(at.ink), chipFaceWatercolorMaterial(at.ink), chipFaceWatercolorMaterial(at.ink)],
-    [at.ink],
-  )
+  const palette = useContext(ChipMaterials)!
+  let mats = palette.get(at.ink)
+  if (!mats) {
+    const face = chipFaceWatercolorMaterial(at.ink)
+    mats = [chipWatercolorMaterial(at.ink), face, face]
+    palette.set(at.ink, mats)
+  }
   const root = useRef<THREE.Group>(null)
   const meshes = useRef<THREE.Mesh[]>([])
   const physics = useContext(ChipPhysics)!
@@ -280,7 +285,7 @@ function ChipStack({ at, size, geo, chipH, drag, kickRef, fx }: { at: Placed; si
     })
   })
   return (
-    <group ref={root} position={[at.x, 0, at.z]} scale={size} {...drag} onClick={event => event.stopPropagation()}>
+    <group ref={root} dispose={null} position={[at.x, 0, at.z]} scale={size} {...drag} onClick={event => event.stopPropagation()}>
       {/* Initial lean is baked into each body's pose; physics owns it after a click. */}
       {Array.from({ length: at.height }, (_, k) => {
         return (
@@ -400,6 +405,18 @@ function OneDie({ at, i, t, y, fx }: { at: Placed; i: number; t: ReturnType<type
 
 export default function TitleProps({ y, fx, tableMesh }: { y: number; fx?: MutableRefObject<ImpactFx>; tableMesh?: THREE.Mesh | null }) {
   const t = useTune()
+  // This owner keeps materials alive when individual stacks are edited/removed.
+  // Never share these with the independently animated hero chip or dealer.
+  const palette = useMemo(() => new Map<ChipInk, THREE.Material[]>(), [])
+  useEffect(() => {
+    for (const material of new Set([...palette.values()].flat())) LIT_MATERIALS.add(material)
+    return () => {
+      for (const material of new Set([...palette.values()].flat())) {
+        LIT_MATERIALS.delete(material)
+        material.dispose()
+      }
+    }
+  }, [palette])
   const physics = useMemo(() => createChipController(() => {
     const tune = getTune()
     tableMesh?.updateWorldMatrix(true, false)
@@ -430,12 +447,14 @@ export default function TitleProps({ y, fx, tableMesh }: { y: number; fx?: Mutab
   const chipR = propChipRadius(t.chip)
   const chipH = propChipHeight(t.chip)
   const cyl = useMemo(() => new THREE.CylinderGeometry(chipR, chipR, chipH, 40), [chipR, chipH])
+  useEffect(() => () => cyl.dispose(), [cyl])
   const { chips, dice } = useMemo(
     () => pileScatter(Math.round(t.ttChips), Math.round(t.ttDice), t.ttSpread, Math.round(t.ttSeed)),
     [t.ttChips, t.ttDice, t.ttSpread, t.ttSeed],
   )
   if (!chips.length && !dice.length) return null
   return (
+    <ChipMaterials.Provider value={palette}>
     <ChipPhysics.Provider value={physics}>
     <group ref={root} position={[t.ttPropX, y, t.ttPropZ + PROP_LAYOUT_OFFSET_Z]}>
       {chips.map((c, i) => (
@@ -446,5 +465,6 @@ export default function TitleProps({ y, fx, tableMesh }: { y: number; fx?: Mutab
       ))}
     </group>
     </ChipPhysics.Provider>
+    </ChipMaterials.Provider>
   )
 }

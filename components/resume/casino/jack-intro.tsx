@@ -1,6 +1,7 @@
 'use client'
 
 import { cardArtUrl } from './card-art-url'
+import { loadCardArtwork } from './card-art-textures'
 
 /**
  * Jack of Hearts / JACK OF ALL TRADES: a layered collage before the chip throw.
@@ -615,10 +616,9 @@ export default function JackIntro({
     // early lays the lockup out in fallback metrics and it never corrects itself
     Promise.all([
       loadRansomFaces().then(() => document.fonts.ready),
-      Promise.all([...['hearts', ...JACK_FAN.map(card => card.suit)].map(suit => cardArtUrl(`J-${suit}`)), cardArtUrl('casino-back'), ...['10', 'Q', 'K', 'A'].flatMap(rank => ['hearts', 'spades'].map(suit => cardArtUrl(`${rank}-${suit}`)))].map(url => new THREE.TextureLoader().loadAsync(url))),
+      Promise.all([...['hearts', ...JACK_FAN.map(card => card.suit)].map(suit => cardArtUrl(`J-${suit}`)), cardArtUrl('casino-back'), ...['10', 'Q', 'K', 'A'].flatMap(rank => ['hearts', 'spades'].map(suit => cardArtUrl(`${rank}-${suit}`)))].map(url => loadCardArtwork(url))),
     ]).then(([, maps]) => {
-      if (dead || mine !== version.current || !group.current) { maps.forEach(map => map.dispose()); return }
-      for (const map of maps) { map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 4 }
+      if (dead || mine !== version.current || !group.current) return
       const tex = maps[0]
       const g = group.current
       const cw = D.jkCardW
@@ -645,7 +645,6 @@ export default function JackIntro({
       card.add(back)
       const fan = JACK_FAN.map((layout, i) => {
         const map = maps[i + 1]
-        map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 4
         const face = cardMat.clone(); face.map = map
         const mesh = asCard(new THREE.Mesh(shape, face))
         mesh.name = `Jack of ${layout.suit}`
@@ -742,8 +741,11 @@ export default function JackIntro({
         const all2: THREE.Mesh[] = []
         for (const tile of b.snake) tile.mesh.traverse(object => { if (object instanceof THREE.Mesh) all2.push(object) })
         b.lock.traverse(object => { if (object instanceof THREE.Mesh) all2.push(object) })
-        const textures = new Set([...b.textures, ...all2.map(o => (o.material as MeshBasicNodeMaterial).map)])
-        textures.forEach(texture => texture?.dispose())
+        const shared = new Set(b.textures)
+        const textures = new Set(all2.map(o => (o.material as MeshBasicNodeMaterial).map))
+        // Only the letter canvases belong to this mount. Card artwork is also
+        // used by the flying hand and dealer, and survives replay/remounts.
+        textures.forEach(texture => { if (texture && !shared.has(texture)) texture.dispose() })
         new Set(all2.map(o => o.geometry)).forEach(geometry => geometry.dispose())
         new Set(all2.map(o => o.material as THREE.Material)).forEach(material => material.dispose())
         group.current.remove(...b.snake.map(piece => piece.mesh))

@@ -1,10 +1,12 @@
 'use client'
 
+import { CardArtworkLoader } from './card-art-textures'
+
 import { useEffect, useLayoutEffect, useMemo, useRef, type MutableRefObject } from 'react'
 import { useFrame, useLoader } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import { clone } from 'three/addons/utils/SkeletonUtils.js'
-import { Group, Mesh, MeshStandardMaterial, Texture, TextureLoader, type Vector3, type Material } from 'three'
+import { Group, Mesh, MeshStandardMaterial, Texture, type Vector3, type Material } from 'three'
 import { compGraph, compileComp, compileMaterial, graph, lit } from 'blender-to-threejs'
 import { inkUniform, lamp, LIT_MATERIALS, trackLit } from './materials'
 import { startupStage } from './startup-timing'
@@ -50,7 +52,7 @@ export default function SkeletonDealer({ feltY, chordZ, rail, fit, fx, motionRef
   pointTarget?: MutableRefObject<Vector3 | null>
 }) {
   const { scene } = useGLTF(SKELETON_DEALER_URL)
-  const cardMaps = useLoader(TextureLoader, [...DEALER_CARD_ART])
+  const cardMaps = useLoader(CardArtworkLoader, [...DEALER_CARD_ART])
   const cardBack = sharedCardBackTexture()
   const { dealerSize, dealerX, dealerY, dealerZ, dealerYaw, dealerPitch, dealerRoll, dealerBodyAmount } = useTune()
   const group = useRef<Group>(null)

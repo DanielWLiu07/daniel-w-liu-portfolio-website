@@ -1,5 +1,7 @@
 'use client'
 
+import { CardArtworkLoader } from './card-art-textures'
+
 import { cardArtUrl } from './card-art-url'
 
 import { useEffect, useMemo, useRef, type MutableRefObject } from 'react'
@@ -28,7 +30,7 @@ const faces = new WeakMap<THREE.Texture, THREE.Material>()
 
 /** Public-domain English card art on thin, rounded stock; no generated meshes. */
 export default function FlightRoyalFlush({ clock0, cardHandoff }: { clock0: MutableRefObject<number>; cardHandoff?:DealerCardHandoff }) {
-  const maps = useLoader(THREE.TextureLoader, FACES)
+  const maps = useLoader(CardArtworkLoader, FACES)
   const group = useRef<THREE.Group>(null)
   const caption = useRef<THREE.Group>(null)
   const cards = useRef<(THREE.Mesh | null)[]>([])

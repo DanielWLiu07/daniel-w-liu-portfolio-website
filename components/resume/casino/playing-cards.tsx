@@ -20,6 +20,7 @@ import { SOCIAL_URLS } from '@/data/social-links'
 import { cardArtMaterial } from './materials'
 import { cardGeometry } from './card-stock'
 import { cardArtUrl } from './card-art-url'
+import { readCardArtwork } from './card-art-textures'
 import { claimPointer, releasePointer } from './cursor'
 import {
   ASPECT,
@@ -87,19 +88,9 @@ function canvasTexture(c: HTMLCanvasElement, repeat = false): THREE.CanvasTextur
 }
 
 /** the shared back and rim, built once: every card in a scene flips onto the same back */
-let BACK_TEXTURE: THREE.Texture | null = null
-let BACK_LOADING: Promise<void> | null = null
-let BACK_ERROR: unknown
-/** Suspend until the same ornate spade plate used by the opening wall is decoded. */
+/** Suspend until the shared ornate spade artwork is decoded. */
 export function sharedCardBackTexture(): THREE.Texture {
-  if (BACK_TEXTURE) return BACK_TEXTURE
-  if (BACK_ERROR) throw BACK_ERROR
-  if (!BACK_LOADING) BACK_LOADING = new THREE.TextureLoader().loadAsync(cardArtUrl('casino-back')).then(texture => {
-    texture.colorSpace = THREE.SRGBColorSpace
-    texture.anisotropy = 8
-    BACK_TEXTURE = texture
-  }).catch(error => { BACK_ERROR = error })
-  throw BACK_LOADING
+  return readCardArtwork(cardArtUrl('casino-back'))
 }
 let SHARED: { back: THREE.Material; rim: THREE.Material } | null = null
 export function sharedCardMaterials() {

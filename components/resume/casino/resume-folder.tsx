@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, type MutableRefObject, type Ref } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
+import { FOLDER_URL } from './model-urls'
 import * as THREE from 'three'
 import { MeshBasicNodeMaterial } from 'three/webgpu'
 import { bakedSpin, contactPlane, planeAt, planeTilt, unbakeSpin } from 'blender-to-threejs'
@@ -48,7 +49,7 @@ export const FOLDER_TIME = { open: 1.05, shut: 0.75 }
  * window shape, and ?tune puts sliders on all of them.
  */
 /** Daniel's folder, split into clean leaves in Blender (see scratchpad/split_folder.py) */
-export const FOLDER_URL = '/models/resume-folder-meshopt.glb?v=03ec300343c7'
+export { FOLDER_URL } from './model-urls'
 
 // the model's proportions (Blender: leaf 2.0 x 1.837 local, 0.625 scale -> 1.25 x 1.148, thickness 0.028)
 const LEAF_W = 1.25
@@ -286,9 +287,9 @@ export default function ResumeFolder({
   open?: boolean
   onPageFrame?: (f: PageFrameOut) => void
 }) {
-  const mats = useMemo(() => ({ body: folderMaterial('body'), tab: folderMaterial('tab'), ink: folderMaterial('ink') }), [])
   const useGenerated = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('folder') === 'gen'
   const { scene: ogScene } = useGLTF(FOLDER_URL)
+  const mats = useMemo(() => ({ body: folderMaterial('body'), tab: folderMaterial('tab'), ink: folderMaterial('ink') }), [])
 
   const ogBuilt = useMemo(() => {
     if (useGenerated) return null
