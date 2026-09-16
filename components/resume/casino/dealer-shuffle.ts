@@ -1,5 +1,5 @@
 import { cardArtUrl } from './card-art-url'
-import { Bone, BufferGeometry, Mesh, MeshStandardMaterial, Matrix4, Object3D, Quaternion, SRGBColorSpace, Vector3, type Texture, type Material } from 'three'
+import { Bone, BufferGeometry, Mesh, MeshStandardMaterial, Matrix4, Object3D, Quaternion, SRGBColorSpace, Vector3, type Texture } from 'three'
 import { DealerArmRig } from './dealer-arms'
 import { DealerHandGrip } from './dealer-grip'
 import { dealerCardReveal } from './dealer-card-reveal'
@@ -14,7 +14,7 @@ export const DEALER_CARD_THICKNESS=.00054
 // The thumb mesh is wider than its tip joint; clearance includes its full pad.
 export const DEALER_CARD_PAD=.017
 const LENGTH=.130,WIDTH=LENGTH*2/3,H=DEALER_CARD_THICKNESS
-/** Face plates only; back and rim materials come from the flying deck at runtime. */
+/** Download face plates only; the shared flying-deck back is drawn on canvas. */
 export const DEALER_CARD_ART=[
   cardArtUrl('K-hearts'),
   cardArtUrl('A-hearts'),
@@ -56,7 +56,7 @@ export class DealerShuffleRig {
       return material
     })
     const back=new MeshStandardMaterial({color:0xffffff,roughness:.8})
-    back.name='Dealer card back placeholder'
+    back.name='Dealer card back'
     const rim=new MeshStandardMaterial({color:0xefe9da,roughness:.8})
     rim.name='Dealer card stock edge';this.materials.push(...printed,back,rim)
     // Keep the existing pinch frame: face toward the dealer (+Y), back toward
@@ -74,19 +74,11 @@ export class DealerShuffleRig {
   }
   /** Textures are owned by the scene loader and shared with its cache. */
   setArtwork(maps:readonly Texture[]) {
-    if(maps.length!==DEALER_CARD_ART.length)throw new Error('Dealer cards need two face plates')
+    if(maps.length!==DEALER_CARD_ART.length+1)throw new Error('Dealer cards need two faces and the shared casino back')
     maps.forEach((map,i)=>{
       map.colorSpace=SRGBColorSpace;map.anisotropy=4
       this.materials[i].map=map;this.materials[i].needsUpdate=true
     })
-  }
-  /** Borrow the exact flying-deck materials; their lifetime belongs to the scene. */
-  setStockMaterials(back:Material,rim:Material) {
-    for(const card of this.cards) {
-      const mesh=card.children[0] as Mesh
-      const materials=mesh.material as Material[]
-      mesh.material=[materials[0],back,rim]
-    }
   }
   reset() {this.group.visible=false;this.grips.Left.reset();this.grips.Right.reset()}
   private local(point:Vector3) {return this.root.worldToLocal(this.group.localToWorld(point.clone()))}

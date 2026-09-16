@@ -25,7 +25,7 @@ import { disposeDealerHandSkin } from './dealer-hand-skin'
 import { DealerBodyRig } from './dealer-idle'
 import { applyDealerPointAction, applyDealerCardAction, type DealerCardHandoff } from './dealer-card-handoff'
 import { DEALER_CARD_ART } from './dealer-shuffle'
-import { sharedCardMaterials } from './playing-cards'
+import { sharedCardBackTexture } from './playing-cards'
 
 type DealerRenderMesh = { mesh: Mesh; skull: boolean; hat: boolean; cards: boolean }
 
@@ -68,9 +68,7 @@ export default function SkeletonDealer({ feltY, chordZ, rail, fit, fx, motionRef
     poseDealerAtTable(model)
     const entrance = new DealerEntranceRig(model)
     const body = new DealerBodyRig(model)
-    body.shuffle.setArtwork(cardMaps)
-    const stock = sharedCardMaterials()
-    body.shuffle.setStockMaterials(stock.back, stock.rim)
+    body.shuffle.setArtwork([...cardMaps, sharedCardBackTexture()])
     // This graph contains only per-pixel math: reuse its exact noise/edge in the
     // body material without adding a render pass or sampling a scene texture.
     const unusedSource = new Texture()
@@ -92,7 +90,10 @@ export default function SkeletonDealer({ feltY, chordZ, rail, fit, fx, motionRef
         base = g.multiplyColor(1, inkUniform(g, 'ink', [.28, .25, .21]), shape)
       } else if (part === 'Hatband') base = inkUniform(g, 'ink', [.4, .055, .035])
       // Retain the skull artwork and outfit colours through the room's paint pass.
-      const mat = trackLit(compileMaterial(lit(g, base, g.add(.48, g.multiply(lamp(g), .75)))))
+      // Match cardArtMaterial's lighting for the common flying-deck back, while
+      // retaining the dealer's own material/reveal lifecycle.
+      const light = source.name === 'Dealer card back' ? lamp(g, [0, 1, 0]) : g.add(.48, g.multiply(lamp(g), .75))
+      const mat = trackLit(compileMaterial(lit(g, base, light)))
       if (!skull) {
         mat.opacityNode = reveal.output.r
         mat.alphaTest = .5
@@ -109,12 +110,7 @@ export default function SkeletonDealer({ feltY, chordZ, rail, fit, fx, motionRef
       const part = dealerPart(object), skull = isDealerSkull(object)
       renderMeshes.push({ mesh: object, skull, hat: part === 'Hat' || part === 'Hatband', cards: object.name.startsWith('DealerCards_') })
       object.userData.dealerSkull = skull
-      // Back and rim are the same material objects as the flying cards. Repainting
-      // them with the dealer's body shader would change their colour and lighting.
-      const heldCard = object.name.startsWith('DealerCards_')
-      object.material = Array.isArray(object.material)
-        ? object.material.map((m, index) => heldCard && index > 0 ? m : painted(m, part, skull))
-        : painted(object.material, part, skull)
+      object.material = Array.isArray(object.material) ? object.material.map((m) => painted(m, part, skull)) : painted(object.material, part, skull)
       object.visible = skull
       object.castShadow = true
       object.frustumCulled = false

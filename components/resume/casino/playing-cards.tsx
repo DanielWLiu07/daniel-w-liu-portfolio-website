@@ -86,11 +86,15 @@ function canvasTexture(c: HTMLCanvasElement, repeat = false): THREE.CanvasTextur
 }
 
 /** the shared back and rim, built once: every card in a scene flips onto the same back */
+let BACK_TEXTURE: THREE.CanvasTexture | null = null
+export function sharedCardBackTexture(): THREE.CanvasTexture {
+  return BACK_TEXTURE ??= canvasTexture(cardBackCanvas())
+}
 let SHARED: { back: THREE.Material; rim: THREE.Material } | null = null
 export function sharedCardMaterials() {
   if (!SHARED) {
     SHARED = {
-      back: cardArtMaterial(canvasTexture(cardBackCanvas()), 'back'),
+      back: cardArtMaterial(sharedCardBackTexture(), 'back'),
       rim: cardArtMaterial(canvasTexture(cardEdgeCanvas(), true), 'edge'),
     }
   }
