@@ -6,6 +6,7 @@ import { useEffect, useState, type RefObject } from 'react'
 import { useThree } from '@react-three/fiber'
 import { CASINO_PALETTE, compileMaterial, graph, materialUniforms } from 'blender-to-threejs'
 import * as THREE from 'three'
+import { texture, uniform } from 'three/tsl'
 import { register } from './materials'
 import { flightEditor } from './flight-editor'
 
@@ -60,18 +61,16 @@ function artwork(kind: Callout, line: number): Artwork {
   const paper = new THREE.Color(...CASINO_PALETTE.paper)
   const color = new THREE.Color(...ink).multiplyScalar(2.2).lerp(paper, 0.28).getStyle()
   paintLine(ctx, lines[line], 130, line === 0 ? 98 : 166, line === 0 ? paper.getStyle() : color)
-  const mask = document.createElement('canvas')
-  mask.width = canvas.width; mask.height = canvas.height
-  const mx = mask.getContext('2d')!
-  mx.drawImage(canvas, 0, 0)
-  mx.globalCompositeOperation = 'source-in'; mx.fillStyle = '#fff'; mx.fillRect(0, 0, mask.width, mask.height)
-  mx.globalCompositeOperation = 'destination-over'; mx.fillStyle = '#000'; mx.fillRect(0, 0, mask.width, mask.height)
-  const map = new THREE.CanvasTexture(canvas), alpha = new THREE.CanvasTexture(mask)
+  const map = new THREE.CanvasTexture(canvas)
   map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 4
   const g = graph(), uv = g.uv()
-  const material = compileMaterial(register(`flightCallout:${key}`, g.texture(map, uv)), {
-    opacity: g.multiply(g.uniform('captionInk', 0), g.separate(g.texture(alpha, uv), 'x')),
-  })
+  const material = compileMaterial(register(`flightCallout:${key}`, g.texture(map, uv)))
+  const captionInk = uniform(0)
+  material.userData.uniforms.captionInk = captionInk
+  // Canvas alpha already contains the lettering coverage. Reuse the artwork
+  // instead of uploading a second RGBA canvas solely for its red channel.
+  material.opacityNode = texture(map).a.mul(captionInk)
+  material.transparent = true
   material.depthWrite = false
   const result = { material, geometry: new THREE.PlaneGeometry(canvas.width / 520, canvas.height / 520) }
   cache.set(key, result)

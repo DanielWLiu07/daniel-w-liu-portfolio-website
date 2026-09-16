@@ -1,0 +1,124 @@
+{
+  "baseline": "4177c46",
+  "reports": {
+    "before": {
+      "captionUploads": [
+        {
+          "width": 1024,
+          "height": 260,
+          "kind": "HTMLCanvasElement"
+        },
+        {
+          "width": 1024,
+          "height": 260,
+          "kind": "HTMLCanvasElement"
+        },
+        {
+          "width": 1024,
+          "height": 260,
+          "kind": "HTMLCanvasElement"
+        },
+        {
+          "width": 1024,
+          "height": 260,
+          "kind": "HTMLCanvasElement"
+        },
+        {
+          "width": 1024,
+          "height": 260,
+          "kind": "HTMLCanvasElement"
+        },
+        {
+          "width": 1024,
+          "height": 260,
+          "kind": "HTMLCanvasElement"
+        },
+        {
+          "width": 1024,
+          "height": 260,
+          "kind": "HTMLCanvasElement"
+        },
+        {
+          "width": 1024,
+          "height": 260,
+          "kind": "HTMLCanvasElement"
+        }
+      ],
+      "totalUploads": 86,
+      "alphaChecks": [
+        {
+          "pixels": 266240,
+          "differences": 0
+        },
+        {
+          "pixels": 266240,
+          "differences": 0
+        },
+        {
+          "pixels": 266240,
+          "differences": 0
+        },
+        {
+          "pixels": 266240,
+          "differences": 0
+        }
+      ],
+      "shaderModules": 144,
+      "pipelines": 113,
+      "errors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found) {\"url\":\"http://localhost:3142/_vercel/insights/script.js\"}"
+      ]
+    },
+    "after": {
+      "captionUploads": [
+        {
+          "width": 1024,
+          "height": 260,
+          "kind": "HTMLCanvasElement"
+        },
+        {
+          "width": 1024,
+          "height": 260,
+          "kind": "HTMLCanvasElement"
+        },
+        {
+          "width": 1024,
+          "height": 260,
+          "kind": "HTMLCanvasElement"
+        },
+        {
+          "width": 1024,
+          "height": 260,
+          "kind": "HTMLCanvasElement"
+        }
+      ],
+      "totalUploads": 82,
+      "alphaChecks": [
+        {
+          "pixels": 266240,
+          "differences": 0
+        },
+        {
+          "pixels": 266240,
+          "differences": 0
+        },
+        {
+          "pixels": 266240,
+          "differences": 0
+        },
+        {
+          "pixels": 266240,
+          "differences": 0
+        }
+      ],
+      "shaderModules": 144,
+      "pipelines": 113,
+      "errors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found) {\"url\":\"http://localhost:3144/_vercel/insights/script.js\"}"
+      ]
+    }
+  },
+  "savedBaseTextureBytes": 4259840,
+  "savedTextureBytesIncludingMipmaps": 5678448,
+  "note": "RGBA8 texture payload estimate, excluding driver allocation padding; removes four additional CPU mask canvases. Pixel comparisons use actual uploaded caption canvases and recreate the former mask algorithm. Profiling adds instrumentation, so these runs are not used for wall-clock speed claims."
+}
