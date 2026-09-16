@@ -6,6 +6,7 @@ import { CASINO_PALETTE, compileMaterial, graph, materialUniforms } from 'blende
 import * as THREE from 'three'
 import { register } from './materials'
 import { flightEditor } from './flight-editor'
+import { loadCasinoFont } from './font-loader'
 
 type Callout = 'roulette' | 'royal-flush'
 type Artwork = { material: THREE.Material; geometry: THREE.PlaneGeometry }
@@ -15,8 +16,7 @@ let fontLoad: Promise<void> | null = null
 
 function ensureCaptionFont(): Promise<void> {
   if (!fontLoad) fontLoad = (async () => {
-    const face = await new FontFace('CasinoFlightDisplay', "url('/fonts/FAST%20BLAZE.woff2')").load()
-    document.fonts.add(face)
+    await loadCasinoFont('JkFastBlaze', '/fonts/FAST%20BLAZE.woff2')
   })()
   return fontLoad
 }
@@ -25,9 +25,9 @@ function ensureCaptionFont(): Promise<void> {
 function paintLine(ctx: CanvasRenderingContext2D, text: string, y: number, height: number, color: string) {
   ctx.save()
   ctx.textBaseline = 'alphabetic'
-  ctx.font = '200px CasinoFlightDisplay'
+  ctx.font = '200px JkFastBlaze'
   const capHeight = ctx.measureText('H').actualBoundingBoxAscent
-  ctx.font = `${200 * height / Math.max(1, capHeight)}px CasinoFlightDisplay`
+  ctx.font = `${200 * height / Math.max(1, capHeight)}px JkFastBlaze`
   const metrics = ctx.measureText(text)
   const width = metrics.actualBoundingBoxLeft + metrics.actualBoundingBoxRight
   const fit = Math.min(1, (ctx.canvas.width - 100) / width)

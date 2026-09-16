@@ -12,6 +12,8 @@ import { DEALER_DEFAULTS, DEALER_RANGES, DEALER_MOTION_DEFAULTS, DEALER_MOTION_R
 import { IMPACT_DURATION, IMPACT_PLACEMENT_AGE } from './impact-eye-motion'
 import { JACK_COMPOSITION, JACK_SEED_LEAD } from './jack-composition'
 import { BACKDROP_STYLES } from './intro-backdrop-art'
+import { JACK_FONTS } from './startup-assets'
+export { JACK_FONTS } from './startup-assets'
 
 export interface Tune extends DealerControls, DealerMotionControls {
   bgStyle: number
@@ -590,27 +592,6 @@ export interface Tune extends DealerControls, DealerMotionControls {
   /** overall opacity of the field */
   eyFade: number
 }
-
-/**
- * The faces on offer, in panel order.
- *
- * KatieRoze is first because it is the table's own hand: ALWAYS BET ON and DANIEL W LIU are set in it, so
- * the title card and the table are one voice. It only became usable here after the shipped woff2 was
- * re-subsetted - the deployed file is a SUBSET of a 24MB original, cut down to the characters the about
- * page and the marquee needed, and J, C, K, T and R were not among them. That is the whole reason TRADES
- * came out as "TR" in Georgia and "ADES" in KatieRoze: five of the fifteen letters were silently falling
- * back. See fonts-original/README.txt before adding a word with a new letter in it.
- */
-export const JACK_FONTS: { key: string; label: string; url: string }[] = [
-  { key: 'KatieRoze', label: "KatieRoze (the table's own hand)", url: '/fonts/KatieRoze-display-512.woff2' },
-  { key: 'JkFredericka', label: 'Fredericka (inked wood type)', url: '/fonts/FrederickatheGreat-Regular.woff2' },
-  { key: 'JkFastBlaze', label: 'Fast Blaze (brush)', url: '/fonts/FAST%20BLAZE.woff2' },
-  { key: 'JkAtop', label: 'Atop (heavy round)', url: '/fonts/Atop.ttf' },
-  { key: 'JkMochibop', label: 'Mochibop (bubble)', url: '/fonts/MochibopBold-Demo.woff2' },
-  { key: 'JkAncient', label: 'Ancient Wedding (script)', url: '/shared/fonts/weddingday-font/ancient-wedding-font/AncientWeddingDemoRegular-MAm1n.woff2' },
-  { key: 'JkWedding', label: 'Wedding (script)', url: '/shared/fonts/weddingday-font/WeddingdayPersonalUseRegular-1Gvo0.ttf' },
-  { key: 'JkArcade', label: 'Arcade (pixel)', url: '/fonts/ARCADECLASSIC.TTF' },
-]
 
 /** keys the panel shows as a picker rather than a slider */
 /**

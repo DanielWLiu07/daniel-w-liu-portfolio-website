@@ -18,6 +18,7 @@ import type { Landing, WordMotion, WordShot } from './stop-motion'
 import { SM_DEFAULTS, WORD_DEFAULTS, boilAt, landingFor, offscreenPlaneTravel, placeAt, slideAt, smFrame, smTime, wordAt, wordGroups, wordOf, wordShot } from './stop-motion'
 import { markPropMotion } from './prop-arrival'
 import { hoverCorrection, proximityInfluence } from './word-hover'
+import { loadCasinoFont } from './font-loader'
 
 const KFONT = "'KatieRoze', 'Marker Felt', 'Bradley Hand', 'Comic Sans MS', cursive"
 const FONT_URL = '/fonts/KatieRoze-display-512.woff2'
@@ -46,9 +47,7 @@ function ensureFont(): Promise<void> {
   if (!fontLoad) {
     fontLoad = (async () => {
       try {
-        const ff = new FontFace('KatieRoze', `url('${FONT_URL}')`)
-        await ff.load()
-        document.fonts.add(ff)
+        await loadCasinoFont('KatieRoze', FONT_URL)
       } catch {
         /* falls back to the cursive stack */
       }

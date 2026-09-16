@@ -11,6 +11,7 @@
  */
 import * as THREE from 'three'
 import { JACK_FONTS } from './tune'
+import { loadCasinoFont } from './font-loader'
 
 /**
  * Every face is fine for lowercase; only some are fine for CAPITALS.
@@ -345,9 +346,7 @@ export function loadRansomFaces(): Promise<void> {
       await Promise.all(
         JACK_FONTS.map(async (f) => {
           try {
-            const ff = new FontFace(f.key, `url('${f.url}')`)
-            await ff.load()
-            document.fonts.add(ff)
+            await loadCasinoFont(f.key, f.url)
           } catch {
             /* that one falls back; the others still load */
           }
@@ -357,4 +356,3 @@ export function loadRansomFaces(): Promise<void> {
   }
   return facesLoad
 }
-

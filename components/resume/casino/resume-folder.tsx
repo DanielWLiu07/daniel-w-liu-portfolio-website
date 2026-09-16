@@ -27,8 +27,9 @@ import { folderMaterial, sheetMaterial, stockMaterial } from './materials'
 import type { ImpactFx } from './hero-chip'
 import { markPropMotion } from './prop-arrival'
 import { listenForFolderDismiss } from './folder-dismiss'
+import { loadCasinoFont } from './font-loader'
 
-export const RESUME_PAGE = { url: '/resume/resume-page1.jpg', w: 1583, h: 2048 }
+export const RESUME_PAGE = { url: '/resume/resume-page1-lossless.webp', w: 1583, h: 2048 }
 /**
  * How long the folder takes to open and to shut. The camera move is driven from the SAME numbers and the
  * same easing (see CameraRig), so the folder and the camera are one move: run them on separate clocks, or
@@ -104,9 +105,7 @@ function ensureLabelFont(): Promise<void> {
   if (!labelFont) {
     labelFont = (async () => {
       try {
-        const ff = new FontFace('WeddingdayFolder', "url('/fonts/WeddingdayPersonalUseRegular-1Gvo0.ttf')")
-        await ff.load()
-        document.fonts.add(ff)
+        await loadCasinoFont('JkWedding', '/shared/fonts/weddingday-font/WeddingdayPersonalUseRegular-1Gvo0.ttf')
       } catch {
         /* falls back to a script face */
       }
@@ -124,7 +123,7 @@ function coverLabelTexture(): THREE.CanvasTexture {
   c.height = H
   const x = c.getContext('2d')!
   x.clearRect(0, 0, W, H)
-  const font = "'WeddingdayFolder', 'Snell Roundhand', 'Brush Script MT', cursive"
+  const font = "'JkWedding', 'Snell Roundhand', 'Brush Script MT', cursive"
   x.fillStyle = '#26190f'
   x.textAlign = 'center'
   x.textBaseline = 'middle'
