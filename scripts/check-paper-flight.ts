@@ -42,6 +42,19 @@ async function main() {
     })
     flight.dispose(); geometry.dispose()
   }
+  // Reusing parent inverses must still follow animated ancestors each frame.
+  {
+    const parent = new THREE.Group(), mesh = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 1.95))
+    parent.add(mesh)
+    const flight = new PaperFlight(); flight.start([[mesh]], 70, new THREE.Vector3())
+    flight.sample(.4); mesh.updateWorldMatrix(true, false)
+    const before = mesh.matrixWorld.clone()
+    parent.position.set(2, -1, 3); parent.rotation.set(.1, .2, -.3); parent.scale.setScalar(1.2)
+    flight.sample(.4); mesh.updateWorldMatrix(true, false)
+    assert.ok(mesh.matrixWorld.elements.every((v, i) => Math.abs(v - before.elements[i]) < 1e-8),
+      'cached parent inverses refresh without dragging the world-space flight')
+    flight.dispose(); mesh.geometry.dispose()
+  }
   const run = (times: number[], collide = true, overlap = false) => {
     const scene = new THREE.Group()
     const geometry = new THREE.PlaneGeometry(1.3, 1.95)
