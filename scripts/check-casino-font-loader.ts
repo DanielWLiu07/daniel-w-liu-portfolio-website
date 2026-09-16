@@ -2,13 +2,13 @@ import assert from 'node:assert/strict'
 import { loadCasinoFont } from '../components/resume/casino/font-loader'
 
 async function main() {
-  let loads = 0, adds = 0
+  let loads = 0, adds = 0, cssLoads = 0
   const pending: (() => void)[] = []
   Object.assign(globalThis, {
     FontFace: class {
       load() { loads++; return new Promise(resolve => pending.push(() => resolve(this))) }
     },
-    document: { fonts: { add() { adds++ } } },
+    document: { fonts: { add() { adds++ }, async load() { cssLoads++; return [{}] } } },
   })
   const a = loadCasinoFont('KatieRoze', '/font.woff2')
   const b = loadCasinoFont('KatieRoze', '/font.woff2')
@@ -22,6 +22,12 @@ async function main() {
   const c = loadCasinoFont('DifferentFamily', '/font.woff2')
   assert.equal(loads, 2, 'distinct font families remain distinct')
   pending.shift()!(); await c
+  const cssA = loadCasinoFont('JkFredericka', '/fonts/FrederickatheGreat-Regular.woff2')
+  const cssB = loadCasinoFont('JkFredericka', '/fonts/FrederickatheGreat-Regular.woff2')
+  assert.equal(cssA, cssB)
+  await cssA
+  assert.equal(cssLoads, 1, 'CSS and canvas reuse the same face')
+  assert.equal(loads, 2, 'no extra FontFace for the shared CSS font')
   console.log('PASS: font startup, concurrent and subsequent consumers share the same FontFace')
 }
 void main()

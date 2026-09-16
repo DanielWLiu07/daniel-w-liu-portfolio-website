@@ -105,7 +105,7 @@ function ensureLabelFont(): Promise<void> {
   if (!labelFont) {
     labelFont = (async () => {
       try {
-        await loadCasinoFont('JkWedding', '/shared/fonts/weddingday-font/WeddingdayPersonalUseRegular-1Gvo0.ttf')
+        await loadCasinoFont('JkWedding', '/fonts/Weddingday.woff2')
       } catch {
         /* falls back to a script face */
       }

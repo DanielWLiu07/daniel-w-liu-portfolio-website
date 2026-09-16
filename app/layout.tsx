@@ -55,13 +55,6 @@ export default function RootLayout({
           as="image"
           fetchPriority="high"
         />
-        {/* Preload painted background for landing page */}
-        <link
-          rel="preload"
-          href="/landing/images/painted_bg.webp"
-          as="image"
-          fetchPriority="high"
-        />
         {/* Preload loading spinner image for page transitions */}
         <link
           rel="preload"

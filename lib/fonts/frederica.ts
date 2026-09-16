@@ -1,5 +1,3 @@
-import localFont from 'next/font/local'
-
-export const frederickaFont = localFont({
-  src: '../../public/fonts/FrederickatheGreat-Regular.woff2',
-})
+// Share the exact URL/family used by canvas lettering instead of emitting a
+// second Next font asset. The face is declared in globals.css.
+export const frederickaFont = { className: 'font-fredericka' }

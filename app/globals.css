@@ -1,6 +1,15 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+@font-face {
+  font-family: 'JkFredericka';
+  src: url('/fonts/FrederickatheGreat-Regular.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+.font-fredericka { font-family: 'JkFredericka', Georgia, serif; }
+
 @custom-variant dark (&:is(.dark *));
 
 @layer utilities {
@@ -313,7 +322,7 @@ div[data-nextjs-toast] {
 /* ArcadeClassic font for projects navigation */
 @font-face {
   font-family: 'ArcadeClassic';
-  src: url('/fonts/ARCADECLASSIC.TTF') format('truetype');
+  src: url('/fonts/ARCADECLASSIC.woff2') format('woff2');
   font-weight: normal;
   font-style: normal;
   font-display: swap;
@@ -393,4 +402,3 @@ div[data-nextjs-toast] {
 .animate-bob {
   animation: bob-up-down 2s ease-in-out infinite;
 }
-
