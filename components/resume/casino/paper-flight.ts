@@ -1,5 +1,6 @@
 import R from '@dimforge/rapier3d-compat'
 import * as THREE from 'three'
+import { jackBlastAt } from './jack-composition'
 
 export const paperPhysicsReady = R.init()
 const STEP = 1 / 480
@@ -11,8 +12,8 @@ const STEP = 1 / 480
 export class PaperFlight {
   private world: R.World | null = null
   private ticks = 0
-  private seeds: { p: THREE.Vector3; q: THREE.Quaternion; size: THREE.Vector3; velocity: THREE.Vector3; spin: THREE.Vector3; parts: { mesh: THREE.Mesh; relative: THREE.Matrix4 }[] }[] = []
-  private bodies: { body: R.RigidBody; previousP: THREE.Vector3; previousQ: THREE.Quaternion }[] = []
+  private seeds: { p: THREE.Vector3; q: THREE.Quaternion; size: THREE.Vector3; index: number; x: number; y: number; speed: number; orientation: THREE.Quaternion; parts: { mesh: THREE.Mesh; relative: THREE.Matrix4 }[] }[] = []
+  private bodies: { body: R.RigidBody; previousP: THREE.Vector3; previousQ: THREE.Quaternion; drive: THREE.Vector3 }[] = []
   private matrix = new THREE.Matrix4()
   private inverse = new THREE.Matrix4()
   private pose = new THREE.Matrix4()
@@ -35,17 +36,15 @@ export class PaperFlight {
       card.matrixWorld.decompose(p, q, scale)
       if (!card.geometry.boundingBox) card.geometry.computeBoundingBox()
       const size = card.geometry.boundingBox!.getSize(new THREE.Vector3()).multiply(scale)
-      size.x += .03; size.y += .03 // keep numerical contact tolerance outside the printed edges
-      size.z = Math.max(size.z, .2) // invisible contact margin covers fast rotating edges
-      // Preserve the full upward punch. Limit lateral scatter so the burst reads
-      // as a rising column instead of the wall exploding outward.
-      const distance = Math.hypot(p.x - centre.x, p.y - centre.y)
-      const pickup = Math.exp(-distance * distance / 50) * (1.08 + (index * 11 % 7) * .035)
-      const side = ((index * 13 % 17) - 8) * .035
-      const velocity = new THREE.Vector3(side + (p.x - centre.x) * .15, speed * pickup, (index % 5 - 2) * .12)
-      const spin = new THREE.Vector3((index % 3 - 1) * .7, (index % 2 === 0 ? 7 : 1.2) * (index % 4 < 2 ? 1 : -1), (index % 5 - 2) * .45)
+      size.x += .1; size.y += .1 // keep numerical contact tolerance outside the printed edges
+      size.z = Math.max(size.z, .4) // invisible contact margin covers fast rotating edges
+      // Use the same wall coordinates and per-card identity as the authored
+      // poker burst. Contacts may deflect these trajectories, but the driving
+      // motion retains its stagger, upward arc and broadside flips.
+      const local = p.clone().sub(centre).applyQuaternion(orientation.clone().invert())
+      const motionIndex = groups.length === 67 ? (index < 4 ? 67 + index * 3 : index - 4) : index
       const rigid = new THREE.Matrix4().compose(p, q, new THREE.Vector3(1, 1, 1)).invert()
-      this.seeds.push({ p, q, size, velocity, spin, parts: parts.map(mesh => {
+      this.seeds.push({ p, q, size, index: motionIndex, x: local.x, y: local.y, speed, orientation: orientation.clone(), parts: parts.map(mesh => {
         mesh.updateWorldMatrix(true, false)
         return { mesh, relative: new THREE.Matrix4().multiplyMatrices(rigid, mesh.matrixWorld) }
       }) })
@@ -85,18 +84,27 @@ export class PaperFlight {
     this.bodies = this.seeds.map(seed => {
       const body = this.world!.createRigidBody(R.RigidBodyDesc.dynamic()
         .setTranslation(seed.p.x, seed.p.y, seed.p.z).setRotation(seed.q)
-        .setLinearDamping(.35).setAngularDamping(2).setCcdEnabled(true))
+        .setLinearDamping(0).setAngularDamping(0).setCcdEnabled(true))
       this.world!.createCollider(R.ColliderDesc.cuboid(seed.size.x / 2, seed.size.y / 2, seed.size.z / 2)
         .setMass(.01).setFriction(.25).setRestitution(.18), body)
-      return { body, previousP: seed.p.clone(), previousQ: seed.q.clone() }
+      return { body, previousP: seed.p.clone(), previousQ: seed.q.clone(), drive: new THREE.Vector3() }
     })
-    this.world.gravity = { x: 0, y: -40, z: 0 }
-    this.bodies.forEach((b, i) => {
-      b.previousP.copy(b.body.translation())
-      b.previousQ.copy(b.body.rotation())
-      b.body.setLinvel(this.seeds[i].velocity, true)
-      b.body.setAngvel(this.seeds[i].spin, true)
-    })
+  }
+
+  private motion(seed: typeof this.seeds[number], time: number) {
+    const fall = jackBlastAt(time, seed.index, seed.x, seed.y, seed.speed)
+    const p = new THREE.Vector3(fall.x, fall.y, 0).applyQuaternion(seed.orientation)
+    const turn = new THREE.Quaternion().setFromEuler(new THREE.Euler(fall.pitch, fall.yaw, fall.roll, 'ZYX'))
+    const q = seed.orientation.clone().multiply(turn).multiply(seed.orientation.clone().invert()).multiply(seed.q)
+    return { p, q }
+  }
+
+  private angularVelocity(from: THREE.Quaternion, to: THREE.Quaternion, rate: number) {
+    const delta = to.clone().multiply(from.clone().invert()).normalize()
+    if (delta.w < 0) delta.set(-delta.x, -delta.y, -delta.z, -delta.w)
+    const length = Math.hypot(delta.x, delta.y, delta.z)
+    return length < 1e-8 ? new THREE.Vector3() : new THREE.Vector3(delta.x, delta.y, delta.z)
+      .multiplyScalar(2 * Math.atan2(length, delta.w) * rate / length)
   }
 
   sample(time: number) {
@@ -107,9 +115,23 @@ export class PaperFlight {
     const ticks = Math.ceil(target)
     if (ticks < this.ticks) this.reset()
     while (this.ticks < ticks) {
-      for (const b of this.bodies) {
+      for (const [i, b] of this.bodies.entries()) {
         b.previousP.copy(b.body.translation())
         b.previousQ.copy(b.body.rotation())
+        const now = this.motion(this.seeds[i], this.ticks * STEP)
+        const next = this.motion(this.seeds[i], (this.ticks + 1) * STEP)
+        const drive = next.p.clone().sub(now.p).multiplyScalar(1 / STEP)
+        // Drive the reference arc with a damped spring. Contacts can deflect
+        // the stock, then air damping settles it back toward the burst instead
+        // of letting one collision permanently throw a card out of the field.
+        const velocity = new THREE.Vector3().copy(b.body.linvel()).sub(b.drive)
+          .multiplyScalar(Math.exp(-10 * STEP)).add(drive)
+          .addScaledVector(now.p.clone().add(this.seeds[i].p).sub(b.previousP), 60 * STEP)
+        b.body.setLinvel(velocity, true)
+        b.drive.copy(drive)
+        const angular = this.angularVelocity(now.q, next.q, 1 / STEP)
+          .add(this.angularVelocity(b.previousQ, now.q, 18))
+        b.body.setAngvel(angular, true)
       }
       this.world!.step()
       this.ticks++

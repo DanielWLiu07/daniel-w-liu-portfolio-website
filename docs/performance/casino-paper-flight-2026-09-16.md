@@ -34,3 +34,13 @@ The smaller pickup and delayed release from the preceding follow-up were rejecte
 Regression checks now require central stock to rise more than 40 world units after one second and outer stock to rise immediately, in addition to the existing contact, frame-gap and replay checks. Production build and TypeScript passed.
 
 The corrected moving sequence checked 355 frames / 784,905 card pairs with no visible-stock OBB or rounded-face intersections and no browser errors. Normal and 4× CPU-throttled held views included all 67 bodies and matched within floating-point tolerance.
+
+## Restore the poker reference choreography with contacts
+
+The preceding height/scatter adjustments did not reproduce the reference. The original burst uses `jackBlastAt`: short distance-dependent release delays, per-card drag, a local outward impulse, deliberate broadside flips, and bounded flutter. The physics replacement had substituted an immediate launch and free angular motion. World-space launch height alone did not protect the intended screen motion relative to the camera.
+
+`PaperFlight` now uses the original burst functions in the wall frame, including the original identities for wall tiles and word carriers. At each fixed step it drives the reference velocity with a damped positional spring. Contacts can deflect the stock, and those deflections settle back toward the reference field instead of permanently ejecting cards. Angular motion follows the reference turn with a finite correction; the solver still resolves contact afterward. It does not teleport cards onto animated positions. Gravity and drag come from the reference arc rather than being applied twice by Rapier. Camera/chip choreography and deterministic impact timing are preserved.
+
+Tests compare isolated positions and rotations to the poker arc at multiple distances and times, plus the existing contact, attachment, scale, frame-gap and reverse-replay checks. Production build/TypeScript passed. The first candidate passed collision checks but failed the visual field comparison: undamped contact impulses ejected stock from the frame. It was not deployed; a damped spring was added before final verification.
+
+Final validation after increasing contact margins: 367 captured frames / 811,437 pairs, zero visible-stock OBB or rounded-face intersections, and no browser errors. All 67 held world matrices matched exactly between normal and 4× CPU-throttled runs. Reviewed 4.1, 4.4 and 4.8 second views against the poker reference: the dense early burst remains visible and thins as the camera climbs. Temporary evidence: `/private/tmp/paper-{puncture,overtaking,clear}.png` and `/private/tmp/paper-overtake-{1,4}.json`.

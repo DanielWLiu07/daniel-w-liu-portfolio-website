@@ -1,26 +1,28 @@
 import assert from 'node:assert/strict'
 import * as THREE from 'three'
 import { OBB } from 'three/addons/math/OBB.js'
+import { jackBlastAt } from '../components/resume/casino/jack-composition'
 import { PaperFlight, paperPhysicsReady } from '../components/resume/casino/paper-flight'
 
 async function main() {
   await paperPhysicsReady
-  // Protect the upward punch while reducing sideways breakup. Isolated stock
-  // measures launch height independently of the surrounding card contacts.
-  const isolatedPaper = (x: number, time: number) => {
-    const root = new THREE.Group(), geometry = new THREE.PlaneGeometry(1.3, 1.95)
-    const mesh = new THREE.Mesh(geometry)
-    mesh.position.x = x; root.add(mesh)
+  // Match the reference burst when there are no contacts. This protects the
+  // entire arc and stagger, rather than just requiring an arbitrary height.
+  for (const x of [0, 3, 8]) {
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 1.95))
+    mesh.position.x = x
     const flight = new PaperFlight()
     flight.start([[mesh]], 70, new THREE.Vector3())
-    flight.sample(time)
-    const position = mesh.position.clone()
-    flight.dispose(); geometry.dispose()
-    return position
+    for (const time of [.05, .2, .5, 1, 1.5, 2]) {
+      flight.sample(time)
+      const reference = jackBlastAt(time, 0, x, 0, 70)
+      assert.ok(mesh.position.distanceTo(new THREE.Vector3(x + reference.x, reference.y, 0)) < .015,
+        `unobstructed stock follows the poker arc at x=${x}, t=${time}`)
+      const rotation = new THREE.Quaternion().setFromEuler(new THREE.Euler(reference.pitch, reference.yaw, reference.roll, 'ZYX'))
+      assert.ok(mesh.quaternion.angleTo(rotation) < .02, 'broadside turn and flutter follow the reference')
+    }
+    flight.dispose(); mesh.geometry.dispose()
   }
-  assert.ok(isolatedPaper(0, 1).y > 40, 'central cards retain their full launch height')
-  assert.ok(isolatedPaper(8, .5).y > 4, 'outer cards rise immediately with the burst')
-  assert.ok(Math.abs(isolatedPaper(8, 1).x - 8) < 1.5, 'lateral scatter stays small compared with the climb')
   const run = (times: number[], collide = true, overlap = false) => {
     const scene = new THREE.Group()
     const geometry = new THREE.PlaneGeometry(1.3, 1.95)
