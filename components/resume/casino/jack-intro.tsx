@@ -1159,6 +1159,26 @@ export default function JackIntro({
     const prepareAt = impact.at - .40
     if (t < prepareAt) b.flight.dispose()
 
+    const showFlight = () => {
+      b.lock.position.set(centre.current[0] + tn.jkLockX, centre.current[1] + tn.jkLockY, 0)
+      b.flight.sample(t - impact.at)
+      g.updateWorldMatrix(true, true)
+      g.userData.cardRenderLayer = 1
+      for (const body of b.bodies) body[0].traverse(object => {
+        if (object instanceof THREE.Mesh) {
+          const materials = Array.isArray(object.material) ? object.material : [object.material]
+          for (const material of materials) material.depthWrite = true
+        }
+      })
+    }
+    // Once launched, the recorded card/word poses own the animation. Rebuilding
+    // all the folds, flips, letter placement and fallback flight here only
+    // computes transforms that sample() immediately overwrites.
+    if (poseTime === undefined && b.flight.active && t >= impact.at) {
+      showFlight()
+      return
+    }
+
     // Neighbor-to-neighbor checkerboard unfolding, then an accelerating fall.
     {
       for (const k of b.snake) {
@@ -1403,16 +1423,7 @@ export default function JackIntro({
         g.updateWorldMatrix(true, true)
         return
       }
-      b.flight.sample(t - impact.at)
-      // All compositor passes must see the new authored poses on the release frame.
-      g.updateWorldMatrix(true, true)
-      g.userData.cardRenderLayer = 1
-      for (const body of b.bodies) body[0].traverse(object => {
-        if (object instanceof THREE.Mesh) {
-          const materials = Array.isArray(object.material) ? object.material : [object.material]
-          for (const material of materials) material.depthWrite = true
-        }
-      })
+      showFlight()
     }
   }
   useFrame((state, dt) => animate(state, dt))
