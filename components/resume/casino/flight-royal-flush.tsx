@@ -16,7 +16,7 @@ import { beatTime, getTune } from './tune'
 import FlightCallout, { placeFlightCallout } from './flight-callout'
 import { CardDepthStack } from './card-depth-stack'
 import { ScreenExit } from './screen-exit'
-import { DEALER_CARD_CATCH, DEALER_CARD_DROP_DURATION, FLIGHT_CARD_TO_GRIP, incomingCardMatrix, type DealerCardHandoff } from './dealer-card-handoff'
+import { DEALER_CARD_APPEAR, DEALER_CARD_CATCH, FLIGHT_CARD_TO_GRIP, type DealerCardHandoff } from './dealer-card-handoff'
 
 const FACES = ROYAL_FLUSH.map(rank => cardArtUrl(`${rank}-hearts`))
 const TRANSFORM = {
@@ -174,17 +174,19 @@ export default function FlightRoyalFlush({ clock0, cardHandoff }: { clock0: Muta
     depthStack.resolve(cards.current)
     if(receiving) {
       root.updateWorldMatrix(true,true)
-      const dropAt=catchAt-DEALER_CARD_DROP_DURATION
-      const progress=(clockAge-dropAt)/DEALER_CARD_DROP_DURATION
-      // Let the entire close-up fan exit. Only then reuse the two held cards
-      // for a short vertical drop at the dealer's depth.
+      const appearAt=tn.jkRise+tn.jkHold+tn.jkFallFor-tn.rfDelay+DEALER_CARD_APPEAR
+      // After the close-up exits, both cards materialize at the snap. Their
+      // receiving targets supply the simultaneous fan spread in the hand.
       for(let i=0;i<5;i++) {
         const card=cards.current[i]
         if(card && clockAge>=leaveAt+exitFor) card.visible=!screenExit.cleared(card,camera,'right')
       }
       for(let i=0;i<2;i++) {
-        if(clockAge<dropAt)continue
         const card=cards.current[i+3]!,target=cardHandoff!.targets![i]
+        if(clockAge<appearAt) {
+          if(clockAge>=leaveAt+exitFor)card.visible=false
+          continue
+        }
         target.updateWorldMatrix(true,false)
         const end=target.matrixWorld.clone()
           .multiply(new THREE.Matrix4().makeScale(1/Math.max(.001,target.scale.x),1,1))
@@ -192,7 +194,7 @@ export default function FlightRoyalFlush({ clock0, cardHandoff }: { clock0: Muta
           .multiply(FLIGHT_CARD_TO_GRIP)
         // At the dealer, use physical depth so the fingers can occlude the stock.
         card.userData.cardRenderLayer=0
-        const world=incomingCardMatrix(end,progress,i)
+        const world=end
         card.matrixAutoUpdate=false
         card.matrix.copy(root.matrixWorld.clone().invert().multiply(world))
         card.matrixWorldNeedsUpdate=true

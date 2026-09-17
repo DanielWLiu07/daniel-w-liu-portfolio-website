@@ -1,4 +1,4 @@
-import { Matrix4, Object3D, Quaternion, Vector3 } from 'three'
+import { Matrix4, Object3D } from 'three'
 import { DEALER_CARD_REVEAL_START, DEALER_CARD_UNFOLD } from './dealer-card-reveal'
 import { dealerEntranceTime } from './dealer-entrance'
 import type { DealerShuffleRig } from './dealer-shuffle'
@@ -8,8 +8,8 @@ const clamp=(x:number)=>Math.max(0,Math.min(1,x))
 const smooth=(x:number)=>{const t=clamp(x);return t*t*t*(t*(t*6-15)+10)}
 // Start as the supporting hand releases the seated skull, while the hat lands.
 export const DEALER_CARD_ACTION_START=dealerEntranceTime(2.18)
-export const DEALER_CARD_DROP_DURATION=.8
-export const DEALER_CARD_CATCH=DEALER_CARD_ACTION_START+DEALER_CARD_REVEAL_START+DEALER_CARD_UNFOLD
+export const DEALER_CARD_APPEAR=DEALER_CARD_ACTION_START+DEALER_CARD_REVEAL_START
+export const DEALER_CARD_CATCH=DEALER_CARD_APPEAR+DEALER_CARD_UNFOLD
 
 /** The free arm settles casually into its point, ready by the card hand's snap. */
 export function applyDealerPointAction(rig:DealerChipRig,impactAge:number,seconds:number,enabled=true) {
@@ -53,21 +53,3 @@ export class DealerCardHandoff {
 export const FLIGHT_CARD_TO_GRIP=new Matrix4().makeRotationX(-Math.PI/2)
   .multiply(new Matrix4().makeRotationZ(Math.PI))
   .multiply(new Matrix4().makeScale(.090/(2/3),.130,.00054/(.177/52)))
-
-/** Drop at the dealer's depth and card size, then attach to the moving grip. */
-export function incomingCardMatrix(target:Matrix4,progress:number,index:number) {
-  const p=clamp(progress)
-  if(p===1)return target.clone()
-  const position=new Vector3(),rotation=new Quaternion(),scale=new Vector3()
-  target.decompose(position,rotation,scale)
-  // Begin above the shot, already behind the table. Gravity accelerates the
-  // descent; there is no camera-to-dealer travel or giant-to-small scaling.
-  position.y+=scale.y*8*(1-p*p)
-  const flutter=(index===0?-1:1)*.12*Math.sin(p*Math.PI*2+.6)*(1-p)
-  rotation.multiply(new Quaternion().setFromAxisAngle(new Vector3(0,0,1),flutter))
-  const matrix=new Matrix4().compose(position,rotation,scale)
-  // The fingers absorb the final few frames and preserve the exact grip shear.
-  const settle=smooth((p-.92)/.08)
-  if(settle>0)for(let i=0;i<16;i++)matrix.elements[i]+=(target.elements[i]-matrix.elements[i])*settle
-  return matrix
-}

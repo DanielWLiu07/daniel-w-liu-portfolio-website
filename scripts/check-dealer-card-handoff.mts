@@ -5,7 +5,7 @@ import {Matrix4,Quaternion,Texture,Vector3} from 'three'
 import {poseDealerAtTable} from '../components/resume/casino/dealer-pose'
 import {DealerBodyRig} from '../components/resume/casino/dealer-idle'
 import {DealerEntranceRig,DEALER_ENTRANCE_END,DEALER_IDLE_START,DEALER_HEAD_SEATED,dealerEntrance,entranceFace,blendEntranceFace} from '../components/resume/casino/dealer-entrance'
-import {applyDealerCardAction,DEALER_CARD_ACTION_START,DEALER_CARD_CATCH,FLIGHT_CARD_TO_GRIP,incomingCardMatrix} from '../components/resume/casino/dealer-card-handoff'
+import {applyDealerCardAction,DEALER_CARD_ACTION_START,DEALER_CARD_APPEAR,DEALER_CARD_CATCH,FLIGHT_CARD_TO_GRIP} from '../components/resume/casino/dealer-card-handoff'
 import {DealerFaceRig,facePose} from '../components/resume/face/face-rig'
 import {FACE_DEFAULTS} from '../components/resume/face/face-settings'
 const loader=new GLTFLoader();loader.register(()=>({name:'T',loadTexture:()=>Promise.resolve(new Texture())}))
@@ -44,24 +44,13 @@ for(const age of [-1,0,.46,1.5,2,2.7,3.2,3.48,4,5]){
  const expected=pose(age);pose(9,2);pose(.2,.5);pose(4,1,0);const actual=pose(age)
  assert.ok(actual.every((v,i)=>Math.abs(v-expected[i])<1e-8),`Backward scrub at ${age} is deterministic`)
 }
-pose(DEALER_CARD_CATCH)
-for(const [index,card] of body.shuffle.cards.entries()){
- const target=card.matrixWorld.clone().multiply(FLIGHT_CARD_TO_GRIP)
- const sample=(p:number)=>incomingCardMatrix(target,p,index)
- const landing=new Vector3().setFromMatrixPosition(target)
- let previousY=Infinity
- const targetScale=new Vector3().setFromMatrixScale(target)
- assert.deepEqual(sample(1).elements,target.elements)
- const near=sample(1-1e-4)
- assert.ok(near.elements.every((v,i)=>Math.abs(v-target.elements[i])<1e-7),'Exact moving grip matrix is reached smoothly')
- for(let i=0;i<=1000;i++){
-  const matrix=sample(i/1000)
-  const position=new Vector3().setFromMatrixPosition(matrix)
-  assert.ok(Math.abs(position.x-landing.x)<1e-8 && Math.abs(position.z-landing.z)<1e-8,'Drop stays at the hand depth without flying backwards')
-  assert.ok(position.y<=previousY+1e-8 && position.y>=landing.y-1e-8,'Card only descends into the grip')
-  previousY=position.y
-  if(i<920)assert.ok(new Vector3().setFromMatrixScale(matrix).distanceTo(targetScale)<1e-6,'Card starts at its held size')
-  assert.ok(matrix.elements.every(Number.isFinite)&&matrix.determinant()>0,'Paper never collapses or flips its handedness')
+for(const age of [DEALER_CARD_APPEAR-.001,DEALER_CARD_APPEAR,DEALER_CARD_APPEAR+.04,DEALER_CARD_CATCH]) {
+ pose(age)
+ assert.equal(body.shuffle.group.visible,age>=DEALER_CARD_APPEAR,'Cards appear exactly at the snap')
+ for(const card of body.shuffle.cards) {
+  const target=card.matrixWorld.clone().multiply(FLIGHT_CARD_TO_GRIP)
+  assert.ok(target.elements.every(Number.isFinite)&&target.determinant()>0,'Full-size stock attaches directly to the receiving hand')
+  assert.equal(card.scale.x,1,'No width growth delays the snap reveal')
  }
 }
 console.log({samples,maxHandStepDegrees:maxStep*180/Math.PI,actionStart:DEALER_CARD_ACTION_START,catch:DEALER_CARD_CATCH,entranceEnd:DEALER_ENTRANCE_END})

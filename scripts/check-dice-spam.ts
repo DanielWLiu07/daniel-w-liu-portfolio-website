@@ -1,39 +1,43 @@
 import assert from 'node:assert/strict'
-import { Quaternion, Vector3 } from 'three'
-import { createInteractiveDie } from '../components/resume/casino/interactive-die'
+import { Matrix4, Quaternion, Vector3 } from 'three'
+import { createInteractiveDie, chipTableHull } from '../components/resume/casino/interactive-die'
 
 async function main() {
-  const p = new Vector3(0, 0.5, 0), q = new Quaternion()
+  const p = new Vector3(0, .5, 0), q = new Quaternion()
   const physics = await createInteractiveDie(p, q, new Vector3(), 1)
   try {
-    physics.kick()
+    const direction = new Vector3(.8, 1, .3).normalize()
+    physics.kick(direction)
     for (let i = 0; i < 8; i++) physics.step(1 / 120, p, q)
-    const before = p.clone()
-    const velocityBefore = physics.velocity()
-    physics.kick()
-    const velocityAfter = physics.velocity()
-    assert.ok(Math.abs(velocityAfter.x - velocityBefore.x) < 1e-6 && Math.abs(velocityAfter.z - velocityBefore.z) < 1e-6, 'click never retargets horizontal motion')
-    assert.ok(velocityAfter.y >= velocityBefore.y - 1e-6, 'click never applies a downward impulse')
-    assert.ok(p.equals(before), 'midair click does not teleport')
-    physics.step(1 / 120, p, q)
-    assert.ok(p.y > before.y, 'midair click adds lift')
-    for (let i = 0; i < 360; i++) {
-      if (i % 15 === 0) {
-        const v = physics.velocity()
-        physics.kick()
-        const next = physics.velocity()
-        assert.ok(next.y >= v.y - 1e-6, 'height cap cannot kick a rising die backwards')
-        assert.ok(Math.abs(next.x - v.x) + Math.abs(next.z - v.z) < 1e-6)
-      }
+    const before = p.clone(), velocityBefore = physics.velocity()
+    physics.kick(direction)
+    const after = physics.velocity()
+    assert.ok(p.equals(before), 'midair hit never teleports')
+    assert.ok(after.x > velocityBefore.x && after.y > velocityBefore.y, 'another hit adds directional momentum')
+    let highest = p.y, farthest = 0
+    for (let i = 0; i < 720; i++) {
       physics.step(1 / 120, p, q)
-      assert.ok(p.y < 8, 'spam has bounded energy')
-      assert.ok(Number.isFinite(p.y))
+      highest = Math.max(highest, p.y); farthest = Math.max(farthest, Math.hypot(p.x, p.z))
+      assert.ok(p.toArray().every(Number.isFinite) && q.toArray().every(Number.isFinite))
     }
-    let awake = true
-    for (let i = 0; i < 2400 && awake; i++) awake = physics.step(1 / 120, p, q)
-    assert.ok(!awake, 'simulation sleeps when the die rests')
-    assert.ok(Math.hypot(p.x, p.z) <= 0.55, 'rest stays inside the landing circle')
-    console.log('OK: repeat midair impulses, no teleport, bounded spam, in-circle rest and sleep')
+    assert.ok(highest > 4, 'dice can fly above the old height ceiling')
+    assert.ok(farthest > 5, 'dice can travel well outside the old landing circle')
   } finally { physics.dispose() }
+  p.set(0, .5, 0); q.identity()
+  const vertices = chipTableHull(3, -2, new Matrix4().makeRotationX(-Math.PI / 2))
+  const falling = await createInteractiveDie(p, q, new Vector3(), 1, {x:0,y:0,z:0}, { vertices, floorY: -8 })
+  try {
+    falling.kick(new Vector3(1, .15, 0).normalize(), new Vector3(0, .9, .3))
+    let awake = true, belowTable = false
+    for (let i = 0; i < 3600 && awake; i++) {
+      awake = falling.step(1 / 120, p, q)
+      belowTable ||= p.y < -2
+    }
+    assert.ok(belowTable, 'finite table lets a blasted die fall off its edge')
+    assert.ok(!awake, 'off-table die settles and stops spending simulation work')
+    assert.ok(p.y > -8 && p.y < -7, 'die rests on the real room floor')
+    assert.ok(Math.hypot(p.x, p.z) > 3, 'die does not return to its original space')
+  } finally { falling.dispose() }
+  console.log('PASS: directional midair hits, no landing circle or height ceiling, table-edge fall and floor sleep')
 }
 void main()

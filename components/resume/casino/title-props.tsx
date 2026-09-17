@@ -325,14 +325,14 @@ function Chip({ at, i, t, y, geo, chipH, fx, tableMesh }: { at: Placed; i: numbe
   return <group ref={arrival} visible={!fx}><ChipStack at={{ ...at, x: put.x, z: put.z, spin: put.r }} size={t.ttChipS * put.s} geo={geo} chipH={chipH} drag={drag} kickRef={kickRef} fx={fx} tableMesh={tableMesh} /></group>
 }
 
-function OneDie({ at, i, t, y, fx }: { at: Placed; i: number; t: ReturnType<typeof useTune>; y: number; fx?: MutableRefObject<ImpactFx> }) {
+function OneDie({ at, i, t, y, fx, tableMesh }: { at: Placed; i: number; t: ReturnType<typeof useTune>; y: number; fx?: MutableRefObject<ImpactFx>; tableMesh?: THREE.Mesh | null }) {
   const key = `die:${i}`
   const base: PropTweak = PROP_LAYOUT[key] ?? { x: at.x, z: at.z, s: 1, r: at.spin }
   const put = getProp(key) ?? base
   const size = propDieSize(t.chip) * t.ttDiceS * put.s
   const roll = useRef<THREE.Group>(null)
   const generation = useRef(0)
-  const playback = useRef<{ physics: Awaited<ReturnType<typeof createInteractiveDie>> | null; loading: boolean; pending: number; age: number; dead: boolean }>({ physics: null, loading: false, pending: 0, age: -1, dead: false })
+  const playback = useRef<{ physics: Awaited<ReturnType<typeof createInteractiveDie>> | null; loading: boolean; pending: { direction: THREE.Vector3; point: THREE.Vector3 }[]; age: number; dead: boolean }>({ physics: null, loading: false, pending: [], age: -1, dead: false })
   const velocity = useRef(new THREE.Vector3())
   const angularVelocity = useRef(new THREE.Vector3())
   const lastRotation = useRef(new THREE.Quaternion())
@@ -344,24 +344,36 @@ function OneDie({ at, i, t, y, fx }: { at: Placed; i: number; t: ReturnType<type
     state.dead = false
     return () => { generation.current++; state.dead = true; state.physics?.dispose(); state.physics = null }
   }, [])
-  const drag = useDrag(key, base, y, [t.ttPropX, t.ttPropZ + PROP_LAYOUT_OFFSET_Z], () => {
+  const drag = useDrag(key, base, y, [t.ttPropX, t.ttPropZ + PROP_LAYOUT_OFFSET_Z], event => {
     const state = playback.current
     if (!roll.current?.visible) return
+    const parent = roll.current.parent!
+    parent.updateWorldMatrix(true, false)
+    const inverse = parent.matrixWorld.clone().invert()
+    const hit = { direction: event.ray.direction.clone().transformDirection(inverse), point: event.point.clone().applyMatrix4(inverse) }
     if (state.physics) {
-      state.physics.kick()
+      state.physics.kick(hit.direction, hit.point)
       markPropMotion(1)
       return
     }
-    state.pending++
+    state.pending.push(hit)
     if (state.loading) return
     state.loading = true
     const ticket = generation.current
-    void import('./interactive-die').then(async ({ createInteractiveDie }) => {
+    void import('./interactive-die').then(async ({ createInteractiveDie, chipTableHull }) => {
       if (state.dead || ticket !== generation.current || !roll.current) return
-      const physics = await createInteractiveDie(roll.current.position, roll.current.quaternion, velocity.current, size, angularVelocity.current)
+      const parent = roll.current.parent!
+      parent.updateWorldMatrix(true, false); tableMesh?.updateWorldMatrix(true, false)
+      const inverse = parent.matrixWorld.clone().invert(), tune = getTune()
+      const tableMatrix = tableMesh?.matrixWorld ?? new THREE.Matrix4().makeRotationX(-Math.PI / 2)
+      const vertices = chipTableHull(tune.table * .41 + tune.rail, tableMesh ? tune.chord - tune.rail : -tune.table,
+        inverse.clone().multiply(tableMatrix))
+      const floorY = new THREE.Vector3(0, y - .004 - ROOM_FLOOR_DROP, 0).applyMatrix4(inverse).y
+      const physics = await createInteractiveDie(roll.current.position, roll.current.quaternion, velocity.current, size, angularVelocity.current, { vertices, floorY })
       if (state.dead || ticket !== generation.current) { physics.dispose(); return }
       state.physics = physics
-      while (state.pending > 0) { physics.kick(); state.pending-- }
+      for (const hit of state.pending) physics.kick(hit.direction, hit.point)
+      state.pending = []
       state.loading = false
       markPropMotion(1)
     }).catch(error => { state.loading = false; console.error('Dice physics could not load', error) })
@@ -370,7 +382,7 @@ function OneDie({ at, i, t, y, fx }: { at: Placed; i: number; t: ReturnType<type
     if (!roll.current) return
     const state = playback.current
     const age = (fx?.current.impactAge ?? 10) - i * 0.06
-    if (age < state.age - 0.1) { generation.current++; state.physics?.dispose(); state.physics = null; state.pending = 0; state.loading = false }
+    if (age < state.age - 0.1) { generation.current++; state.physics?.dispose(); state.physics = null; state.pending = []; state.loading = false }
     state.age = age
     lastPosition.current.copy(roll.current.position)
     lastRotation.current.copy(roll.current.quaternion)
@@ -390,7 +402,7 @@ function OneDie({ at, i, t, y, fx }: { at: Placed; i: number; t: ReturnType<type
     }
   })
   return (
-    <group {...drag} onClick={e => e.stopPropagation()} position={[put.x, 0, put.z]} rotation={[0, put.r, 0]}>
+    <group name={`table-die-${i}`} {...drag} onClick={e => e.stopPropagation()} position={[put.x, 0, put.z]} rotation={[0, put.r, 0]}>
       <group ref={roll} visible={!fx}>
       <Die
         value={at.value}
@@ -461,7 +473,7 @@ export default function TitleProps({ y, fx, tableMesh }: { y: number; fx?: Mutab
         <Chip key={`c${i}`} at={c} i={i} t={t} y={y} geo={cyl} chipH={chipH} fx={fx} tableMesh={tableMesh} />
       ))}
       {dice.map((d, i) => (
-        <OneDie key={`d${i}`} at={d} i={i} t={t} y={y} fx={fx} />
+        <OneDie key={`d${i}`} at={d} i={i} t={t} y={y} fx={fx} tableMesh={tableMesh} />
       ))}
     </group>
     </ChipPhysics.Provider>
