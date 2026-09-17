@@ -19,9 +19,30 @@
  *   against that, because a left-handed die is a real mistake that nobody
  *   notices until someone who plays looks at it.
  */
-import { useEffect, useMemo } from 'react'
+import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react'
 import * as THREE from 'three'
-import { diceMaterial, type ChipInk } from './materials'
+import { diceMaterial, LIT_MATERIALS, type ChipInk } from './materials'
+
+// A scene owner keeps identical dice resources alive across individual dice edits.
+const DiceResources = createContext<{
+  geometries: Map<string, THREE.BufferGeometry>
+  materials: Map<string, ReturnType<typeof diceMaterial>>
+} | null>(null)
+
+export function SharedDiceResources({ children }: { children: ReactNode }) {
+  const resources = useMemo(() => ({ geometries: new Map<string, THREE.BufferGeometry>(), materials: new Map<string, ReturnType<typeof diceMaterial>>() }), [])
+  useEffect(() => {
+    for (const material of resources.materials.values()) LIT_MATERIALS.add(material)
+    return () => {
+      for (const geometry of resources.geometries.values()) geometry.dispose()
+      for (const material of resources.materials.values()) {
+        LIT_MATERIALS.delete(material)
+        material.dispose()
+      }
+    }
+  }, [resources])
+  return <DiceResources.Provider value={resources}>{children}</DiceResources.Provider>
+}
 
 export interface DiceOptions {
   /** edge length of the cube */
@@ -301,9 +322,32 @@ export default function Die({
   spin?: number
 }) {
   const o = { ...DEFAULTS, ...opts }
-  const geo = useMemo(() => diceGeometry(o), [o.size, o.round, o.pip, o.sink, o.segments])
-  const mat = useMemo(() => diceMaterial(ink, pipInk), [ink, pipInk])
-  useEffect(() => () => geo.dispose(), [geo])
+  const owner = useContext(DiceResources)
+  const separate = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+    && new URLSearchParams(window.location.search).has('separateDiceResources')
+  const resources = separate ? null : owner
+  const geo = useMemo(() => {
+    const key = JSON.stringify([o.size, o.round, o.pip, o.sink, o.segments])
+    const cached = resources?.geometries.get(key)
+    if (cached) return cached
+    const geometry = diceGeometry(o)
+    resources?.geometries.set(key, geometry)
+    return geometry
+  }, [resources, o.size, o.round, o.pip, o.sink, o.segments])
+  const mat = useMemo(() => {
+    const key = `${ink}/${pipInk}`
+    const cached = resources?.materials.get(key)
+    if (cached) return cached
+    const material = diceMaterial(ink, pipInk)
+    resources?.materials.set(key, material)
+    return material
+  }, [resources, ink, pipInk])
+  useEffect(() => {
+    if (resources) return
+    LIT_MATERIALS.add(mat)
+    return () => { LIT_MATERIALS.delete(mat); mat.dispose() }
+  }, [resources, mat])
+  useEffect(() => () => { if (!resources) geo.dispose() }, [resources, geo])
   const rot = rotation ?? faceUp(value ?? 1)
   /**
    * ORDER 'YXZ', so `spin` is a real turn about the world vertical.
@@ -316,6 +360,7 @@ export default function Die({
    */
   return (
     <mesh
+      dispose={null}
       geometry={geo}
       material={mat}
       castShadow

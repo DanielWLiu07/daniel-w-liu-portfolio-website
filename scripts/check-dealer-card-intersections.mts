@@ -68,7 +68,7 @@ for(const [caseIndex,config] of cases.entries()) for(const mode of (handoff?['ap
  } else if(mode==='idle')body.apply(time,config.amount,config.speed,config.acting)
  else body.apply(time+.5,config.amount,config.speed,config.acting,1,time)
  frames++
- if(!body.shuffle.group.visible&&mode!=='approach')continue
+ if(!body.shuffle.group.visible)continue
  visibleFrames++
  const checkGrip=mode==='idle'||(mode==='reveal'&&time>=2)||(mode==='catch'&&time>=DEALER_CARD_CATCH+.2)
  const gripGaps={Index:Infinity,Thumb:Infinity}
@@ -77,10 +77,7 @@ for(const [caseIndex,config] of cases.entries()) for(const mode of (handoff?['ap
   const vertices=Array.from({length:mesh.geometry.attributes.position.count},(_,i)=>mesh.getVertexPosition(i,new Vector3()))
   for(const [cardIndex,card] of body.shuffle.cards.entries()) {
    const cardMatrix=card.matrixWorld.clone()
-   if(mode==='approach') {
-    const u=Math.max(0,Math.min(1,(approachProgress-.70)/.30)),settle=u*u*u*(u*(u*6-15)+10)
-    cardMatrix.multiply(new Matrix4().makeScale(1/card.scale.x,1,1)).multiply(new Matrix4().makeTranslation(.016*(1-card.scale.x),0,.130*1.2*(1-settle)))
-   }
+   // Cards now appear directly in the grip on the snap; there is no incoming drop.
    const matrix=cardMatrix.invert().multiply(mesh.matrixWorld)
    const points=vertices.map(v=>v.clone().applyMatrix4(matrix))
    for(const {ids,digit} of triangles) {

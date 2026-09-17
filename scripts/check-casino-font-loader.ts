@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict'
 import { loadCasinoFont } from '../components/resume/casino/font-loader'
+import { loadSharedFont } from '../lib/fonts/load-font'
 
 async function main() {
-  let loads = 0, adds = 0, cssLoads = 0
+  let loads = 0, adds = 0, cssLoads = 0, textLoads = 0
   const pending: (() => void)[] = []
   const faces = new Set<unknown>([{ family: 'JkFredericka', async load() { cssLoads++ } }])
   Object.assign(globalThis, {
@@ -10,7 +11,7 @@ async function main() {
       constructor(public family: string) {}
       load() { loads++; return new Promise(resolve => pending.push(() => resolve(this))) }
     },
-    document: { fonts: { [Symbol.iterator]: () => faces[Symbol.iterator](), add(face: unknown) { adds++; faces.add(face) } } },
+    document: { fonts: { [Symbol.iterator]: () => faces[Symbol.iterator](), add(face: unknown) { adds++; faces.add(face) }, async load(font: string, text: string) { assert.ok(font.includes("JkFredericka")); assert.ok(text.includes("Résumé")); textLoads++; } } },
   })
   const a = loadCasinoFont('KatieRoze', '/font.woff2')
   const b = loadCasinoFont('KatieRoze', '/font.woff2')
@@ -28,7 +29,10 @@ async function main() {
   const cssB = loadCasinoFont('JkFredericka', '/fonts/FrederickatheGreat-Regular.woff2')
   assert.equal(cssA, cssB)
   await cssA
-  assert.equal(cssLoads, 1, 'CSS and canvas reuse the same face')
+  assert.equal(textLoads, 1, 'casino requests only CSS ranges covering its display text')
+  assert.equal(cssLoads, 0, 'unused extended ranges do not delay startup')
+  await loadSharedFont('JkFredericka', '/fonts/FrederickatheGreat-Regular.woff2')
+  assert.equal(cssLoads, 1, 'an explicit full-family request still loads every face')
   assert.equal(loads, 2, 'no extra FontFace for the shared CSS font')
   console.log('PASS: font startup, concurrent and subsequent consumers share the same FontFace')
 }

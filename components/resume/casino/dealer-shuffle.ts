@@ -110,7 +110,10 @@ export class DealerShuffleRig {
       const palm=pose.leftPalm.clone().add(new Vector3(reveal.side,reveal.lift,reveal.reach))
       const normal=side==='Left'?this.direction(new Vector3(-.3,.2,-1).applyAxisAngle(new Vector3(1,0,0),reveal.wrist).applyAxisAngle(new Vector3(0,1,0),reveal.bank)):new Vector3(0,-1,0)
       const forward=side==='Left'?this.direction(new Vector3(-.18,1,.2).applyAxisAngle(new Vector3(1,0,0),reveal.wrist).applyAxisAngle(new Vector3(0,1,0),reveal.bank)):new Vector3(.12,-.05,1)
-      const target=side==='Left'?this.local(palm):new Vector3(-.29+.005*Math.sin(2*Math.PI*pose.t/10),1.225,.405),pole=side==='Left'?new Vector3(.28,1.04,.13):new Vector3(sign*.38,1.12,.16)
+      // Roll the palm around its own finger direction, independently of the arm arc.
+      // Forearm twist sharing below distributes this turn without kinking the wrist.
+      if(side==='Left')normal.applyAxisAngle(forward,reveal.roll)
+      const target=side==='Left'?this.local(palm):new Vector3(-.29+.005*Math.sin(2*Math.PI*pose.t/10),1.225,.405),pole=side==='Left'?new Vector3(.28+reveal.side*.40,1.04+Math.max(0,reveal.lift)*.25,.13+reveal.reach*.25):new Vector3(sign*.38,1.12,.16)
       this.arms.palm(side,target,pole,normal,forward)
       // Refine pad placement after orienting the hand under the chest's
       // nonuniform cartoon scale.
@@ -121,7 +124,9 @@ export class DealerShuffleRig {
           // Keeping a fixed world-facing palm would fold the wrist as the elbow moves.
           const elbow=this.root.worldToLocal(this.root.getObjectByName('LeftForeArm')!.getWorldPosition(new Vector3()))
           const forearm=wrist.clone().sub(elbow).normalize(),angle=forward.angleTo(forearm)
-          const comfort=18*Math.PI/180
+          // Allow the snap's wrist articulation, then recover the quieter holding
+          // limit. Otherwise refinement straightens away the animated wrist bend.
+          const comfort=(18+14*Math.min(1,Math.abs(reveal.wrist)/.35))*Math.PI/180
           if(angle>comfort)forward.lerp(forearm,(1-comfort/angle)*smooth((angle-comfort)/(14*Math.PI/180))).normalize()
         }
         this.arms.arm(side,wrist.add(target).sub(grip.point()),pole,normal,forward)

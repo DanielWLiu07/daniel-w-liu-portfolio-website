@@ -1,0 +1,544 @@
+{
+  "conditions": "Fresh Chrome profiles, HTTP and shader disk caches disabled; desktop 1280x800 DPR1. CPU profiler and per-builder timing instrumentation enabled in both variants. Host load uncontrolled; timings are observations, not guaranteed savings.",
+  "change": "Four title eyes share one material graph. Per-object uniform updates preserve individual ink, open amount, gaze, and stroke weight. Owner disposes shared material on unmount; geometry, motion and renderer pipeline remain unchanged.",
+  "control": "localhost only: ?separateEyeMaterials=1",
+  "runs": {
+    "eyes-control-cpu": {
+      "url": "http://localhost:3144/resume?separateEyeMaterials=1",
+      "marks": [
+        {
+          "name": "casino:scene-ready",
+          "seconds": 8.934100000023841
+        },
+        {
+          "name": "casino:intro-start",
+          "seconds": 8.952200000047684
+        }
+      ],
+      "stages": [
+        {
+          "name": "casino:renderer-device-init",
+          "start": 1.283800000011921,
+          "duration": 0.0205
+        },
+        {
+          "name": "casino:compositor-graph-setup",
+          "start": 1.3653000000119209,
+          "duration": 0.02680000001192093
+        },
+        {
+          "name": "casino:dealer-rig-material-setup",
+          "start": 2.429600000023842,
+          "duration": 0.3445
+        },
+        {
+          "name": "casino:dealer-rig-material-setup",
+          "start": 3.130400000035763,
+          "duration": 0.2761999999880791
+        },
+        {
+          "name": "casino:yielding-colour-preparation",
+          "start": 3.810300000011921,
+          "duration": 3.8824000000357626
+        },
+        {
+          "name": "casino:all-pass-pipeline-preparation",
+          "start": 7.693,
+          "duration": 1.0449000000357629
+        },
+        {
+          "name": "casino:remaining-colour-pipelines",
+          "start": 8.738,
+          "duration": 0.09
+        },
+        {
+          "name": "casino:covered-first-render",
+          "start": 8.829200000047683,
+          "duration": 0.07409999996423722
+        },
+        {
+          "name": "casino:gpu-completion-fence",
+          "start": 8.903400000035763,
+          "duration": 0.01380000001192093
+        }
+      ],
+      "totalBytes": 3244949,
+      "lastDownloadSeconds": 3.7772669999976642,
+      "errors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found) {\"url\":\"http://localhost:3144/_vercel/insights/script.js\"}"
+      ],
+      "cpuSlowdown": 4,
+      "network": "current connection",
+      "builderCount": 167,
+      "eyeBuilders": [
+        {
+          "method": "buildAsync",
+          "name": "title-eye-0",
+          "material": "",
+          "type": "MeshBasicNodeMaterial",
+          "start": 7396.200000047684,
+          "duration": 64.79999995231628
+        },
+        {
+          "method": "buildAsync",
+          "name": "title-eye-1",
+          "material": "",
+          "type": "MeshBasicNodeMaterial",
+          "start": 7475.5,
+          "duration": 58.80000001192093
+        },
+        {
+          "method": "buildAsync",
+          "name": "title-eye-2",
+          "material": "",
+          "type": "MeshBasicNodeMaterial",
+          "start": 7543.100000023842,
+          "duration": 60.19999998807907
+        },
+        {
+          "method": "buildAsync",
+          "name": "title-eye-3",
+          "material": "",
+          "type": "MeshBasicNodeMaterial",
+          "start": 7613.5,
+          "duration": 73.60000002384186
+        }
+      ]
+    },
+    "eyes-shared-cpu": {
+      "url": "http://localhost:3144/resume",
+      "marks": [
+        {
+          "name": "casino:scene-ready",
+          "seconds": 7.400099999964238
+        },
+        {
+          "name": "casino:intro-start",
+          "seconds": 7.430800000011921
+        }
+      ],
+      "stages": [
+        {
+          "name": "casino:renderer-device-init",
+          "start": 1.4075999999642372,
+          "duration": 0.016900000035762787
+        },
+        {
+          "name": "casino:compositor-graph-setup",
+          "start": 1.4835999999642373,
+          "duration": 0.030600000023841858
+        },
+        {
+          "name": "casino:dealer-rig-material-setup",
+          "start": 2.138,
+          "duration": 0.26980000001192095
+        },
+        {
+          "name": "casino:dealer-rig-material-setup",
+          "start": 2.6985,
+          "duration": 0.21389999997615813
+        },
+        {
+          "name": "casino:yielding-colour-preparation",
+          "start": 3.2875999999642374,
+          "duration": 3.239600000023842
+        },
+        {
+          "name": "casino:all-pass-pipeline-preparation",
+          "start": 6.527199999988079,
+          "duration": 0.6463999999761582
+        },
+        {
+          "name": "casino:remaining-colour-pipelines",
+          "start": 7.173699999988079,
+          "duration": 0.04610000002384186
+        },
+        {
+          "name": "casino:covered-first-render",
+          "start": 7.2415,
+          "duration": 0.10580000001192093
+        },
+        {
+          "name": "casino:gpu-completion-fence",
+          "start": 7.347300000011921,
+          "duration": 0.03459999996423721
+        }
+      ],
+      "totalBytes": 3244949,
+      "lastDownloadSeconds": 3.1595630000228994,
+      "errors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found) {\"url\":\"http://localhost:3144/_vercel/insights/script.js\"}"
+      ],
+      "cpuSlowdown": 4,
+      "network": "current connection",
+      "builderCount": 164,
+      "eyeBuilders": [
+        {
+          "method": "buildAsync",
+          "name": "title-eye-0",
+          "material": "",
+          "type": "MeshBasicNodeMaterial",
+          "start": 6421,
+          "duration": 72.09999996423721
+        }
+      ]
+    },
+    "eyes-shared-cpu-2": {
+      "url": "http://localhost:3144/resume",
+      "marks": [
+        {
+          "name": "casino:scene-ready",
+          "seconds": 5.773600000023841
+        },
+        {
+          "name": "casino:intro-start",
+          "seconds": 5.783600000023842
+        }
+      ],
+      "stages": [
+        {
+          "name": "casino:renderer-device-init",
+          "start": 0.957300000011921,
+          "duration": 0.01230000001192093
+        },
+        {
+          "name": "casino:compositor-graph-setup",
+          "start": 1.0148000000119208,
+          "duration": 0.023100000023841858
+        },
+        {
+          "name": "casino:dealer-rig-material-setup",
+          "start": 1.587600000023842,
+          "duration": 0.2465
+        },
+        {
+          "name": "casino:dealer-rig-material-setup",
+          "start": 1.9549000000357628,
+          "duration": 0.17589999997615816
+        },
+        {
+          "name": "casino:yielding-colour-preparation",
+          "start": 2.4527000000476837,
+          "duration": 2.5135
+        },
+        {
+          "name": "casino:all-pass-pipeline-preparation",
+          "start": 4.966200000047683,
+          "duration": 0.6580999999642372
+        },
+        {
+          "name": "casino:remaining-colour-pipelines",
+          "start": 5.624300000011921,
+          "duration": 0.05590000003576279
+        },
+        {
+          "name": "casino:covered-first-render",
+          "start": 5.6822000000476836,
+          "duration": 0.058299999952316287
+        },
+        {
+          "name": "casino:gpu-completion-fence",
+          "start": 5.7405,
+          "duration": 0.013200000047683716
+        }
+      ],
+      "totalBytes": 3244949,
+      "lastDownloadSeconds": 2.317907999968156,
+      "errors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found) {\"url\":\"http://localhost:3144/_vercel/insights/script.js\"}"
+      ],
+      "cpuSlowdown": 4,
+      "network": "current connection",
+      "builderCount": 164,
+      "eyeBuilders": [
+        {
+          "method": "buildAsync",
+          "name": "title-eye-0",
+          "material": "",
+          "type": "MeshBasicNodeMaterial",
+          "start": 4876.900000035763,
+          "duration": 66.39999997615814
+        }
+      ]
+    },
+    "eyes-control-cpu-2": {
+      "url": "http://localhost:3144/resume?separateEyeMaterials=1",
+      "marks": [
+        {
+          "name": "casino:scene-ready",
+          "seconds": 7.566299999952316
+        },
+        {
+          "name": "casino:intro-start",
+          "seconds": 7.577799999952316
+        }
+      ],
+      "stages": [
+        {
+          "name": "casino:renderer-device-init",
+          "start": 1.3037999999523162,
+          "duration": 0.014400000035762786
+        },
+        {
+          "name": "casino:compositor-graph-setup",
+          "start": 1.383699999988079,
+          "duration": 0.0325
+        },
+        {
+          "name": "casino:dealer-rig-material-setup",
+          "start": 2.186,
+          "duration": 0.29929999995231626
+        },
+        {
+          "name": "casino:dealer-rig-material-setup",
+          "start": 2.815699999988079,
+          "duration": 0.26489999997615815
+        },
+        {
+          "name": "casino:yielding-colour-preparation",
+          "start": 3.554199999988079,
+          "duration": 3.133
+        },
+        {
+          "name": "casino:all-pass-pipeline-preparation",
+          "start": 6.687599999964237,
+          "duration": 0.73
+        },
+        {
+          "name": "casino:remaining-colour-pipelines",
+          "start": 7.417699999988079,
+          "duration": 0.06789999997615814
+        },
+        {
+          "name": "casino:covered-first-render",
+          "start": 7.4925,
+          "duration": 0.04429999995231628
+        },
+        {
+          "name": "casino:gpu-completion-fence",
+          "start": 7.536799999952316,
+          "duration": 0.005700000047683716
+        }
+      ],
+      "totalBytes": 3244949,
+      "lastDownloadSeconds": 3.4022680000052787,
+      "errors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found) {\"url\":\"http://localhost:3144/_vercel/insights/script.js\"}"
+      ],
+      "cpuSlowdown": 4,
+      "network": "current connection",
+      "builderCount": 167,
+      "eyeBuilders": [
+        {
+          "method": "buildAsync",
+          "name": "title-eye-0",
+          "material": "",
+          "type": "MeshBasicNodeMaterial",
+          "start": 6418.5,
+          "duration": 51.39999997615814
+        },
+        {
+          "method": "buildAsync",
+          "name": "title-eye-1",
+          "material": "",
+          "type": "MeshBasicNodeMaterial",
+          "start": 6482.799999952316,
+          "duration": 52.80000001192093
+        },
+        {
+          "method": "buildAsync",
+          "name": "title-eye-2",
+          "material": "",
+          "type": "MeshBasicNodeMaterial",
+          "start": 6556.099999964237,
+          "duration": 56.69999998807907
+        },
+        {
+          "method": "buildAsync",
+          "name": "title-eye-3",
+          "material": "",
+          "type": "MeshBasicNodeMaterial",
+          "start": 6624.299999952316,
+          "duration": 58.10000002384186
+        }
+      ]
+    },
+    "eyes-shared-network": {
+      "url": "http://localhost:3144/resume",
+      "marks": [
+        {
+          "name": "casino:scene-ready",
+          "seconds": 4.2613000000119206
+        },
+        {
+          "name": "casino:intro-start",
+          "seconds": 4.265699999988079
+        }
+      ],
+      "stages": [
+        {
+          "name": "casino:renderer-device-init",
+          "start": 1.748199999988079,
+          "duration": 0.00919999998807907
+        },
+        {
+          "name": "casino:compositor-graph-setup",
+          "start": 1.773800000011921,
+          "duration": 0.0135
+        },
+        {
+          "name": "casino:dealer-rig-material-setup",
+          "start": 2.878699999988079,
+          "duration": 0.07660000002384186
+        },
+        {
+          "name": "casino:yielding-colour-preparation",
+          "start": 2.960699999988079,
+          "duration": 0.9624000000357628
+        },
+        {
+          "name": "casino:all-pass-pipeline-preparation",
+          "start": 3.923199999988079,
+          "duration": 0.27940000003576276
+        },
+        {
+          "name": "casino:remaining-colour-pipelines",
+          "start": 4.202699999988079,
+          "duration": 0.015
+        },
+        {
+          "name": "casino:covered-first-render",
+          "start": 4.226199999988079,
+          "duration": 0.013600000023841858
+        },
+        {
+          "name": "casino:gpu-completion-fence",
+          "start": 4.239800000011921,
+          "duration": 0.004199999988079071
+        }
+      ],
+      "totalBytes": 3244949,
+      "lastDownloadSeconds": 2.85182799998438,
+      "errors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found) {\"url\":\"http://localhost:3144/_vercel/insights/script.js\"}"
+      ],
+      "cpuSlowdown": 1,
+      "network": "10 Mbps / 40 ms",
+      "builderCount": 164,
+      "eyeBuilders": [
+        {
+          "method": "buildAsync",
+          "name": "title-eye-0",
+          "material": "",
+          "type": "MeshBasicNodeMaterial",
+          "start": 3882,
+          "duration": 22.600000023841858
+        }
+      ]
+    },
+    "eyes-control-network": {
+      "url": "http://localhost:3144/resume?separateEyeMaterials=1",
+      "marks": [
+        {
+          "name": "casino:scene-ready",
+          "seconds": 4.440699999988079
+        },
+        {
+          "name": "casino:intro-start",
+          "seconds": 4.444900000035763
+        }
+      ],
+      "stages": [
+        {
+          "name": "casino:renderer-device-init",
+          "start": 1.7235,
+          "duration": 0.0035
+        },
+        {
+          "name": "casino:compositor-graph-setup",
+          "start": 1.740699999988079,
+          "duration": 0.012
+        },
+        {
+          "name": "casino:dealer-rig-material-setup",
+          "start": 2.873800000011921,
+          "duration": 0.096
+        },
+        {
+          "name": "casino:yielding-colour-preparation",
+          "start": 2.974,
+          "duration": 1.0225
+        },
+        {
+          "name": "casino:all-pass-pipeline-preparation",
+          "start": 3.9966000000238417,
+          "duration": 0.36669999998807906
+        },
+        {
+          "name": "casino:remaining-colour-pipelines",
+          "start": 4.363300000011921,
+          "duration": 0.0315
+        },
+        {
+          "name": "casino:covered-first-render",
+          "start": 4.405600000023842,
+          "duration": 0.0205
+        },
+        {
+          "name": "casino:gpu-completion-fence",
+          "start": 4.426100000023842,
+          "duration": 0.0025
+        }
+      ],
+      "totalBytes": 3244949,
+      "lastDownloadSeconds": 2.8514350000186823,
+      "errors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found) {\"url\":\"http://localhost:3144/_vercel/insights/script.js\"}"
+      ],
+      "cpuSlowdown": 1,
+      "network": "10 Mbps / 40 ms",
+      "builderCount": 167,
+      "eyeBuilders": [
+        {
+          "method": "buildAsync",
+          "name": "title-eye-0",
+          "material": "",
+          "type": "MeshBasicNodeMaterial",
+          "start": 3903.800000011921,
+          "duration": 15.399999976158142
+        },
+        {
+          "method": "buildAsync",
+          "name": "title-eye-1",
+          "material": "",
+          "type": "MeshBasicNodeMaterial",
+          "start": 3923.199999988079,
+          "duration": 13.900000035762787
+        },
+        {
+          "method": "buildAsync",
+          "name": "title-eye-2",
+          "material": "",
+          "type": "MeshBasicNodeMaterial",
+          "start": 3939.600000023842,
+          "duration": 18.80000001192093
+        },
+        {
+          "method": "buildAsync",
+          "name": "title-eye-3",
+          "material": "",
+          "type": "MeshBasicNodeMaterial",
+          "start": 3972.699999988079,
+          "duration": 20.600000023841858
+        }
+      ]
+    }
+  },
+  "bottleneck": "At 10 Mbps normal CPU, downloads completed at 2.85s and candidate intro began at 4.27s; colour/pass preparation was 1.25s. With 4x CPU slowdown, shader setup dominated (candidate 3.17\u20133.89s). About 3.245MB transferred. Model 668KB, KatieRoze 312KB, resume image 201KB, folder model177KB, Fredericka149KB, paper144KB. Existing delivery assets already compressed; remaining CPU work is primarily node graph construction, pipeline preparation, texture uploads and actor setup.",
+  "validation": {
+    "build": "passed",
+    "uniforms": "all six ink colours, three blink states and independent gaze, forward/reverse draw order passed",
+    "visual": "All four fixed-pose eye crops have zero changed pixels versus original per-eye materials. Desktop and mobile show four eyes with one shared material and no page errors.",
+    "navigation": "Desktop and mobile folder open/close, About to Resume remount passed with zero browser errors."
+  }
+}

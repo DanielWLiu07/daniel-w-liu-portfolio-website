@@ -183,7 +183,7 @@ export default function FlightRoyalFlush({ clock0, cardHandoff }: { clock0: Muta
       }
       for(let i=0;i<2;i++) {
         const card=cards.current[i+3]!,target=cardHandoff!.targets![i]
-        if(clockAge<appearAt) {
+        if(clockAge<appearAt || !target.parent?.visible) {
           if(clockAge>=leaveAt+exitFor)card.visible=false
           continue
         }

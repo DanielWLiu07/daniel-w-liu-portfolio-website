@@ -1,4 +1,4 @@
-import { loadSharedFont } from '@/lib/fonts/load-font'
+import { loadCasinoFont as loadSharedFont } from './font-loader'
 /**
  * Ransom-note lettering, shared.
  *

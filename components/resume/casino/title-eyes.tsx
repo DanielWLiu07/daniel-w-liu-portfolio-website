@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useSyncExternalStore, type MutableRefObject } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { eyeMaterial } from './materials'
+import { eyeMaterial, sharedTitleEyeMaterial } from './materials'
 import { EYE_PLANE, irisAt, type EyeInk } from './eye'
 import { titleEyeMotion } from './title-eye-motion'
 import type { ImpactFx } from './hero-chip'
@@ -22,6 +22,12 @@ export default function TitleEyes({ fx }: { fx: MutableRefObject<ImpactFx> }) {
   const editing = isTitleEyeEditor()
   const eyes = useSyncExternalStore(subscribeTitleEyes, getTitleEyes, getTitleEyes)
   const geometry = useMemo(() => new THREE.PlaneGeometry(EYE_PLANE.w, EYE_PLANE.h), [])
+  const shared = useMemo(() => {
+    const separate = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+      && new URLSearchParams(window.location.search).has('separateEyeMaterials')
+    return separate ? null : sharedTitleEyeMaterial()
+  }, [])
+  useEffect(() => () => shared?.dispose(), [shared])
   const room = useRef(createRoomPose())
   useEffect(() => () => geometry.dispose(), [geometry])
   useEffect(() => {
@@ -79,20 +85,21 @@ export default function TitleEyes({ fx }: { fx: MutableRefObject<ImpactFx> }) {
   }, 0.29)
 
   return <group name="title-colored-eyes" dispose={null}>
-    {eyes.map((eye, index) => !eye.removed && <ColoredEye key={index} index={index} ink={eye.ink} geometry={geometry} room={room} fx={fx} editing={editing} />)}
+    {eyes.map((eye, index) => !eye.removed && <ColoredEye key={index} index={index} ink={eye.ink} shared={shared} geometry={geometry} room={room} fx={fx} editing={editing} />)}
   </group>
 }
 
-function ColoredEye({ index, ink, geometry, room, fx, editing }: {
-  index: number; ink: EyeInk; geometry: THREE.PlaneGeometry
+function ColoredEye({ index, ink, shared, geometry, room, fx, editing }: {
+  index: number; ink: EyeInk; shared: ReturnType<typeof eyeMaterial> | null; geometry: THREE.PlaneGeometry
   room: MutableRefObject<RoomPose>; fx: MutableRefObject<ImpactFx>; editing: boolean
 }) {
   const { gl, camera } = useThree()
   const mesh = useRef<THREE.Mesh>(null)
-  const material = useMemo(() => eyeMaterial(`titleEye:${index}`, ink, true, false), [index, ink])
+  const material = useMemo(() => shared ?? eyeMaterial(`titleEye:${index}`, ink, true, false), [shared, index, ink])
+  const uniforms = useMemo(() => shared ? { eyeOpen: { value: 0 }, eyeWeight: { value: 1 }, eyeIrisX: { value: 0 }, eyeIrisY: { value: 0.01 } } : material.userData.uniforms, [shared, material])
   const gaze = useRef({ x: 0, y: 0 })
   const rotation = useMemo(() => ({ euler: new THREE.Euler(), quaternion: new THREE.Quaternion() }), [])
-  useEffect(() => () => material.dispose(), [material])
+  useEffect(() => () => { if (!shared) material.dispose() }, [shared, material])
   useEffect(() => {
     if (!editing || !mesh.current) return
     const remove = registerTitleEye(index, mesh.current, () => ({ camera: camera.quaternion, anchor: room.current.orientation, halfWidth: room.current.hw, halfHeight: room.current.hh, height: gl.domElement.clientHeight }))
@@ -113,7 +120,7 @@ function ColoredEye({ index, ink, geometry, room, fx, editing }: {
     m.x += (THREE.MathUtils.clamp((pointer.x - eye.x) * 0.22 + motion.gazeX, -0.25, 0.25) - m.x) * follow
     m.y += (THREE.MathUtils.clamp((pointer.y - eye.y) * 0.16 + motion.gazeY, -0.15, 0.15) - m.y) * follow
     const [ix, iy] = irisAt(frozen ? [0, 0] : [m.x, m.y], motion.open)
-    const u = (object.material as THREE.Material).userData.uniforms
+    const u = uniforms
     u.eyeOpen.value = motion.open; u.eyeWeight.value = 1.3
     u.eyeIrisX.value = ix; u.eyeIrisY.value = iy
     object.position.set(eye.x * state.hw, eye.y * state.hh, -24 + (eye.depth ?? 0)).applyQuaternion(state.orientation).add(state.origin)
@@ -123,7 +130,7 @@ function ColoredEye({ index, ink, geometry, room, fx, editing }: {
     object.scale.set(eye.sx ?? 1, eye.sy ?? 1, eye.sz ?? 1).multiplyScalar(state.unit * eye.size * motion.scale)
   }, 0.3)
 
-  return <mesh ref={mesh} name={`title-eye-${index}`} geometry={geometry} material={material} visible={false} userData={{ compNoPosition: true }}
+  return <mesh ref={mesh} name={`title-eye-${index}`} geometry={geometry} material={material} visible={false} userData={{ compNoPosition: true, casinoTitleEye: { ink, uniforms } }}
     raycast={editing ? THREE.Mesh.prototype.raycast : () => {}}
     onPointerDown={editing ? event => { event.stopPropagation(); if (!titleEyeEditor.gesture()) titleEyeEditor.pick(event.object); gl.domElement.focus() } : undefined} />
 }

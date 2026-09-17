@@ -1,5 +1,5 @@
 import R from '@dimforge/rapier3d-compat'
-import { Vector3, type Matrix4, type Object3D, type Quaternion } from 'three'
+import { Quaternion, Vector3, type Matrix4, type Object3D } from 'three'
 
 /** Visible D-shaped tabletop, including its rail, transformed into pile space. */
 export function chipTableHull(radius: number, chord: number, tableToPile: Matrix4) {
@@ -30,7 +30,7 @@ function tableCollider(vertices: Float32Array) {
   }
   return R.ColliderDesc.trimesh(vertices, new Uint32Array(indices))
 }
-export async function createChipPile(homes: { position: Vector3; quaternion: Quaternion; radius?: number; height?: number }[], radius: number, height: number, tableVertices: Float32Array, startSleeping = false, floorY?: number) {
+export async function createChipPile(homes: { position: Vector3; quaternion: Quaternion; radius?: number; height?: number; die?: boolean; velocity?: Vector3; angularVelocity?: Vector3 }[], radius: number, height: number, tableVertices: Float32Array, startSleeping = false, floorY?: number, rail?: { radius: number; chord: number; tube: number; y: number }) {
   await ready
   const world = new R.World({ x: 0, y: -30 * radius, z: 0 })
   world.timestep = 1 / 480
@@ -45,14 +45,34 @@ export async function createChipPile(homes: { position: Vector3; quaternion: Qua
   // the felt. Fallen chips can finish their fall and rest without passing through it.
   if (floorY !== undefined) world.createCollider(R.ColliderDesc.cuboid(60, 0.1, 60)
     .setTranslation(0, floorY - 0.1, 0).setFriction(0.9).setRestitution(0.02))
+  // Low, rounded bumper follows the visible RailTube, including its back chord.
+  // Capsules are created only with the lazy interaction world.
+  if (rail && rail.tube > 0) {
+    const a = Math.asin(Math.max(-.999, Math.min(.999, rail.chord / rail.radius)))
+    const points = Array.from({ length: 65 }, (_, i) => {
+      const angle = a + (Math.PI - 2 * a) * i / 64
+      return new Vector3(rail.radius * Math.cos(angle), rail.y - rail.tube * .45, rail.radius * Math.sin(angle))
+    })
+    for (let i = 0; i < points.length; i++) {
+      const start = points[i], end = points[(i + 1) % points.length]
+      const axis = end.clone().sub(start), midpoint = start.clone().add(end).multiplyScalar(.5)
+      const rotation = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), axis.clone().normalize())
+      world.createCollider(R.ColliderDesc.capsule(axis.length() / 2, rail.tube)
+        .setTranslation(midpoint.x, midpoint.y, midpoint.z).setRotation(rotation).setFriction(.75).setRestitution(.15))
+    }
+  }
   const bodies = homes.map(home => {
     const r = home.radius ?? radius, h = home.height ?? height
     const bevel = Math.min(h * 0.1, r * 0.02)
     const body = world.createRigidBody(R.RigidBodyDesc.dynamic()
       .setTranslation(home.position.x, home.position.y, home.position.z).setRotation(home.quaternion)
-      .setAngularDamping(3).setLinearDamping(0.6).setCcdEnabled(true).setSleeping(startSleeping))
-    world.createCollider(R.ColliderDesc.roundCylinder(h / 2 - bevel, r - bevel, bevel)
-      .setFriction(0.9).setRestitution(0.02), body)
+      .setAngularDamping(home.die ? .8 : 3).setLinearDamping(0.6).setCcdEnabled(true)
+      .setLinvel(home.velocity?.x ?? 0, home.velocity?.y ?? 0, home.velocity?.z ?? 0)
+      .setAngvel(home.angularVelocity ?? { x: 0, y: 0, z: 0 })
+      .setSleeping(startSleeping && !(home.velocity?.lengthSq() || home.angularVelocity?.lengthSq())))
+    const shape = home.die ? R.ColliderDesc.roundCuboid(r * .8, h * .4, r * .8, r * .2)
+      : R.ColliderDesc.roundCylinder(h / 2 - bevel, r - bevel, bevel)
+    world.createCollider(shape.setFriction(home.die ? .75 : .9).setRestitution(home.die ? .48 : .02), body)
     return body
   })
   let accumulator = 0
@@ -117,7 +137,7 @@ export async function createChipPile(homes: { position: Vector3; quaternion: Qua
         world.step()
         // Fallen chips stay gone until replay; stop spending simulation time
         // on objects far below the visible table, without a hidden catch floor.
-        bodies.forEach(body => { if (body.isEnabled() && body.translation().y < -20 * radius) body.setEnabled(false) })
+        bodies.forEach(body => { if (body.isEnabled() && body.translation().y < (floorY ?? 0) - 20 * radius) body.setEnabled(false) })
         bodies.forEach((body, i) => {
           if (!body.isEnabled() || body.isSleeping()) return
           const probe = stable[i], p = body.translation(), q = body.rotation()

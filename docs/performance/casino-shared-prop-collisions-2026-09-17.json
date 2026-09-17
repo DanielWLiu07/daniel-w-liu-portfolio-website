@@ -1,0 +1,17 @@
+{
+  "scenario": "Fresh Chrome profiles; HTTP/shader disk cache disabled; 10 Mbps, 40ms latency; one run per build; no claimed speedup",
+  "before": {
+    "bytes": 3245424,
+    "introSeconds": 4.0643000000119205
+  },
+  "after": {
+    "bytes": 3245216,
+    "introSeconds": 4.053300000011921
+  },
+  "embeddedWasmChunksRequestedInitially": [],
+  "notes": [
+    "Physics remains dynamically imported on first interaction.",
+    "Dice and chips now share one collision world; rail capsules are built only on interaction.",
+    "Local Vercel analytics endpoint returns 404 in both runs; application interaction browser check reported no page errors."
+  ]
+}

@@ -11,6 +11,7 @@ import dynamic from 'next/dynamic'
 import { Canvas } from '@react-three/fiber'
 import { canStartCasinoIntro } from './intro-ready'
 import { startupStage } from './startup-timing'
+import { installBudgetedShaderBuild } from './budgeted-shader-build'
 import { installSharedBufferShaders } from './shared-buffer-shaders'
 import { WebGPURenderer } from 'three/webgpu'
 import type { MangaUniforms } from 'blender-to-threejs'
@@ -192,6 +193,7 @@ export default function CasinoResume({ layoutTuning = false, jackEditing = false
             resize()
             await renderer.init()
             // Same-build A/B switch for startup profiling; ordinary visitors share.
+            if (!(window.location.hostname === 'localhost' && new URLSearchParams(window.location.search).has('originalShaderYields'))) installBudgetedShaderBuild(renderer)
             if (!new URLSearchParams(window.location.search).has('rawShaderNames')) installSharedBufferShaders(renderer)
             finishInit()
             // Init can overlap a display/DPR change. Invalidate attachments once

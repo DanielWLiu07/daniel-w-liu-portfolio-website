@@ -313,6 +313,25 @@ export function chipFaceWatercolorMaterial(ink: ChipInk) {
   return trackLit(compileMaterial(register(`chipFaceWC:${ink}`, lit(g, watercolorMaterialGraph(g, { base, scale: 2.5, wobble: 0.04, bands: 3, edge: 0.6 }), lamp(g)))))
 }
 
+/** One shader graph per chip surface, with ink selected for each draw. This
+ * avoids rebuilding the same large watercolor graph for every denomination. */
+export function sharedChipWatercolorMaterials() {
+  const side = chipWatercolorMaterial('white'), face = chipFaceWatercolorMaterial('white')
+  for (const material of [side, face]) {
+    for (const [name, trim] of [['ink', false], ['trim', true]] as const) {
+      for (const [index, channel] of ['R', 'G', 'B'].entries()) {
+        const node = material.userData.uniforms[`${name}${channel}`]
+        node.onObjectUpdate(({ object }: { object: THREE.Object3D }) => {
+          const ink = object.userData.casinoChipInk as ChipInk | undefined
+          const selected = ink && CHIP_INK[ink] ? ink : 'white'
+          return (trim ? chipTrim(selected) : CHIP_INK[selected])[index]
+        })
+      }
+    }
+  }
+  return [side, face, face]
+}
+
 /**
  * A plain coloured body in the casino's own watercolour, with no chip markings.
  *
@@ -773,4 +792,21 @@ export function eyeMaterial(key = 'eye', ink: EyeInk = 'gold', flat = false, wob
   m.depthWrite = false
   // a flat one takes no lamp, so it must not be handed to driveLamp either
   return flat ? m : trackLit(m)
+}
+
+/** Same eye shader for every room glyph; gaze, blink and ink belong to each mesh. */
+export function sharedTitleEyeMaterial() {
+  const material = eyeMaterial('titleEyes:shared', 'gold', true, false)
+  for (const [name, uniform] of Object.entries(material.userData.uniforms) as [string, { value: number; onObjectUpdate: (fn: (frame: { object: { userData: Record<string, any> } }) => number) => unknown }][]) {
+    const initial = uniform.value
+    uniform.onObjectUpdate(({ object }) => {
+      const state = object.userData.casinoTitleEye
+      if (name === 'inkR' || name === 'inkG' || name === 'inkB') {
+        const ink = (state?.ink ?? 'gold') as EyeInk
+        return CHIP_INK[ink][name === 'inkR' ? 0 : name === 'inkG' ? 1 : 2]
+      }
+      return state?.uniforms[name]?.value ?? initial
+    })
+  }
+  return material
 }

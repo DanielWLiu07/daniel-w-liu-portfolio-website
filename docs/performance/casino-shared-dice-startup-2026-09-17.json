@@ -1,0 +1,293 @@
+{
+  "conditions": "Fresh browser, HTTP and shader disk caches disabled, desktop 1280x800 DPR1, 4x CPU slowdown, current local network. ABBA order; background host load uncontrolled. Embedded profiler network labels omit CPU throttle; command supplied --cpu4.",
+  "runs": {
+    "control-1": {
+      "url": "http://localhost:3144/resume?separateDiceResources=1",
+      "freshBrowserProfile": true,
+      "httpCacheDisabled": true,
+      "marks": [
+        {
+          "name": "casino:scene-ready",
+          "seconds": 16.30790000003576
+        },
+        {
+          "name": "casino:intro-start",
+          "seconds": 16.334300000011922
+        }
+      ],
+      "stages": [
+        {
+          "name": "casino:renderer-device-init",
+          "start": 2.673300000011921,
+          "duration": 0.05190000003576279
+        },
+        {
+          "name": "casino:compositor-graph-setup",
+          "start": 2.8015,
+          "duration": 0.036900000035762784
+        },
+        {
+          "name": "casino:dealer-rig-material-setup",
+          "start": 5.011700000047684,
+          "duration": 0.5331999999880791
+        },
+        {
+          "name": "casino:yielding-colour-preparation",
+          "start": 6.269800000011921,
+          "duration": 7.587300000011921
+        },
+        {
+          "name": "casino:all-pass-pipeline-preparation",
+          "start": 13.85780000001192,
+          "duration": 2.1176000000238417
+        },
+        {
+          "name": "casino:remaining-colour-pipelines",
+          "start": 15.9755,
+          "duration": 0.10270000004768372
+        },
+        {
+          "name": "casino:covered-first-render",
+          "start": 16.083600000023843,
+          "duration": 0.20119999998807908
+        },
+        {
+          "name": "casino:gpu-completion-fence",
+          "start": 16.285400000035764,
+          "duration": 0.01
+        }
+      ],
+      "totalBytes": 3244721,
+      "errors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found) {\"url\":\"http://localhost:3144/_vercel/insights/script.js\"}"
+      ],
+      "shaderModules": 144,
+      "pipelines": 116,
+      "rawLocalProfile": "/private/tmp/portfolio-dice-control-1.json"
+    },
+    "shared-1": {
+      "url": "http://localhost:3144/resume",
+      "freshBrowserProfile": true,
+      "httpCacheDisabled": true,
+      "marks": [
+        {
+          "name": "casino:scene-ready",
+          "seconds": 13.602599999964237
+        },
+        {
+          "name": "casino:intro-start",
+          "seconds": 13.648899999976159
+        }
+      ],
+      "stages": [
+        {
+          "name": "casino:renderer-device-init",
+          "start": 1.8748999999761582,
+          "duration": 0.06119999998807907
+        },
+        {
+          "name": "casino:compositor-graph-setup",
+          "start": 2.053300000011921,
+          "duration": 0.07859999996423721
+        },
+        {
+          "name": "casino:dealer-rig-material-setup",
+          "start": 3.384800000011921,
+          "duration": 0.4870999999642372
+        },
+        {
+          "name": "casino:dealer-rig-material-setup",
+          "start": 3.974199999988079,
+          "duration": 0.32630000001192094
+        },
+        {
+          "name": "casino:yielding-colour-preparation",
+          "start": 4.736399999976158,
+          "duration": 6.36
+        },
+        {
+          "name": "casino:all-pass-pipeline-preparation",
+          "start": 11.096399999976159,
+          "duration": 2.107100000023842
+        },
+        {
+          "name": "casino:remaining-colour-pipelines",
+          "start": 13.203599999964236,
+          "duration": 0.21270000004768372
+        },
+        {
+          "name": "casino:covered-first-render",
+          "start": 13.42519999998808,
+          "duration": 0.15110000002384186
+        },
+        {
+          "name": "casino:gpu-completion-fence",
+          "start": 13.576399999976157,
+          "duration": 0.008400000035762786
+        }
+      ],
+      "totalBytes": 3244721,
+      "errors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found) {\"url\":\"http://localhost:3144/_vercel/insights/script.js\"}"
+      ],
+      "shaderModules": 144,
+      "pipelines": 116,
+      "rawLocalProfile": "/private/tmp/portfolio-dice-shared-1.json"
+    },
+    "shared-2": {
+      "url": "http://localhost:3144/resume",
+      "freshBrowserProfile": true,
+      "httpCacheDisabled": true,
+      "marks": [
+        {
+          "name": "casino:scene-ready",
+          "seconds": 14.470600000023842
+        },
+        {
+          "name": "casino:intro-start",
+          "seconds": 14.521899999976158
+        }
+      ],
+      "stages": [
+        {
+          "name": "casino:renderer-device-init",
+          "start": 1.7661000000238418,
+          "duration": 0.06629999995231628
+        },
+        {
+          "name": "casino:compositor-graph-setup",
+          "start": 1.900300000011921,
+          "duration": 0.037
+        },
+        {
+          "name": "casino:dealer-rig-material-setup",
+          "start": 2.789699999988079,
+          "duration": 0.505699999988079
+        },
+        {
+          "name": "casino:dealer-rig-material-setup",
+          "start": 3.545199999988079,
+          "duration": 0.4519000000357628
+        },
+        {
+          "name": "casino:yielding-colour-preparation",
+          "start": 4.7275,
+          "duration": 7.426
+        },
+        {
+          "name": "casino:all-pass-pipeline-preparation",
+          "start": 12.153600000023841,
+          "duration": 1.909199999988079
+        },
+        {
+          "name": "casino:remaining-colour-pipelines",
+          "start": 14.063399999976157,
+          "duration": 0.154
+        },
+        {
+          "name": "casino:covered-first-render",
+          "start": 14.227199999988079,
+          "duration": 0.19769999998807908
+        },
+        {
+          "name": "casino:gpu-completion-fence",
+          "start": 14.424899999976159,
+          "duration": 0.011100000023841858
+        }
+      ],
+      "totalBytes": 3244721,
+      "errors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found) {\"url\":\"http://localhost:3144/_vercel/insights/script.js\"}"
+      ],
+      "shaderModules": 144,
+      "pipelines": 116,
+      "rawLocalProfile": "/private/tmp/portfolio-dice-shared-2.json"
+    },
+    "control-2": {
+      "url": "http://localhost:3144/resume?separateDiceResources=1",
+      "freshBrowserProfile": true,
+      "httpCacheDisabled": true,
+      "marks": [
+        {
+          "name": "casino:scene-ready",
+          "seconds": 15.658
+        },
+        {
+          "name": "casino:intro-start",
+          "seconds": 15.703600000023842
+        }
+      ],
+      "stages": [
+        {
+          "name": "casino:renderer-device-init",
+          "start": 2.0314000000357626,
+          "duration": 0.0525
+        },
+        {
+          "name": "casino:compositor-graph-setup",
+          "start": 2.209400000035763,
+          "duration": 0.07039999997615815
+        },
+        {
+          "name": "casino:dealer-rig-material-setup",
+          "start": 3.567300000011921,
+          "duration": 0.5876999999880791
+        },
+        {
+          "name": "casino:dealer-rig-material-setup",
+          "start": 4.4307000000476835,
+          "duration": 0.4472999999523163
+        },
+        {
+          "name": "casino:yielding-colour-preparation",
+          "start": 5.632100000023842,
+          "duration": 7.572199999988079
+        },
+        {
+          "name": "casino:all-pass-pipeline-preparation",
+          "start": 13.205,
+          "duration": 2.1335
+        },
+        {
+          "name": "casino:remaining-colour-pipelines",
+          "start": 15.338600000023842,
+          "duration": 0.13030000001192094
+        },
+        {
+          "name": "casino:covered-first-render",
+          "start": 15.486300000011921,
+          "duration": 0.14060000002384185
+        },
+        {
+          "name": "casino:gpu-completion-fence",
+          "start": 15.627,
+          "duration": 0.014100000023841859
+        }
+      ],
+      "totalBytes": 3244721,
+      "errors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found) {\"url\":\"http://localhost:3144/_vercel/insights/script.js\"}"
+      ],
+      "shaderModules": 144,
+      "pipelines": 116,
+      "rawLocalProfile": "/private/tmp/portfolio-dice-control-2.json"
+    }
+  },
+  "change": {
+    "geometryCopiesBefore": 2,
+    "geometryCopiesAfter": 1,
+    "materialGraphsBefore": 2,
+    "materialGraphsAfter": 1,
+    "scope": "TitleProps scene owner; cache keys preserve per-die size/shape and ink overrides; independent transforms and physics unchanged; dispose and unregister resources when owner unmounts.",
+    "localControl": "?separateDiceResources=1 (localhost only)"
+  },
+  "interpretation": "Both paired first-animation measurements improved (16.334\u219213.649s and 15.704\u219214.522s), but background host load and setup variance are substantial. Do not promise the observed 1.18\u20132.69s savings or a fixed percentage. Generated GPU shader-module and pipeline counts stay at 144/116 because the renderer already deduplicates identical GPU programs. This change saves CPU geometry and material-graph construction, graph traversal, and resource copies; it does not reduce downloads.",
+  "validation": {
+    "productionBuild": "passed",
+    "diceGeometryCheck": "passed",
+    "desktopAndPhone": "two dice share one geometry and material, zero page errors",
+    "visualComparison": "zero changed pixels in left props, right props including dice, and dealer crops at flight=12 versus separate resources",
+    "navigationAndReload": "desktop and phone: folder open/close, About to Resume remount, zero browser errors",
+    "diceClickAndSnap": "passed: actual pointer click moves die; 206 snap frames with maximum attachment error 5.91e-13, no page errors. Initial automation used viewport coordinates, missed the canvas target, and timed out; corrected to actual canvas bounds."
+  }
+}

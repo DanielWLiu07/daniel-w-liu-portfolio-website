@@ -1,11 +1,11 @@
-import { Matrix4, Object3D, Quaternion, Vector3, type Group, type Mesh } from 'three'
+import { Matrix4, Object3D, Quaternion, Vector3, type Group } from 'three'
 import type { createChipPile } from './interactive-chip-pile'
 
-type Pile = { root: Group; meshes: Mesh[]; radius: number; height: number }
-type Hit = { point: Vector3; direction: Vector3; reach: number }
+type Pile = { root: Group; meshes: Object3D[]; radius: number; height: number; die?: boolean; velocity?: Vector3; angularVelocity?: Vector3 }
+type Hit = { point: Vector3; direction: Vector3; reach: number; target?: Object3D }
 
 /** One lazy world for every side chip, stepped once, with world/local render adapters. */
-export function createChipController(table: () => { radius: number; chord: number; matrix: Matrix4; floorY?: number }, chipRadius: () => number) {
+export function createChipController(table: () => { radius: number; chord: number; matrix: Matrix4; floorY?: number; rail?: { radius: number; chord: number; tube: number; y: number } }, chipRadius: () => number) {
   const piles = new Set<Pile>()
   let physics: Awaited<ReturnType<typeof createChipPile>> | null = null
   let proxies: Object3D[] = [], order: Pile[] = [], pending: Hit[] = []
@@ -21,9 +21,9 @@ export function createChipController(table: () => { radius: number; chord: numbe
       reset(); piles.add(pile)
       return () => { reset(); piles.delete(pile) }
     },
-    impact(point: Vector3, reach: number, direction: Vector3) {
-      if (physics) { refreshTable?.(); physics.impact(point, reach, direction); return }
-      pending.push({ point: point.clone(), reach, direction: direction.clone() })
+    impact(point: Vector3, reach: number, direction: Vector3, target?: Object3D) {
+      if (physics) { refreshTable?.(); target ? physics.kick(order.flatMap(p => p.meshes).indexOf(target), direction, 1, point) : physics.impact(point, reach, direction); return }
+      pending.push({ point: point.clone(), reach, direction: direction.clone(), target })
       if (loading) return
       loading = true
       const version = generation
@@ -33,17 +33,23 @@ export function createChipController(table: () => { radius: number; chord: numbe
         const homes = registered.flatMap(pile => {
           pile.root.updateWorldMatrix(true, true)
           const scale = pile.root.getWorldScale(new Vector3())
+          const rotation = pile.root.getWorldQuaternion(new Quaternion())
           return pile.meshes.map(mesh => ({
             position: mesh.getWorldPosition(new Vector3()), quaternion: mesh.getWorldQuaternion(new Quaternion()),
-            radius: pile.radius * Math.max(Math.abs(scale.x), Math.abs(scale.z)), height: pile.height * Math.abs(scale.y),
+            radius: pile.radius * Math.max(Math.abs(scale.x), Math.abs(scale.z)), height: pile.height * Math.abs(scale.y), die: pile.die,
+            velocity: pile.velocity?.clone().multiply(scale).applyQuaternion(rotation),
+            angularVelocity: pile.angularVelocity?.clone().applyQuaternion(rotation),
           }))
         })
         const vertices = () => { const t = table(); return chipTableHull(t.radius, t.chord, t.matrix) }
-        const world = await createChipPile(homes, chipRadius(), chipRadius() * 0.13 / 0.55, vertices(), true, table().floorY)
+        const world = await createChipPile(homes, chipRadius(), chipRadius() * 0.13 / 0.55, vertices(), true, table().floorY, table().rail)
         if (version !== generation) { world.dispose(); return }
         order = registered; proxies = homes.map(() => new Object3D())
         physics = world; refreshTable = () => world.setTable(vertices()); loading = false
-        for (const hit of pending) world.impact(hit.point, hit.reach, hit.direction)
+        for (const hit of pending) {
+          if (hit.target) world.kick(order.flatMap(p => p.meshes).indexOf(hit.target), hit.direction, 1, hit.point)
+          else world.impact(hit.point, hit.reach, hit.direction)
+        }
         pending = []
       }).catch(error => {
         if (version !== generation) return

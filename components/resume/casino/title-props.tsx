@@ -14,13 +14,12 @@
 import { createContext, useContext, useEffect, useMemo, useRef, type MutableRefObject } from 'react'
 import * as THREE from 'three'
 import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
-import { chipFaceWatercolorMaterial, chipWatercolorMaterial, CHIP_INKS, LAMP, LIT_MATERIALS, type ChipInk } from './materials'
+import { sharedChipWatercolorMaterials, chipFaceWatercolorMaterial, chipWatercolorMaterial, CHIP_INKS, LAMP, LIT_MATERIALS, type ChipInk } from './materials'
 import { heroChipHeight, heroChipRadius, type ImpactFx } from './hero-chip'
 import { propArrival, bakedDiePose, diceEntranceYaw, markPropMotion } from './prop-arrival'
-import type { createInteractiveDie } from './interactive-die'
 import { createChipController } from './chip-pile-controller'
 import { ROOM_FLOOR_DROP } from './room-geometry'
-import Die from './dice'
+import Die, { SharedDiceResources } from './dice'
 import { impactPropFill } from './impact-eye-motion'
 import { getProp, getTune, setProp, useTune, type PropTweak } from './tune'
 
@@ -249,8 +248,12 @@ function ChipStack({ at, size, geo, chipH, drag, kickRef, fx }: { at: Placed; si
   const palette = useContext(ChipMaterials)!
   let mats = palette.get(at.ink)
   if (!mats) {
-    const face = chipFaceWatercolorMaterial(at.ink)
-    mats = [chipWatercolorMaterial(at.ink), face, face]
+    const separate = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+      && new URLSearchParams(window.location.search).has('separateChipMaterials')
+    if (separate) {
+      const face = chipFaceWatercolorMaterial(at.ink)
+      mats = [chipWatercolorMaterial(at.ink), face, face]
+    } else mats = palette.values().next().value ?? sharedChipWatercolorMaterials()
     palette.set(at.ink, mats)
   }
   const root = useRef<THREE.Group>(null)
@@ -293,6 +296,7 @@ function ChipStack({ at, size, geo, chipH, drag, kickRef, fx }: { at: Placed; si
             key={k}
             ref={mesh => { if (mesh) meshes.current[k] = mesh }}
             name="prop-chip"
+            userData={{ casinoChipInk: at.ink }}
             geometry={geo}
             material={mats}
             castShadow
@@ -331,8 +335,7 @@ function OneDie({ at, i, t, y, fx, tableMesh }: { at: Placed; i: number; t: Retu
   const put = getProp(key) ?? base
   const size = propDieSize(t.chip) * t.ttDiceS * put.s
   const roll = useRef<THREE.Group>(null)
-  const generation = useRef(0)
-  const playback = useRef<{ physics: Awaited<ReturnType<typeof createInteractiveDie>> | null; loading: boolean; pending: { direction: THREE.Vector3; point: THREE.Vector3 }[]; age: number; dead: boolean }>({ physics: null, loading: false, pending: [], age: -1, dead: false })
+  const physics = useContext(ChipPhysics)!
   const velocity = useRef(new THREE.Vector3())
   const angularVelocity = useRef(new THREE.Vector3())
   const lastRotation = useRef(new THREE.Quaternion())
@@ -340,55 +343,21 @@ function OneDie({ at, i, t, y, fx, tableMesh }: { at: Placed; i: number; t: Retu
   const lastPosition = useRef(new THREE.Vector3())
   const entranceYaw = useMemo(() => new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), diceEntranceYaw(i, put.r)), [i, put.r])
   useEffect(() => {
-    const state = playback.current
-    state.dead = false
-    return () => { generation.current++; state.dead = true; state.physics?.dispose(); state.physics = null }
-  }, [])
+    const mesh = roll.current!
+    return physics.register({ root: mesh.parent as THREE.Group, meshes: [mesh], radius: size / 2, height: size,
+      die: true, velocity: velocity.current, angularVelocity: angularVelocity.current })
+  }, [physics, size, put.x, put.z, put.r])
   const drag = useDrag(key, base, y, [t.ttPropX, t.ttPropZ + PROP_LAYOUT_OFFSET_Z], event => {
-    const state = playback.current
     if (!roll.current?.visible) return
-    const parent = roll.current.parent!
-    parent.updateWorldMatrix(true, false)
-    const inverse = parent.matrixWorld.clone().invert()
-    const hit = { direction: event.ray.direction.clone().transformDirection(inverse), point: event.point.clone().applyMatrix4(inverse) }
-    if (state.physics) {
-      state.physics.kick(hit.direction, hit.point)
-      markPropMotion(1)
-      return
-    }
-    state.pending.push(hit)
-    if (state.loading) return
-    state.loading = true
-    const ticket = generation.current
-    void import('./interactive-die').then(async ({ createInteractiveDie, chipTableHull }) => {
-      if (state.dead || ticket !== generation.current || !roll.current) return
-      const parent = roll.current.parent!
-      parent.updateWorldMatrix(true, false); tableMesh?.updateWorldMatrix(true, false)
-      const inverse = parent.matrixWorld.clone().invert(), tune = getTune()
-      const tableMatrix = tableMesh?.matrixWorld ?? new THREE.Matrix4().makeRotationX(-Math.PI / 2)
-      const vertices = chipTableHull(tune.table * .41 + tune.rail, tableMesh ? tune.chord - tune.rail : -tune.table,
-        inverse.clone().multiply(tableMatrix))
-      const floorY = new THREE.Vector3(0, y - .004 - ROOM_FLOOR_DROP, 0).applyMatrix4(inverse).y
-      const physics = await createInteractiveDie(roll.current.position, roll.current.quaternion, velocity.current, size, angularVelocity.current, { vertices, floorY })
-      if (state.dead || ticket !== generation.current) { physics.dispose(); return }
-      state.physics = physics
-      for (const hit of state.pending) physics.kick(hit.direction, hit.point)
-      state.pending = []
-      state.loading = false
-      markPropMotion(1)
-    }).catch(error => { state.loading = false; console.error('Dice physics could not load', error) })
+    physics.impact(event.point, 0, event.ray.direction, roll.current)
+    markPropMotion(1)
   }, false)
   useFrame((_, dt) => {
     if (!roll.current) return
-    const state = playback.current
     const age = (fx?.current.impactAge ?? 10) - i * 0.06
-    if (age < state.age - 0.1) { generation.current++; state.physics?.dispose(); state.physics = null; state.pending = []; state.loading = false }
-    state.age = age
     lastPosition.current.copy(roll.current.position)
     lastRotation.current.copy(roll.current.quaternion)
-    if (state.physics) {
-      if (state.physics.step(dt, roll.current.position, roll.current.quaternion)) markPropMotion(0.2)
-    } else {
+    if (!physics.active) {
       roll.current.visible = bakedDiePose(age, size, i, roll.current.position, roll.current.quaternion)
       roll.current.position.applyQuaternion(entranceYaw)
       roll.current.quaternion.premultiply(entranceYaw)
@@ -432,7 +401,8 @@ export default function TitleProps({ y, fx, tableMesh }: { y: number; fx?: Mutab
   const physics = useMemo(() => createChipController(() => {
     const tune = getTune()
     tableMesh?.updateWorldMatrix(true, false)
-    return { radius: tune.table * 0.41 + tune.rail, chord: tableMesh ? tune.chord - tune.rail : -tune.table, floorY: y - 0.004 - ROOM_FLOOR_DROP,
+    return { radius: tune.table * 0.41 + tune.rail, chord: tableMesh ? tune.chord - tune.rail * .5 : -tune.table,
+      rail: tableMesh ? { radius: tune.table * .41 + tune.rail * .5, chord: tune.chord, tube: tune.rail * .5, y: y - .004 } : undefined, floorY: y - 0.004 - ROOM_FLOOR_DROP,
       matrix: tableMesh?.matrixWorld ?? new THREE.Matrix4().makeRotationX(-Math.PI / 2) }
   }, () => propChipRadius(getTune().chip)), [tableMesh, y])
   useEffect(() => () => physics.dispose(), [physics])
@@ -466,6 +436,7 @@ export default function TitleProps({ y, fx, tableMesh }: { y: number; fx?: Mutab
   )
   if (!chips.length && !dice.length) return null
   return (
+    <SharedDiceResources>
     <ChipMaterials.Provider value={palette}>
     <ChipPhysics.Provider value={physics}>
     <group ref={root} position={[t.ttPropX, y, t.ttPropZ + PROP_LAYOUT_OFFSET_Z]}>
@@ -478,5 +449,6 @@ export default function TitleProps({ y, fx, tableMesh }: { y: number; fx?: Mutab
     </group>
     </ChipPhysics.Provider>
     </ChipMaterials.Provider>
+    </SharedDiceResources>
   )
 }

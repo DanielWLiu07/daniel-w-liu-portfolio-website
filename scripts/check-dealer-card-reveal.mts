@@ -86,7 +86,7 @@ for(let i=0;i<=240;i++) {
  if(i) fingers.forEach((f,j)=>{const step=f.quaternion.clone().normalize().angleTo(previous[j].clone().normalize());if(step>snapStep){snapStep=step;worstSnap=`${f.name} at ${age}`}})
  previous=fingers.map(f=>f.quaternion.clone())
  assert.equal(body.shuffle.group.visible,age>=DEALER_CARD_REVEAL_START,'Both cards appear on the snap')
- if(age>DEALER_CARD_SNAP-.24&&age<DEALER_CARD_SNAP-.22) snapGap=Math.max(snapGap,left.tip('Thumb').distanceTo(left.tip('Middle').addScaledVector(left.frame().normal,-.025)))
+ if(age>DEALER_CARD_SNAP-.10&&age<DEALER_CARD_SNAP-.08) snapGap=Math.max(snapGap,left.tip('Thumb').distanceTo(left.tip('Middle').addScaledVector(left.frame().normal,-.025)))
  if(body.shuffle.group.visible) {
   const points=body.shuffle.cards.map(c=>c.getWorldPosition(new Vector3()))
   if(cardPrevious) points.forEach((p,j)=>{const distance=p.distanceTo(cardPrevious![j]);if(distance>travelStep){travelStep=distance;worstTravel=age}})
@@ -102,7 +102,7 @@ for(let i=0;i<=240;i++) {
   }
  }
 }
-const releaseSamples=[DEALER_CARD_SNAP-.24,DEALER_CARD_SNAP+.04].map(age=>{
+const releaseSamples=[DEALER_CARD_SNAP-.10,DEALER_CARD_SNAP+.04].map(age=>{
  const weight=1
  body.reset();body.apply(age+.5,weight,1,1,weight,age)
  return {index:root.getObjectByName('LeftIndex1')!.quaternion.clone(),middle:left.hand.worldToLocal(root.localToWorld(left.tip('Middle')))}
@@ -120,7 +120,9 @@ assert.equal(dealerCardReveal(DEALER_CARD_REVEAL_START+.17).width,1,'The unfold 
 assert.ok(dealerCardReveal(DEALER_CARD_REVEAL_START+.24).fan>1,'Fan briefly overshoots before settling')
 assert.equal(dealerCardReveal(3).fan,1)
 console.log({cardThumbGapMM:thumbGap*1000,snapGapMM:snapGap*1000,thumbBendDegrees:bend*180/Math.PI,snapStepDegrees:snapStep*180/Math.PI,indexSupportMM:indexGap*1000,thumbAlignmentDegrees:thumbAlignment*180/Math.PI,cardStepMM:travelStep*1000,worstTravel,worstSnap})
-assert.ok(travelStep<.012,'After the snap, the cards stay continuously attached to the grip')
+// The faster flick intentionally carries the cards farther per frame; pinch
+// contact and exact world attachment are checked separately below/in handoff.
+assert.ok(travelStep<.016,'Fast follow-through stays bounded without a card-position jump')
 assert.ok(thumbGap<.003,'Thumb stays against the front of the two-card overlap')
 assert.ok(indexGap<.004,'The visible index pad braces the rear card opposite the thumb')
 assert.ok(thumbAlignment<35*Math.PI/180,'Thumb pad points along the card without folding backward')
@@ -132,12 +134,27 @@ body.reset();body.shuffle.apply(0,1,0,true)
 const relaxedThumb=root.getObjectByName('LeftThumb1')!.quaternion.clone(),low=root.getObjectByName('LeftHand')!.getWorldPosition(new Vector3())
 body.reset();body.shuffle.apply(0,1,Infinity,true)
 assert.ok(relaxedThumb.normalize().angleTo(root.getObjectByName('LeftThumb1')!.quaternion.clone().normalize())>.25,'Empty-hand thumb differs from the card pinch')
-assert.ok(root.getObjectByName('LeftHand')!.getWorldPosition(new Vector3()).distanceTo(low)>.08,'The forearm rises from a relaxed preparation')
-const stroke=[DEALER_CARD_SNAP-.22,DEALER_CARD_SNAP].map(age=>{body.reset();body.shuffle.apply(0,1,age,true);return root.getObjectByName('LeftHand')!.getWorldPosition(new Vector3())})
-assert.ok(stroke[0].distanceTo(stroke[1])>.065,'The snap includes a readable forearm stroke')
+// The windup is a continuous oval at chest height, not a low pause followed
+// by a straight horizontal-to-vertical hinge.
+const handAt=(age:number)=>{body.reset();body.shuffle.apply(0,1,age,true);return root.worldToLocal(root.getObjectByName('LeftHand')!.getWorldPosition(new Vector3()))}
+const path=Array.from({length:49},(_,i)=>handAt(DEALER_CARD_SNAP*i/48))
+assert.ok(Math.max(...path.map(p=>p.x))-Math.min(...path.map(p=>p.x))>.12,'Roundabout windup travels visibly outside the torso')
+assert.ok(Math.max(...path.map(p=>p.y))-Math.min(...path.map(p=>p.y))>.10,'Windup makes a readable oval')
+assert.ok(Math.min(...path.map(p=>p.y))>handAt(DEALER_CARD_SNAP).y-.16,'The hand remains up in view rather than dropping to the felt')
+const earlySpeed=handAt(.20).distanceTo(handAt(.16))/.04
+const finalSpeed=handAt(DEALER_CARD_SNAP-.02).distanceTo(handAt(DEALER_CARD_SNAP-.06))/.04
+assert.ok(finalSpeed>earlySpeed*2,'The continuous windup accelerates into a big flick')
+const before=dealerCardReveal(DEALER_CARD_SNAP-.0001),at=dealerCardReveal(DEALER_CARD_SNAP),after=dealerCardReveal(DEALER_CARD_SNAP+.0001)
+assert.ok(Math.abs((at.lift-before.lift)-(after.lift-at.lift))<.000002,'Upward velocity carries continuously through the snap into follow-through')
+assert.equal(dealerCardReveal(DEALER_CARD_SNAP-.29).prepare,0,'Fingers stay relaxed through the initial circle')
+assert.ok(dealerCardReveal(DEALER_CARD_SNAP-.20).prepare>0&&dealerCardReveal(DEALER_CARD_SNAP-.20).prepare<1,'Finger loading is a visible transition before the flick')
+assert.ok(dealerCardReveal(DEALER_CARD_SNAP-.04).release>0&&dealerCardReveal(DEALER_CARD_SNAP-.04).release<1,'Finger release spans several frames rather than switching instantly')
+assert.ok(dealerCardReveal(DEALER_CARD_SNAP-.05).thumbGrip>0,'Thumb releases during the snap stroke, before the cards appear')
+assert.equal(dealerCardReveal(DEALER_CARD_SNAP-.05).visible,false,'Thumb action cannot be hidden behind early cards')
+assert.equal(dealerCardReveal(DEALER_CARD_SNAP).thumbGrip,1,'The thumb finishes its receiving motion on appearance')
 assert.equal(dealerCardReveal(DEALER_CARD_SNAP).release,1,'Finger release completes on the snap beat')
 assert.equal(dealerCardReveal(DEALER_CARD_SNAP).grip,0,'Snap is visible before the fingers form the catch pinch')
-assert.equal(dealerCardReveal(DEALER_CARD_REVEAL_START+DEALER_CARD_UNFOLD).grip,1,'Grip closes by the actual incoming-card catch')
+assert.ok(Math.abs(dealerCardReveal(DEALER_CARD_REVEAL_START+DEALER_CARD_UNFOLD).grip-1)<1e-12,'Grip closes by the actual incoming-card catch')
 body.reset();assert.equal(body.shuffle.group.visible,false,'Replay clears the card reveal')
 body.dispose()
 console.log('Opposed grips, thumb articulation, loaded snap, progressive card production, supported fan contact and replay passed.')

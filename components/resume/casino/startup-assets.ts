@@ -7,7 +7,7 @@ import { cardArtUrl } from './card-art-url'
  */
 export const JACK_FONTS: { key: string; label: string; url: string }[] = [
   { key: 'KatieRoze', label: "KatieRoze (the table's own hand)", url: '/fonts/KatieRoze-display-512.woff2' },
-  { key: 'JkFredericka', label: 'Fredericka (inked wood type)', url: '/fonts/FrederickatheGreat-Regular.woff2' },
+  { key: 'JkFredericka', label: 'Fredericka (inked wood type)', url: '/fonts/FrederickatheGreat-core-v1.woff2' },
   { key: 'JkFastBlaze', label: 'Fast Blaze (brush)', url: '/fonts/FAST%20BLAZE.woff2' },
   { key: 'JkAtop', label: 'Atop (heavy round)', url: '/fonts/Atop.woff2' },
   { key: 'JkMochibop', label: 'Mochibop (bubble)', url: '/fonts/MochibopBold-Demo.woff2' },

@@ -3,10 +3,20 @@
 
 @font-face {
   font-family: 'JkFredericka';
-  src: url('/fonts/FrederickatheGreat-Regular.woff2') format('woff2');
+  src: url('/fonts/FrederickatheGreat-core-v1.woff2') format('woff2');
   font-style: normal;
   font-weight: 400;
   font-display: swap;
+  unicode-range: U+20-7E, U+A0, U+E9, U+2013-2014, U+2018-2019, U+201C-201D, U+2026;
+}
+
+@font-face {
+  font-family: 'JkFredericka';
+  src: url('/fonts/FrederickatheGreat-extended-v1.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  unicode-range: U+A1-B0, U+B2-E8, U+EA-FF, U+131, U+141-142, U+152-153, U+160-161, U+178, U+17D-17E, U+2C6-2C7, U+2D8-2DD, U+201A, U+201E, U+2022, U+2030, U+2039-203A, U+2044, U+20AC, U+2212, U+FB01-FB02;
 }
 .font-fredericka { font-family: 'JkFredericka', Georgia, serif; }
 

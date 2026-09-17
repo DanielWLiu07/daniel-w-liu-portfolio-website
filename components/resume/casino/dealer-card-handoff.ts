@@ -26,13 +26,17 @@ export function applyDealerPointAction(rig:DealerChipRig,impactAge:number,second
 
 export function applyDealerCardAction(rig:DealerShuffleRig,impactAge:number,seconds:number,enabled=true) {
   const age=impactAge-DEALER_CARD_ACTION_START
-  const weight=enabled?smooth(age/.27):0
+  const weight=enabled?smooth(age/.18):0
   const joints:Object3D[]=[]
   rig.root.traverse(o=>{if(/^Left(Arm|ForeArm|Hand|Thumb\d|Index\d|Middle\d|Ring\d|Pinky\d)$/.test(o.name))joints.push(o)})
   const before=joints.map(o=>o.quaternion.clone())
   // Evaluate the receiving pose even before the gesture. Its targets then stay
   // deterministic during a scrub, without stealing the skull-supporting arm.
-  rig.apply(seconds,1,Math.max(0,age),true)
+  // Preserve the shared exact snap boundary after subtracting the action start.
+  // Floating-point cancellation can otherwise leave the held targets hidden
+  // on the frame when the foreground cards first attach to them.
+  const revealAge=impactAge>=DEALER_CARD_APPEAR?Math.max(DEALER_CARD_REVEAL_START,age):Math.max(0,age)
+  rig.apply(seconds,1,revealAge,true)
   joints.forEach((o,i)=>{if(weight===0)o.quaternion.copy(before[i]);else o.quaternion.slerp(before[i],1-weight)})
   rig.group.visible=rig.group.visible&&weight>.9
   rig.root.updateWorldMatrix(true,true)
