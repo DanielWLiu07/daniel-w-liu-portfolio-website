@@ -1,10 +1,11 @@
 import * as THREE from 'three'
 import { jackBlastAt } from './jack-composition'
+import type { PaperRecording } from './paper-recording'
 
-/** Authored world-space burst. One direct pose per card per frame, with fixed
- * launch spacing; no rigid bodies, collision solver, or catch-up simulation. */
+/** Recorded collision-resolved flight, interpolated in the launch frame.
+ * The analytic path remains available for isolated authoring/test meshes. */
 export class PaperFlight {
-  private seeds: { p: THREE.Vector3; q: THREE.Quaternion; size: THREE.Vector3; offset: THREE.Vector3; bodyIndex: number; index: number; x: number; y: number; speed: number; orientation: THREE.Quaternion; parts: { mesh: THREE.Mesh; relative: THREE.Matrix4 }[] }[] = []
+  private seeds: { p: THREE.Vector3; q: THREE.Quaternion; size: THREE.Vector3; stockSize: THREE.Vector3; recordScale: number; offset: THREE.Vector3; bodyIndex: number; index: number; x: number; y: number; speed: number; orientation: THREE.Quaternion; parts: { mesh: THREE.Mesh; relative: THREE.Matrix4 }[] }[] = []
   private turn = new THREE.Quaternion()
   private inverseOrientation = new THREE.Quaternion()
   private angles = new THREE.Euler(0, 0, 0, 'ZYX')
@@ -15,6 +16,12 @@ export class PaperFlight {
   private position = new THREE.Vector3()
   private rotation = new THREE.Quaternion()
   private scale = new THREE.Vector3(1, 1, 1)
+
+  private recordingScale = 1
+  private recordingSpeed = 1
+  private centre = new THREE.Vector3()
+  private orientation = new THREE.Quaternion()
+  constructor(private recording?: PaperRecording) {}
 
   get active() { return this.seeds.length > 0 }
 
@@ -29,6 +36,7 @@ export class PaperFlight {
       card.matrixWorld.decompose(p, q, scale)
       if (!card.geometry.boundingBox) card.geometry.computeBoundingBox()
       const size = card.geometry.boundingBox!.getSize(new THREE.Vector3()).multiply(scale)
+      const stockSize = size.clone()
       size.x += .1; size.y += .1 // small spacing between neighboring printed edges
       size.z = Math.max(size.z, .4) // retain the existing layered launch silhouette
       // Use the same wall coordinates and per-card identity as the authored
@@ -36,10 +44,28 @@ export class PaperFlight {
       const local = p.clone().sub(centre).applyQuaternion(orientation.clone().invert())
       const motionIndex = groups.length === 67 ? (index < 4 ? 67 + index * 3 : index - 4) : index
       const rigid = new THREE.Matrix4().compose(p, q, new THREE.Vector3(1, 1, 1)).invert()
-      this.seeds.push({ p, q, size, offset: new THREE.Vector3(), bodyIndex: index, index: motionIndex, x: local.x, y: local.y, speed, orientation: orientation.clone(), parts: parts.map(mesh => {
+      this.seeds.push({ p, q, size, stockSize, recordScale: 1, offset: new THREE.Vector3(), bodyIndex: index, index: motionIndex, x: local.x, y: local.y, speed, orientation: orientation.clone(), parts: parts.map(mesh => {
         mesh.updateWorldMatrix(true, false)
         return { mesh, relative: new THREE.Matrix4().multiplyMatrices(rigid, mesh.matrixWorld) }
       }) })
+    }
+    if (this.recording) {
+      if (this.seeds.length !== this.recording.count) throw new Error('Card layout does not match its recording')
+      this.centre.copy(centre); this.orientation.copy(orientation)
+      this.recordingScale = this.seeds[4].stockSize.x / this.recording.sizes[4].x
+      this.recordingSpeed = speed / 70.4
+      for (const seed of this.seeds) {
+        this.recording.sample(seed.bodyIndex, 0, this.position, this.rotation)
+        this.position.multiplyScalar(this.recordingScale).applyQuaternion(orientation).add(centre)
+        this.rotation.premultiply(orientation)
+        seed.offset.copy(this.position).sub(seed.p)
+        seed.p.copy(this.position); seed.q.copy(this.rotation)
+        // Match the recorded collision footprint using one scale for the card
+        // and its attached lettering. Responsive layout cannot enlarge a card
+        // beyond the footprint used to validate the baked contacts.
+        seed.recordScale = this.recording.sizes[seed.bodyIndex].x * this.recordingScale / seed.stockSize.x
+      }
+      return
     }
     // Give overlapping collage pieces distinct starting depths. Packing in
     // the wall frame preserves their X/Y layout without coplanar printed faces.
@@ -69,6 +95,23 @@ export class PaperFlight {
   stage(amount: number) {
     const u = THREE.MathUtils.clamp(amount, 0, 1)
     const blend = u * u * u * (u * (u * 6 - 15) + 10)
+    if (this.recording) {
+      for (const seed of this.seeds) {
+        this.pose.compose(seed.p, seed.q, this.scale.setScalar(seed.recordScale))
+        for (const { mesh, relative } of seed.parts) {
+          this.matrix.multiplyMatrices(this.pose, relative)
+          if (mesh.parent) {
+            mesh.parent.updateWorldMatrix(true, false)
+            this.matrix.premultiply(this.inverse.copy(mesh.parent.matrixWorld).invert())
+          }
+          this.matrix.decompose(this.position, this.rotation, this.scale)
+          mesh.position.lerp(this.position, blend)
+          mesh.quaternion.slerp(this.rotation, blend)
+          mesh.scale.lerp(this.scale, blend)
+        }
+      }
+      return
+    }
     for (const seed of this.seeds) for (const { mesh } of seed.parts) {
       mesh.updateWorldMatrix(true, false)
       this.matrix.copy(mesh.matrixWorld)
@@ -98,9 +141,15 @@ export class PaperFlight {
     }
     this.seeds.forEach(seed => {
       seed.parts[0].mesh.userData.paperFlightBody = seed.bodyIndex
-      this.motion(seed, age, this.position, this.rotation)
-      this.position.add(seed.p)
-      this.pose.compose(this.position, this.rotation, this.scale)
+      if (this.recording) {
+        this.recording.sample(seed.bodyIndex, age * this.recordingSpeed, this.position, this.rotation)
+        this.position.multiplyScalar(this.recordingScale).applyQuaternion(this.orientation).add(this.centre)
+        this.rotation.premultiply(this.orientation)
+      } else {
+        this.motion(seed, age, this.position, this.rotation)
+        this.position.add(seed.p)
+      }
+      this.pose.compose(this.position, this.rotation, this.scale.setScalar(seed.recordScale))
       for (const { mesh, relative } of seed.parts) {
         this.matrix.multiplyMatrices(this.pose, relative)
         if (mesh.parent) {

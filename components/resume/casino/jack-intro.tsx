@@ -21,6 +21,7 @@ import { beatHold, beatTime, camLift, getLetter, getTune, JACK_FONTS, popUndo, p
 import { isJackEditor, subscribeJackClock } from './jack-editor-clock'
 import { JACK_PARTS, jackSceneEditor, registerJackPart } from './jack-scene-editor'
 import { PaperFlight } from './paper-flight'
+import { loadPaperRecording } from './paper-recording'
 import { ScreenExit } from './screen-exit'
 import { PORTRAIT_JACK_CARRIERS } from './responsive-layout'
 import { jackStraightAt, jackRedBackAt, jackSeedAt, jackBlastAt, JACK_SEED_LEAD } from './jack-composition'
@@ -539,6 +540,7 @@ export default function JackIntro({
   holdFor: number
 }) {
   const { camera, gl } = useThree()
+  const portraitRecording = useThree(state => state.size.width / Math.max(1, state.size.height) < .9)
   const group = useRef<THREE.Group>(null)
   /** the live scale factor, so a screen drag can be converted into the lockup's own units */
   const fitRef = useRef(1)
@@ -616,7 +618,8 @@ export default function JackIntro({
     Promise.all([
       loadRansomFaces().then(() => document.fonts.ready),
       Promise.all([...['hearts', ...JACK_FAN.map(card => card.suit)].map(suit => cardArtUrl(`J-${suit}`)), cardArtUrl('casino-back'), ...['10', 'Q', 'K', 'A'].flatMap(rank => ['hearts', 'spades'].map(suit => cardArtUrl(`${rank}-${suit}`)))].map(url => loadCardArtwork(url))),
-    ]).then(([, maps]) => {
+      loadPaperRecording(portraitRecording),
+    ]).then(([, maps, recording]) => {
       if (dead || mine !== version.current || !group.current) return
       const tex = maps[0]
       const g = group.current
@@ -726,7 +729,7 @@ export default function JackIntro({
         ...[card, ...fan.map(piece => piece.mesh)].map((mesh, i) => [mesh, ...words[i].letters.map(letter => letter.mesh)]),
         ...snake.map(piece => [piece.mesh]),
       ]
-      const flight = new PaperFlight()
+      const flight = new PaperFlight(recording)
       built.current = { card, cardMat, backMat, fan, snake, pick, lock, jack, of, all, trades, textures: maps, flight, bodies }
       needsFraming.current = true
       onReady?.(true)
@@ -754,7 +757,7 @@ export default function JackIntro({
       built.current = null
       onReady?.(false)
     }
-  }, [D, fj, fo, fa, ft, seed, initial, vary, scatter, onReady])
+  }, [D, fj, fo, fa, ft, seed, initial, vary, scatter, onReady, portraitRecording])
 
   /**
    * Drag to move, shift-drag to resize, straight in the frame.
