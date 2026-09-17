@@ -8,12 +8,18 @@ async function main() {
   try {
     const direction = new Vector3(.8, 1, .3).normalize()
     physics.kick(direction)
+    const initial = physics.velocity()
+    assert.ok(Math.hypot(initial.x, initial.y, initial.z) <= 11.001, 'single hit uses the die radius, not its full width')
     for (let i = 0; i < 8; i++) physics.step(1 / 120, p, q)
     const before = p.clone(), velocityBefore = physics.velocity()
     physics.kick(direction)
     const after = physics.velocity()
     assert.ok(p.equals(before), 'midair hit never teleports')
     assert.ok(after.x > velocityBefore.x && after.y > velocityBefore.y, 'another hit adds directional momentum')
+    // Repeated hits remain free to blast the die beyond its old cage even
+    // though an ordinary single click now has a readable, smaller impulse.
+    physics.kick(direction)
+    physics.kick(direction)
     let highest = p.y, farthest = 0
     for (let i = 0; i < 720; i++) {
       physics.step(1 / 120, p, q)

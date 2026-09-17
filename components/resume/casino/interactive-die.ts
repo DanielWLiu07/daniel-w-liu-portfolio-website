@@ -20,7 +20,7 @@ export async function createInteractiveDie(position: Vector3, rotation: Quaterni
   }
   const body = world.createRigidBody(R.RigidBodyDesc.dynamic()
     .setTranslation(position.x, position.y, position.z).setRotation(rotation)
-    .setLinvel(velocity.x, velocity.y, velocity.z).setAngvel(angularVelocity).setAngularDamping(0.8).setCcdEnabled(true))
+    .setLinvel(velocity.x, velocity.y, velocity.z).setAngvel(angularVelocity).setLinearDamping(0.6).setAngularDamping(0.8).setCcdEnabled(true))
   world.createCollider(R.ColliderDesc.roundCuboid(size * 0.4, size * 0.4, size * 0.4, size * 0.1)
     .setFriction(0.75).setRestitution(0.48), body)
   let accumulator = 0
@@ -30,7 +30,9 @@ export async function createInteractiveDie(position: Vector3, rotation: Quaterni
       const along = v.x * d.x + v.y * d.y + v.z * d.z
       // Match chip hits: impulse along the pointer ray, with no home circle or
       // height ceiling. A velocity limit keeps repeated hits numerically stable.
-      const impulse = body.mass() * Math.min(22 * size, Math.max(0, 24 * size - along))
+      // Chips use their radius for hit strength; size here is the full die
+      // width. Using it directly doubled the intended single-click velocity.
+      const impulse = body.mass() * Math.min(22 * size * .5, Math.max(0, 24 * size - along))
       const force = { x: d.x * impulse, y: d.y * impulse, z: d.z * impulse }
       const contact = point && body.collider(0).projectPoint(point, true)?.point
       if (contact) body.applyImpulseAtPoint(force, contact, true)

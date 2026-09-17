@@ -13,6 +13,7 @@ export class PaperFlight {
   private matrix = new THREE.Matrix4()
   private inverse = new THREE.Matrix4()
   private pose = new THREE.Matrix4()
+  private localPose = new THREE.Matrix4()
   private position = new THREE.Vector3()
   private rotation = new THREE.Quaternion()
   private scale = new THREE.Vector3(1, 1, 1)
@@ -96,14 +97,16 @@ export class PaperFlight {
     const u = THREE.MathUtils.clamp(amount, 0, 1)
     const blend = u * u * u * (u * (u * 6 - 15) + 10)
     if (this.recording) {
+      this.refreshParents()
       for (const seed of this.seeds) {
         this.pose.compose(seed.p, seed.q, this.scale.setScalar(seed.recordScale))
+        let previousParent: THREE.Object3D | null | undefined
         for (const { mesh, relative } of seed.parts) {
-          this.matrix.multiplyMatrices(this.pose, relative)
-          if (mesh.parent) {
-            mesh.parent.updateWorldMatrix(true, false)
-            this.matrix.premultiply(this.inverse.copy(mesh.parent.matrixWorld).invert())
+          if (mesh.parent !== previousParent) {
+            this.setLocalPose(mesh.parent)
+            previousParent = mesh.parent
           }
+          this.matrix.multiplyMatrices(this.localPose, relative)
           this.matrix.decompose(this.position, this.rotation, this.scale)
           mesh.position.lerp(this.position, blend)
           mesh.quaternion.slerp(this.rotation, blend)
@@ -123,6 +126,25 @@ export class PaperFlight {
     }
   }
 
+  private refreshParents() {
+    for (const [parent, inverse] of this.parentInverses) {
+      parent.updateWorldMatrix(true, false)
+      inverse.copy(parent.matrixWorld).invert()
+    }
+  }
+
+  private setLocalPose(parent: THREE.Object3D | null) {
+    this.localPose.copy(this.pose)
+    if (!parent) return
+    let inverse = this.parentInverses.get(parent)
+    if (!inverse) {
+      parent.updateWorldMatrix(true, false)
+      inverse = parent.matrixWorld.clone().invert()
+      this.parentInverses.set(parent, inverse)
+    }
+    this.localPose.premultiply(inverse)
+  }
+
   private motion(seed: typeof this.seeds[number], time: number, p: THREE.Vector3, q: THREE.Quaternion) {
     const fall = jackBlastAt(time, seed.index, seed.x, seed.y, seed.speed)
     p.set(fall.x, fall.y, 0).applyQuaternion(seed.orientation)
@@ -135,10 +157,7 @@ export class PaperFlight {
     const age = Math.min(12, Math.max(0, time))
     // Every word/card sibling shares its parent transform for this frame.
     // Update and invert it once instead of walking the scene for each letter.
-    for (const [parent, inverse] of this.parentInverses) {
-      parent.updateWorldMatrix(true, false)
-      inverse.copy(parent.matrixWorld).invert()
-    }
+    this.refreshParents()
     this.seeds.forEach(seed => {
       seed.parts[0].mesh.userData.paperFlightBody = seed.bodyIndex
       if (this.recording) {
@@ -150,17 +169,13 @@ export class PaperFlight {
         this.position.add(seed.p)
       }
       this.pose.compose(this.position, this.rotation, this.scale.setScalar(seed.recordScale))
+      let previousParent: THREE.Object3D | null | undefined
       for (const { mesh, relative } of seed.parts) {
-        this.matrix.multiplyMatrices(this.pose, relative)
-        if (mesh.parent) {
-          let inverse = this.parentInverses.get(mesh.parent)
-          if (!inverse) {
-            mesh.parent.updateWorldMatrix(true, false)
-            inverse = mesh.parent.matrixWorld.clone().invert()
-            this.parentInverses.set(mesh.parent, inverse)
-          }
-          this.matrix.premultiply(inverse)
+        if (mesh.parent !== previousParent) {
+          this.setLocalPose(mesh.parent)
+          previousParent = mesh.parent
         }
+        this.matrix.multiplyMatrices(this.localPose, relative)
         this.matrix.decompose(mesh.position, mesh.quaternion, mesh.scale)
       }
     })
