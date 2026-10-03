@@ -64,6 +64,12 @@ try { Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3000/resume -TimeoutSe
   for ($i = 0; $i -lt 60; $i++) { try { Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3000/resume -TimeoutSec 2 | Out-Null; break } catch { Start-Sleep 1 } }
 }
 
-# The pool. Runs in the foreground: when it exits, the task's restart policy restarts it.
+# The pool, restarted whenever it exits. (The task's own restart policy only acts on a
+# failed task, and this script exits 0 even when node crashes, e.g. a first boot from
+# a golden image, where the restored disk is slow until its blocks are read once.)
 Set-Location C:\pixel-stream
-& 'C:\Program Files\nodejs\node.exe' server.mjs *>> C:\pixel-stream\logs\pool.log
+while ($true) {
+  & 'C:\Program Files\nodejs\node.exe' server.mjs *>> C:\pixel-stream\logs\pool.log
+  "$(Get-Date -Format s) pool exited ($LASTEXITCODE), restarting in 5 s" | Out-File -Append C:\pixel-stream\logs\pool.log
+  Start-Sleep 5
+}
