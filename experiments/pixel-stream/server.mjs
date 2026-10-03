@@ -477,9 +477,21 @@ if (SPOT_WATCH) {
 // ---- ICE servers for viewers -----------------------------------------------------
 // STUN always; TURN (relay for networks that block direct UDP) when Cloudflare
 // credentials are configured. TURN credentials are minted per viewer, short-lived.
-async function iceServers() {
+// Minting relay credentials spends Cloudflare TURN bandwidth, so each client IP
+// gets a few per window (a viewer needs one per connect); beyond that, STUN only.
+const TURN_MINTS_PER_IP = Number(env.TURN_MINTS_PER_IP ?? 12)
+const turnMints = new Map() // ip -> { count, since }
+function mayMintTurn(ip) {
+  const now = Date.now(), m = turnMints.get(ip)
+  if (!m || now - m.since > 10 * 60_000) { turnMints.set(ip, { count: 1, since: now }); return true }
+  return ++m.count <= TURN_MINTS_PER_IP
+}
+setInterval(() => { const now = Date.now(); for (const [ip, m] of turnMints) if (now - m.since > 10 * 60_000) turnMints.delete(ip) }, 60_000).unref()
+
+async function iceServers(ip) {
   const list = [{ urls: STUN_URLS }]
   if (!CF_TURN_KEY_ID || !CF_TURN_API_TOKEN) return list
+  if (!mayMintTurn(ip)) { log('turn credentials: rate limited', ip); return list }
   try {
     const res = await fetch(`https://rtc.live.cloudflare.com/v1/turn/keys/${CF_TURN_KEY_ID}/credentials/generate-ice-servers`, {
       method: 'POST',
@@ -543,7 +555,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === '/ice') {
       res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' })
-      return res.end(JSON.stringify({ iceServers: await iceServers() }))
+      return res.end(JSON.stringify({ iceServers: await iceServers(clientOf(req)) }))
     }
     if (url.pathname === '/events') {
       const id = url.searchParams.get('id') ?? String(Math.random())
