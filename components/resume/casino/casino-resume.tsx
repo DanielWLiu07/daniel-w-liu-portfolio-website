@@ -13,6 +13,7 @@ import { canStartCasinoIntro } from './intro-ready'
 import { startupStage } from './startup-timing'
 import { installBudgetedShaderBuild } from './budgeted-shader-build'
 import { installSharedBufferShaders } from './shared-buffer-shaders'
+import { installStableOverrideMaterials } from './stable-override-materials'
 import { WebGPURenderer } from 'three/webgpu'
 import type { MangaUniforms } from 'blender-to-threejs'
 import { createInteractiveButtons } from '@/data/resume-buttons'
@@ -195,6 +196,7 @@ export default function CasinoResume({ layoutTuning = false, jackEditing = false
             // Same-build A/B switch for startup profiling; ordinary visitors share.
             if (!(window.location.hostname === 'localhost' && new URLSearchParams(window.location.search).has('originalShaderYields'))) installBudgetedShaderBuild(renderer)
             if (!new URLSearchParams(window.location.search).has('rawShaderNames')) installSharedBufferShaders(renderer)
+            if (!new URLSearchParams(window.location.search).has('rawOverrides')) installStableOverrideMaterials(renderer)
             finishInit()
             // Init can overlap a display/DPR change. Invalidate attachments once
             // it finishes as well, before Fiber starts the first render.

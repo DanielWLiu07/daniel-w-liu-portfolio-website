@@ -20,12 +20,16 @@ export class DealerArmRig {
     const from=parent.worldToLocal(child.getWorldPosition(new Vector3())).sub(origin).normalize()
     const to=parent.worldToLocal(this.world(target)).sub(origin).normalize()
     joint.quaternion.premultiply(new Quaternion().setFromUnitVectors(from,to)).normalize()
-    // Private hat/head bindings and surface contacts depend on this ordering.
-    this.root.updateWorldMatrix(true,true)
+    // arm() synced the whole rig first and only this joint changed since, so
+    // refreshing its subtree is exact (a full root update here cost ~20% of a frame).
+    joint.updateWorldMatrix(false,true)
   }
   arm(side:string,target:Vector3,pole:Vector3,palmNormal?:Vector3,fingerDirection=new Vector3(0,.012,.16)) {
     const upper=this.bone(side+'Arm'), fore=this.bone(side+'ForeArm')
     const hand=this.bone(side+'Hand')
+    // Private hat/head bindings and surface contacts depend on this ordering:
+    // one full sync up front, then each step refreshes only what it moved.
+    this.root.updateWorldMatrix(true,true)
     const shoulder=this.local(upper), elbow=this.local(fore), wrist=this.local(hand)
     const a=shoulder.distanceTo(elbow),b=elbow.distanceTo(wrist)
     const axis=target.clone().sub(shoulder),distance=Math.max(Math.abs(a-b)+.0001,Math.min(axis.length(),a+b-.0001))
@@ -51,7 +55,7 @@ export class DealerArmRig {
       up.addScaledVector(forward,-up.dot(forward)).normalize()
       const world=hand.getWorldQuaternion(new Quaternion()).premultiply(new Quaternion().setFromUnitVectors(normal,up))
       hand.quaternion.copy(hand.parent!.getWorldQuaternion(new Quaternion()).normalize().invert().multiply(world)).normalize()
-      this.root.updateWorldMatrix(true,true)
+      hand.updateWorldMatrix(false,true)
     }
   }
   palm(side:'Left'|'Right',target:Vector3,pole:Vector3,normal:Vector3,forward:Vector3) {
