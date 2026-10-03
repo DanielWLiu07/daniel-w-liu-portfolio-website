@@ -1,0 +1,810 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="theme-color" content="#000000" />
+<title>Pixel Stream Lab</title>
+<style>
+  :root { --bg: #0e0f12; --panel: #17191e; --line: #2a2d35; --text: #e7e8ea; --dim: #8b90a0; --accent: #4fb477; --warn: #e0a64a; --bad: #e0605a; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 12px; padding: 12px; min-height: 100vh; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; padding: 8px; } }
+  .stage { position: relative; background: #000; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; align-self: start; }
+  video { display: block; width: 100%; height: auto; touch-action: none; cursor: default; }
+  .overlay { position: absolute; inset: 0; display: grid; place-items: center; color: var(--dim); pointer-events: none; font-size: 15px; text-align: center; padding: 16px; }
+  aside { display: flex; flex-direction: column; gap: 10px; }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+  h2 { margin: 0 0 8px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); font-weight: 600; }
+  label { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 6px 0; }
+  select, input[type=range] { flex: 1; max-width: 170px; }
+  select { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 3px; font: inherit; }
+  button { font: inherit; color: var(--text); background: #23262e; border: 1px solid var(--line); border-radius: 6px; padding: 7px 10px; cursor: pointer; width: 100%; margin-top: 6px; }
+  button.primary { background: var(--accent); color: #07140c; border-color: var(--accent); font-weight: 700; }
+  button:disabled { opacity: .5; cursor: default; }
+  dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 0; }
+  dt { color: var(--dim); }
+  dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+  .good { color: var(--accent); } .warn { color: var(--warn); } .bad { color: var(--bad); }
+  #compare { display: none; grid-column: 1 / -1; }
+  #compare .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  #compare figure { margin: 0; overflow: auto; max-height: 70vh; border: 1px solid var(--line); border-radius: 6px; }
+  #compare figcaption { padding: 4px 8px; color: var(--dim); position: sticky; top: 0; background: var(--panel); }
+  #compare canvas { display: block; image-rendering: pixelated; }
+  /* Play mode (default): just the stream, edge to edge, nothing to scroll or zoom. */
+  html:has(body.play), body.play { height: 100%; overflow: hidden; overscroll-behavior: none; background: #000; }
+  body.play main { display: block; padding: 0; min-height: 0; }
+  body.play aside, body.play #compare { display: none; }
+  body.play .stage { position: fixed; inset: 0; border: 0; border-radius: 0; }
+  body.play video { width: 100vw; height: 100vh; height: 100dvh; object-fit: cover; object-position: top center; }
+  #lvh { position: fixed; top: 0; left: 0; width: 0; height: 100vh; height: 100lvh; visibility: hidden; pointer-events: none; }
+  body.play .overlay { font: 500 15px/1.4 -apple-system, system-ui, sans-serif; color: #bbb; letter-spacing: .02em; }
+  /* Low-latency mode: frames are decoded in a worker and drawn on #screen the
+     moment they arrive; the <video> keeps playing hidden (stats, start logic). */
+  #screen { display: none; width: 100%; height: auto; touch-action: none; }
+  body.lowlat #screen { display: block; }
+  body.lowlat video { position: absolute; inset: 0; opacity: 0 !important; pointer-events: none; }
+  body.lowlat.llstall video { opacity: 1 !important; z-index: 1; }
+  body.lowlat.llstall #screen { visibility: hidden; }
+  body.play #screen { width: 100vw; height: 100vh; height: 100dvh; object-fit: cover; object-position: top center; opacity: 0; transition: opacity .45s ease; }
+  body.play.live #screen { opacity: 1; }
+  /* Never show Safari's native play button / controls over the stream. */
+  video::-webkit-media-controls, video::-webkit-media-controls-start-playback-button,
+  video::-webkit-media-controls-overlay-play-button { display: none !important; -webkit-appearance: none; }
+  /* Start screen (play mode): our own graphic instead of the browser's play button. */
+  .gate { display: none; }
+  body.play .gate { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; align-content: center; gap: 22px;
+    background: radial-gradient(ellipse at 50% 40%, #1f6b47 0%, #0d3b27 55%, #06180f 100%); transition: opacity .45s ease; }
+  body.play.live .gate { opacity: 0; pointer-events: none; }
+  body.play video { opacity: 0; transition: opacity .45s ease; }
+  body.play.live video { opacity: 1; }
+  body.play .overlay { display: none; }
+  #gateBg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: blur(14px) saturate(1.2) brightness(.55); transform: scale(1.1); opacity: 0; transition: opacity .6s; }
+  #gateBg.loaded { opacity: 1; }
+  .chip { position: relative; width: 148px; height: 148px; border-radius: 50%; border: 0; padding: 0; cursor: pointer;
+    background: repeating-conic-gradient(#c62a2a 0 30deg, #f4ecd8 30deg 45deg); box-shadow: 0 10px 30px rgba(0,0,0,.55), inset 0 0 0 6px rgba(0,0,0,.12);
+    animation: spin 2.4s linear infinite; -webkit-tap-highlight-color: transparent; }
+  .chip::before { content: ''; position: absolute; inset: 22px; border-radius: 50%; background: #c62a2a; box-shadow: inset 0 0 0 3px #f4ecd8, inset 0 0 0 7px #c62a2a, inset 0 0 0 8px rgba(244,236,216,.6); }
+  .chip span { position: relative; display: block; color: #f4ecd8; font: 800 17px/1.05 Georgia, 'Times New Roman', serif; letter-spacing: .08em; text-shadow: 0 1px 0 rgba(0,0,0,.35); }
+  .gate.tap .chip { animation: pulse 1.6s ease-in-out infinite; }
+  #gateMsg { position: relative; margin: 0; color: #f4ecd8; font: 600 15px/1.3 Georgia, serif; letter-spacing: .06em; text-shadow: 0 1px 6px rgba(0,0,0,.6); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.07); } }
+  @media (prefers-reduced-motion: reduce) { .chip, .gate.tap .chip { animation: none; } }
+  /* Small pill for "still there?" style notices in play mode. */
+  #notice { position: fixed; left: 50%; bottom: max(18px, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 20; display: none;
+    background: rgba(12, 14, 18, .82); color: #f4ecd8; font: 600 14px/1.3 Georgia, serif; letter-spacing: .03em; padding: 10px 16px; border-radius: 999px;
+    box-shadow: 0 6px 24px rgba(0,0,0,.4); pointer-events: none; white-space: nowrap; }
+  #notice.show { display: block; }
+  #log { max-height: 120px; overflow: auto; color: var(--dim); white-space: pre-wrap; font-size: 11px; }
+</style>
+</head>
+<body>
+<main>
+  <div id="lvh"></div>
+  <div id="notice"></div>
+  <div class="stage" id="stage">
+    <video id="video" playsinline webkit-playsinline muted autoplay disablepictureinpicture disableremoteplayback></video>
+    <canvas id="screen"></canvas>
+    <div class="overlay" id="overlay">Connecting to the render server…</div>
+    <div class="gate" id="gate">
+      <img id="gateBg" alt="" />
+      <button class="chip" id="gateBtn" aria-label="Deal me in"><span>DEAL<br />ME IN</span></button>
+      <p id="gateMsg">Dealing you in…</p>
+    </div>
+  </div>
+  <aside>
+    <section>
+      <h2>Stream</h2>
+      <label>Codec <select id="codec"><option>H264</option><option>VP9</option><option>AV1</option><option>VP8</option></select></label>
+      <label>Bitrate <input id="bitrate" type="range" min="500" max="30000" step="500" value="12000" /><span id="bitrateLabel">12.0 Mbps</span></label>
+      <label>Content hint <select id="hint"><option value="detail">detail (sharp)</option><option value="motion">motion (smooth)</option><option value="">none</option></select></label>
+      <button class="primary" id="connect">Connect</button>
+      <button id="replay">Replay intro (warm reload on server)</button>
+    </section>
+    <section>
+      <h2>Tests</h2>
+      <button id="latency">Measure click-to-photon latency (20 probes)</button>
+      <button id="quality">Compare with native render</button>
+    </section>
+    <section>
+      <h2>Visitor</h2>
+      <dl>
+        <dt>Connect → first frame</dt><dd id="ttff">–</dd>
+        <dt>Click-to-photon (median)</dt><dd id="lat">–</dd>
+        <dt>Click-to-photon (p95)</dt><dd id="lat95">–</dd>
+        <dt>Network RTT</dt><dd id="rtt">–</dd>
+        <dt>Received</dt><dd id="res">–</dd>
+        <dt>Receive fps</dt><dd id="fps">–</dd>
+        <dt>Bitrate</dt><dd id="kbps">–</dd>
+        <dt>Jitter buffer</dt><dd id="jb">–</dd>
+        <dt>Decode / frame</dt><dd id="dec">–</dd>
+        <dt>Lost / dropped</dt><dd id="lost">–</dd>
+        <dt>Codec</dt><dd id="codecIn">–</dd>
+        <dt>Renderer</dt><dd id="renderer">–</dd>
+      </dl>
+    </section>
+    <section>
+      <h2>Server</h2>
+      <dl>
+        <dt>Seats busy / warm</dt><dd id="pool">–</dd>
+        <dt>Phase</dt><dd id="phase">–</dd>
+        <dt>GPU</dt><dd id="gpu">–</dd>
+        <dt>Render fps</dt><dd id="rfps">–</dd>
+        <dt>Encoder</dt><dd id="enc">–</dd>
+        <dt>Encode / frame</dt><dd id="encms">–</dd>
+        <dt>Encoded</dt><dd id="encres">–</dd>
+        <dt>Limited by</dt><dd id="limit">–</dd>
+        <dt>Avg QP (lower = sharper)</dt><dd id="qp">–</dd>
+      </dl>
+      <dl id="loads" style="margin-top:8px"></dl>
+    </section>
+    <section><h2>Log</h2><div id="log"></div></section>
+  </aside>
+  <section id="compare">
+    <h2>Native render vs. what the visitor receives <span id="psnr"></span></h2>
+    <label style="justify-content:flex-start">Zoom <select id="zoom"><option value="1">1×</option><option value="2" selected>2×</option><option value="3">3×</option></select></label>
+    <div class="pair">
+      <figure><figcaption>Native (server screenshot, lossless)</figcaption><canvas id="nativeCanvas"></canvas></figure>
+      <figure><figcaption>Streamed (decoded video frame)</figcaption><canvas id="streamCanvas"></canvas></figure>
+    </div>
+  </section>
+</main>
+<script>
+const $ = (id) => document.getElementById(id)
+// ?lab shows the measurement panels; otherwise it's just the site, full screen.
+// ?embed=1 is play mode inside the site's iframe: it reports to the host page and
+// never queues; anything that goes wrong means "render locally instead".
+const params = new URLSearchParams(location.search)
+const LAB = params.has('lab')
+const EMBED = params.has('embed')
+if (!LAB) document.body.classList.add('play')
+const toHost = (type, extra = {}) => { if (EMBED && window.parent !== window) window.parent.postMessage({ source: 'pixel-stream', type, ...extra }, '*') }
+const video = $('video')
+let pc = null, fast = null, rel = null
+let playCodec = 'H264'
+let connectStart = 0, wantConnected = !LAB, replayStart = 0, serverWidth = 1280
+const logEl = $('log')
+const log = (t) => { logEl.textContent = `${new Date().toLocaleTimeString()} ${t}\n` + logEl.textContent }
+const post = (path, body) => fetch(path, { method: 'POST', body: body && JSON.stringify({ ...body, from: viewerId }) })
+const ms = (v) => (v == null || !isFinite(v) ? '–' : `${Math.round(v)} ms`)
+const mark = (label) => log(`+${Math.round(performance.now() - connectStart)} ms ${label}`)
+const cls = (el, v, good, warn) => { el.className = v == null ? '' : v <= good ? 'good' : v <= warn ? 'warn' : 'bad' }
+
+$('bitrate').oninput = () => {
+  $('bitrateLabel').textContent = `${($('bitrate').value / 1000).toFixed(1)} Mbps`
+  if (pc) post('/signal', { type: 'params', maxBitrateKbps: +$('bitrate').value })
+}
+
+// ---- Signaling ----
+const viewerId = Math.random().toString(36).slice(2)
+// One seat per device: the host page passes its device id; a direct viewer keeps
+// its own. A second tab on the same device takes the seat over.
+const device = params.get('device') || (() => {
+  try {
+    let id = localStorage.getItem('ps-device')
+    if (!id) localStorage.setItem('ps-device', (id = crypto.randomUUID()))
+    return id
+  } catch { return viewerId }
+})()
+const events = new EventSource(`/events?id=${viewerId}&device=${encodeURIComponent(device)}${EMBED ? '&embed=1' : ''}`)
+
+let ended = false
+// The stream is over for this visitor (no seat, server ending, network blocked):
+// embedded, the site takes over with local rendering; direct, say so.
+function fallback(reason) {
+  if (ended) return
+  ended = true
+  wantConnected = false
+  pc?.close(); pc = null
+  events.close()
+  hideNotice()
+  toHost('fallback', { reason })
+  if (EMBED) return
+  document.body.classList.remove('live')
+  $('gate').classList.remove('tap')
+  $('gateMsg').textContent = reason === 'server-ending' ? 'This table is closing. Open the site normally to keep playing.'
+    : reason === 'network' ? "Your network blocked the stream. Open the site normally instead."
+    : 'Streaming is unavailable right now. Open the site normally instead.'
+  $('overlay').textContent = `stream ended: ${reason}`
+}
+if (EMBED) {
+  // Whatever the cause, no picture within 10 s means local rendering wins.
+  setTimeout(() => { if (!document.body.classList.contains('live')) fallback('timeout') }, 10_000)
+  events.onerror = () => { if (!document.body.classList.contains('live')) fallback('unreachable') }
+}
+
+// Embedded, the intro starts only once the host page is actually showing us (its
+// page transition has revealed), not while it is still covered.
+let hostVisible = !EMBED
+addEventListener('message', (e) => {
+  if (e.source !== window.parent || e.data?.source !== 'pixel-stream-host') return
+  if (e.data.type === 'visible') hostVisible = true
+  // The host page took over with local rendering: end quietly, seat goes back.
+  if (e.data.type === 'release') { ended = true; wantConnected = false; pc?.close(); pc = null; events.close() }
+})
+
+
+function showNotice(text) { $('notice').textContent = text; $('notice').classList.add('show') }
+function hideNotice() { $('notice').classList.remove('show'); clearInterval(noticeTimer) }
+let noticeTimer = 0
+function idleWarning(seconds) {
+  let left = seconds
+  const tick = () => showNotice(`Still there? Tap to keep your seat · ${left--}s`)
+  tick()
+  clearInterval(noticeTimer)
+  noticeTimer = setInterval(() => (left >= 0 ? tick() : hideNotice()), 1000)
+}
+// The server took the seat back (idle while others needed it, or session cap).
+function paused(reason) {
+  hideNotice()
+  pc?.close(); pc = null
+  wantConnected = false
+  document.body.classList.remove('live')
+  $('gate').classList.add('tap')
+  $('gateMsg').textContent = reason === 'time' ? 'Time is up so someone else can play. Tap the chip to rejoin.' : 'Paused so someone else could play. Tap the chip to continue.'
+}
+events.onmessage = async (e) => {
+  const m = JSON.parse(e.data)
+  if (m.type === 'status') { if (m.playCodec) playCodec = m.playCodec; renderPool(m.pool); return renderStatus(m.state) }
+  if (m.type === 'full') {
+    // Every seat is busy: wait in line; the server sends 'ready' when one frees up.
+    pc?.close(); pc = null
+    $('gate').classList.remove('tap')
+    $('gateMsg').textContent = `All ${m.pool.seats} seats are taken. You're #${m.position} in line…`
+    $('overlay').textContent = `Pool full (${m.pool.busy}/${m.pool.seats}); queued #${m.position}`
+    renderPool(m.pool)
+    return
+  }
+  if (m.type === 'fallback') return fallback(m.reason)
+  if (m.type === 'intro-started') return toHost('intro')
+  // A link tapped inside the stream: external ones open here (the tap is still a
+  // fresh user gesture), site pages navigate the host page.
+  if (m.type === 'open') return void window.open(m.href, '_blank', 'noopener')
+  if (m.type === 'navigate') return EMBED ? toHost('navigate', { path: m.path }) : log(`navigate ${m.path} (direct viewer: ignored)`)
+  if (m.type === 'idle-warning') return idleWarning(m.seconds)
+  if (m.type === 'idle-cleared') return hideNotice()
+  if (m.type === 'paused') return paused(m.reason)
+  if (m.type === 'kicked') { pc?.close(); pc = null; wantConnected = false; document.body.classList.remove('live'); $('gateMsg').textContent = 'Another device took the table. Tap the chip to take it back.'; $('gate').classList.add('tap'); $('overlay').textContent = LAB ? 'Another device took over the stream. Press Connect to take it back.' : 'Another device took over the table. Tap to take it back.'; return }
+  if (m.type === 'ready') { $('overlay').textContent = pc ? '' : LAB ? 'Server is warm. Press Connect.' : 'Dealing you in…'; if (wantConnected && !(pc && ['connected', 'connecting', 'new'].includes(pc.connectionState))) connect(); return }
+  if (m.type === 'offer') return onOffer(m)
+  if (m.type === 'senderStats') return renderSender(m)
+  if (m.type === 'log') return log(m.text)
+}
+
+// ---- Low-latency rendering (cloud-gaming style) --------------------------------
+// Chrome's video player holds frames in an adaptive jitter buffer to keep
+// playback smooth; on a jumpy connection that's 100-300 ms of added delay. Here
+// each encoded frame is tapped as soon as it is assembled (WebRTC encoded
+// transform), decoded with WebCodecs in a worker, and drawn immediately. The
+// frame is also passed on, so Chrome's own path still runs (loss recovery,
+// keyframe requests, stats). ?buffered turns this off; unsupported browsers
+// (no encoded transform / WebCodecs / OffscreenCanvas) fall back automatically.
+const LOWLAT = !params.has('buffered') && 'VideoDecoder' in window && 'OffscreenCanvas' in window
+  && ('RTCRtpScriptTransform' in window || 'createEncodedStreams' in RTCRtpReceiver.prototype)
+const WORKER_SRC = `
+let canvas = null, ctx = null, decoder = null, codec = null, waitingKey = true, probe = null, sizeSent = ''
+let lastId = null, unsafeSent = false, stalled = false, gapTimer = 0, dropEvery = 0
+// Frame pacing stats (posted each second): what a viewer would feel as hitches.
+let pace = { last: 0, drawn: 0, maxGap: 0, over50: 0, over100: 0, keys: 0, bytes: 0 }
+setInterval(() => { postMessage({ type: 'pace', ...pace, last: undefined }); pace = { last: pace.last, drawn: 0, maxGap: 0, over50: 0, over100: 0, keys: 0, bytes: 0 } }, 1000)
+const seen = new Set()
+const pending = new Map() // frameId -> { key, data, deps } waiting for an earlier frame
+const REORDER_MS = 200   // a frame recovered by retransmission can arrive after its successor
+function webcodec(mime) {
+  const m = (mime || '').toLowerCase()
+  if (m.includes('vp8')) return 'vp8'
+  if (m.includes('vp9')) return 'vp09.00.10.08'
+  if (m.includes('av1')) return 'av01.0.04M.08'
+  if (m.includes('h264')) return 'avc1.640034'
+  return null
+}
+function draw(frame) {
+  if (!ctx) { frame.close(); return }
+  const w = frame.displayWidth, h = frame.displayHeight
+  if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h }
+  ctx.drawImage(frame, 0, 0)
+  frame.close()
+  const tnow = performance.now()
+  if (pace.last) { const g = tnow - pace.last; pace.maxGap = Math.max(pace.maxGap, g); if (g > 50) pace.over50++; if (g > 100) pace.over100++ }
+  pace.last = tnow; pace.drawn++
+  const at = performance.timeOrigin + performance.now()
+  if (sizeSent !== w + 'x' + h) { sizeSent = w + 'x' + h; postMessage({ type: 'size', w, h, at }) }
+  if (probe) { const d = ctx.getImageData(probe.x, probe.y, 1, 1).data; postMessage({ type: 'probe', v: (d[0] + d[1] + d[2]) / 3 > 128 ? 1 : 0, at }) }
+}
+function reset() { try { decoder?.close() } catch {} decoder = null; waitingKey = true; lastId = null; seen.clear(); pending.clear(); clearTimeout(gapTimer) }
+function stall() {
+  waitingKey = true; pending.clear(); clearTimeout(gapTimer)
+  if (!stalled) { stalled = true; postMessage({ type: 'stalled' }) }
+}
+function intact(f) {
+  if (f.key || lastId === null) return true
+  return f.deps && f.deps.length ? f.deps.every((d) => seen.has(d)) : f.id === lastId + 1
+}
+function decodeOne(f) {
+  if (!decoder) {
+    if (!f.key) return
+    decoder = new VideoDecoder({ output: draw, error: (e) => { postMessage({ type: 'log', text: 'decoder: ' + e.message }); reset(); stall() } })
+    decoder.configure({ codec, optimizeForLatency: true })
+  }
+  if (waitingKey && !f.key) return
+  if (f.key) { waitingKey = false; if (stalled) { stalled = false; postMessage({ type: 'resumed' }) } }
+  lastId = f.id
+  seen.add(f.id)
+  if (seen.size > 512) seen.delete(seen.values().next().value)
+  // Never skip a frame to catch up: later frames depend on it.
+  decoder.decode(new EncodedVideoChunk({ type: f.key ? 'key' : 'delta', timestamp: f.ts, data: f.data }))
+}
+function drain() {
+  let progressed = true
+  while (progressed) {
+    progressed = false
+    for (const [id, f] of pending) {
+      if (intact(f)) { pending.delete(id); decodeOne(f); progressed = true; break }
+    }
+  }
+  if (!pending.size) clearTimeout(gapTimer)
+}
+function handle(frame) {
+  try {
+    const md = frame.getMetadata?.() || {}
+    // Every frame builds on earlier ones. Without frame ids we can't tell when one
+    // went missing (decoding past a gap smears the picture), so don't render at all.
+    if (typeof md.frameId !== 'number') {
+      if (!unsafeSent) { unsafeSent = true; postMessage({ type: 'unsafe', reason: 'no frame ids' }) }
+      return
+    }
+    const c = webcodec(md.mimeType) || codec
+    if (!c) return
+    if (c !== codec) { codec = c; reset() }
+    pace.bytes += frame.data.byteLength
+    if (frame.type === 'key') pace.keys++
+    const f = { id: md.frameId, key: frame.type === 'key', deps: Array.isArray(md.dependencies) ? md.dependencies : null, ts: Number(frame.timestamp) || 0, data: frame.data.slice(0) }
+    // Testing (?lldrop=N): lose every Nth delta frame on this path only.
+    if (dropEvery && !f.key && f.id % dropEvery === 0) return
+    if (f.key) { pending.clear(); clearTimeout(gapTimer); decodeOne(f); return }
+    if (waitingKey) return
+    if (intact(f)) { decodeOne(f); drain(); return }
+    // Out of order or lost: hold it briefly for the missing frame, then give up
+    // and wait for a keyframe (the page shows Chrome's own video meanwhile).
+    pending.set(f.id, f)
+    if (pending.size === 1) gapTimer = setTimeout(stall, REORDER_MS)
+    if (pending.size > 30) stall()
+  } catch (e) { reset(); stall() }
+}
+async function pump(readable, writable) {
+  reset()
+  const reader = readable.getReader(), writer = writable.getWriter()
+  for (;;) {
+    const { value, done } = await reader.read()
+    if (done) break
+    handle(value)
+    await writer.write(value)
+  }
+}
+onmessage = (e) => {
+  const m = e.data
+  if (m.type === 'canvas') { canvas = m.canvas; ctx = canvas.getContext('2d', { alpha: false, desynchronized: true, willReadFrequently: false }) }
+  else if (m.type === 'codec') codec = webcodec(m.codec)
+  else if (m.type === 'streams') pump(m.readable, m.writable)
+  else if (m.type === 'probe') probe = m.probe
+  else if (m.type === 'dropEvery') dropEvery = m.n
+}
+if (self.RTCTransformEvent) onrtctransform = (e) => pump(e.transformer.readable, e.transformer.writable)
+`
+const screenCanvas = $('screen')
+let llWorker = null
+let lowLat = false // frames are being shown through the low-latency path
+let screenSize = { w: 0, h: 0 }
+let llProbeWait = null
+function setupLowLatency(receiver, codecName) {
+  if (!LOWLAT) return
+  try {
+    if (!llWorker) {
+      llWorker = new Worker(URL.createObjectURL(new Blob([WORKER_SRC], { type: 'text/javascript' })))
+      const off = screenCanvas.transferControlToOffscreen()
+      llWorker.postMessage({ type: 'canvas', canvas: off }, [off])
+      llWorker.onmessage = (e) => {
+        const m = e.data
+        if (m.type === 'size') {
+          screenSize = { w: m.w, h: m.h }
+          if (!lowLat) { lowLat = true; document.body.classList.add('lowlat'); $('renderer').textContent = 'low-latency (WebCodecs)'; log('low-latency renderer active') }
+        } else if (m.type === 'probe') llProbeWait?.(m)
+        else if (m.type === 'unsafe') {
+          // Can't render safely here: back to Chrome's own (buffered) player.
+          lowLat = false; document.body.classList.remove('lowlat')
+          $('renderer').textContent = `buffered (${m.reason})`; log(`low-latency renderer off: ${m.reason}`)
+        }
+        else if (m.type === 'log') log(m.text)
+        else if (m.type === 'pace') (window.__pace ??= []).push({ ...m, stalls: window.__stalls || 0, t: Math.round(performance.now() / 1000) })
+        else if (m.type === 'stalled') {
+          // Waiting for a keyframe: show Chrome's own (correct, slightly later)
+          // video instead of a frozen canvas, and ask the seat for a keyframe.
+          document.body.classList.add('llstall'); window.__stalls = (window.__stalls || 0) + 1
+          sendRel({ kind: 'keyframe' }); log('low-latency stalled: showing buffered video, keyframe requested')
+        } else if (m.type === 'resumed') { document.body.classList.remove('llstall'); log('low-latency resumed') }
+      }
+    }
+    llWorker.postMessage({ type: 'codec', codec: codecName })
+    if (params.get('lldrop')) llWorker.postMessage({ type: 'dropEvery', n: Number(params.get('lldrop')) })
+    if ('RTCRtpScriptTransform' in window) receiver.transform = new RTCRtpScriptTransform(llWorker, {})
+    else {
+      const { readable, writable } = receiver.createEncodedStreams()
+      llWorker.postMessage({ type: 'streams', readable, writable }, [readable, writable])
+    }
+  } catch (err) {
+    log(`low-latency renderer unavailable: ${err.message}`)
+    $('renderer').textContent = 'buffered (fallback)'
+  }
+}
+
+// STUN (and TURN when the server has it) so the video finds a path through NATs
+// and strict networks. Fetched once per page; TURN credentials last an hour.
+let icePromise = null
+const getIce = () => (icePromise ??= fetch('/ice').then((r) => r.json()).then((j) => j.iceServers).catch(() => []))
+
+async function connect() {
+  if (ended) return
+  wantConnected = true
+  pc?.close()
+  connectStart = performance.now()
+  $('overlay').textContent = LAB ? 'Negotiating…' : 'Dealing you in…'
+  $('gateMsg').textContent = 'Dealing you in…'
+  $('gate').classList.remove('tap')
+  const iceServers = await getIce()
+  const insertable = LOWLAT && !('RTCRtpScriptTransform' in window)
+  const thisPc = (pc = new RTCPeerConnection({ iceServers, ...(insertable ? { encodedInsertableStreams: true } : {}) }))
+  thisPc.ontrack = (e) => {
+    mark('track arrived')
+    // Show frames as soon as they decode (cloud-gaming style) rather than
+    // buffering to smooth jitter: latency over smoothness.
+    if ('jitterBufferTarget' in e.receiver) e.receiver.jitterBufferTarget = 0
+    setupLowLatency(e.receiver, LAB ? $('codec').value : playCodec)
+    if (!LOWLAT) $('renderer').textContent = 'buffered (video element)'
+    video.srcObject = new MediaStream([e.track])
+    startPlayback()
+    // Some browsers neither play nor reject; don't leave the chip spinning forever.
+    setTimeout(() => { if (!document.body.classList.contains('live')) needTap() }, 2500)
+    video.requestVideoFrameCallback(() => {
+      const t = performance.now()
+      $('ttff').textContent = ms(t - connectStart)
+      if (replayStart) { log(`replay click → first frame ${Math.round(t - replayStart)} ms`); replayStart = 0 }
+      $('overlay').textContent = ''
+      mark('first frame shown')
+    })
+  }
+  thisPc.ondatachannel = (e) => { if (e.channel.label === 'fast') fast = e.channel; else rel = e.channel }
+  thisPc.onconnectionstatechange = () => {
+    mark(`peer ${thisPc.connectionState}`)
+    if (thisPc.connectionState === 'failed') {
+      $('overlay').textContent = 'Could not reach the render server over WebRTC (network blocked the video path).'
+      if (!LAB) fallback('network')
+    }
+  }
+  thisPc.oniceconnectionstatechange = () => mark(`ice ${thisPc.iceConnectionState}`)
+  const shape = screenShape()
+  streamedWidth = shape?.width ?? 0
+  await post('/signal', { type: 'start', viewport: shape, codec: LAB ? $('codec').value : playCodec, maxBitrateKbps: +$('bitrate').value, contentHint: $('hint').value })
+}
+
+async function onOffer({ sdp }) {
+  if (!pc) return
+  mark('offer received')
+  await pc.setRemoteDescription(sdp)
+  const answer = await pc.createAnswer()
+  // Same bitrate hint as the seat; VP8 has no a=fmtp line, so one is added.
+  const BOOST = 'x-google-start-bitrate=10000;x-google-min-bitrate=3000;x-google-max-bitrate=16000'
+  let sdpOut = answer.sdp.replace(/a=fmtp:\d+ [^\r\n]*/g, (line) =>
+    line.includes('x-google') || line.includes('apt=') || line.includes('/') ? line : `${line};${BOOST}`)
+  sdpOut = sdpOut.replace(/a=rtpmap:(\d+) (VP8|VP9|AV1|H264)\/90000\r\n/g, (line, pt) =>
+    sdpOut.includes(`a=fmtp:${pt} `) ? line : `${line}a=fmtp:${pt} ${BOOST}\r\n`)
+  // Negotiate frame descriptors so encoded frames carry frame ids/dependencies:
+// the viewer's low-latency decoder needs them to detect a lost frame (and freeze
+// until a keyframe) instead of decoding past the gap into a smeared picture.
+const FRAME_DESCRIPTORS = [
+  'https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension',
+  'http://www.webrtc.org/experiments/rtp-hdrext/generic-frame-descriptor-00',
+]
+const addFrameDescriptors = (sdp) => {
+  const sections = sdp.split(/(?=^m=)/m)
+  return sections.map((sec) => {
+    if (!sec.startsWith('m=video')) return sec
+    const used = new Set([...sec.matchAll(/^a=extmap:(\d+)/gm)].map((m) => Number(m[1])))
+    let out = sec
+    for (const uri of FRAME_DESCRIPTORS) {
+      if (out.includes(uri)) continue
+      let id = 1
+      while (used.has(id) && id < 14) id++
+      if (used.has(id)) break
+      used.add(id)
+      out = out.replace(/(^a=mid:[^\r\n]*\r\n)/m, `$1a=extmap:${id} ${uri}\r\n`)
+    }
+    return out
+  }).join('')
+}
+  await pc.setLocalDescription({ type: 'answer', sdp: addFrameDescriptors(sdpOut) })
+  await new Promise((resolve) => {
+    if (pc.iceGatheringState === 'complete') return resolve()
+    pc.addEventListener('icegatheringstatechange', () => pc.iceGatheringState === 'complete' && resolve())
+    setTimeout(resolve, 2000)
+  })
+  mark('answer gathered')
+  await post('/signal', { type: 'answer', sdp: pc.localDescription.toJSON() })
+  mark('answer delivered')
+}
+
+$('connect').onclick = connect
+$('replay').onclick = () => { replayStart = performance.now(); $('overlay').textContent = 'Server reloading the page…'; pc?.close(); pc = null; post('/reload') }
+
+// iOS (and Low Power Mode) may refuse to autoplay even silent video. Try right
+// away; if refused, the very first touch anywhere starts it.
+function startPlayback() {
+  video.muted = true
+  video.play().catch(() => needTap())
+}
+// The chip spins while connecting; if the browser blocks autoplay it stops
+// spinning and asks for the one tap it needs.
+function needTap() {
+  if (LAB) return
+  $('gate').classList.add('tap')
+  $('gateMsg').textContent = 'Tap the chip to join the table'
+}
+// Start the intro on the server only once this visitor's stream is ready for
+// it: 20 frames arrived with no gap over 50 ms, and the connection has ramped up
+// to >= 3 Mbps (or 3 s have passed). The ramp-up then happens on the still
+// first frame, not during the card burst.
+let begun = null
+function beginWhenSmooth() {
+  const forPc = pc
+  const t0 = performance.now()
+  let smooth = 0
+  let last = 0
+  const onFrame = (now) => {
+    if (forPc !== pc || begun === pc) return
+    smooth = last && now - last > 50 ? 0 : smooth + 1
+    last = now
+    video.requestVideoFrameCallback(onFrame)
+  }
+  video.requestVideoFrameCallback(onFrame)
+  let prevBytes = 0
+  let prevT = 0
+  const check = async () => {
+    if (forPc !== pc || begun === pc) return
+    let bytes = 0
+    ;(await forPc.getStats()).forEach((s) => { if (s.type === 'inbound-rtp' && s.kind === 'video') bytes = s.bytesReceived })
+    const now = performance.now()
+    const kbps = prevT ? ((bytes - prevBytes) * 8) / (now - prevT) : 0
+    prevBytes = bytes
+    prevT = now
+    // Never wait forever: if frames are starved (a still page sends few), start anyway.
+    if (hostVisible && ((smooth >= 20 && (kbps >= 3000 || now - t0 > 3000)) || now - t0 > 5000)) {
+      begun = pc
+      post('/signal', { type: 'begin' })
+      log(`intro started after ${Math.round(now - t0)} ms (stream at ${Math.round(kbps)} kbps)`)
+      return
+    }
+    setTimeout(check, 250)
+  }
+  setTimeout(check, 250)
+}
+function goLive() {
+  if (begun !== pc) beginWhenSmooth()
+  if (!document.body.classList.contains('live')) toHost('live')
+  document.body.classList.add('live')
+  $('gate').classList.remove('tap')
+}
+video.addEventListener('playing', goLive)
+if (!LAB) {
+  // A blurred still of the table behind the chip while the stream spins up.
+  const bg = $('gateBg')
+  bg.onload = () => bg.classList.add('loaded')
+  bg.src = `/screenshot?t=${Date.now()}`
+}
+addEventListener('pointerdown', () => { if (video.paused && video.srcObject) video.play().catch(() => {}) }, { capture: true })
+
+// ---- Input ----
+// Map a touch to the picture itself. Play mode fills the screen (object-fit:
+// cover, anchored to the top: while browser bars show, the bottom is what's
+// hidden, as on the real site); the lab view letterboxes (contain).
+const norm = (e) => {
+  const shown = lowLat ? screenCanvas : video
+  const r = shown.getBoundingClientRect()
+  const iw = lowLat ? screenSize.w : video.videoWidth
+  const ih = lowLat ? screenSize.h : video.videoHeight
+  const va = iw && ih ? iw / ih : r.width / r.height
+  const fit = LAB ? Math.min : Math.max
+  const w = fit(r.width, r.height * va), h = w / va
+  const top = LAB ? (r.height - h) / 2 : 0
+  return { x: (e.clientX - r.left - (r.width - w) / 2) / w, y: (e.clientY - r.top - top) / h }
+}
+
+// Play mode renders at this screen's shape (portrait phone → portrait casino).
+// 1.5x matches the DPR cap the site itself uses on phones.
+// Height is the *large* viewport (browser bars hidden): phones change innerHeight
+// every time the address bar slides, and that must not re-shape the stream.
+function screenShape() {
+  if (LAB) return undefined
+  const height = Math.max(window.innerHeight, $('lvh').getBoundingClientRect().height)
+  const width = document.documentElement.clientWidth
+  // A pixel budget like the site's own (~2.1 MP): sharp on retina laptops and
+  // phones, without 3-4 MP streams (encode time and bandwidth scale with pixels).
+  const dpr = Math.max(1, Math.min(devicePixelRatio || 1, 2, Math.sqrt(2_000_000 / (width * height))))
+  return { width, height, dpr }
+}
+// Only a rotation (width change) re-shapes the stream: reconnect at the new shape,
+// same seat, intro keeps playing.
+let resizeTimer = 0
+let streamedWidth = 0
+addEventListener('resize', () => {
+  if (LAB) return
+  clearTimeout(resizeTimer)
+  resizeTimer = setTimeout(() => {
+    const w = document.documentElement.clientWidth
+    if (pc && streamedWidth && w !== streamedWidth) connect()
+  }, 300)
+})
+
+if (!LAB) {
+  // Real fullscreen where the browser allows it (Android/desktop). iPhone Safari
+  // only allows it via Add to Home Screen, which the meta tags above enable.
+  addEventListener('pointerdown', (e) => {
+    if (!wantConnected) connect()
+    // Phones only: a touch goes fullscreen. A desktop click is just a click.
+    const el = document.documentElement
+    if (e.pointerType === 'touch' && !document.fullscreenElement && el.requestFullscreen) el.requestFullscreen({ navigationUI: 'hide' }).catch(() => {})
+  }, { capture: true })
+  document.addEventListener('gesturestart', (e) => e.preventDefault())
+  document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false })
+  // A viewer tab left in the background gives its seat back after 15 s (it was
+  // still streaming and costing the server); coming back starts fresh.
+  let hiddenTimer = 0
+  document.addEventListener('visibilitychange', () => {
+    clearTimeout(hiddenTimer)
+    if (document.visibilityState === 'hidden') hiddenTimer = setTimeout(() => { events.close(); pc?.close(); pc = null; wantConnected = false; sessionStorage.setItem('ps-released', '1') }, 15000)
+    else if (sessionStorage.getItem('ps-released')) { sessionStorage.removeItem('ps-released'); location.reload(); return }
+    if (document.visibilityState === 'visible' && wantConnected && (!pc || ['failed', 'closed', 'disconnected'].includes(pc.connectionState))) connect()
+  })
+}
+const sendFast = (m) => fast?.readyState === 'open' && fast.send(JSON.stringify(m))
+const sendRel = (m) => rel?.readyState === 'open' && rel.send(JSON.stringify(m))
+let buttons = 0
+const stage = $('stage')
+stage.addEventListener('pointerdown', (e) => { stage.setPointerCapture(e.pointerId); buttons = 1; sendRel({ kind: 'down', ...norm(e) }); e.preventDefault() })
+stage.addEventListener('pointermove', (e) => sendFast({ kind: 'move', buttons, ...norm(e) }))
+stage.addEventListener('pointerup', (e) => { buttons = 0; sendRel({ kind: 'up', ...norm(e) }) })
+stage.addEventListener('pointercancel', (e) => { buttons = 0; sendRel({ kind: 'up', ...norm(e) }) })
+stage.addEventListener('wheel', (e) => { sendRel({ kind: 'wheel', dx: e.deltaX, dy: e.deltaY, ...norm(e) }); e.preventDefault() }, { passive: false })
+
+// ---- Stats ----
+let prevIn = null
+setInterval(async () => {
+  if (!pc) return
+  const report = await pc.getStats()
+  let inb = null, pair = null
+  report.forEach((s) => {
+    if (s.type === 'inbound-rtp' && s.kind === 'video') inb = s
+    if (s.type === 'candidate-pair' && s.nominated && s.state === 'succeeded') pair = s
+  })
+  if (!inb) return
+  const codec = inb.codecId && report.get(inb.codecId)
+  const dt = prevIn ? (inb.timestamp - prevIn.timestamp) / 1000 : 0
+  const kbps = prevIn && dt ? ((inb.bytesReceived - prevIn.bytesReceived) * 8) / dt / 1000 : null
+  const jb = prevIn && inb.jitterBufferEmittedCount > prevIn.jitterBufferEmittedCount
+    ? ((inb.jitterBufferDelay - prevIn.jitterBufferDelay) / (inb.jitterBufferEmittedCount - prevIn.jitterBufferEmittedCount)) * 1000 : null
+  const dec = prevIn && inb.framesDecoded > prevIn.framesDecoded
+    ? ((inb.totalDecodeTime - prevIn.totalDecodeTime) / (inb.framesDecoded - prevIn.framesDecoded)) * 1000 : null
+  prevIn = inb
+  $('res').textContent = inb.frameWidth ? `${inb.frameWidth}×${inb.frameHeight}` : '–'
+  $('fps').textContent = inb.framesPerSecond != null ? inb.framesPerSecond.toFixed(0) : '–'
+  $('kbps').textContent = kbps == null ? '–' : `${(kbps / 1000).toFixed(2)} Mbps`
+  $('jb').textContent = ms(jb)
+  $('dec').textContent = dec == null ? '–' : `${dec.toFixed(1)} ms`
+  $('lost').textContent = `${inb.packetsLost ?? 0} / ${inb.framesDropped ?? 0}`
+  $('codecIn').textContent = codec ? codec.mimeType.replace('video/', '') + (inb.decoderImplementation ? ` (${inb.decoderImplementation})` : '') : '–'
+  const rtt = pair?.currentRoundTripTime != null ? pair.currentRoundTripTime * 1000 : null
+  $('rtt').textContent = rtt == null ? '–' : `${rtt.toFixed(1)} ms`
+}, 1000)
+
+function renderSender(s) {
+  $('rfps').textContent = s.renderFps.toFixed(0); cls($('rfps'), -s.renderFps, -55, -30)
+  $('enc').textContent = `${s.encoder ?? '–'}${s.powerEfficient ? ' (hw)' : ''}`
+  $('encms').textContent = s.encodeMs == null ? '–' : `${s.encodeMs.toFixed(1)} ms`
+  $('encres').textContent = s.width ? `${s.width}×${s.height} @ ${s.encodeFps ?? '–'} fps` : '–'
+  $('limit').textContent = s.limitation ?? '–'; $('limit').className = s.limitation && s.limitation !== 'none' ? 'warn' : 'good'
+  $('qp').textContent = s.qp == null ? '–' : s.qp.toFixed(1)
+}
+
+function renderPool(p) {
+  if (p) $('pool').textContent = `${p.busy}/${p.seats} · ${p.warm} warm${p.waiting ? ` · ${p.waiting} waiting` : ''}`
+}
+
+function renderStatus(st) {
+  $('phase').textContent = `seat ${st.seat} · ${st.phase}`
+  serverWidth = parseInt(st.size) || serverWidth
+  $('gpu').textContent = st.gpu ?? '–'
+  $('loads').innerHTML = st.loads.map((l) =>
+    `<dt>${l.kind}</dt><dd>scene ready ${ms(l.sceneReadyMs)}</dd>`).join('')
+  if (st.phase === 'loading' && pc) $('overlay').textContent = 'Server is loading the scene (this is what a warm server avoids)…'
+}
+
+// ---- Latency: flip a corner square on the server, detect it in decoded frames ----
+$('latency').onclick = async () => {
+  if (!rel) return log('connect first')
+  $('latency').disabled = true
+  const c = document.createElement('canvas'); c.width = c.height = 1
+  const ctx = c.getContext('2d', { willReadFrequently: true })
+  const sx = (lowLat ? screenSize.w : video.videoWidth) / serverWidth // probe is 24 CSS px; sample its middle
+  const read = () => { ctx.drawImage(video, 8 * sx, 8 * sx, 8 * sx, 8 * sx, 0, 0, 1, 1); const d = ctx.getImageData(0, 0, 1, 1).data; return (d[0] + d[1] + d[2]) / 3 > 128 ? 1 : 0 }
+  if (lowLat) llWorker.postMessage({ type: 'probe', probe: { x: Math.round(12 * sx), y: Math.round(12 * sx) } })
+  const waitFor = (value, sentAt) => new Promise((resolve) => {
+    const timeout = setTimeout(() => { llProbeWait = null; resolve(null) }, 3000)
+    if (lowLat) {
+      // Drawn on the canvas by the worker: its clock is converted to ours.
+      llProbeWait = (m) => { if (m.v === value) { clearTimeout(timeout); llProbeWait = null; resolve(m.at - performance.timeOrigin - sentAt) } }
+      return
+    }
+    const onFrame = (now, meta) => {
+      if (read() === value) { clearTimeout(timeout); resolve((meta.expectedDisplayTime ?? now) - sentAt) }
+      else video.requestVideoFrameCallback(onFrame)
+    }
+    video.requestVideoFrameCallback(onFrame)
+  })
+  sendRel({ kind: 'probe', value: 0 }); await waitFor(0, performance.now())
+  const samples = []
+  for (let i = 0; i < 20; i++) {
+    const value = i % 2 ? 0 : 1
+    const sentAt = performance.now()
+    sendRel({ kind: 'probe', value })
+    const dt = await waitFor(value, sentAt)
+    if (dt != null) samples.push(dt)
+    await new Promise((r) => setTimeout(r, 120 + Math.random() * 120))
+  }
+  samples.sort((a, b) => a - b)
+  const med = samples[Math.floor(samples.length / 2)], p95 = samples[Math.min(samples.length - 1, Math.floor(samples.length * 0.95))]
+  $('lat').textContent = ms(med); cls($('lat'), med, 50, 100)
+  $('lat95').textContent = ms(p95); cls($('lat95'), p95, 70, 150)
+  if (lowLat) llWorker.postMessage({ type: 'probe', probe: null })
+  log(`latency n=${samples.length} min ${Math.round(samples[0])} med ${Math.round(med)} p95 ${Math.round(p95)} ms (${lowLat ? 'low-latency' : 'buffered'})`)
+  $('latency').disabled = false
+}
+
+// ---- Quality: lossless server screenshot vs. the decoded frame ----
+let lastPair = null
+$('quality').onclick = async () => {
+  if (!video.videoWidth) return log('connect first')
+  const shotPromise = fetch(`/screenshot?id=${viewerId}`).then((r) => r.blob()).then(createImageBitmap)
+  const frame = await createImageBitmap(video)
+  const shot = await shotPromise
+  lastPair = { shot, frame }
+  drawCompare()
+  $('compare').style.display = 'block'
+  $('compare').scrollIntoView({ behavior: 'smooth' })
+}
+$('zoom').onchange = drawCompare
+function drawCompare() {
+  if (!lastPair) return
+  const { shot, frame } = lastPair
+  const z = +$('zoom').value
+  const w = shot.width, h = shot.height
+  for (const [id, img] of [['nativeCanvas', shot], ['streamCanvas', frame]]) {
+    const cv = $(id); cv.width = w * z; cv.height = h * z
+    const g = cv.getContext('2d'); g.imageSmoothingEnabled = false; g.drawImage(img, 0, 0, w * z, h * z)
+  }
+  // PSNR at native resolution (the stream frame is scaled up if the encoder shrank it).
+  const a = new OffscreenCanvas(w, h).getContext('2d'); a.drawImage(shot, 0, 0)
+  const b = new OffscreenCanvas(w, h).getContext('2d'); b.drawImage(frame, 0, 0, w, h)
+  const da = a.getImageData(0, 0, w, h).data, db = b.getImageData(0, 0, w, h).data
+  let se = 0
+  for (let i = 0; i < da.length; i += 4) for (let k = 0; k < 3; k++) { const d = da[i + k] - db[i + k]; se += d * d }
+  const mse = se / (w * h * 3)
+  const psnr = mse === 0 ? Infinity : 10 * Math.log10(255 * 255 / mse)
+  $('psnr').textContent = `· PSNR ${psnr.toFixed(1)} dB (≥40 ≈ visually lossless, <32 visibly soft) · stream frame ${frame.width}×${frame.height}`
+  log(`quality PSNR ${psnr.toFixed(1)} dB`)
+}
+</script>
+</body>
+</html>

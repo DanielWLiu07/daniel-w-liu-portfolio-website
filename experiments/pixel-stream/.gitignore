@@ -1,0 +1,7 @@
+.chrome-profile/
+.chrome-profile-*/
+.chrome-client*/
+results/
+deploy/config.env
+deploy/server.env
+deploy/server-windows.env
