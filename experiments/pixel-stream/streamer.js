@@ -471,7 +471,12 @@
       const plis = out.pliCount - (prevNet.plis ?? out.pliCount)
       prevNet = { lost: remote?.packetsLost, nacks: out.nackCount, plis: out.pliCount }
       prev = out
+      // Viewers behind strict networks reach us through Cloudflare's TURN relay;
+      // the pool meters those bytes against a monthly cap.
+      const remoteCandidate = pair && report.get(pair.remoteCandidateId)
       send({
+        relay: remoteCandidate?.candidateType === 'relay',
+        pairBytes: pair ? (pair.bytesSent ?? 0) + (pair.bytesReceived ?? 0) : 0,
         bweKbps: pair?.availableOutgoingBitrate ? pair.availableOutgoingBitrate / 1000 : null,
         rttMs: remote?.roundTripTime != null ? remote.roundTripTime * 1000 : pair?.currentRoundTripTime != null ? pair.currentRoundTripTime * 1000 : null,
         lost, nacks, plis,

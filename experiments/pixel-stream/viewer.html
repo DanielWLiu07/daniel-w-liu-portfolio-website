@@ -457,7 +457,8 @@ async function connect() {
   $('gate').classList.remove('tap')
   const iceServers = await getIce()
   const insertable = LOWLAT && !('RTCRtpScriptTransform' in window)
-  const thisPc = (pc = new RTCPeerConnection({ iceServers, ...(insertable ? { encodedInsertableStreams: true } : {}) }))
+  // ?relay: only use the TURN relay, as a viewer on a network that blocks direct UDP would.
+  const thisPc = (pc = new RTCPeerConnection({ iceServers, ...(params.has('relay') ? { iceTransportPolicy: 'relay' } : {}), ...(insertable ? { encodedInsertableStreams: true } : {}) }))
   thisPc.ontrack = (e) => {
     mark('track arrived')
     // Show frames as soon as they decode (cloud-gaming style) rather than

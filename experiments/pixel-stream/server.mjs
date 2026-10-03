@@ -17,6 +17,7 @@
 //   SEATS=4 HEADLESS=1 node experiments/pixel-stream/server.mjs
 import http from 'node:http'
 import { spawn } from 'node:child_process'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { networkInterfaces } from 'node:os'
 import path from 'node:path'
@@ -178,6 +179,11 @@ class Seat {
         const t = this.releasedAt ? Math.round((Date.now() - this.releasedAt) / 1000) : null
         this.timeline.push({ t, render: Math.round(msg.renderFps), encode: msg.encodeFps, encodeMs: msg.encodeMs && +msg.encodeMs.toFixed(1), size: `${msg.width}x${msg.height}`, kbps: Math.round(msg.targetKbps ?? 0), limit: msg.limitation, bwe: msg.bweKbps && Math.round(msg.bweKbps), rtt: msg.rttMs && Math.round(msg.rttMs), lost: msg.lost, nacks: msg.nacks, plis: msg.plis })
         if (this.timeline.length > 120) this.timeline.shift()
+        // Meter relayed bytes (a new connection restarts the pair's counter).
+        const pairBytes = msg.pairBytes ?? 0
+        const delta = pairBytes >= (this.lastPairBytes ?? 0) ? pairBytes - (this.lastPairBytes ?? 0) : pairBytes
+        this.lastPairBytes = pairBytes
+        if (msg.relay && delta > 0) addTurnBytes(delta)
       }
       if (msg.to === 'viewer') return this.owner && sendTo(this.owner, msg)
       if (msg.type === 'input') {
@@ -477,6 +483,29 @@ if (SPOT_WATCH) {
 // ---- ICE servers for viewers -----------------------------------------------------
 // STUN always; TURN (relay for networks that block direct UDP) when Cloudflare
 // credentials are configured. TURN credentials are minted per viewer, short-lived.
+// Monthly relay budget: bytes of viewer connections that go through the relay
+// (both directions), persisted so restarts don't reset it. Past the cap no new
+// relay credentials are minted: direct viewers are unaffected, relay-only viewers
+// fall back to rendering locally. Per server, so set it to the account's budget
+// divided by STREAM_MAX_SERVERS (Cloudflare includes 1000 GB/month).
+const TURN_MONTHLY_GB = Number(env.TURN_MONTHLY_GB ?? 400)
+const TURN_USAGE_FILE = new URL('./turn-usage.json', import.meta.url)
+const month = () => new Date().toISOString().slice(0, 7)
+let turnUsage = { month: month(), bytes: 0 }
+try { const saved = JSON.parse(readFileSync(TURN_USAGE_FILE, 'utf8')); if (saved.month === month()) turnUsage = saved } catch {}
+let turnUsageDirty = false
+function addTurnBytes(bytes) {
+  if (turnUsage.month !== month()) turnUsage = { month: month(), bytes: 0 }
+  turnUsage.bytes += bytes
+  turnUsageDirty = true
+}
+const turnBudgetLeft = () => turnUsage.month !== month() || turnUsage.bytes < TURN_MONTHLY_GB * 1e9
+setInterval(() => {
+  if (!turnUsageDirty) return
+  turnUsageDirty = false
+  try { writeFileSync(TURN_USAGE_FILE, JSON.stringify(turnUsage)) } catch (err) { log('turn usage save', err.message) }
+}, 30_000).unref()
+
 // Minting relay credentials spends Cloudflare TURN bandwidth, so each client IP
 // gets a few per window (a viewer needs one per connect); beyond that, STUN only.
 const TURN_MINTS_PER_IP = Number(env.TURN_MINTS_PER_IP ?? 12)
@@ -491,6 +520,7 @@ setInterval(() => { const now = Date.now(); for (const [ip, m] of turnMints) if 
 async function iceServers(ip) {
   const list = [{ urls: STUN_URLS }]
   if (!CF_TURN_KEY_ID || !CF_TURN_API_TOKEN) return list
+  if (!turnBudgetLeft()) { log('turn credentials: monthly relay budget used', `${(turnUsage.bytes / 1e9).toFixed(1)} GB`); return list }
   if (!mayMintTurn(ip)) { log('turn credentials: rate limited', ip); return list }
   try {
     const res = await fetch(`https://rtc.live.cloudflare.com/v1/turn/keys/${CF_TURN_KEY_ID}/credentials/generate-ice-servers`, {
@@ -624,7 +654,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/status') {
       if (!isLab(url)) return res.writeHead(403).end()
       res.writeHead(200, { 'content-type': 'application/json' })
-      return res.end(JSON.stringify({ pool: poolSummary(), seats: seats.map((s) => ({ ...s.snapshot(), owner: s.owner, frozen: s.frozen, timeline: url.searchParams.has('timeline') ? s.timeline : undefined })) }, null, 2))
+      return res.end(JSON.stringify({ pool: poolSummary(), turn: { month: turnUsage.month, gb: +(turnUsage.bytes / 1e9).toFixed(3), capGb: TURN_MONTHLY_GB, minting: turnBudgetLeft() && !!CF_TURN_KEY_ID }, seats: seats.map((s) => ({ ...s.snapshot(), owner: s.owner, frozen: s.frozen, timeline: url.searchParams.has('timeline') ? s.timeline : undefined })) }, null, 2))
     }
     res.writeHead(404).end()
   } catch (err) {
