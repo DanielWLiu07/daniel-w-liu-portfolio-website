@@ -82,6 +82,11 @@ $trigger = New-ScheduledTaskTrigger -AtLogOn -User stream
 $principal = New-ScheduledTaskPrincipal -UserId stream -LogonType Interactive -RunLevel Limited
 $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1)
 Register-ScheduledTask -TaskName pixel-stream -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null
+# At every boot (as SYSTEM): point Caddy at this server's host (StreamHost tag or
+# <ip>.sslip.io), so servers launched from a golden image need no deploy.
+Register-ScheduledTask -TaskName pixel-stream-caddy -Force `
+  -Action (New-ScheduledTaskAction -Execute 'powershell.exe' -Argument '-NoProfile -ExecutionPolicy Bypass -File C:\pixel-stream\deploy\caddy-host.ps1') `
+  -Trigger (New-ScheduledTaskTrigger -AtStartup) -Principal (New-ScheduledTaskPrincipal -UserId SYSTEM -LogonType ServiceAccount -RunLevel Highest) | Out-Null
 
 # Make the T4's GRID virtual display the only screen: with EC2's virtual VGA card
 # (Microsoft Basic Display Adapter) as primary, the desktop runs on it at 1024x768

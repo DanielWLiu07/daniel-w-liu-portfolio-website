@@ -6,6 +6,8 @@
 #   ./aws-ctl.sh ssh [n]          shell on the instance
 #   ./aws-ctl.sh logs [n]         follow the pool's logs
 #   ./aws-ctl.sh gpu [n]          check that Chrome sees the GPU (WebGPU adapter, Vulkan)
+#   ./aws-ctl.sh image [n]        golden image of server n (reboots it, ~5-10 min); new
+#                                 servers launch from the newest one, ready to serve
 #   ./aws-ctl.sh teardown [n]     delete server n (and, after the last one, the shared pieces)
 set -euo pipefail
 source "$(dirname "$0")/lib.sh"
@@ -33,7 +35,7 @@ fi
 
 iid=$(server_instance "$n")
 eip=$(server_eip "$n")
-ssh=(ssh -i "$SSH_KEY" -o StrictHostKeyChecking=accept-new "ubuntu@$eip")
+ssh=(ssh -i "$SSH_KEY" -o StrictHostKeyChecking=accept-new "$(ssh_user "$n")@$eip")
 case "$cmd" in
   status) status_one "$n" ;;
   start)
@@ -46,7 +48,36 @@ case "$cmd" in
     aws ec2 wait instance-running --instance-ids "$iid"; echo "running at $eip (seats warm in ~1-2 min)" ;;
   stop)  aws ec2 stop-instances --instance-ids "$iid" --query 'StoppingInstances[0].CurrentState.Name' --output text ;;
   ssh)   exec "${ssh[@]}" ;;
-  logs)  exec "${ssh[@]}" journalctl -u pixel-stream -f ;;
+  logs)
+    if [ "$(server_os "$n")" = windows ]; then exec "${ssh[@]}" 'Get-Content C:\pixel-stream\logs\pool.log -Tail 40 -Wait'
+    else exec "${ssh[@]}" journalctl -u pixel-stream -f; fi ;;
+  image)
+    # Rebooting (not --no-reboot) gives a consistent disk and doubles as a check
+    # that the server comes back on its own: auto-logon, display mode, seats.
+    os=$(server_os "$n"); stamp=$(date +%Y%m%d-%H%M)
+    aws ec2 modify-instance-metadata-options --instance-id "$iid" --instance-metadata-tags enabled >/dev/null
+    ami=$(aws ec2 create-image --instance-id "$iid" --name "$NAME-$os-$stamp" \
+      --description "pixel-stream $os seat server from $(server_name "$n")" \
+      --tag-specifications "ResourceType=image,Tags=[{Key=StreamFleet,Value=$NAME},{Key=StreamOS,Value=$os}]" \
+        "ResourceType=snapshot,Tags=[{Key=StreamFleet,Value=$NAME},{Key=Name,Value=$NAME-$os-$stamp}]" \
+      --query ImageId --output text)
+    echo "creating $ami (server reboots now)"
+    t0=$(date +%s); base=$(server_base "$n"); down="" back=""
+    until [ "$(aws ec2 describe-images --image-ids "$ami" --query 'Images[0].State' --output text)" = available ]; do
+      if curl -fsS -m 3 "$base/api/seat" 2>/dev/null | grep -q '"warm":[1-9]'; then
+        if [ -n "$down" ] && [ -z "$back" ]; then back=1; echo "server serving again after $(( $(date +%s) - t0 ))s"; fi
+      else down=1; fi
+      sleep 15
+    done
+    echo "image $ami available after $(( $(date +%s) - t0 ))s"
+    # Older images of this fleet/OS (and their snapshots) are no longer needed.
+    for old in $(aws ec2 describe-images --owners self --filters "Name=tag:StreamFleet,Values=$NAME" "Name=tag:StreamOS,Values=$os" \
+        --query "Images[?ImageId!='$ami'].ImageId" --output text); do
+      snaps=$(aws ec2 describe-images --image-ids "$old" --query 'Images[0].BlockDeviceMappings[].Ebs.SnapshotId' --output text)
+      aws ec2 deregister-image --image-id "$old"
+      for sn in $snaps; do aws ec2 delete-snapshot --snapshot-id "$sn"; done
+      echo "removed old image $old"
+    done ;;
   gpu)
     "${ssh[@]}" 'nvidia-smi --query-gpu=name,driver_version,utilization.gpu --format=csv; vulkaninfo --summary 2>/dev/null | grep -E "deviceName|driverName" || echo "vulkan: none"'
     curl -fsS -m 3 "$(server_base "$n")/status?token=${LAB_TOKEN:-}" 2>/dev/null | jq -r '.seats[] | "seat \(.seat): \(.phase) gpu=\(.gpu)"' || echo "(per-seat GPU needs LAB_TOKEN exported)"

@@ -20,8 +20,13 @@ makes a second one.
    pasted from `front-door-policy.json`: describe instances, and start only
    instances tagged `StreamFleet=portfolio-stream`. Then Security credentials →
    Create access key → "Application running outside AWS".
-4. **(Optional) TURN:** Cloudflare dashboard → Realtime → TURN → create a key.
-   Its id and token go in `server.env`.
+4. **TURN relay (recommended before going public):** viewers on networks that block
+   direct UDP (offices, schools, some carriers) can only connect through a relay.
+   Cloudflare dashboard → Realtime → TURN Server → Create. Put the key's id and API
+   token in `server-windows.env` as `CF_TURN_KEY_ID` / `CF_TURN_API_TOKEN` and
+   redeploy. The pool mints short-lived credentials per viewer (at most
+   `TURN_MINTS_PER_IP`, default 12, per IP per 10 min). Cloudflare includes
+   1 TB/month free.
 5. **HTTPS hosts:** one per server, e.g. `stream-1.<domain>`. Set
    `STREAM_HOST_PATTERN=stream-{n}.<domain>` in `config.env`, and after launching,
    add DNS A records pointing to each server's Elastic IP.
@@ -76,6 +81,27 @@ Also put your site's origin in `EMBED_ORIGINS` (server.env), then `./deploy.sh n
 
 Local development without AWS: `STREAM_FLEET_STATIC=http://localhost:8787` plus
 `NEXT_PUBLIC_STREAM_MODE=all` points the front door at a pool on your machine.
+
+## Windows servers and the golden image
+
+Windows is the default (`OS=windows` in config.env): Chrome there encodes WebRTC
+H.264 on the T4 (NVENC). Chrome on Linux can only encode in software. Setting up
+a fresh Windows server takes 10–15 min (GRID driver, Chrome, Node, Caddy, reboot)
+plus `./deploy-windows.sh n` (site build, several minutes).
+
+Once one server is good, snapshot it:
+```sh
+./aws-ctl.sh image 2      # reboots server 2 (~2 min down), ~20 min until the image is ready
+```
+After that, `./aws-launch.sh n` starts new servers from the newest image, with no
+user data and no deploy. At boot, the server points Caddy at its own name (its
+`StreamHost` tag, else `<ip>.sslip.io`, via task `pixel-stream-caddy`), auto-logs in
+and starts the seats: first seat warm ~6 min after launch (measured 345 s; the
+restored disk is slow on first read, the pool restarts until the site is up). A
+stopped server is back in ~2.5 min (measured 151 s after a reboot). `FRESH=1 ./aws-launch.sh n` ignores the image.
+
+**Re-image after deploying new code**, or servers launched later run the old
+code. `image` keeps only the newest image per OS (~$1–3/month of snapshots).
 
 ## Removing things
 

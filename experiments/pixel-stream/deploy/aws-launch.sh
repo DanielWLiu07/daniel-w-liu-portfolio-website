@@ -52,6 +52,8 @@ if [ "$alloc" = "None" ]; then
 fi
 eip=$(aws ec2 describe-addresses --allocation-ids "$alloc" --query 'Addresses[0].PublicIp' --output text)
 echo "$eip"
+# {ip} host patterns need the Elastic IP, which may only exist from this run on.
+host=$(server_host "$n" || true)
 
 say "instance $srv"
 iid=$(server_instance "$n")
@@ -61,7 +63,14 @@ if [ "$iid" = "None" ]; then
   os=$(server_os "$n")
   userdata="$here/bootstrap.sh"
   disk=()
-  if [ "$os" = windows ]; then
+  # A golden image (./aws-ctl.sh image n) already has the driver, Chrome, the site
+  # and the pool: it boots straight into serving, no user data or deploy needed.
+  golden=$(aws ec2 describe-images --owners self --filters "Name=tag:StreamFleet,Values=$NAME" "Name=tag:StreamOS,Values=$os" "Name=state,Values=available" \
+    --query 'sort_by(Images,&CreationDate)[-1].ImageId' --output text)
+  if [ "$golden" != "None" ] && [ "${FRESH:-0}" != 1 ]; then
+    ami=$golden; userdata=""
+    echo "golden image $ami (FRESH=1 to build from the base image instead)"
+  elif [ "$os" = windows ]; then
     # Windows Server 2022 + AWS's NVIDIA GRID driver (free for G4dn; Chrome on
     # Windows encodes WebRTC H.264 with NVENC). The driver comes from AWS's S3
     # bucket via a 2-hour pre-signed link, so the instance needs no AWS keys.
@@ -94,8 +103,8 @@ if [ "$iid" = "None" ]; then
   iid=$(aws ec2 run-instances --image-id "$ami" --instance-type "$INSTANCE_TYPE" ${keyarg[@]+"${keyarg[@]}"} \
     --security-group-ids "$sg" ${market[@]+"${market[@]}"} \
     --instance-initiated-shutdown-behavior stop \
-    --metadata-options HttpTokens=required,HttpEndpoint=enabled \
-    --user-data "file://$userdata" ${disk[@]+"${disk[@]}"} \
+    --metadata-options HttpTokens=required,HttpEndpoint=enabled,InstanceMetadataTags=enabled \
+    ${userdata:+--user-data "file://$userdata"} ${disk[@]+"${disk[@]}"} \
     --tag-specifications "ResourceType=instance,Tags=[$tags]" "ResourceType=volume,Tags=[{Key=Name,Value=$srv}]" \
     --query 'Instances[0].InstanceId' --output text)
   echo "launched $iid ($MARKET $INSTANCE_TYPE)"
