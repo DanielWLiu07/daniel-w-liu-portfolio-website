@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { Canvas } from '@react-three/fiber'
-import { canStartCasinoIntro } from './intro-ready'
+import { canStartCasinoIntro, useIntroHold } from './intro-ready'
 import { startupStage } from './startup-timing'
 import { installBudgetedShaderBuild } from './budgeted-shader-build'
 import { installSharedBufferShaders } from './shared-buffer-shaders'
@@ -37,7 +37,21 @@ const PAGE_HEIGHT_VH = 520
 // Parked while the opening beat is tuned: no marquee, cards, chips or sign copy.
 const SHOW_COPY = false
 
-export default function CasinoResume({ layoutTuning = false, jackEditing = false, eyeEditing = false }: { layoutTuning?: boolean; jackEditing?: boolean; eyeEditing?: boolean }) {
+export default function CasinoResume({
+  layoutTuning = false,
+  jackEditing = false,
+  eyeEditing = false,
+  introHold = false,
+  onSceneReady,
+}: {
+  layoutTuning?: boolean
+  jackEditing?: boolean
+  eyeEditing?: boolean
+  /** keep the opening beat at frame 0 (warming in the background behind a stream) */
+  introHold?: boolean
+  /** the scene is loaded and its shaders compiled */
+  onSceneReady?: () => void
+}) {
   const scroll = useRef<ScrollState>({ progress: 0, velocity: 0 })
   const uniforms = useRef<MangaUniforms | null>(null)
   const fx = useRef<ImpactFx>({ impactAge: -1, jolt: 0, landed: false })
@@ -89,7 +103,8 @@ export default function CasinoResume({ layoutTuning = false, jackEditing = false
   const onReady = useCallback(() => {
     if (!performance.getEntriesByName('casino:scene-ready').length) performance.mark('casino:scene-ready')
     setSceneReady(true)
-  }, [])
+    onSceneReady?.()
+  }, [onSceneReady])
   // the resume file: click the folder to open it (camera settles over it, the two-pane view slides up)
   const [fileOpen, setFileOpen] = useState(false)
   const openFile = useCallback(() => setFileOpen(true), [])
@@ -104,7 +119,8 @@ export default function CasinoResume({ layoutTuning = false, jackEditing = false
   }, [fileOpen])
   // Never spend the opening beat under either loading cover. All actors share
   // the chip's start clock, which remains unset until this gate opens.
-  const armed = canStartCasinoIntro(sceneReady, transitionStage)
+  const introHeld = useIntroHold(introHold)
+  const armed = !introHeld && canStartCasinoIntro(sceneReady, transitionStage)
   useEffect(() => {
     if (armed && !performance.getEntriesByName('casino:intro-start').length) performance.mark('casino:intro-start')
   }, [armed])
@@ -174,6 +190,9 @@ export default function CasinoResume({ layoutTuning = false, jackEditing = false
         <Canvas
           camera={{ position: [0, 6.2, 5.4], fov: 38 }}
           dpr={hiDpr ? [1, 1.5] : [1, 1.35]}
+          // A render server's warm seat idles on frame 0 without spending GPU;
+          // it still repaints on resize (R3F invalidates on size changes).
+          frameloop={introHeld && sceneReady ? 'demand' : 'always'}
           shadows="soft"
           gl={async (props) => {
             const canvas = props.canvas as HTMLCanvasElement
@@ -183,6 +202,10 @@ export default function CasinoResume({ layoutTuning = false, jackEditing = false
               // The scene target already has 4x MSAA. This canvas only receives
               // the painted fullscreen blit, so another 4x resolve adds no detail.
               antialias: false,
+              // Render servers (experiments/pixel-stream): headless Linux Chrome draws
+              // WebGPU on the GPU but never composites it onto the page, so stream
+              // seats load ?renderer=webgl and use three's WebGL 2 backend instead.
+              forceWebGL: new URLSearchParams(window.location.search).get('renderer') === 'webgl',
             })
             // Allocate the initial GPU attachments at the measured stage size,
             // not the canvas element's default 300×150 during async init.

@@ -5,6 +5,7 @@ import Navbar from "@/components/ui/navbar";
 import { PerformanceModeProvider } from "@/contexts/performance-mode-context";
 import { PageTransition } from "@/components/ui/page-transition";
 import { Analytics } from "@vercel/analytics/next";
+import StreamWarmup from "@/components/resume/stream/stream-warmup";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -86,6 +87,8 @@ export default function RootLayout({
         {/* Vercel Web Analytics: injects the pageview beacon. Also needs
             Analytics enabled for this project in the Vercel dashboard. */}
         <Analytics />
+        {/* Cloud-rendered résumé: wakes a render server early (no-op unless NEXT_PUBLIC_STREAM_MODE is set). */}
+        <StreamWarmup />
       </body>
     </html>
   );

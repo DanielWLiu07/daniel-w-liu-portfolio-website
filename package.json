@@ -11,6 +11,7 @@
     "check:dice": "tsx scripts/check-dice.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-ec2": "^3.1146.0",
     "@mediapipe/tasks-vision": "1.0.1",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-navigation-menu": "^1.2.14",
