@@ -12,8 +12,8 @@ import { CDP, CHROME_BIN, waitForJson } from './cdp.mjs'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const OUT = path.join(HERE, 'results')
-const SITE = 'http://localhost:3000/resume'
-const POOL = 'http://localhost:8787'
+const SITE = process.env.SITE ?? 'http://localhost:3000/resume'
+const POOL = process.env.POOL ?? 'http://localhost:8787'
 const PORT = 9420
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 let failures = 0
