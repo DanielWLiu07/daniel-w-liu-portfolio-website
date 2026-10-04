@@ -5,7 +5,6 @@
 // Every request re-reads the truth (EC2 state + each server's /api/seat), so
 // there is no database to keep in sync; the decision itself is a pure function.
 
-import { DescribeInstancesCommand, EC2Client, StartInstancesCommand } from '@aws-sdk/client-ec2'
 
 export type ServerState = 'running' | 'starting' | 'stopping' | 'stopped'
 
@@ -83,10 +82,19 @@ const EC2_STATES: Record<string, ServerState> = { pending: 'starting', running: 
  * from its StreamHost tag (https, required to embed in the HTTPS site), else its
  * public IP over http (fine for testing the viewer directly).
  */
-export function ec2Fleet(fleet: string, client: EC2Client): Fleet {
+export interface Ec2Config { region: string; accessKeyId: string; secretAccessKey: string }
+export function ec2Fleet(fleet: string, config: Ec2Config): Fleet {
+  // Loaded on first use: a static fleet's cold starts never pay for the AWS SDK.
+  let sdk: ReturnType<typeof load> | null = null
+  const load = () => import('@aws-sdk/client-ec2').then((mod) => ({
+    mod,
+    client: new mod.EC2Client({ region: config.region, credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey } }),
+  }))
+  const ec2 = () => (sdk ??= load())
   return {
     async list() {
-      const out = await client.send(new DescribeInstancesCommand({
+      const { client, mod } = await ec2()
+      const out = await client.send(new mod.DescribeInstancesCommand({
         Filters: [
           { Name: 'tag:StreamFleet', Values: [fleet] },
           { Name: 'instance-state-name', Values: Object.keys(EC2_STATES) },
@@ -102,7 +110,9 @@ export function ec2Fleet(fleet: string, client: EC2Client): Fleet {
       })
     },
     async start(ids) {
-      if (ids.length) await client.send(new StartInstancesCommand({ InstanceIds: ids }))
+      if (!ids.length) return
+      const { client, mod } = await ec2()
+      await client.send(new mod.StartInstancesCommand({ InstanceIds: ids }))
     },
   }
 }
@@ -127,9 +137,12 @@ export function fleetFromEnv(env: NodeJS.ProcessEnv = process.env): { fleet: Fle
   }
   if (env.STREAM_FLEET_STATIC) return { fleet: staticFleet(env.STREAM_FLEET_STATIC.split(',').map((u) => u.trim().replace(/\/$/, ''))), opts }
   if (!env.STREAM_AWS_ACCESS_KEY_ID || !env.STREAM_AWS_SECRET_ACCESS_KEY) return null
-  const client = new EC2Client({
-    region: env.STREAM_AWS_REGION ?? 'ca-central-1',
-    credentials: { accessKeyId: env.STREAM_AWS_ACCESS_KEY_ID, secretAccessKey: env.STREAM_AWS_SECRET_ACCESS_KEY },
-  })
-  return { fleet: ec2Fleet(env.STREAM_FLEET ?? 'portfolio-stream', client), opts }
+  return {
+    fleet: ec2Fleet(env.STREAM_FLEET ?? 'portfolio-stream', {
+      region: env.STREAM_AWS_REGION ?? 'ca-central-1',
+      accessKeyId: env.STREAM_AWS_ACCESS_KEY_ID,
+      secretAccessKey: env.STREAM_AWS_SECRET_ACCESS_KEY,
+    }),
+    opts,
+  }
 }
