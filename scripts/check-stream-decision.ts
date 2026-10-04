@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { canHandOff, isWeakDevice, localGraceMs, MAX_LOCAL_GRACE_MS, wantsStream } from '../components/resume/stream/stream-config'
+import { alwaysStreamed, canHandOff, isWeakDevice, localGraceMs, MAX_LOCAL_GRACE_MS, wantsStream } from '../components/resume/stream/stream-config'
 import { decide, type ServerView } from '../lib/stream/fleet'
 
 // --- who streams ---------------------------------------------------------------
@@ -20,6 +20,8 @@ assert.equal(isWeakDevice(strong, '?streamDevice=weak'), true, 'testing override
 assert.equal(canHandOff({ localReady: false, introStarted: false }), false, 'never before local is ready')
 assert.equal(canHandOff({ localReady: true, introStarted: false }), true, 'ready before the show: local plays it from the top')
 assert.equal(canHandOff({ localReady: true, introStarted: true }), false, 'never mid-show (the intro does not resume from a jumped clock)')
+assert.equal(alwaysStreamed('?stream=1'), true, '?stream=1 stays streamed for the whole visit')
+assert.equal(alwaysStreamed(''), false, 'plain visits may hand off')
 assert.equal(localGraceMs(null, 1000), 0, 'first visit: no evidence local will be fast, play the stream at once')
 assert.equal(localGraceMs(1200, 1000), 1000, 'cached return visit: wait until local is expected ready (+25% +0.5 s)')
 assert.equal(localGraceMs(800, 2000), 0, 'local should already be ready: no wait')

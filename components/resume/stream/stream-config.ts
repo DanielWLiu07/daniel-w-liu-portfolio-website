@@ -12,6 +12,7 @@ const MODES: StreamMode[] = ['off', 'opt-in', 'weak', 'all']
  * - weak: devices unlikely to render the casino well, plus ?stream=1
  * - all: everyone starts streamed while a seat is free; capable devices then
  *   hand off to local rendering, weak ones stay streamed
+ * ?stream=1 streams in every mode but off, for the whole visit (no handoff);
  * ?stream=0 always forces local rendering.
  */
 export const STREAM_MODE: StreamMode = MODES.find((m) => m === process.env.NEXT_PUBLIC_STREAM_MODE) ?? 'off'
@@ -34,6 +35,11 @@ export function wantsStream(search: string, nav: DeviceHints, mode: StreamMode =
   if (forced === '1') return true
   if (mode === 'all') return true
   return mode === 'weak' && isWeakDevice(nav, search)
+}
+
+/** ?stream=1: stay on the stream for the whole visit, even on a capable device. */
+export function alwaysStreamed(search: string): boolean {
+  return new URLSearchParams(search).get('stream') === '1'
 }
 
 /** Ask the front door for a seat: a stream URL, or null (render locally). */

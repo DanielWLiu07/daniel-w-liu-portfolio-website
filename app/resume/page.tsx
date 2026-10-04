@@ -7,7 +7,7 @@ import { CASINO_STARTUP_IMAGES, JACK_FONTS } from '@/components/resume/casino/st
 import { SKELETON_DEALER_URL, FOLDER_URL } from '@/components/resume/casino/model-urls'
 import { loadCasinoFont } from '@/components/resume/casino/font-loader'
 import { usePerformanceMode } from '@/contexts/performance-mode-context'
-import { isWeakDevice, wantsStream } from '@/components/resume/stream/stream-config'
+import { alwaysStreamed, isWeakDevice, wantsStream } from '@/components/resume/stream/stream-config'
 import type { LocalControl } from '@/components/resume/stream/stream-session'
 // The video page's components are not needed to boot the 3D scene.
 const LegacyResumePage = dynamic(() => import('./legacy'), { ssr: false })
@@ -43,7 +43,8 @@ export default function ResumePage() {
   if (streamed) {
     // Capable devices download the local casino in parallel and hand off to it;
     // weak ones stay streamed and only load it if the stream can't continue.
-    const capable = !isLowPerformance && !isWeakDevice(navigator, search)
+    // ?stream=1 keeps any device on the stream, like a weak one.
+    const capable = !isLowPerformance && !isWeakDevice(navigator, search) && !alwaysStreamed(search)
     if (capable) preloadCasino()
     return <StreamSession capable={capable} Local={isLowPerformance ? LiteLocal : CasinoResume} />
   }
