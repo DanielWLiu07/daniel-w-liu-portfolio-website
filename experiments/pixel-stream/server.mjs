@@ -233,7 +233,7 @@ class Seat {
   recordViewer(msg) {
     const n = (v) => (typeof v === 'number' && Number.isFinite(v) ? Math.round(v) : null)
     const t = Math.round((Date.now() - this.releasedAt) / 1000)
-    this.viewerTimeline.push({ t, shown: n(msg.shown), maxGapMs: n(msg.maxGapMs), freezes: n(msg.freezes), freezeMs: n(msg.freezeMs), dropped: n(msg.dropped), lost: n(msg.lost), bufferMs: n(msg.bufferMs), jitterMs: n(msg.jitterMs), player: msg.player === 'lowlat' ? 'lowlat' : 'buffered' })
+    this.viewerTimeline.push({ t, shown: n(msg.shown), maxGapMs: n(msg.maxGapMs), freezes: n(msg.freezes), freezeMs: n(msg.freezeMs), dropped: n(msg.dropped), lost: n(msg.lost), bufferMs: n(msg.bufferMs), jitterMs: n(msg.jitterMs), delayMs: n(msg.delayMs), player: msg.player === 'lowlat' ? 'lowlat' : 'buffered' })
     if (this.viewerTimeline.length > 120) this.viewerTimeline.shift()
   }
 

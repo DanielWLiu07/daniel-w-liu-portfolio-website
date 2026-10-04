@@ -372,6 +372,15 @@
       document.documentElement.dataset.introReleased = '1'
       window.dispatchEvent(new Event('casino:release-intro'))
       ps.keepAlive(false)
+      // Tell the viewer when the show ends and the page turns interactive, so it
+      // can drain the deliberate delay it plays the intro with.
+      const t0 = performance.now()
+      const watch = setInterval(() => {
+        if (performance.getEntriesByName('casino:table-landed').length || performance.now() - t0 > 30_000) {
+          clearInterval(watch)
+          send({ to: 'viewer', type: 'interactive' })
+        }
+      }, 100)
     },
 
     // A held scene doesn't redraw, and tab capture only emits frames on change.

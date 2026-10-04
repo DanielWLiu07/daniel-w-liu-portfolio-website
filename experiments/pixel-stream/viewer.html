@@ -280,6 +280,8 @@ events.onmessage = async (e) => {
   }
   if (m.type === 'fallback') return fallback(m.reason)
   if (m.type === 'intro-started') return toHost('intro')
+  // The seat's intro has landed: the page is interactive, so drain the show delay.
+  if (m.type === 'interactive') return catchUp(false)
   // A link tapped inside the stream: external ones open here (the tap is still a
   // fresh user gesture), site pages navigate the host page.
   if (m.type === 'open') return void window.open(m.href, '_blank', 'noopener')
@@ -309,13 +311,17 @@ events.onmessage = async (e) => {
 const LOWLAT = !params.has('buffered') && 'VideoDecoder' in window && 'OffscreenCanvas' in window
 // Minimum jitter buffer for the buffered player (Chrome grows it on a jittery link).
 const BUFFER_MS = LOWLAT ? 0 : Math.max(0, Math.min(500, Number(params.get('buffer') ?? 60)))
+// The low-latency player runs this far behind during the intro (a show nobody
+// interacts with), then catches up to real time when the page turns interactive.
+const SHOW_DELAY_MS = LAB ? 0 : Math.max(0, Math.min(1000, Number(params.get('delay') ?? 300)))
+const catchUp = (instant) => llWorker?.postMessage({ type: 'catchup', instant })
   && ('RTCRtpScriptTransform' in window || 'createEncodedStreams' in RTCRtpReceiver.prototype)
 const WORKER_SRC = `
 let canvas = null, ctx = null, decoder = null, codec = null, waitingKey = true, probe = null, sizeSent = ''
 let lastId = null, unsafeSent = false, stalled = false, gapTimer = 0, dropEvery = 0
 // Frame pacing stats (posted each second): what a viewer would feel as hitches.
 let pace = { last: 0, drawn: 0, maxGap: 0, over50: 0, over100: 0, keys: 0, bytes: 0 }
-setInterval(() => { postMessage({ type: 'pace', ...pace, last: undefined }); pace = { last: pace.last, drawn: 0, maxGap: 0, over50: 0, over100: 0, keys: 0, bytes: 0 } }, 1000)
+setInterval(() => { postMessage({ type: 'pace', ...pace, last: undefined, delay: Math.round(typeof delay === 'number' ? delay : 0) }); pace = { last: pace.last, drawn: 0, maxGap: 0, over50: 0, over100: 0, keys: 0, bytes: 0 } }, 1000)
 const seen = new Set()
 const pending = new Map() // frameId -> { key, data, deps } waiting for an earlier frame
 const REORDER_MS = 200   // a frame recovered by retransmission can arrive after its successor
@@ -340,7 +346,45 @@ function draw(frame) {
   if (sizeSent !== w + 'x' + h) { sizeSent = w + 'x' + h; postMessage({ type: 'size', w, h, at }) }
   if (probe) { const d = ctx.getImageData(probe.x, probe.y, 1, 1).data; postMessage({ type: 'probe', v: (d[0] + d[1] + d[2]) / 3 > 128 ? 1 : 0, at }) }
 }
-function reset() { try { decoder?.close() } catch {} decoder = null; waitingKey = true; lastId = null; seen.clear(); pending.clear(); clearTimeout(gapTimer) }
+// Deliberate delay while nobody interacts (the intro is a show): decoded frames
+// wait in a queue and are shown on their capture schedule, 'delay' ms behind the
+// fastest delivery seen so far. Late or resent packets then arrive before they're
+// due instead of freezing the picture, and motion is evenly paced. When the page
+// turns interactive the delay drains at 25% of real time (smooth); on a click it
+// drops at once.
+let delay = 0, drainRate = 0, minOffset = Infinity, lastTs = null, wrap = 0, ticking = false, lastTick = 0
+const queue = []
+function mediaMs(ts) { // RTP timestamps: 90 kHz, wrapping at 2^32
+  if (lastTs !== null && ts < lastTs - 2147483648) wrap += 4294967296
+  lastTs = ts
+  return (ts + wrap) / 90
+}
+function present(frame) {
+  if (!delay && !queue.length) return draw(frame)
+  const m = mediaMs(frame.timestamp), now = performance.now()
+  minOffset = Math.min(minOffset, now - m)
+  queue.push({ frame, m })
+  if (!ticking) { ticking = true; lastTick = now; (self.requestAnimationFrame ?? ((f) => setTimeout(() => f(performance.now()), 4)))(tick) }
+}
+function tick() {
+  const now = performance.now()
+  if (drainRate && delay > 0) delay = Math.max(0, delay - drainRate * (now - lastTick))
+  lastTick = now
+  // One frame per display refresh, in order: two frames falling due in the same
+  // refresh is only timing noise, and skipping one would be a visible hitch. Skip
+  // ahead only while draining or when more than two are overdue (fallen behind).
+  let due = 0
+  while (due < queue.length && queue[due].m + minOffset + delay <= now) due++
+  if (due) {
+    const skip = drainRate || due > 2 ? due - 1 : 0
+    for (const q of queue.splice(0, skip)) q.frame.close()
+    draw(queue.shift().frame)
+  }
+  if (queue.length) (self.requestAnimationFrame ?? ((f) => setTimeout(() => f(performance.now()), 4)))(tick)
+  else ticking = false
+}
+function clearQueue() { for (const q of queue.splice(0)) q.frame.close() }
+function reset() { try { decoder?.close() } catch {} decoder = null; waitingKey = true; lastId = null; seen.clear(); pending.clear(); clearTimeout(gapTimer); clearQueue(); minOffset = Infinity; lastTs = null; wrap = 0 }
 function stall() {
   waitingKey = true; pending.clear(); clearTimeout(gapTimer)
   if (!stalled) { stalled = true; postMessage({ type: 'stalled' }) }
@@ -352,7 +396,7 @@ function intact(f) {
 function decodeOne(f) {
   if (!decoder) {
     if (!f.key) return
-    decoder = new VideoDecoder({ output: draw, error: (e) => { postMessage({ type: 'log', text: 'decoder: ' + e.message }); reset(); stall() } })
+    decoder = new VideoDecoder({ output: present, error: (e) => { postMessage({ type: 'log', text: 'decoder: ' + e.message }); reset(); stall() } })
     decoder.configure({ codec, optimizeForLatency: true })
   }
   if (waitingKey && !f.key) return
@@ -417,6 +461,8 @@ onmessage = (e) => {
   else if (m.type === 'streams') pump(m.readable, m.writable)
   else if (m.type === 'probe') probe = m.probe
   else if (m.type === 'dropEvery') dropEvery = m.n
+  else if (m.type === 'delay') delay = Math.max(0, m.ms)
+  else if (m.type === 'catchup') { if (m.instant) { delay = 0; drainRate = 0 } else drainRate = 0.25 }
 }
 if (self.RTCTransformEvent) onrtctransform = (e) => pump(e.transformer.readable, e.transformer.writable)
 `
@@ -454,6 +500,8 @@ function setupLowLatency(receiver, codecName) {
       }
     }
     llWorker.postMessage({ type: 'codec', codec: codecName })
+    // Behind on purpose until the page is interactive (?delay=ms; none in the lab).
+    llWorker.postMessage({ type: 'delay', ms: SHOW_DELAY_MS })
     if (params.get('lldrop')) llWorker.postMessage({ type: 'dropEvery', n: Number(params.get('lldrop')) })
     if ('RTCRtpScriptTransform' in window) receiver.transform = new RTCRtpScriptTransform(llWorker, {})
     else {
@@ -597,6 +645,7 @@ function reportViewerStats(forPc) {
       type: 'viewerStats',
       // the low-latency player draws on its own canvas: count those frames instead
       shown: LOWLAT ? (window.__pace?.at(-1)?.drawn ?? null) : shown,
+      delayMs: LOWLAT ? (window.__pace?.at(-1)?.delay ?? null) : null,
       maxGapMs: LOWLAT ? (window.__pace?.at(-1)?.maxGap ?? null) : Math.round(maxGap),
       freezes: d('freezeCount'), freezeMs: Math.round(d('totalFreezesDuration') * 1000),
       dropped: d('framesDropped'), lost: d('packetsLost'),
@@ -740,11 +789,11 @@ const sendFast = (m) => fast?.readyState === 'open' && fast.send(JSON.stringify(
 const sendRel = (m) => rel?.readyState === 'open' && rel.send(JSON.stringify(m))
 let buttons = 0
 const stage = $('stage')
-stage.addEventListener('pointerdown', (e) => { stage.setPointerCapture(e.pointerId); buttons = 1; sendRel({ kind: 'down', ...norm(e) }); e.preventDefault() })
+stage.addEventListener('pointerdown', (e) => { catchUp(true); stage.setPointerCapture(e.pointerId); buttons = 1; sendRel({ kind: 'down', ...norm(e) }); e.preventDefault() })
 stage.addEventListener('pointermove', (e) => sendFast({ kind: 'move', buttons, ...norm(e) }))
 stage.addEventListener('pointerup', (e) => { buttons = 0; sendRel({ kind: 'up', ...norm(e) }) })
 stage.addEventListener('pointercancel', (e) => { buttons = 0; sendRel({ kind: 'up', ...norm(e) }) })
-stage.addEventListener('wheel', (e) => { sendRel({ kind: 'wheel', dx: e.deltaX, dy: e.deltaY, ...norm(e) }); e.preventDefault() }, { passive: false })
+stage.addEventListener('wheel', (e) => { catchUp(true); sendRel({ kind: 'wheel', dx: e.deltaX, dy: e.deltaY, ...norm(e) }); e.preventDefault() }, { passive: false })
 
 // ---- Stats ----
 let prevIn = null
