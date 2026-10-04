@@ -212,7 +212,7 @@ export default function IntroVideo({ onEnded, onFlashStart, onReady, canPlay = t
         <AlphaVideo
           ref={manVideoRef}
           src="/projects/videos/manga_man_intro"
-          query="?v=3"
+          query="?v=4"
           fallbackImage="/animation_frames/manga/manga_man_intro/0075.webp"
           className="absolute inset-0 w-full h-full object-cover max-[865px]:object-contain"
           muted

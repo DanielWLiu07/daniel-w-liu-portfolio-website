@@ -8,6 +8,9 @@ import { AlphaVideo } from '@/components/ui/alpha-video'
 interface BackgroundVideosProps {
   visible: boolean
   isExpanded?: boolean
+  /** Start buffering (once the page is revealed: before that, the loading cover's
+   *  own assets need the bandwidth; the posters cover any gap). */
+  warm?: boolean
 }
 
 // Vertical mode: fixed size 448-865px, scales with screen width below 448px
@@ -26,7 +29,7 @@ const MANGA_MAN_MOBILE_CLASSES = [
   'max-[448px]:!aspect-[16/7]',
 ].join(' ')
 
-export default function BackgroundVideos({ visible, isExpanded = false }: BackgroundVideosProps) {
+export default function BackgroundVideos({ visible, isExpanded = false, warm = true }: BackgroundVideosProps) {
   const bgVideoRef = useRef<HTMLVideoElement>(null)
   const manVideoRef = useRef<HTMLVideoElement>(null)
   const { isLowPerformance } = usePerformanceMode()
@@ -38,6 +41,15 @@ export default function BackgroundVideos({ visible, isExpanded = false }: Backgr
   useEffect(() => {
     prevExpandedRef.current = isExpanded
   }, [isExpanded])
+
+  // preload="none" → "auto" doesn't restart a suspended load everywhere: load() does
+  // (nothing has played yet, so it costs nothing).
+  useEffect(() => {
+    if (!warm) return
+    for (const video of [bgVideoRef.current, manVideoRef.current]) {
+      if (video && video.readyState === HTMLMediaElement.HAVE_NOTHING) { video.preload = 'auto'; video.load() }
+    }
+  }, [warm])
 
   useEffect(() => {
     if (!visible) return
@@ -61,7 +73,7 @@ export default function BackgroundVideos({ visible, isExpanded = false }: Backgr
             muted
             loop
             playsInline
-            preload="auto"
+            preload={warm ? 'auto' : 'none'}
           />
         )}
       </div>
@@ -75,13 +87,13 @@ export default function BackgroundVideos({ visible, isExpanded = false }: Backgr
           <AlphaVideo
             ref={manVideoRef}
             src="/projects/videos/manga_man"
-            query="?v=3"
+            query="?v=4"
             fallbackImage="/animation_frames/manga/manga_man/0200.webp"
             className="absolute inset-0 w-full h-full object-cover max-[865px]:object-contain"
             muted
             loop
             playsInline
-            preload="auto"
+            preload={warm ? 'auto' : 'none'}
           />
         )}
       </div>

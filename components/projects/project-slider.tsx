@@ -375,6 +375,8 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
     let assetsLoadedCount = 0
 
     const deferredVideoLoads: (() => void)[] = []
+    const deferredContentLoads: (() => void)[] = []
+    let contentLoadTimer = 0
 
     const checkAllAssetsLoaded = () => {
       assetsLoadedCount++
@@ -382,6 +384,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         setAllVideosLoaded(true)
         // Start loading thumbnail videos after all static assets are ready
         deferredVideoLoads.forEach(load => load())
+        contentLoadTimer = window.setTimeout(() => deferredContentLoads.forEach(load => load()), 3000)
       }
     }
 
@@ -406,13 +409,19 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
         () => checkAllAssetsLoaded() // onError - still count it to not block forever
       )
 
-      // Load content textures (don't block on these, they're for expanded view)
-      // Pre-upload to GPU as each loads so first expand doesn't stall
-      const contentTextures = project.images.map(imgPath =>
-        textureLoader.load(imgPath, (tex) => {
-          if (rendererRef.current) rendererRef.current.initTexture(tex)
-        })
-      )
+      // Content textures are only for the expanded view (~8 MB for all projects):
+      // load them a few seconds after the page is revealed, so they never compete
+      // with what the loading cover and the first carousel frames wait for. Planes
+      // keep this array, so filling it later is enough. Pre-upload each to the GPU
+      // as it loads so the first expand doesn't stall.
+      const contentTextures: THREE.Texture[] = []
+      deferredContentLoads.push(() => {
+        for (const imgPath of project.images) {
+          contentTextures.push(textureLoader.load(imgPath, (tex) => {
+            if (rendererRef.current) rendererRef.current.initTexture(tex)
+          }))
+        }
+      })
 
       // Always load static thumbnail first (counts toward page ready)
       const thumbnailTexture = textureLoader.load(
@@ -2184,6 +2193,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
     resizeObserver.observe(container)
 
     return () => {
+      clearTimeout(contentLoadTimer)
       resizeObserver.disconnect()
       window.removeEventListener('mousemove', onMouseMoveGlobal)
       window.removeEventListener('touchmove', onTouchMoveGlobal)
