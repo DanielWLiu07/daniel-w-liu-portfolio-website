@@ -314,6 +314,9 @@ const BUFFER_MS = LOWLAT ? 0 : Math.max(0, Math.min(500, Number(params.get('buff
 // The low-latency player runs this far behind during the intro (a show nobody
 // interacts with), then catches up to real time when the page turns interactive.
 const SHOW_DELAY_MS = LAB ? 0 : Math.max(0, Math.min(1000, Number(params.get('delay') ?? 300)))
+// ...and keeps this much afterwards, swaying around it to absorb network hiccups
+// (?live=ms; 0 = real time once interactive).
+const LIVE_DELAY_MS = LAB ? 0 : Math.max(0, Math.min(500, Number(params.get('live') ?? 100)))
 const catchUp = (instant) => llWorker?.postMessage({ type: 'catchup', instant })
   && ('RTCRtpScriptTransform' in window || 'createEncodedStreams' in RTCRtpReceiver.prototype)
 const WORKER_SRC = `
@@ -321,7 +324,7 @@ let canvas = null, ctx = null, decoder = null, codec = null, waitingKey = true, 
 let lastId = null, unsafeSent = false, stalled = false, gapTimer = 0, dropEvery = 0
 // Frame pacing stats (posted each second): what a viewer would feel as hitches.
 let pace = { last: 0, drawn: 0, maxGap: 0, over50: 0, over100: 0, keys: 0, bytes: 0 }
-setInterval(() => { postMessage({ type: 'pace', ...pace, last: undefined, delay: Math.round(typeof delay === 'number' ? delay : 0) }); pace = { last: pace.last, drawn: 0, maxGap: 0, over50: 0, over100: 0, keys: 0, bytes: 0 } }, 1000)
+setInterval(() => { postMessage({ type: 'pace', ...pace, last: undefined, delay: Math.round(typeof level === 'number' && play !== null ? level : 0) }); pace = { last: pace.last, drawn: 0, maxGap: 0, over50: 0, over100: 0, keys: 0, bytes: 0 } }, 1000)
 const seen = new Set()
 const pending = new Map() // frameId -> { key, data, deps } waiting for an earlier frame
 const REORDER_MS = 200   // a frame recovered by retransmission can arrive after its successor
@@ -346,45 +349,52 @@ function draw(frame) {
   if (sizeSent !== w + 'x' + h) { sizeSent = w + 'x' + h; postMessage({ type: 'size', w, h, at }) }
   if (probe) { const d = ctx.getImageData(probe.x, probe.y, 1, 1).data; postMessage({ type: 'probe', v: (d[0] + d[1] + d[2]) / 3 > 128 ? 1 : 0, at }) }
 }
-// Deliberate delay while nobody interacts (the intro is a show): decoded frames
-// wait in a queue and are shown on their capture schedule, 'delay' ms behind the
-// fastest delivery seen so far. Late or resent packets then arrive before they're
-// due instead of freezing the picture, and motion is evenly paced. When the page
-// turns interactive the delay drains at 25% of real time (smooth); on a click it
-// drops at once.
-let delay = 0, drainRate = 0, minOffset = Infinity, lastTs = null, wrap = 0, ticking = false, lastTick = 0
+// Elastic playout buffer. Decoded frames wait in a queue and a playback clock
+// shows them on their capture schedule. The clock runs slightly faster or slower
+// (within +/-8%) to keep the buffer, how far it is behind the newest frame, near a
+// target: 'target' ms during the intro (a show nobody interacts with), then the
+// live target. A late or resent frame then lands inside the buffer instead of
+// freezing the picture, and any correction is a few percent of speed rather than
+// a jump. A click snaps to the live target at once.
+let target = 0, liveTarget = 0, play = null, newest = -Infinity, lastTs = null, wrap = 0, ticking = false, lastTick = 0, level = 0
 const queue = []
+const raf = self.requestAnimationFrame ? (f) => self.requestAnimationFrame(f) : (f) => setTimeout(f, 4)
 function mediaMs(ts) { // RTP timestamps: 90 kHz, wrapping at 2^32
   if (lastTs !== null && ts < lastTs - 2147483648) wrap += 4294967296
   lastTs = ts
   return (ts + wrap) / 90
 }
 function present(frame) {
-  if (!delay && !queue.length) return draw(frame)
-  const m = mediaMs(frame.timestamp), now = performance.now()
-  minOffset = Math.min(minOffset, now - m)
+  if (!target && !queue.length) return draw(frame)
+  const m = mediaMs(frame.timestamp)
+  newest = Math.max(newest, m)
+  if (play === null) play = m - target // the first frame shows 'target' ms from now
   queue.push({ frame, m })
-  if (!ticking) { ticking = true; lastTick = now; (self.requestAnimationFrame ?? ((f) => setTimeout(() => f(performance.now()), 4)))(tick) }
+  if (!ticking) { ticking = true; lastTick = performance.now(); raf(tick) }
 }
 function tick() {
-  const now = performance.now()
-  if (drainRate && delay > 0) delay = Math.max(0, delay - drainRate * (now - lastTick))
+  const now = performance.now(), dt = Math.min(100, now - lastTick)
   lastTick = now
-  // One frame per display refresh, in order: two frames falling due in the same
-  // refresh is only timing noise, and skipping one would be a visible hitch. Skip
-  // ahead only while draining or when more than two are overdue (fallen behind).
+  // Far behind (e.g. video resuming after a stall, its newest frame seconds ahead):
+  // easing at 8% would take many seconds, so jump back to the target at once.
+  if (newest - play > target + 300) play = newest - target
+  // Steer the clock: +/-0.15% speed per ms off target, at most +/-8%.
+  level = newest - play
+  const rate = 1 + Math.max(-0.08, Math.min(0.08, (level - target) * 0.0015))
+  play = Math.min(play + dt * rate, newest) // never run ahead of what has arrived: hold
+  // One frame per display refresh, in order; skip ahead only when more than two
+  // are overdue (fallen behind), never for ordinary timing noise.
   let due = 0
-  while (due < queue.length && queue[due].m + minOffset + delay <= now) due++
+  while (due < queue.length && queue[due].m <= play) due++
   if (due) {
-    const skip = drainRate || due > 2 ? due - 1 : 0
-    for (const q of queue.splice(0, skip)) q.frame.close()
+    for (const q of queue.splice(0, due > 2 ? due - 1 : 0)) q.frame.close()
     draw(queue.shift().frame)
   }
-  if (queue.length) (self.requestAnimationFrame ?? ((f) => setTimeout(() => f(performance.now()), 4)))(tick)
+  if (queue.length || target) raf(tick)
   else ticking = false
 }
 function clearQueue() { for (const q of queue.splice(0)) q.frame.close() }
-function reset() { try { decoder?.close() } catch {} decoder = null; waitingKey = true; lastId = null; seen.clear(); pending.clear(); clearTimeout(gapTimer); clearQueue(); minOffset = Infinity; lastTs = null; wrap = 0 }
+function reset() { try { decoder?.close() } catch {} decoder = null; waitingKey = true; lastId = null; seen.clear(); pending.clear(); clearTimeout(gapTimer); clearQueue(); play = null; newest = -Infinity; lastTs = null; wrap = 0 }
 function stall() {
   waitingKey = true; pending.clear(); clearTimeout(gapTimer)
   if (!stalled) { stalled = true; postMessage({ type: 'stalled' }) }
@@ -461,8 +471,10 @@ onmessage = (e) => {
   else if (m.type === 'streams') pump(m.readable, m.writable)
   else if (m.type === 'probe') probe = m.probe
   else if (m.type === 'dropEvery') dropEvery = m.n
-  else if (m.type === 'delay') delay = Math.max(0, m.ms)
-  else if (m.type === 'catchup') { if (m.instant) { delay = 0; drainRate = 0 } else drainRate = 0.25 }
+  else if (m.type === 'delay') { target = Math.max(0, m.ms); liveTarget = Math.max(0, m.live ?? 0) }
+  // The page turned interactive: ease toward the live target (the clock speeds up a
+  // few percent). A click: jump there now.
+  else if (m.type === 'catchup') { target = liveTarget; if (m.instant && play !== null) play = Math.max(play, newest - target) }
 }
 if (self.RTCTransformEvent) onrtctransform = (e) => pump(e.transformer.readable, e.transformer.writable)
 `
@@ -501,7 +513,7 @@ function setupLowLatency(receiver, codecName) {
     }
     llWorker.postMessage({ type: 'codec', codec: codecName })
     // Behind on purpose until the page is interactive (?delay=ms; none in the lab).
-    llWorker.postMessage({ type: 'delay', ms: SHOW_DELAY_MS })
+    llWorker.postMessage({ type: 'delay', ms: SHOW_DELAY_MS, live: LIVE_DELAY_MS })
     if (params.get('lldrop')) llWorker.postMessage({ type: 'dropEvery', n: Number(params.get('lldrop')) })
     if ('RTCRtpScriptTransform' in window) receiver.transform = new RTCRtpScriptTransform(llWorker, {})
     else {
