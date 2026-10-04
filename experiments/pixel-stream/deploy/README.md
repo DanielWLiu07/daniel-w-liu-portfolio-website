@@ -114,7 +114,7 @@ code. `image` keeps only the newest image per OS (~$1–3/month of snapshots).
 
   | Variable (Production + Preview) | Value |
   |---|---|
-  | `NEXT_PUBLIC_STREAM_MODE` | `opt-in` (only `/resume?stream=1`), later `weak` or `all` |
+  | `NEXT_PUBLIC_STREAM_MODE` | `all` (since 2026-10-04: everyone starts streamed; `?stream=1` stays streamed, `?stream=0` local) |
   | `STREAM_FLEET_STATIC` | `https://16-54-162-165.sslip.io` |
   | `STREAM_SEATS_PER_SERVER` | `2` |
 
