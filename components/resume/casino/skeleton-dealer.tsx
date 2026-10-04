@@ -1,4 +1,6 @@
 'use client'
+import { trackWorldMatrices } from './tracked-world-matrices'
+import { cacheNameLookups } from './cached-name-lookups'
 
 import { CardArtworkLoader } from './card-art-textures'
 
@@ -131,6 +133,13 @@ export default function SkeletonDealer({ feltY, chordZ, rail, fit, fx, motionRef
     motionRig.current = new DealerRetargeter(modelRef.current!)
     homePose.current = motionRig.current.sample(0)
     faceRig.current = new DealerFaceRig(modelRef.current!)
+    // The IK re-reads bone positions hundreds of times a frame; skip recomputing
+    // matrices whose inputs didn't change (exact; ?rawRig for three's own path).
+    // Mounted by now, so the path up to the scene is tracked too.
+    if (!new URLSearchParams(window.location.search).has('rawRig')) {
+      trackWorldMatrices(modelRef.current!)
+      cacheNameLookups(modelRef.current!)
+    }
     onReady(group.current)
     return () => { motionRig.current = null; faceRig.current = null; onReady(null) }
   }, [model, onReady, renderMeshes, revealUniforms])
