@@ -7,6 +7,7 @@
 //   3. pool gets SIGTERM (like a Spot interruption) → A falls back to local
 //   4. pool gone → a new visitor renders locally right away
 //   node experiments/pixel-stream/e2e-fallback.mjs <pool pid>
+// Remote pool: POOL=https://<server> STOP_CMD='<shell command that stops it>'
 import { spawn } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -60,7 +61,7 @@ const streamLive = async (p, ms) => {
   const t0 = Date.now()
   while (Date.now() - t0 < ms) {
     if (await p.v.evaluate(`!!document.querySelector('iframe[src*="embed=1"]') && document.readyState === 'complete'`).catch(() => false)) {
-      const seat = await (await fetch('http://localhost:8787/api/seat')).json()
+      const seat = await (await fetch(`${process.env.POOL ?? 'http://localhost:8787'}/api/seat`)).json()
       if (seat.busy > 0) return Date.now() - t0
     }
     await sleep(200)
@@ -83,7 +84,8 @@ check((await mode(b)) === 'stream', 'B is streamed')
 check(cMs != null, `C found no seat and rendered locally (${cMs} ms)`)
 
 console.log('== 3. pool shuts down (SIGTERM, like a Spot interruption)')
-process.kill(poolPid, 'SIGTERM')
+if (process.env.STOP_CMD) (await import('node:child_process')).execSync(process.env.STOP_CMD, { stdio: 'ignore' })
+else process.kill(poolPid, 'SIGTERM')
 const fbMs = await waitMode(a, 'local', 20000)
 check(fbMs != null, `A fell back to local rendering ${fbMs} ms after the shutdown`)
 

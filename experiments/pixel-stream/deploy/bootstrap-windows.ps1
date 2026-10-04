@@ -82,6 +82,11 @@ $trigger = New-ScheduledTaskTrigger -AtLogOn -User stream
 $principal = New-ScheduledTaskPrincipal -UserId stream -LogonType Interactive -RunLevel Limited
 $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1)
 Register-ScheduledTask -TaskName pixel-stream -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null
+# Every minute (as SYSTEM): shut down when the pool asks (idle self-stop).
+Register-ScheduledTask -TaskName pixel-stream-stop -Force `
+  -Action (New-ScheduledTaskAction -Execute 'powershell.exe' -Argument '-NoProfile -ExecutionPolicy Bypass -File C:\pixel-stream\deploy\stop-watch.ps1') `
+  -Trigger (New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 1)) `
+  -Principal (New-ScheduledTaskPrincipal -UserId SYSTEM -LogonType ServiceAccount -RunLevel Highest) | Out-Null
 # At every boot (as SYSTEM): point Caddy at this server's host (StreamHost tag or
 # <ip>.sslip.io), so servers launched from a golden image need no deploy.
 Register-ScheduledTask -TaskName pixel-stream-caddy -Force `

@@ -54,7 +54,7 @@ await Promise.all(phones.map((p) => waitLive(p, 8000)))
 console.log('\n== all visitors arrive at once')
 for (const p of phones) console.log(`visitor ${p.i}: ${p.liveMs != null ? `live after ${p.liveMs} ms` : `not live — "${await text(p, 'gateMsg')}"`}`)
 
-await sleep(8000) // everyone watching their intro
+await sleep(Number(process.env.WATCH_MS ?? 8000)) // everyone watching their intro
 console.log('\n== while everyone watches (8 s in)')
 for (const p of phones.filter((p) => p.liveMs != null)) {
   console.log(`visitor ${p.i}: ${await text(p, 'phase')} · seat renders ${await text(p, 'rfps')} fps · phone receives ${await text(p, 'fps')} fps · ${await text(p, 'res')} · ${await text(p, 'kbps')}`)
