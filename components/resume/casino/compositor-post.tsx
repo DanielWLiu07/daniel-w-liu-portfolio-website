@@ -19,6 +19,8 @@ import { startupStage } from './startup-timing'
 
 type Uniforms = Compositor['uniforms']
 
+const RAW_PASSES = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('rawPasses')
+
 export default function CompositorPost({
   build,
   onFrame,
@@ -98,6 +100,15 @@ export default function CompositorPost({
     const warming = renderWarmup.current
     const renderFrame = () => {
       const restore = warming ? revealWarmupActors(scene) : null
+      // Every actor has moved for this frame (they run before priority 1), and
+      // nothing moves between this frame's ~5 render passes (scene, shadow,
+      // position, overlay depth…). Three re-updates every matrix in the scene at
+      // each pass; do it once instead. Same matrices, ?rawPasses for three's path.
+      const autoWorld = scene.matrixWorldAutoUpdate
+      if (autoWorld && !RAW_PASSES) {
+        scene.updateMatrixWorld()
+        scene.matrixWorldAutoUpdate = false
+      }
       try {
         cardLayers.prepare(scene)
         // Resize existing targets; rebuilding the graph here discards warmed GPU
@@ -122,6 +133,7 @@ export default function CompositorPost({
           })
         } else comp.render()
       } finally {
+        scene.matrixWorldAutoUpdate = autoWorld
         restore?.()
       }
     }
