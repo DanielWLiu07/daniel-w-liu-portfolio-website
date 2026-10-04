@@ -377,10 +377,22 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
     const deferredVideoLoads: (() => void)[] = []
     const deferredContentLoads: (() => void)[] = []
     let contentLoadTimer = 0
+    // A stalled request (a flaky mobile link) never errors, so without this one
+    // image could keep the loading cover up forever. Carry on after 12 s: anything
+    // still missing appears when it arrives.
+    const assetsSafetyTimer = window.setTimeout(() => {
+      if (assetsFinished) return
+      console.warn(`[projects] ${totalAssetsToLoad - assetsLoadedCount} asset(s) still loading after 12 s: continuing`)
+      assetsLoadedCount = totalAssetsToLoad - 1
+      checkAllAssetsLoaded()
+    }, 12_000)
 
+    let assetsFinished = false
     const checkAllAssetsLoaded = () => {
       assetsLoadedCount++
-      if (assetsLoadedCount >= totalAssetsToLoad) {
+      if (assetsLoadedCount >= totalAssetsToLoad && !assetsFinished) {
+        assetsFinished = true
+        clearTimeout(assetsSafetyTimer)
         setAllVideosLoaded(true)
         // Start loading thumbnail videos after all static assets are ready
         deferredVideoLoads.forEach(load => load())
@@ -2194,6 +2206,7 @@ export default function ProjectSlider({ isPaused, onProjectClick, onPauseChange,
 
     return () => {
       clearTimeout(contentLoadTimer)
+      clearTimeout(assetsSafetyTimer)
       resizeObserver.disconnect()
       window.removeEventListener('mousemove', onMouseMoveGlobal)
       window.removeEventListener('touchmove', onTouchMoveGlobal)
