@@ -21,6 +21,8 @@ export interface ServerView {
   state: ServerState
   /** live seat counts; null when not running or not answering */
   pool: Pool | null
+  /** when it was last launched/started (ms), if known */
+  since?: number
 }
 
 export interface FleetOptions {
@@ -45,13 +47,17 @@ export interface Decision {
  * (counting servers already booting) fall below minFreeSeats, start one more
  * stopped server, up to maxServers. With nothing running, that is the wake-up.
  */
-export function decide(servers: ServerView[], opts: FleetOptions): Decision {
+export function decide(servers: ServerView[], opts: FleetOptions, { claiming = true, now = Date.now() }: { claiming?: boolean; now?: number } = {}): Decision {
   const healthy = servers.filter((s) => s.state === 'running' && s.pool && !s.pool.draining && s.url)
   const pick = healthy
     .filter((s) => s.pool!.warm > 0)
     .sort((a, b) => b.pool!.warm - a.pool!.warm || a.id.localeCompare(b.id))[0]
-  const booting = servers.filter((s) => s.state === 'starting' || (s.state === 'running' && !s.pool))
-  const free = healthy.reduce((n, s) => n + s.pool!.warm, 0) - (pick ? 1 : 0) + booting.length * opts.seatsPerServer
+  // Running without an answering pool is still booting for a while after launch
+  // (Windows: logon, site, seats warm); after BOOT_GRACE_MS it is broken, and must
+  // not block starting another server.
+  const booting = servers.filter((s) => s.state === 'starting' || (s.state === 'running' && !s.pool && (s.since === undefined || now - s.since < BOOT_GRACE_MS)))
+  // A wake-up heartbeat takes no seat, so it must not count one as taken.
+  const free = healthy.reduce((n, s) => n + s.pool!.warm, 0) - (pick && claiming ? 1 : 0) + booting.length * opts.seatsPerServer
   const active = healthy.length + booting.length
   const start: string[] = []
   if (free < opts.minFreeSeats && active < opts.maxServers) {
@@ -61,6 +67,9 @@ export function decide(servers: ServerView[], opts: FleetOptions): Decision {
   const reason = pick ? 'ok' : booting.length || start.length ? 'waking' : healthy.length ? 'full' : 'none'
   return { url: pick?.url ?? null, reason, start }
 }
+
+/** How long a started server may take before its pool must answer. */
+export const BOOT_GRACE_MS = 8 * 60_000
 
 export interface Fleet {
   list(): Promise<Omit<ServerView, 'pool'>[]>
@@ -105,6 +114,7 @@ export function ec2Fleet(fleet: string, config: Ec2Config): Fleet {
         return {
           id: i.InstanceId!,
           state: EC2_STATES[i.State?.Name ?? ''] ?? 'stopping',
+          since: i.LaunchTime ? new Date(i.LaunchTime).getTime() : undefined,
           url: host ? `https://${host}` : i.PublicIpAddress ? `http://${i.PublicIpAddress}` : null,
         }
       })

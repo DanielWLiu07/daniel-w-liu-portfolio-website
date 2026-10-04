@@ -15,7 +15,7 @@ export async function GET(request: Request) {
     const { fleet, opts } = configured
     const listed = await fleet.list()
     const servers = await Promise.all(listed.map(async (s) => ({ ...s, pool: s.state === 'running' && s.url ? await readPool(s.url) : null })))
-    const decision = decide(servers, opts)
+    const decision = decide(servers, opts, { claiming: !wake })
     if (decision.start.length) {
       console.info(`[stream] starting ${decision.start.join(', ')} (${decision.reason})`)
       // A Spot server AWS stopped for capacity can refuse to start; the visitor

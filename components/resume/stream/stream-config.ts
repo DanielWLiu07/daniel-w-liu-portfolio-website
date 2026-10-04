@@ -42,8 +42,11 @@ export function alwaysStreamed(search: string): boolean {
   return new URLSearchParams(search).get('stream') === '1'
 }
 
-/** Ask the front door for a seat: a stream URL, or null (render locally). */
-export async function requestSeat(timeoutMs = 1500): Promise<string | null> {
+/**
+ * Ask the front door for a seat: a stream URL, or null (render locally). It
+ * answers in ~0.2 s warm; the allowance covers a cold serverless start.
+ */
+export async function requestSeat(timeoutMs = 2500): Promise<string | null> {
   try {
     const res = await fetch('/api/stream/seat', { cache: 'no-store', signal: AbortSignal.timeout(timeoutMs) })
     if (!res.ok) return null
@@ -61,9 +64,12 @@ export function deviceId(): string {
     if (!id) localStorage.setItem('ps-device', (id = crypto.randomUUID()))
     return id
   } catch {
-    return 'anonymous'
+    // Storage blocked: an id for this page only (a shared fallback id would make
+    // every such visitor take each other's seat).
+    return (pageDevice ??= crypto.randomUUID())
   }
 }
+let pageDevice: string | undefined
 
 export interface HandoffInput {
   /** the local copy has loaded and compiled (held at frame 0) */

@@ -43,6 +43,8 @@ export default function StreamSession({ capable, Local }: {
   // Inputs to the handoff decision; read from callbacks, never during render.
   const s = useRef({ phase: 'asking' as Phase, localReady: false, introStarted: false })
   const arrivedAt = useRef(0)
+  const graceTimer = useRef(0)
+  useEffect(() => () => clearTimeout(graceTimer.current), [])
   const lastReady = useRef<number | null>(null)
   useEffect(() => {
     arrivedAt.current = performance.now()
@@ -117,7 +119,8 @@ export default function StreamSession({ capable, Local }: {
       case 'live':
         // Give the local copy a moment to win before the stream starts the show,
         // but only when it was fast here before (localGraceMs).
-        setTimeout(() => setGraceOver(true), capable ? localGraceMs(lastReady.current, performance.now() - arrivedAt.current) : 0)
+        clearTimeout(graceTimer.current)
+        graceTimer.current = window.setTimeout(() => setGraceOver(true), capable ? localGraceMs(lastReady.current, performance.now() - arrivedAt.current) : 0)
         return
       case 'intro':
         st.introStarted = true

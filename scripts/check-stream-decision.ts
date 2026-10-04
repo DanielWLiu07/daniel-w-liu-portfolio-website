@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { alwaysStreamed, canHandOff, isWeakDevice, localGraceMs, MAX_LOCAL_GRACE_MS, wantsStream } from '../components/resume/stream/stream-config'
-import { decide, type ServerView } from '../lib/stream/fleet'
+import { BOOT_GRACE_MS, decide, type ServerView } from '../lib/stream/fleet'
 
 // --- who streams ---------------------------------------------------------------
 const strong = { gpu: {}, deviceMemory: 8, hardwareConcurrency: 10 }
@@ -59,5 +59,18 @@ assert.deepEqual([d.url, d.start], [null, ['b']], 'a draining server takes no vi
 
 d = decide([srv('a', 'running', null), srv('b', 'stopped')], opts)
 assert.deepEqual([d.url, d.reason, d.start], [null, 'waking', []], 'running but not answering yet (seats warming) counts as booting')
+
+const now = 10_000_000
+d = decide([{ ...srv('a', 'running', null), since: now - BOOT_GRACE_MS - 1 }, srv('b', 'stopped')], opts, { now })
+assert.deepEqual([d.url, d.start], [null, ['b']], 'running but silent long after launch is broken: start another instead of waiting forever')
+
+// One seat per server (the smooth configuration) with one kept free.
+const one = { minFreeSeats: 1, maxServers: 2, seatsPerServer: 1 }
+d = decide([srv('a', 'running', pool(1)), srv('b', 'stopped')], one)
+assert.deepEqual([d.url, d.start], ['https://a', ['b']], 'the visitor takes the last free seat: wake b for the next one')
+d = decide([srv('a', 'running', pool(1)), srv('b', 'stopped')], one, { claiming: false })
+assert.deepEqual([d.url, d.start], ['https://a', []], 'a wake heartbeat takes no seat, so it starts nothing extra')
+d = decide([srv('a', 'stopped'), srv('b', 'stopped')], one, { claiming: false })
+assert.deepEqual([d.reason, d.start], ['waking', ['a']], 'heartbeat with everything asleep: wake one')
 
 console.log('PASS: stream decisions (who streams, handoff moment, front door)')
