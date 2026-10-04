@@ -32,7 +32,9 @@
   // intro's card burst is the hardest thing to compress and comes first.
   // VP8 has no a=fmtp line of its own, so one is added for it (and any video codec
   // without one); otherwise the hint never applies and VP8 ramps up from ~0.3 Mbps.
-  const BOOST = 'x-google-start-bitrate=10000;x-google-min-bitrate=3000;x-google-max-bitrate=16000'
+  // Start high so the card burst isn't starved while the estimate ramps; a 1 Mbps
+  // floor (not higher) so a weak link can still adapt instead of looping on loss.
+  const BOOST = 'x-google-start-bitrate=10000;x-google-min-bitrate=1000;x-google-max-bitrate=16000'
   const boostSdp = (sdp) => {
     const out = sdp.replace(/a=fmtp:\d+ [^\r\n]*/g, (line) =>
       line.includes('x-google') || line.includes('apt=') || line.includes('/') ? line : `${line};${BOOST}`)
@@ -383,11 +385,17 @@
 
     async onSignal(m) {
       if (m.type === 'start') return start(m)
-      if (m.type === 'answer') return pc?.setRemoteDescription({ type: 'answer', sdp: boostSdp(m.sdp.sdp) })
+      // An answer to an older offer (the viewer reconnected meanwhile) would fail the new connection.
+      if (m.type === 'answer') return m.conn && m.conn !== conn ? undefined : pc?.setRemoteDescription({ type: 'answer', sdp: boostSdp(m.sdp.sdp) })
       if (m.type === 'params') return applyParams(m)
       if (m.type === 'stop') stop()
     },
   })
+
+  const INPUT_KINDS = new Set(['move', 'down', 'up', 'wheel', 'probe', 'keyframe'])
+  const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : 0)
+  // The viewer's current connection attempt (offers and answers carry it).
+  let conn = null
 
   function stop() {
     clearInterval(statsTimer)
@@ -395,8 +403,9 @@
     pc = null
   }
 
-  async function start({ codec, maxBitrateKbps, contentHint, iceServers }) {
+  async function start({ codec, maxBitrateKbps, contentHint, iceServers, conn: id }) {
     stop()
+    conn = id ?? null
     await ps.capture()
     if (window.__casinoHoldIntro && !document.documentElement.dataset.introReleased) ps.keepAlive(true)
     track.contentHint = contentHint || 'detail'
@@ -414,7 +423,14 @@
     // Unordered/unreliable for pointer moves (never block on a lost packet),
     // reliable for presses, wheel and latency probes.
     for (const [label, init] of [['fast', { ordered: false, maxRetransmits: 0 }], ['rel', {}]]) {
-      pc.createDataChannel(label, init).onmessage = (e) => send({ type: 'input', ...JSON.parse(e.data) })
+      pc.createDataChannel(label, init).onmessage = (e) => {
+        // Only input, rebuilt field by field: the visitor must not be able to send
+        // any other message type (or non-numeric values) to the pool.
+        let m
+        try { m = JSON.parse(e.data) } catch { return }
+        if (!m || !INPUT_KINDS.has(m.kind)) return
+        send({ type: 'input', kind: m.kind, x: num(m.x), y: num(m.y), dx: num(m.dx), dy: num(m.dy), buttons: m.buttons ? 1 : 0, value: m.value ? 1 : 0 })
+      }
     }
     const thisPc = pc
     const offer = await pc.createOffer()
@@ -425,7 +441,7 @@
       setTimeout(resolve, 2000)
     })
     await applyParams({ maxBitrateKbps })
-    send({ to: 'viewer', type: 'offer', sdp: pc.localDescription.toJSON() })
+    send({ to: 'viewer', type: 'offer', conn, sdp: pc.localDescription.toJSON() })
     startStats(thisPc)
   }
 

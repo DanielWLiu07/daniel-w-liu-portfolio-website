@@ -63,16 +63,24 @@ const MAX_SESSION_MS = Number(env.MAX_SESSION_MS ?? 600_000)
 const MAX_SEATS_PER_CLIENT = Number(env.MAX_SEATS_PER_CLIENT ?? 3)
 // Wake-on-demand: with SELF_STOP=1 the machine shuts itself down (EC2 treats that
 // as "stop", so billing ends) after SELF_STOP_IDLE_MIN with no visitors, except
-// inside the keep-on window (e.g. weekdays 9-21 Toronto time).
-// Linux only: this runs `sudo shutdown`, which must never fire on a dev machine.
-const SELF_STOP = env.SELF_STOP === '1' && process.platform === 'linux'
+// inside the keep-on window (e.g. weekdays 9-21 Toronto time) or on an instance
+// tagged StreamAlwaysOn=true. Linux runs `sudo shutdown`; Windows asks the SYSTEM
+// task pixel-stream-stop (the seats' user may not shut down). Never on a Mac.
+const SELF_STOP = env.SELF_STOP === '1' && (process.platform === 'linux' || process.platform === 'win32')
 const SELF_STOP_IDLE_MIN = Number(env.SELF_STOP_IDLE_MIN ?? 30)
 const KEEP_ON_DAYS = env.KEEP_ON_DAYS ?? '' // e.g. 1-5 (Mon-Fri), empty = no window
 const KEEP_ON_HOURS = env.KEEP_ON_HOURS ?? '9-21'
 const KEEP_ON_TZ = env.KEEP_ON_TZ ?? 'America/Toronto'
 const TRUST_PROXY = env.TRUST_PROXY === '1' // take the client IP from Caddy's X-Forwarded-For
-const EMBED_ORIGINS = (env.EMBED_ORIGINS ?? '*').split(',').map((s) => s.trim()).filter(Boolean)
-const LAB_TOKEN = env.LAB_TOKEN ?? '' // required for lab endpoints when set
+// Behind Caddy (a real server) unset settings fail closed: no third-party embedding
+// and no lab endpoints. A local dev pool (no proxy) stays open for convenience.
+const PUBLIC = TRUST_PROXY
+const EMBED_ORIGINS = (env.EMBED_ORIGINS ?? (PUBLIC ? '' : '*')).split(',').map((s) => s.trim()).filter(Boolean)
+const LAB_TOKEN = env.LAB_TOKEN ?? ''
+// A seat claimed but never started (tab hidden, page gone, a forged request) goes back after this.
+const BEGIN_TIMEOUT_MS = Number(env.BEGIN_TIMEOUT_MS ?? 45_000)
+// A viewer whose event stream drops keeps its seat this long to reconnect.
+const RECONNECT_GRACE_MS = Number(env.RECONNECT_GRACE_MS ?? 8_000)
 const STUN_URLS = (env.STUN_URLS ?? 'stun:stun.cloudflare.com:3478,stun:stun.l.google.com:19302').split(',').filter(Boolean)
 const CF_TURN_KEY_ID = env.CF_TURN_KEY_ID ?? ''
 const CF_TURN_API_TOKEN = env.CF_TURN_API_TOKEN ?? ''
@@ -145,16 +153,17 @@ class Seat {
 
   async boot() {
     const profile = path.join(HERE, this.index === 0 ? '.chrome-profile' : `.chrome-profile-${this.index}`)
-    const chrome = spawn(CHROME_BIN, chromeArgs({ cdpPort: this.cdpPort, profile, width: W, height: H, headless: HEADLESS }), { stdio: 'ignore' })
+    const chrome = (this.chrome = spawn(CHROME_BIN, chromeArgs({ cdpPort: this.cdpPort, profile, width: W, height: H, headless: HEADLESS }), { stdio: 'ignore' }))
     children.push(chrome)
-    // A seat whose Chrome dies is taken out of the pool (systemd restarts the whole
-    // server if they all go).
+    // A seat whose Chrome dies is rebuilt with a fresh Chrome after a pause.
     chrome.on('exit', (code) => {
       log(`seat ${this.index} chrome exited (${code})`)
+      if (this.chrome !== chrome) return
       this.phase = 'dead'
+      this.page?.close?.()
       if (this.owner) { sendTo(this.owner, { type: 'fallback', reason: 'seat-crashed' }); this.owner = null }
       broadcastPool()
-      if (seats.every((s) => s.phase === 'dead')) process.exit(1)
+      if (!draining) setTimeout(() => this.reboot('chrome exited'), 3000)
     })
     await waitForJson(`http://127.0.0.1:${this.cdpPort}/json/version`)
     const target = (await waitForJson(`http://127.0.0.1:${this.cdpPort}/json/list`)).find((t) => t.type === 'page')
@@ -173,25 +182,68 @@ class Seat {
     })
     page.on('Runtime.bindingCalled', ({ name, payload }) => {
       if (name !== '__psSend') return
-      const msg = JSON.parse(payload)
+      // A throw here would escape the CDP socket listener and take the pool down.
+      try { this.onSeatMessage(JSON.parse(payload)) } catch (err) { log(`seat ${this.index} message`, err.message) }
+    })
+    page.on('Inspector.targetCrashed', () => this.recover('renderer crashed'))
+    await page.send('Inspector.enable').catch(() => {})
+    await this.load('first')
+  }
+
+  onSeatMessage(msg) {
+      const n = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null)
       if (msg.type === 'senderStats') {
         // Per-second timeline of what the seat renders/encodes, from intro release.
         const t = this.releasedAt ? Math.round((Date.now() - this.releasedAt) / 1000) : null
-        this.timeline.push({ t, render: Math.round(msg.renderFps), encode: msg.encodeFps, encodeMs: msg.encodeMs && +msg.encodeMs.toFixed(1), size: `${msg.width}x${msg.height}`, kbps: Math.round(msg.targetKbps ?? 0), limit: msg.limitation, bwe: msg.bweKbps && Math.round(msg.bweKbps), rtt: msg.rttMs && Math.round(msg.rttMs), lost: msg.lost, nacks: msg.nacks, plis: msg.plis })
+        this.timeline.push({ t, render: Math.round(n(msg.renderFps) ?? 0), encode: n(msg.encodeFps), encodeMs: n(msg.encodeMs) != null ? +n(msg.encodeMs).toFixed(1) : null, size: `${n(msg.width)}x${n(msg.height)}`, kbps: Math.round(n(msg.targetKbps) ?? 0), limit: typeof msg.limitation === 'string' ? msg.limitation : null, bwe: n(msg.bweKbps) != null ? Math.round(msg.bweKbps) : null, rtt: n(msg.rttMs) != null ? Math.round(msg.rttMs) : null, lost: n(msg.lost), nacks: n(msg.nacks), plis: n(msg.plis) })
         if (this.timeline.length > 120) this.timeline.shift()
         // Meter relayed bytes (a new connection restarts the pair's counter).
-        const pairBytes = msg.pairBytes ?? 0
+        const pairBytes = Math.max(0, n(msg.pairBytes) ?? 0)
         const delta = pairBytes >= (this.lastPairBytes ?? 0) ? pairBytes - (this.lastPairBytes ?? 0) : pairBytes
         this.lastPairBytes = pairBytes
-        if (msg.relay && delta > 0) addTurnBytes(delta)
+        // A stats tick covers ~1 s; anything beyond ~40 MB (320 Mbps) is not real traffic.
+        if (msg.relay === true && delta > 0) addTurnBytes(Math.min(delta, 40e6))
       }
       if (msg.to === 'viewer') return this.owner && sendTo(this.owner, msg)
       if (msg.type === 'input') {
         if (msg.kind !== 'probe' && msg.kind !== 'keyframe') this.touch()
         this.input(msg).catch((err) => log('input', err.message))
       }
-    })
-    await this.load('first')
+  }
+
+  // The page crashed or stopped answering: hand its visitor to local rendering and
+  // rebuild the seat (a fresh load, or a fresh Chrome if even that fails).
+  async recover(reason) {
+    if (this.recovering) return
+    this.recovering = true
+    log(`seat ${this.index} unhealthy: ${reason}`)
+    if (this.owner) { sendTo(this.owner, { type: 'fallback', reason: 'seat-crashed' }); this.owner = null }
+    this.phase = 'failed'
+    broadcastPool()
+    try {
+      await this.load('first')
+    } catch (err) {
+      log(`seat ${this.index} reload after ${reason} failed: ${err.message}; restarting its Chrome`)
+      this.chrome?.kill()
+    } finally {
+      this.recovering = false
+    }
+  }
+
+  // Boot (or re-boot) this seat; a failure leaves it 'failed' for housekeeping to retry.
+  async reboot(reason) {
+    if (this.booting || draining) return
+    this.booting = true
+    try {
+      await this.boot()
+    } catch (err) {
+      log(`seat ${this.index} boot failed (${reason}): ${err.message}`)
+      this.phase = 'failed'
+      try { this.chrome?.kill() } catch {}
+    } finally {
+      this.booting = false
+      broadcastPool()
+    }
   }
 
   // Any input from the visitor counts as activity.
@@ -217,9 +269,9 @@ class Seat {
     this.introReleased = false
     broadcastPool()
     const wallStart = Date.now()
-    const loaded = new Promise((resolve) => page.on('Page.loadEventFired', resolve))
+    const loaded = page.once('Page.loadEventFired', 60_000)
     await (kind === 'first' ? page.send('Page.navigate', { url: SITE_URL }) : page.send('Page.reload', { ignoreCache: false }))
-    await loaded
+    await loaded.catch(() => log(`seat ${this.index} load event not seen in 60 s; checking the scene anyway`))
     let marks = {}
     do {
       await sleep(100)
@@ -331,6 +383,10 @@ class Seat {
       case 'probe':
         return page.send('Runtime.evaluate', { expression: `__ps.probe(${m.value ? 1 : 0})` })
       case 'keyframe':
+        // Restarting the encoder costs a large frame; a stalled decoder asks
+        // repeatedly, and a burst of keyframes on a weak link only loses more.
+        if (Date.now() - (this.lastKeyframe ?? 0) < 1000) return
+        this.lastKeyframe = Date.now()
         return page.send('Runtime.evaluate', { expression: '__ps.keyframe()', awaitPromise: true })
     }
   }
@@ -362,7 +418,9 @@ function seatFreed() {
 function claimSeat(viewerId) {
   const mine = seats.find((s) => s.owner === viewerId)
   if (mine) return mine
-  if (draining) return null
+  // Only a viewer page with an open event stream can hold a seat: it's how the
+  // seat comes back when they leave (and the per-device/per-IP limits need it).
+  if (draining || !viewers.has(viewerId)) return null
   // Same device, new tab or reload: take over its seat (and its show) rather than
   // holding two. The old tab is told and falls back to local rendering.
   const device = viewers.get(viewerId)?.device
@@ -371,6 +429,8 @@ function claimSeat(viewerId) {
     const previous = held.owner
     held.owner = viewerId
     held.ownerDevice = device
+    held.ownerGoneAt = 0
+    held.claimedAt = Date.now()
     held.lastInput = Date.now()
     sendTo(previous, { type: 'fallback', reason: 'replaced' })
     log(`seat ${held.index} taken over by the same device (${viewerId})`)
@@ -384,6 +444,7 @@ function claimSeat(viewerId) {
   if (!free) return null
   free.owner = viewerId
   free.ownerDevice = device
+  free.ownerGoneAt = 0
   free.claimedAt = Date.now()
   free.lastInput = Date.now()
   broadcastPool()
@@ -397,6 +458,19 @@ setInterval(() => {
   const now = Date.now()
   const full = poolSummary().warm === 0
   for (const seat of seats) {
+    // The viewer's page is gone (its event stream closed and didn't come back).
+    if (seat.owner && !viewers.has(seat.owner)) {
+      seat.ownerGoneAt ||= now
+      if (now - seat.ownerGoneAt > RECONNECT_GRACE_MS) seat.release('viewer gone').catch((err) => log('release', err.message))
+      continue
+    }
+    if (seat.owner) seat.ownerGoneAt = 0
+    // Claimed but never started: a hidden tab, a page that died, or a forged request.
+    if (seat.owner && !seat.introReleased && now - seat.claimedAt > BEGIN_TIMEOUT_MS) {
+      sendTo(seat.owner, { type: 'fallback', reason: 'never-started' })
+      seat.release('never started').catch((err) => log('release', err.message))
+      continue
+    }
     if (!seat.owner || !seat.introReleased) continue
     if (seat.idleWarnedAt && now - seat.idleWarnedAt > IDLE_GRACE_MS) {
       sendTo(seat.owner, { type: 'paused', reason: 'idle' })
@@ -410,6 +484,25 @@ setInterval(() => {
     }
   }
 }, 2000)
+
+// Failed or dead seats are retried; a seat that stops answering is rebuilt. If
+// every seat stays broken (the site itself is down, say), exit so the service
+// restarts the site and the pool together.
+let allBrokenSince = 0
+setInterval(async () => {
+  if (draining) return
+  for (const seat of seats) {
+    if (seat.loading || seat.booting || seat.recovering) continue
+    if (seat.phase === 'failed' && seat.page && !seat.page.closed) seat.recover('retrying a failed load').catch(() => {})
+    else if ((seat.phase === 'dead' || seat.phase === 'failed') && !seat.booting) seat.reboot('retry').catch(() => {})
+    else if (seat.phase === 'hot') {
+      try { await seat.page.send('Runtime.evaluate', { expression: '1' }, 5000) } catch (err) { seat.recover(`health check: ${err.message}`).catch(() => {}) }
+    }
+  }
+  const broken = seats.every((s) => s.phase === 'failed' || s.phase === 'dead')
+  allBrokenSince = broken ? allBrokenSince || Date.now() : 0
+  if (allBrokenSince && Date.now() - allBrokenSince > 180_000) { log('every seat broken for 3 min: exiting so the service restarts the site and pool'); process.exit(1) }
+}, 20_000)
 
 // ---- Wake-on-demand: stop the machine when nobody needs it ------------------------
 let lastActivity = Date.now()
@@ -425,16 +518,25 @@ function inKeepOnWindow(now = new Date()) {
   return day >= d0 && day <= (d1 ?? d0) && hour >= h0 && hour < h1
 }
 
+// An instance tagged StreamAlwaysOn=true never stops itself. If the tag can't be
+// read, stay on: a wrongly stopped server is worse than one left running.
+const alwaysOn = SELF_STOP
+  ? imds('tags/instance/StreamAlwaysOn').then((v) => v?.trim() === 'true').catch(() => true) // no tag (404): may stop
+  : Promise.resolve(true)
 if (SELF_STOP) {
-  setInterval(() => {
-    if (seats.some((s) => s.owner) || waiting.length) { lastActivity = Date.now(); return }
+  setInterval(async () => {
+    if (await alwaysOn) return
+    if (seats.some((s) => s.owner) || waiting.length || viewers.size) { lastActivity = Date.now(); return }
     const idleMin = (Date.now() - lastActivity) / 60_000
     if (idleMin < SELF_STOP_IDLE_MIN || inKeepOnWindow()) return
     log(`no visitors for ${Math.round(idleMin)} min, outside the keep-on window: stopping the machine`)
     drain('idle shutdown')
     // EC2 treats an OS shutdown as "stop" (InstanceInitiatedShutdownBehavior=stop):
     // compute billing ends, the disk with everything predownloaded stays.
-    setTimeout(() => spawn('sudo', ['-n', '/usr/sbin/shutdown', '-h', 'now'], { stdio: 'inherit' }), 2000)
+    setTimeout(() => {
+      if (process.platform === 'win32') writeFileSync(path.join(HERE, 'stop-requested'), new Date().toISOString())
+      else spawn('sudo', ['-n', '/usr/sbin/shutdown', '-h', 'now'], { stdio: 'inherit' })
+    }, 2000)
   }, 60_000)
 }
 
@@ -526,7 +628,7 @@ async function iceServers(ip) {
     const res = await fetch(`https://rtc.live.cloudflare.com/v1/turn/keys/${CF_TURN_KEY_ID}/credentials/generate-ice-servers`, {
       method: 'POST',
       headers: { authorization: `Bearer ${CF_TURN_API_TOKEN}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ ttl: 3600 }),
+      body: JSON.stringify({ ttl: 900 }),
       signal: AbortSignal.timeout(2000),
     })
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -559,7 +661,8 @@ function cors(req, res) {
   }
 }
 
-const isLab = (url) => !LAB_TOKEN || url.searchParams.get('token') === LAB_TOKEN
+let backdrop = null // { at, data }: the cached start-screen backdrop
+const isLab = (url) => (LAB_TOKEN ? url.searchParams.get('token') === LAB_TOKEN : !PUBLIC)
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x')
@@ -574,7 +677,8 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/api/seat') {
       // The site's quick "should I stream?" check before it embeds the viewer.
       const p = poolSummary()
-      lastActivity = Date.now() // the front door asking counts as someone on the site
+      // (Not activity: the front door polls every running server on each visit, which
+      // would keep an unused standby server awake for as long as the site has traffic.)
       res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' })
       return res.end(JSON.stringify({ available: !p.draining && p.warm > 0, ...p }))
     }
@@ -585,10 +689,15 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === '/ice') {
       res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' })
-      return res.end(JSON.stringify({ iceServers: await iceServers(clientOf(req)) }))
+      // Relay credentials only for a viewer page that is actually connected here.
+      const viewer = viewers.get(url.searchParams.get('id') ?? '')
+      return res.end(JSON.stringify({ iceServers: viewer ? await iceServers(clientOf(req)) : [{ urls: STUN_URLS }] }))
     }
     if (url.pathname === '/events') {
-      const id = url.searchParams.get('id') ?? String(Math.random())
+      const id = url.searchParams.get('id') || String(Math.random())
+      const existing = viewers.get(id)
+      // A reconnect of the same page is fine; another address taking over an id is not.
+      if (existing && existing.client !== clientOf(req)) return res.writeHead(409).end()
       res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store', connection: 'keep-alive', 'x-accel-buffering': 'no' })
       viewers.set(id, { res, client: clientOf(req), embed: url.searchParams.has('embed'), device: url.searchParams.get('device') || id })
       lastActivity = Date.now()
@@ -598,19 +707,33 @@ const server = http.createServer(async (req, res) => {
         if (viewers.get(id)?.res === res) viewers.delete(id)
         const q = waiting.indexOf(id)
         if (q >= 0) waiting.splice(q, 1)
+        // Its seat waits RECONNECT_GRACE_MS for the page's EventSource to reconnect
+        // (housekeeping releases it otherwise).
         const seat = seats.find((s) => s.owner === id)
-        if (seat) seat.release().catch((err) => log('release', err.message))
+        if (seat) seat.ownerGoneAt = Date.now()
         else broadcastPool()
       })
       sendTo(id, statusFor(id))
       if (draining) sendTo(id, { type: 'fallback', reason: 'server-ending' })
       // Always invite a seat request: it is either seated, queued or told to fall back.
-      else if (seats.some((s) => s.phase === 'hot')) sendTo(id, { type: 'ready' })
+      // A seat still re-warming counts: the visitor's start waits for it.
+      else if (seats.some((s) => s.phase === 'hot' || (!s.owner && s.loading))) sendTo(id, { type: 'ready' })
       return
+    }
+    if ((url.pathname === '/signal' || url.pathname === '/reload') && req.method === 'POST' && !String(req.headers['content-type']).startsWith('application/json')) {
+      // A "simple" cross-site POST (no preflight) can't set this header.
+      return res.writeHead(415).end('application/json only')
     }
     if (url.pathname === '/signal' && req.method === 'POST') {
       const msg = await readBody(req)
-      if (!msg.from) return res.end('stale viewer page: reload it') // tabs opened before this version
+      if (typeof msg.from !== 'string' || !msg.from) return res.end('stale viewer page: reload it') // tabs opened before this version
+      // The page is leaving on purpose (handoff, fallback, tab closed): free the seat
+      // now rather than after the reconnect grace.
+      if (msg.type === 'leave') {
+        const seat = seats.find((s) => s.owner === msg.from)
+        if (seat) seat.release('left').catch((err) => log('release', err.message))
+        return res.end('ok')
+      }
       if (msg.type === 'resume' || msg.type === 'ping') {
         seats.find((s) => s.owner === msg.from)?.touch()
         return res.end('ok')
@@ -637,19 +760,29 @@ const server = http.createServer(async (req, res) => {
       // Lab "replay intro": only ever your own seat.
       const body = await readBody(req)
       const seat = seats.find((s) => s.owner === body.from)
-      res.end(seat ? 'ok' : 'no seat')
-      return seat?.load('warm-reload')
+      if (!seat || seat.loading) return res.end(seat ? 'busy' : 'no seat')
+      res.end('ok')
+      await seat.load('warm-reload').catch((err) => log(`seat ${seat.index} reload`, err.message))
+      return
     }
     if (url.pathname === '/screenshot') {
       // Blurred backdrop for the start screen (any warm seat), or your own seat for
       // the lab quality comparison. Native CSS resolution, the stream's pixel grid.
       const own = seats.find((s) => s.owner && s.owner === url.searchParams.get('id'))
+      // The shared start-screen backdrop is the same for everyone: capture it at
+      // most every 5 s rather than once per request.
+      if (!own && !isLab(url) && backdrop && Date.now() - backdrop.at < 5000) {
+        res.writeHead(200, { 'content-type': 'image/jpeg', 'cache-control': 'no-store' })
+        return res.end(backdrop.data)
+      }
       const seat = own ?? seats.find((s) => s.phase === 'hot' && (!s.owner || isLab(url)))
       if (!seat?.viewport) return res.writeHead(404).end()
       const { width, height, dpr } = seat.viewport
       const { data } = await seat.page.send('Page.captureScreenshot', { format: own ? 'png' : 'jpeg', quality: 60, clip: { x: 0, y: 0, width, height, scale: own ? 1 / dpr : 0.5 / dpr } })
+      const image = Buffer.from(data, 'base64')
+      if (!own && !isLab(url)) backdrop = { at: Date.now(), data: image }
       res.writeHead(200, { 'content-type': own ? 'image/png' : 'image/jpeg', 'cache-control': 'no-store' })
-      return res.end(Buffer.from(data, 'base64'))
+      return res.end(image)
     }
     if (url.pathname === '/status') {
       if (!isLab(url)) return res.writeHead(403).end()
@@ -673,5 +806,5 @@ server.listen(PORT, HOST, () => {
 })
 
 // Warm seats one at a time so they don't fight over the CPU while compiling.
-for (const seat of seats) await seat.boot()
-log('all seats warm', poolSummary())
+for (const seat of seats) await seat.reboot('startup')
+log('seats started', poolSummary())

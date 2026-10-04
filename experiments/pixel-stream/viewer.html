@@ -163,14 +163,16 @@ const params = new URLSearchParams(location.search)
 const LAB = params.has('lab')
 const EMBED = params.has('embed')
 if (!LAB) document.body.classList.add('play')
-const toHost = (type, extra = {}) => { if (EMBED && window.parent !== window) window.parent.postMessage({ source: 'pixel-stream', type, ...extra }, '*') }
+// Only the page that embeds us (when the browser says which) may read these.
+const HOST_ORIGIN = location.ancestorOrigins?.[0] ?? '*'
+const toHost = (type, extra = {}) => { if (EMBED && window.parent !== window) window.parent.postMessage({ source: 'pixel-stream', type, ...extra }, HOST_ORIGIN) }
 const video = $('video')
 let pc = null, fast = null, rel = null
 let playCodec = 'H264'
 let connectStart = 0, wantConnected = !LAB, replayStart = 0, serverWidth = 1280
 const logEl = $('log')
 const log = (t) => { logEl.textContent = `${new Date().toLocaleTimeString()} ${t}\n` + logEl.textContent }
-const post = (path, body) => fetch(path, { method: 'POST', body: body && JSON.stringify({ ...body, from: viewerId }) })
+const post = (path, body) => fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: body && JSON.stringify({ ...body, from: viewerId }) })
 const ms = (v) => (v == null || !isFinite(v) ? '–' : `${Math.round(v)} ms`)
 const mark = (label) => log(`+${Math.round(performance.now() - connectStart)} ms ${label}`)
 const cls = (el, v, good, warn) => { el.className = v == null ? '' : v <= good ? 'good' : v <= warn ? 'warn' : 'bad' }
@@ -196,9 +198,14 @@ const events = new EventSource(`/events?id=${viewerId}&device=${encodeURICompone
 let ended = false
 // The stream is over for this visitor (no seat, server ending, network blocked):
 // embedded, the site takes over with local rendering; direct, say so.
+// Tell the server we're leaving on purpose, so the seat frees at once (a dropped
+// event stream is otherwise given a few seconds to reconnect).
+const leave = () => { try { navigator.sendBeacon('/signal', new Blob([JSON.stringify({ type: 'leave', from: viewerId })], { type: 'application/json' })) } catch {} }
+addEventListener('pagehide', leave)
 function fallback(reason) {
   if (ended) return
   ended = true
+  leave()
   wantConnected = false
   pc?.close(); pc = null
   events.close()
@@ -215,7 +222,15 @@ function fallback(reason) {
 if (EMBED) {
   // Whatever the cause, no picture within 10 s means local rendering wins.
   setTimeout(() => { if (!document.body.classList.contains('live')) fallback('timeout') }, 10_000)
-  events.onerror = () => { if (!document.body.classList.contains('live')) fallback('unreachable') }
+  // Once live, the server going away (crash, restart, deploy) must not leave a
+  // frozen frame: EventSource retries on its own, so give it 3 s to come back.
+  let lostAt = 0
+  events.onerror = () => {
+    if (!document.body.classList.contains('live')) return fallback('unreachable')
+    lostAt ||= Date.now()
+    setTimeout(() => { if (lostAt && events.readyState !== EventSource.OPEN) fallback('unreachable') }, 3000)
+  }
+  events.onopen = () => { lostAt = 0 }
 }
 
 // Embedded, the intro starts only once the host page is actually showing us (its
@@ -225,7 +240,7 @@ addEventListener('message', (e) => {
   if (e.source !== window.parent || e.data?.source !== 'pixel-stream-host') return
   if (e.data.type === 'visible') hostVisible = true
   // The host page took over with local rendering: end quietly, seat goes back.
-  if (e.data.type === 'release') { ended = true; wantConnected = false; pc?.close(); pc = null; events.close() }
+  if (e.data.type === 'release') { ended = true; wantConnected = false; leave(); pc?.close(); pc = null; events.close() }
 })
 
 
@@ -241,6 +256,7 @@ function idleWarning(seconds) {
 }
 // The server took the seat back (idle while others needed it, or session cap).
 function paused(reason) {
+  if (EMBED) return fallback(reason) // the site carries on locally
   hideNotice()
   pc?.close(); pc = null
   wantConnected = false
@@ -269,7 +285,6 @@ events.onmessage = async (e) => {
   if (m.type === 'idle-warning') return idleWarning(m.seconds)
   if (m.type === 'idle-cleared') return hideNotice()
   if (m.type === 'paused') return paused(m.reason)
-  if (m.type === 'kicked') { pc?.close(); pc = null; wantConnected = false; document.body.classList.remove('live'); $('gateMsg').textContent = 'Another device took the table. Tap the chip to take it back.'; $('gate').classList.add('tap'); $('overlay').textContent = LAB ? 'Another device took over the stream. Press Connect to take it back.' : 'Another device took over the table. Tap to take it back.'; return }
   if (m.type === 'ready') { $('overlay').textContent = pc ? '' : LAB ? 'Server is warm. Press Connect.' : 'Dealing you in…'; if (wantConnected && !(pc && ['connected', 'connecting', 'new'].includes(pc.connectionState))) connect(); return }
   if (m.type === 'offer') return onOffer(m)
   if (m.type === 'senderStats') return renderSender(m)
@@ -445,7 +460,7 @@ function setupLowLatency(receiver, codecName) {
 // STUN (and TURN when the server has it) so the video finds a path through NATs
 // and strict networks. Fetched once per page; TURN credentials last an hour.
 let icePromise = null
-const getIce = () => (icePromise ??= fetch('/ice').then((r) => r.json()).then((j) => j.iceServers).catch(() => []))
+const getIce = () => (icePromise ??= fetch(`/ice?id=${viewerId}`).then((r) => r.json()).then((j) => j.iceServers).catch(() => []))
 
 async function connect() {
   if (ended) return
@@ -479,8 +494,13 @@ async function connect() {
     })
   }
   thisPc.ondatachannel = (e) => { if (e.channel.label === 'fast') fast = e.channel; else rel = e.channel }
+  let disconnectTimer = 0
   thisPc.onconnectionstatechange = () => {
     mark(`peer ${thisPc.connectionState}`)
+    clearTimeout(disconnectTimer)
+    // 'failed' can take 15-30 s to be declared; embedded, 4 s of 'disconnected'
+    // is enough to hand the visitor to local rendering instead of a frozen frame.
+    if (EMBED && thisPc.connectionState === 'disconnected') disconnectTimer = setTimeout(() => { if (thisPc === pc && thisPc.connectionState !== 'connected') fallback('network') }, 4000)
     if (thisPc.connectionState === 'failed') {
       $('overlay').textContent = 'Could not reach the render server over WebRTC (network blocked the video path).'
       if (!LAB) fallback('network')
@@ -489,16 +509,18 @@ async function connect() {
   thisPc.oniceconnectionstatechange = () => mark(`ice ${thisPc.iceConnectionState}`)
   const shape = screenShape()
   streamedWidth = shape?.width ?? 0
-  await post('/signal', { type: 'start', viewport: shape, codec: LAB ? $('codec').value : playCodec, maxBitrateKbps: +$('bitrate').value, contentHint: $('hint').value })
+  currentConn = Math.random().toString(36).slice(2)
+  await post('/signal', { type: 'start', conn: currentConn, viewport: shape, codec: LAB ? $('codec').value : playCodec, maxBitrateKbps: +$('bitrate').value, contentHint: $('hint').value })
 }
 
-async function onOffer({ sdp }) {
-  if (!pc) return
+let currentConn = null
+async function onOffer({ sdp, conn }) {
+  if (!pc || (conn && conn !== currentConn)) return // an offer for an earlier connect()
   mark('offer received')
   await pc.setRemoteDescription(sdp)
   const answer = await pc.createAnswer()
   // Same bitrate hint as the seat; VP8 has no a=fmtp line, so one is added.
-  const BOOST = 'x-google-start-bitrate=10000;x-google-min-bitrate=3000;x-google-max-bitrate=16000'
+  const BOOST = 'x-google-start-bitrate=10000;x-google-min-bitrate=1000;x-google-max-bitrate=16000'
   let sdpOut = answer.sdp.replace(/a=fmtp:\d+ [^\r\n]*/g, (line) =>
     line.includes('x-google') || line.includes('apt=') || line.includes('/') ? line : `${line};${BOOST}`)
   sdpOut = sdpOut.replace(/a=rtpmap:(\d+) (VP8|VP9|AV1|H264)\/90000\r\n/g, (line, pt) =>
@@ -534,7 +556,7 @@ const addFrameDescriptors = (sdp) => {
     setTimeout(resolve, 2000)
   })
   mark('answer gathered')
-  await post('/signal', { type: 'answer', sdp: pc.localDescription.toJSON() })
+  await post('/signal', { type: 'answer', conn, sdp: pc.localDescription.toJSON() })
   mark('answer delivered')
 }
 
@@ -665,7 +687,8 @@ if (!LAB) {
   let hiddenTimer = 0
   document.addEventListener('visibilitychange', () => {
     clearTimeout(hiddenTimer)
-    if (document.visibilityState === 'hidden') hiddenTimer = setTimeout(() => { events.close(); pc?.close(); pc = null; wantConnected = false; sessionStorage.setItem('ps-released', '1') }, 15000)
+    // Embedded, the site simply carries on locally (its local copy loads meanwhile).
+    if (document.visibilityState === 'hidden') hiddenTimer = setTimeout(() => { if (EMBED) return fallback('hidden'); events.close(); pc?.close(); pc = null; wantConnected = false; sessionStorage.setItem('ps-released', '1') }, 15000)
     else if (sessionStorage.getItem('ps-released')) { sessionStorage.removeItem('ps-released'); location.reload(); return }
     if (document.visibilityState === 'visible' && wantConnected && (!pc || ['failed', 'closed', 'disconnected'].includes(pc.connectionState))) connect()
   })
