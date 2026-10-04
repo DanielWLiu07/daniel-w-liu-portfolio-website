@@ -32,14 +32,19 @@
   // intro's card burst is the hardest thing to compress and comes first.
   // VP8 has no a=fmtp line of its own, so one is added for it (and any video codec
   // without one); otherwise the hint never applies and VP8 ramps up from ~0.3 Mbps.
-  // Start high so the card burst isn't starved while the estimate ramps; a 1 Mbps
-  // floor (not higher) so a weak link can still adapt instead of looping on loss.
-  const BOOST = 'x-google-start-bitrate=10000;x-google-min-bitrate=1000;x-google-max-bitrate=16000'
+  // Start high so the card burst isn't starved while the estimate ramps. The floor
+  // is per connection (start()): a Wi-Fi hiccup at connect can drop the estimate to
+  // the floor and it then needs ~10 s to climb, right through the card burst, so a
+  // fast link gets a high floor; a weak or unknown link a low one, so it can still
+  // adapt instead of looping on loss.
+  let floorKbps = 1000
+  const boost = () => `x-google-start-bitrate=10000;x-google-min-bitrate=${floorKbps};x-google-max-bitrate=16000`
+  // Ours replace any hints already present (the viewer's answer carries its own).
   const boostSdp = (sdp) => {
     const out = sdp.replace(/a=fmtp:\d+ [^\r\n]*/g, (line) =>
-      line.includes('x-google') || line.includes('apt=') || line.includes('/') ? line : `${line};${BOOST}`)
+      line.includes('apt=') || line.includes('/') ? line : `${line.replace(/;?x-google-[a-z-]+=\d+/g, '')};${boost()}`)
     return out.replace(/a=rtpmap:(\d+) (VP8|VP9|AV1|H264)\/90000\r\n/g, (line, pt) =>
-      out.includes(`a=fmtp:${pt} `) ? line : `${line}a=fmtp:${pt} ${BOOST}\r\n`)
+      out.includes(`a=fmtp:${pt} `) ? line : `${line}a=fmtp:${pt} ${boost()}\r\n`)
   }
   // Negotiate frame descriptors so encoded frames carry frame ids/dependencies:
   // the viewer's low-latency decoder needs them to detect a lost frame (and freeze
@@ -403,9 +408,13 @@
     pc = null
   }
 
-  async function start({ codec, maxBitrateKbps, contentHint, iceServers, conn: id }) {
+  async function start({ codec, maxBitrateKbps, contentHint, iceServers, conn: id, downlinkMbps }) {
     stop()
     conn = id ?? null
+    adaptive = 1
+    fpsCap = 60
+    // The viewer's own link estimate (Chrome's navigator.connection.downlink, capped at 10).
+    floorKbps = downlinkMbps >= 9 ? 6000 : downlinkMbps >= 4 ? 3000 : 1000
     await ps.capture()
     if (window.__casinoHoldIntro && !document.documentElement.dataset.introReleased) ps.keepAlive(true)
     track.contentHint = contentHint || 'detail'
@@ -445,14 +454,38 @@
     startStats(thisPc)
   }
 
+  // Bandwidth-adaptive resolution. The estimate sometimes starts low or collapses
+  // (a Wi-Fi hiccup while the intro is held) and needs ~10 s to climb back; the GPU
+  // encoder then drops frames rather than shrinking (2-30 fps through the card
+  // burst). Shrinking the picture while the estimate is low keeps motion at 60 fps:
+  // down at once, back up only once the estimate has clearly recovered.
+  // The GPU encoder skips frames rather than coarsening them when the budget is
+  // tight, so below ~6 Mbps the card burst stuttered at 5-39 fps even at a quarter
+  // of the pixels. A steady 30 fps cap there gave 26-32 fps: smooth, if less fluid.
+  let adaptive = 1
+  let fpsCap = 60
+  const ADAPT = [[1800, 2.5], [3500, 2], [6000, 1.5]] // below kbps → scale
+  function adaptTo(targetKbps) {
+    if (!(targetKbps > 0)) return
+    const want = ADAPT.find(([below]) => targetKbps < below)?.[1] ?? 1
+    // Going up a level needs 40% headroom over that level's threshold.
+    const up = want < adaptive && targetKbps >= 1.4 * (ADAPT.find(([, sc]) => sc === adaptive)?.[0] ?? 0)
+    const fps = targetKbps < 6000 ? 30 : targetKbps >= 8400 ? 60 : fpsCap
+    if (want > adaptive || up || fps !== fpsCap) {
+      if (want > adaptive || up) adaptive = want
+      fpsCap = fps
+      applyParams({})
+    }
+  }
+
   async function applyParams({ maxBitrateKbps, maxFramerate }) {
     const sender = pc?.getSenders()[0]
     if (!sender) return
     const p = sender.getParameters()
     if (!p.encodings?.length) p.encodings = [{}]
     if (maxBitrateKbps) p.encodings[0].maxBitrate = maxBitrateKbps * 1000
-    if (maxFramerate) p.encodings[0].maxFramerate = maxFramerate
-    p.encodings[0].scaleResolutionDownBy = scaleDown
+    p.encodings[0].maxFramerate = maxFramerate || fpsCap
+    p.encodings[0].scaleResolutionDownBy = scaleDown * adaptive
     // Under a bandwidth squeeze (the card burst makes huge frames and the estimate
     // drops), 'maintain-resolution' made the encoder drop frames (choppy). Balanced
     // lowers resolution for a moment instead, keeping motion smooth.
@@ -487,10 +520,14 @@
       const plis = out.pliCount - (prevNet.plis ?? out.pliCount)
       prevNet = { lost: remote?.packetsLost, nacks: out.nackCount, plis: out.pliCount }
       prev = out
+      adaptTo(out.targetBitrate / 1000)
       // Viewers behind strict networks reach us through Cloudflare's TURN relay;
       // the pool meters those bytes against a monthly cap.
       const remoteCandidate = pair && report.get(pair.remoteCandidateId)
       send({
+        adaptScale: adaptive,
+        fpsCap,
+        floorKbps,
         relay: remoteCandidate?.candidateType === 'relay',
         pairBytes: pair ? (pair.bytesSent ?? 0) + (pair.bytesReceived ?? 0) : 0,
         bweKbps: pair?.availableOutgoingBitrate ? pair.availableOutgoingBitrate / 1000 : null,

@@ -213,7 +213,7 @@ class Seat {
       if (msg.type === 'senderStats') {
         // Per-second timeline of what the seat renders/encodes, from intro release.
         const t = this.releasedAt ? Math.round((Date.now() - this.releasedAt) / 1000) : null
-        this.timeline.push({ t, render: Math.round(n(msg.renderFps) ?? 0), encode: n(msg.encodeFps), encodeMs: n(msg.encodeMs) != null ? +n(msg.encodeMs).toFixed(1) : null, size: `${n(msg.width)}x${n(msg.height)}`, kbps: Math.round(n(msg.targetKbps) ?? 0), limit: typeof msg.limitation === 'string' ? msg.limitation : null, bwe: n(msg.bweKbps) != null ? Math.round(msg.bweKbps) : null, rtt: n(msg.rttMs) != null ? Math.round(msg.rttMs) : null, lost: n(msg.lost), nacks: n(msg.nacks), plis: n(msg.plis) })
+        this.timeline.push({ t, render: Math.round(n(msg.renderFps) ?? 0), encode: n(msg.encodeFps), encodeMs: n(msg.encodeMs) != null ? +n(msg.encodeMs).toFixed(1) : null, size: `${n(msg.width)}x${n(msg.height)}`, kbps: Math.round(n(msg.targetKbps) ?? 0), limit: typeof msg.limitation === 'string' ? msg.limitation : null, bwe: n(msg.bweKbps) != null ? Math.round(msg.bweKbps) : null, rtt: n(msg.rttMs) != null ? Math.round(msg.rttMs) : null, lost: n(msg.lost), nacks: n(msg.nacks), plis: n(msg.plis), scale: n(msg.adaptScale), fpsCap: n(msg.fpsCap), floor: n(msg.floorKbps) })
         if (this.timeline.length > 120) this.timeline.shift()
         // Meter relayed bytes (a new connection restarts the pair's counter).
         const pairBytes = Math.max(0, n(msg.pairBytes) ?? 0)

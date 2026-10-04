@@ -512,7 +512,7 @@ async function connect() {
   const shape = screenShape()
   streamedWidth = shape?.width ?? 0
   currentConn = Math.random().toString(36).slice(2)
-  await post('/signal', { type: 'start', conn: currentConn, viewport: shape, codec: LAB ? $('codec').value : playCodec, maxBitrateKbps: +$('bitrate').value, contentHint: $('hint').value })
+  await post('/signal', { type: 'start', conn: currentConn, downlinkMbps: navigator.connection?.downlink, viewport: shape, codec: LAB ? $('codec').value : playCodec, maxBitrateKbps: +$('bitrate').value, contentHint: $('hint').value })
 }
 
 let currentConn = null
