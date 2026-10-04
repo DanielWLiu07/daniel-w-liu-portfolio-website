@@ -3,6 +3,8 @@
 // against the pool, reports time-to-live, stream fps and the seat's render fps
 // per visitor, then has visitor #1 leave and times how fast the queue moves.
 //   node experiments/pixel-stream/multitest.mjs [visitors=5]
+// BASE=https://<server> targets a remote pool. Each visitor is its own device
+// (browser context), or the one-seat-per-device rule would hand seats around.
 import { spawn } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -11,6 +13,7 @@ import { CDP, CHROME_BIN, waitForJson } from './cdp.mjs'
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const N = Number(process.argv[2] ?? 5)
 const PORT = 9400
+const BASE = process.env.BASE ?? 'http://localhost:8787'
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 const client = spawn(CHROME_BIN, [
@@ -22,13 +25,14 @@ process.on('exit', () => client.kill())
 const browser = await CDP.connect((await waitForJson(`http://127.0.0.1:${PORT}/json/version`)).webSocketDebuggerUrl)
 
 async function openPhone(i) {
-  const { targetId } = await browser.send('Target.createTarget', { url: 'about:blank', newWindow: true })
+  const { browserContextId } = await browser.send('Target.createBrowserContext')
+  const { targetId } = await browser.send('Target.createTarget', { url: 'about:blank', newWindow: true, browserContextId })
   const t = (await waitForJson(`http://127.0.0.1:${PORT}/json/list`)).find((x) => x.id === targetId)
   const v = await CDP.connect(t.webSocketDebuggerUrl)
   await v.send('Emulation.setDeviceMetricsOverride', { width: 393, height: 852, deviceScaleFactor: 2, mobile: true })
   await v.send('Emulation.setFocusEmulationEnabled', { enabled: true })
   const phone = { i, targetId, v, t0: Date.now(), liveMs: null }
-  await v.send('Page.navigate', { url: 'http://localhost:8787/' })
+  await v.send('Page.navigate', { url: `${BASE}/` })
   return phone
 }
 
