@@ -27,7 +27,7 @@ const v = await CDP.connect(t.webSocketDebuggerUrl)
 await v.send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 3, mobile: true })
 await v.send('Emulation.setFocusEmulationEnabled', { enabled: true })
 const t0 = Date.now()
-await v.send('Page.navigate', { url: 'http://localhost:8787/' })
+await v.send('Page.navigate', { url: `${process.env.BASE ?? 'http://localhost:8787'}/${process.env.TOKEN ? `?token=${encodeURIComponent(process.env.TOKEN)}` : ''}` })
 let shown = ''
 for (let i = 0; i < 150; i++) {
   shown = await v.evaluate(`document.getElementById('overlay').textContent + '|' + document.getElementById('video').videoWidth + 'x' + document.getElementById('video').videoHeight`).catch(() => '')
@@ -35,8 +35,11 @@ for (let i = 0; i < 150; i++) {
   await sleep(100)
 }
 console.log('page open → picture on screen', Date.now() - t0, 'ms; video', shown.split('|')[1])
-await sleep(2500)
-const shot = await v.send('Page.captureScreenshot', { format: 'png' })
-await writeFile(path.join(HERE, 'results', `phone-${w}x${h}.png`), Buffer.from(shot.data, 'base64'))
+// What the phone shows over the opening: right away, then as the intro plays.
+for (const at of (process.env.SHOTS ?? '2500').split(',').map(Number)) {
+  await sleep(Math.max(0, at - (Date.now() - t0)))
+  const shot = await v.send('Page.captureScreenshot', { format: 'jpeg', quality: 60 })
+  await writeFile(path.join(HERE, 'results', `phone-${w}x${h}-${at}ms.jpg`), Buffer.from(shot.data, 'base64'))
+}
 await browser.send('Target.closeTarget', { targetId })
 process.exit(0)

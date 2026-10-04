@@ -103,6 +103,41 @@ stopped server is back in ~2.5 min (measured 151 s after a reboot). `FRESH=1 ./a
 **Re-image after deploying new code**, or servers launched later run the old
 code. `image` keeps only the newest image per OS (~$1–3/month of snapshots).
 
+## Scaling: always-on base + standby servers that wake
+
+- **Server roles.** Tag the base server `StreamAlwaysOn=true`: it never stops
+  itself. Every other server (launched from the golden image) has
+  `SELF_STOP=1` (in server-windows.env) and stops itself after
+  `SELF_STOP_IDLE_MIN` with no viewers. Only real viewers count as activity;
+  front-door polls don't. If a server can't read its tag, it stays on.
+- **Windows self-stop.** The pool runs as the auto-logon user, which may not
+  shut Windows down. It writes `C:\pixel-stream\stop-requested`, and the
+  SYSTEM task `pixel-stream-stop` (registered by bootstrap and by every deploy)
+  shuts down. Servers are launched with InstanceInitiatedShutdownBehavior=stop,
+  so this is an EC2 stop: billing ends, the disk stays.
+- **Waking.** With `STREAM_FLEET` (not `STREAM_FLEET_STATIC`) and the
+  front-door key, `/api/stream/seat` starts a stopped server when free seats
+  would drop below `STREAM_MIN_FREE_SEATS`. Site-entry heartbeats (`?wake=1`)
+  don't count as taking a seat. A server that's running but silent for more than
+  8 min after launch counts as broken, not booting.
+- **Recommended:** `STREAM_MIN_FREE_SEATS=1`, `STREAM_MAX_SERVERS=2` (the 8-vCPU
+  quota), `STREAM_SEATS_PER_SERVER` = `SEATS`. Each seat's casino needs most of
+  one of a g4dn.xlarge's 2 physical cores: 1 seat holds 60 fps, 2 seats run at
+  ~52-56 fps.
+- Add each new server to the AWS budget's stop action (it names instances).
+
+## Security defaults
+
+- Behind Caddy (`TRUST_PROXY=1`), unset `EMBED_ORIGINS` means no third-party
+  embedding, and unset `LAB_TOKEN` means no lab endpoints. A local dev pool
+  stays open.
+- Only a viewer page with an open event stream can claim a seat, get relay
+  credentials (15 min TTL) or wait in line. POSTs must be JSON, so cross-site
+  forms can't send them. Data-channel input is rebuilt from a whitelist.
+- Deploys never copy `.env*` files to servers. Golden images contain
+  server-windows.env (LAB_TOKEN, TURN key), so keep them private (they are by
+  default) and re-image after rotating secrets.
+
 ## Live setup (danielwliu.com)
 
 - The domain is served by Vercel project `daniel-w-liu-portfolio-website-txay`.

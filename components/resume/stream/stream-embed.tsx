@@ -15,8 +15,10 @@ export type StreamEvent =
  * `allowIntro` (the page is showing, start the show) and `release` (the page
  * took over with local rendering; give the seat back).
  */
-export default function StreamEmbed({ url, device, allowIntro, release, fading, onEvent }: {
+export default function StreamEmbed({ url, ticket, device, allowIntro, release, fading, onEvent }: {
   url: string
+  /** the front door's seat ticket for this device */
+  ticket: string
   device: string
   allowIntro: boolean
   release: boolean
@@ -60,7 +62,7 @@ export default function StreamEmbed({ url, device, allowIntro, release, fading, 
   return (
     <iframe
       ref={frame}
-      src={`${url}/?embed=1&device=${encodeURIComponent(device)}`}
+      src={`${url}/?embed=1&device=${encodeURIComponent(device)}&ticket=${encodeURIComponent(ticket)}`}
       title="Always bet on Daniel W Liu: casino résumé"
       allow="autoplay; fullscreen"
       onLoad={() => setLoaded(true)}

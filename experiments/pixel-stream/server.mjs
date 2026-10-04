@@ -17,6 +17,7 @@
 //   SEATS=4 HEADLESS=1 node experiments/pixel-stream/server.mjs
 import http from 'node:http'
 import { spawn } from 'node:child_process'
+import { createHmac, timingSafeEqual } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { networkInterfaces } from 'node:os'
@@ -77,6 +78,23 @@ const TRUST_PROXY = env.TRUST_PROXY === '1' // take the client IP from Caddy's X
 const PUBLIC = TRUST_PROXY
 const EMBED_ORIGINS = (env.EMBED_ORIGINS ?? (PUBLIC ? '' : '*')).split(',').map((s) => s.trim()).filter(Boolean)
 const LAB_TOKEN = env.LAB_TOKEN ?? ''
+// With TICKET_SECRET (shared with the site's front door, STREAM_TICKET_SECRET),
+// a new seat needs the front door's signed ticket for the visitor's device, or the
+// lab token. A server's HTTPS name is public (certificate-transparency logs) and
+// scanners load new ones within minutes: without this they take the seats.
+const TICKET_SECRET = env.TICKET_SECRET ?? ''
+
+/** `<expiry ms>.<base64url HMAC-SHA256(secret, "device|expiry")>`, see lib/stream/ticket.ts. */
+function verifyTicket(ticket, device) {
+  if (typeof ticket !== 'string' || typeof device !== 'string') return false
+  const [exp, sig] = ticket.split('.')
+  if (!exp || !sig || !(Number(exp) > Date.now())) return false
+  const want = createHmac('sha256', TICKET_SECRET).update(`${device}|${exp}`).digest()
+  const got = Buffer.from(sig, 'base64url')
+  return got.length === want.length && timingSafeEqual(got, want)
+}
+/** May this viewer page be given a new seat? */
+const admitted = (viewer) => !TICKET_SECRET || viewer.lab || verifyTicket(viewer.ticket, viewer.device)
 // A seat claimed but never started (tab hidden, page gone, a forged request) goes back after this.
 const BEGIN_TIMEOUT_MS = Number(env.BEGIN_TIMEOUT_MS ?? 45_000)
 // A viewer whose event stream drops keeps its seat this long to reconnect.
@@ -456,6 +474,8 @@ const seats = Array.from({ length: SEATS }, (_, i) => new Seat(i))
 // ---- Housekeeping: idle reclaim, session cap ------------------------------------
 setInterval(() => {
   const now = Date.now()
+  // Only connected viewer pages wait in line.
+  for (let i = waiting.length - 1; i >= 0; i--) if (!viewers.has(waiting[i])) waiting.splice(i, 1)
   const full = poolSummary().warm === 0
   for (const seat of seats) {
     // The viewer's page is gone (its event stream closed and didn't come back).
@@ -699,7 +719,10 @@ const server = http.createServer(async (req, res) => {
       // A reconnect of the same page is fine; another address taking over an id is not.
       if (existing && existing.client !== clientOf(req)) return res.writeHead(409).end()
       res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store', connection: 'keep-alive', 'x-accel-buffering': 'no' })
-      viewers.set(id, { res, client: clientOf(req), embed: url.searchParams.has('embed'), device: url.searchParams.get('device') || id })
+      viewers.set(id, {
+        res, client: clientOf(req), embed: url.searchParams.has('embed'), device: url.searchParams.get('device') || id,
+        ticket: url.searchParams.get('ticket') ?? '', lab: !!LAB_TOKEN && url.searchParams.get('token') === LAB_TOKEN,
+      })
       lastActivity = Date.now()
       const keepAlive = setInterval(() => res.write(': keep-alive\n\n'), 20_000) // proxies drop silent streams
       req.on('close', () => {
@@ -738,12 +761,20 @@ const server = http.createServer(async (req, res) => {
         seats.find((s) => s.owner === msg.from)?.touch()
         return res.end('ok')
       }
+      // A new seat needs an admitted page (front-door ticket or lab token); a seat
+      // it already holds (a reconnect, a rotation) doesn't.
+      const viewerNow = viewers.get(msg.from)
+      if (msg.type === 'start' && viewerNow && !seats.some((s) => s.owner === msg.from) && !admitted(viewerNow)) {
+        sendTo(msg.from, { type: 'fallback', reason: 'no-ticket' })
+        return res.end('no ticket')
+      }
       const seat = msg.type === 'start' ? claimSeat(msg.from) : seats.find((s) => s.owner === msg.from)
       if (!seat) {
         const viewer = viewers.get(msg.from)
         if (msg.type === 'start') {
           // Embedded viewers never queue: the site renders locally instead.
-          if (viewer?.embed || draining) sendTo(msg.from, { type: 'fallback', reason: draining ? 'server-ending' : 'full' })
+          if (!viewer) return res.end('no seat') // not a connected viewer page: nothing to queue
+          if (viewer.embed || draining) sendTo(msg.from, { type: 'fallback', reason: draining ? 'server-ending' : 'full' })
           else {
             if (!waiting.includes(msg.from)) waiting.push(msg.from)
             sendTo(msg.from, { type: 'full', pool: poolSummary(), position: waiting.indexOf(msg.from) + 1 })

@@ -32,7 +32,7 @@ async function openPhone(i) {
   await v.send('Emulation.setDeviceMetricsOverride', { width: 393, height: 852, deviceScaleFactor: 2, mobile: true })
   await v.send('Emulation.setFocusEmulationEnabled', { enabled: true })
   const phone = { i, targetId, v, t0: Date.now(), liveMs: null }
-  await v.send('Page.navigate', { url: `${BASE}/` })
+  await v.send('Page.navigate', { url: `${BASE}/${process.env.TOKEN ? `?token=${encodeURIComponent(process.env.TOKEN)}` : ''}` })
   return phone
 }
 

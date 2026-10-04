@@ -193,7 +193,9 @@ const device = params.get('device') || (() => {
     return id
   } catch { return viewerId }
 })()
-const events = new EventSource(`/events?id=${viewerId}&device=${encodeURIComponent(device)}${EMBED ? '&embed=1' : ''}`)
+// The site's seat ticket (embedded) or the lab token (testing) admits this page to a seat.
+const admission = ['ticket', 'token'].filter((k) => params.get(k)).map((k) => `&${k}=${encodeURIComponent(params.get(k))}`).join('')
+const events = new EventSource(`/events?id=${viewerId}&device=${encodeURIComponent(device)}${EMBED ? '&embed=1' : ''}${admission}`)
 
 let ended = false
 // The stream is over for this visitor (no seat, server ending, network blocked):

@@ -46,12 +46,12 @@ export function alwaysStreamed(search: string): boolean {
  * Ask the front door for a seat: a stream URL, or null (render locally). It
  * answers in ~0.2 s warm; the allowance covers a cold serverless start.
  */
-export async function requestSeat(timeoutMs = 2500): Promise<string | null> {
+export async function requestSeat(device: string, timeoutMs = 2500): Promise<{ url: string; ticket: string } | null> {
   try {
-    const res = await fetch('/api/stream/seat', { cache: 'no-store', signal: AbortSignal.timeout(timeoutMs) })
+    const res = await fetch(`/api/stream/seat?device=${encodeURIComponent(device)}`, { cache: 'no-store', signal: AbortSignal.timeout(timeoutMs) })
     if (!res.ok) return null
-    const body = (await res.json()) as { url?: string | null }
-    return typeof body.url === 'string' && body.url ? body.url : null
+    const body = (await res.json()) as { url?: string | null; ticket?: string }
+    return typeof body.url === 'string' && body.url ? { url: body.url, ticket: typeof body.ticket === 'string' ? body.ticket : '' } : null
   } catch {
     return null
   }

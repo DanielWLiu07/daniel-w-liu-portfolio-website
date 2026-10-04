@@ -35,7 +35,7 @@ export default function StreamSession({ capable, Local }: {
 }) {
   const { transitionStage, navigateWithTransition } = useTransitionState()
   const [phase, setPhase] = useState<Phase>('asking')
-  const [url, setUrl] = useState<string | null>(null)
+  const [seat, setSeat] = useState<{ url: string; ticket: string } | null>(null)
   const [device] = useState(deviceId)
   const [graceOver, setGraceOver] = useState(!capable)
   const [fading, setFading] = useState(false)
@@ -85,10 +85,10 @@ export default function StreamSession({ capable, Local }: {
   // 1. Ask the front door for a seat (a capable device's local copy is already warming).
   useEffect(() => {
     let current = true
-    void requestSeat().then((seatUrl) => {
+    void requestSeat(device).then((granted) => {
       if (!current || s.current.phase !== 'asking') return
-      if (seatUrl) {
-        setUrl(seatUrl)
+      if (granted) {
+        setSeat(granted)
         enter('streaming')
         tryHandoff() // local may already be ready
       } else {
@@ -96,7 +96,7 @@ export default function StreamSession({ capable, Local }: {
       }
     })
     return () => { current = false }
-  }, [enter, tryHandoff])
+  }, [device, enter, tryHandoff])
 
   const onSceneReady = useCallback(() => {
     // How long this device's local copy takes, for the next visit's grace (localGraceMs).
@@ -148,8 +148,8 @@ export default function StreamSession({ capable, Local }: {
   return (
     <>
       {mountLocal && <Local introHold={phase === 'asking' || phase === 'streaming'} onSceneReady={onSceneReady} />}
-      {url && streamShowing && (
-        <StreamEmbed url={url} device={device} allowIntro={revealed && graceOver} release={released} fading={fading} onEvent={onEvent} />
+      {seat && streamShowing && (
+        <StreamEmbed url={seat.url} ticket={seat.ticket} device={device} allowIntro={revealed && graceOver} release={released} fading={fading} onEvent={onEvent} />
       )}
     </>
   )

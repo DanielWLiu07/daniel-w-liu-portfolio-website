@@ -6,9 +6,11 @@
 // Either way, servers are started when warm seats run low. Never throws at the visitor:
 // any failure answers "render locally".
 import { decide, fleetFromEnv, readPool } from '@/lib/stream/fleet'
+import { signTicket } from '@/lib/stream/ticket'
 
 export async function GET(request: Request) {
-  const wake = new URL(request.url).searchParams.has('wake')
+  const params = new URL(request.url).searchParams
+  const wake = params.has('wake')
   const configured = fleetFromEnv()
   if (!configured) return Response.json({ url: null, reason: 'off' }, { headers: { 'cache-control': 'no-store' } })
   try {
@@ -22,7 +24,11 @@ export async function GET(request: Request) {
       // still renders locally, and the next request tries again.
       await fleet.start(decision.start).catch((err) => console.warn('[stream] start failed:', err?.message ?? err))
     }
-    return Response.json(wake ? { reason: decision.reason } : { url: decision.url, reason: decision.reason }, { headers: { 'cache-control': 'no-store' } })
+    // The seat ticket for this device (servers seat new visitors only with one).
+    const secret = process.env.STREAM_TICKET_SECRET
+    const device = params.get('device') ?? ''
+    const ticket = !wake && decision.url && secret && device ? signTicket(secret, device) : undefined
+    return Response.json(wake ? { reason: decision.reason } : { url: decision.url, reason: decision.reason, ticket }, { headers: { 'cache-control': 'no-store' } })
   } catch (err) {
     console.warn('[stream] front door error:', err instanceof Error ? err.message : err)
     return Response.json({ url: null, reason: 'error' }, { headers: { 'cache-control': 'no-store' } })
