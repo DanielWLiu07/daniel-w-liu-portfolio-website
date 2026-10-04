@@ -301,7 +301,14 @@ events.onmessage = async (e) => {
 // frame is also passed on, so Chrome's own path still runs (loss recovery,
 // keyframe requests, stats). ?buffered turns this off; unsupported browsers
 // (no encoded transform / WebCodecs / OffscreenCanvas) fall back automatically.
+// The zero-buffer WebCodecs player shows each frame the instant it arrives.
+// Measured in a real Chrome window through the card burst (sender at a steady
+// 60 fps): 60 fps on screen, against 48-52 for Chrome's own player, whose jitter
+// buffer mistakes the burst's huge frames for jitter, grows to 300-440 ms and
+// drops frames to catch up. ?buffered selects Chrome's player.
 const LOWLAT = !params.has('buffered') && 'VideoDecoder' in window && 'OffscreenCanvas' in window
+// Minimum jitter buffer for the buffered player (Chrome grows it on a jittery link).
+const BUFFER_MS = LOWLAT ? 0 : Math.max(0, Math.min(500, Number(params.get('buffer') ?? 60)))
   && ('RTCRtpScriptTransform' in window || 'createEncodedStreams' in RTCRtpReceiver.prototype)
 const WORKER_SRC = `
 let canvas = null, ctx = null, decoder = null, codec = null, waitingKey = true, probe = null, sizeSent = ''
@@ -478,9 +485,10 @@ async function connect() {
   const thisPc = (pc = new RTCPeerConnection({ iceServers, ...(params.has('relay') ? { iceTransportPolicy: 'relay' } : {}), ...(insertable ? { encodedInsertableStreams: true } : {}) }))
   thisPc.ontrack = (e) => {
     mark('track arrived')
-    // Show frames as soon as they decode (cloud-gaming style) rather than
-    // buffering to smooth jitter: latency over smoothness.
-    if ('jitterBufferTarget' in e.receiver) e.receiver.jitterBufferTarget = 0
+    // Low-latency player: no buffering at all. Otherwise a small floor that Chrome
+    // raises when packets arrive unevenly, so a Wi-Fi spike doesn't freeze the show.
+    if ('jitterBufferTarget' in e.receiver) e.receiver.jitterBufferTarget = BUFFER_MS
+    reportViewerStats(thisPc)
     setupLowLatency(e.receiver, LAB ? $('codec').value : playCodec)
     if (!LOWLAT) $('renderer').textContent = 'buffered (video element)'
     video.srcObject = new MediaStream([e.track])
@@ -512,7 +520,7 @@ async function connect() {
   const shape = screenShape()
   streamedWidth = shape?.width ?? 0
   currentConn = Math.random().toString(36).slice(2)
-  await post('/signal', { type: 'start', conn: currentConn, downlinkMbps: navigator.connection?.downlink, viewport: shape, codec: LAB ? $('codec').value : playCodec, maxBitrateKbps: +$('bitrate').value, contentHint: $('hint').value })
+  await post('/signal', { type: 'start', conn: currentConn, downlinkMbps: navigator.connection?.downlink, mobile: matchMedia('(pointer: coarse)').matches, viewport: shape, codec: LAB ? $('codec').value : playCodec, maxBitrateKbps: +$('bitrate').value, contentHint: $('hint').value })
 }
 
 let currentConn = null
@@ -522,7 +530,7 @@ async function onOffer({ sdp, conn }) {
   await pc.setRemoteDescription(sdp)
   const answer = await pc.createAnswer()
   // Same bitrate hint as the seat; VP8 has no a=fmtp line, so one is added.
-  const BOOST = 'x-google-start-bitrate=10000;x-google-min-bitrate=1000;x-google-max-bitrate=16000'
+  const BOOST = 'x-google-start-bitrate=16000;x-google-min-bitrate=1000;x-google-max-bitrate=16000'
   let sdpOut = answer.sdp.replace(/a=fmtp:\d+ [^\r\n]*/g, (line) =>
     line.includes('x-google') || line.includes('apt=') || line.includes('/') ? line : `${line};${BOOST}`)
   sdpOut = sdpOut.replace(/a=rtpmap:(\d+) (VP8|VP9|AV1|H264)\/90000\r\n/g, (line, pt) =>
@@ -567,6 +575,39 @@ $('replay').onclick = () => { replayStart = performance.now(); $('overlay').text
 
 // iOS (and Low Power Mode) may refuse to autoplay even silent video. Try right
 // away; if refused, the very first touch anywhere starts it.
+// What this screen actually shows, once a second, so the server's timeline has the
+// viewer's side too: frames displayed, the longest gap between them, freezes,
+// dropped frames, lost packets and the jitter buffer's current delay.
+function reportViewerStats(forPc) {
+  let prev = null, shown = 0, maxGap = 0, lastShown = 0
+  const onShown = (now) => {
+    if (lastShown) maxGap = Math.max(maxGap, now - lastShown)
+    lastShown = now; shown++
+    if (forPc === pc) video.requestVideoFrameCallback(onShown)
+  }
+  video.requestVideoFrameCallback(onShown)
+  const timer = setInterval(async () => {
+    if (forPc !== pc) return clearInterval(timer)
+    let s = null
+    ;(await forPc.getStats()).forEach((r) => { if (r.type === 'inbound-rtp' && r.kind === 'video') s = r })
+    if (!s) return
+    const d = (k) => (prev ? (s[k] ?? 0) - (prev[k] ?? 0) : 0)
+    const emitted = d('jitterBufferEmittedCount')
+    post('/signal', {
+      type: 'viewerStats',
+      // the low-latency player draws on its own canvas: count those frames instead
+      shown: LOWLAT ? (window.__pace?.at(-1)?.drawn ?? null) : shown,
+      maxGapMs: LOWLAT ? (window.__pace?.at(-1)?.maxGap ?? null) : Math.round(maxGap),
+      freezes: d('freezeCount'), freezeMs: Math.round(d('totalFreezesDuration') * 1000),
+      dropped: d('framesDropped'), lost: d('packetsLost'),
+      bufferMs: emitted > 0 ? Math.round((d('jitterBufferDelay') / emitted) * 1000) : null,
+      jitterMs: s.jitter != null ? Math.round(s.jitter * 1000) : null,
+      player: LOWLAT ? 'lowlat' : 'buffered',
+    })
+    prev = s; shown = 0; maxGap = 0
+  }, 1000)
+}
+
 function startPlayback() {
   video.muted = true
   video.play().catch(() => needTap())

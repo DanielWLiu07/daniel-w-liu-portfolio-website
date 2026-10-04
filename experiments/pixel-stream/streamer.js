@@ -38,7 +38,9 @@
   // fast link gets a high floor; a weak or unknown link a low one, so it can still
   // adapt instead of looping on loss.
   let floorKbps = 1000
-  const boost = () => `x-google-start-bitrate=10000;x-google-min-bitrate=${floorKbps};x-google-max-bitrate=16000`
+  // Start at the ceiling: the card burst begins ~2 s into every stream, before the
+  // estimate has ramped, and an encoder short of bits skips frames.
+  const boost = () => `x-google-start-bitrate=16000;x-google-min-bitrate=${floorKbps};x-google-max-bitrate=16000`
   // Ours replace any hints already present (the viewer's answer carries its own).
   const boostSdp = (sdp) => {
     const out = sdp.replace(/a=fmtp:\d+ [^\r\n]*/g, (line) =>
@@ -408,13 +410,18 @@
     pc = null
   }
 
-  async function start({ codec, maxBitrateKbps, contentHint, iceServers, conn: id, downlinkMbps }) {
+  async function start({ codec, maxBitrateKbps, contentHint, iceServers, conn: id, downlinkMbps, mobile }) {
     stop()
     conn = id ?? null
-    adaptive = 1
     fpsCap = 60
-    // The viewer's own link estimate (Chrome's navigator.connection.downlink, capped at 10).
-    floorKbps = downlinkMbps >= 9 ? 6000 : downlinkMbps >= 4 ? 3000 : 1000
+    lowSince = 0
+    // Floor: what the card burst needs at full size, so a hiccup at connect can't
+    // drag the encoder below it. Desktops and laptops are on Wi-Fi or wired; a
+    // phone's link varies too much, so it keeps a low floor (unless Chrome says its
+    // link is fast: navigator.connection.downlink, capped at 10).
+    // (The floor is on the estimate; Chrome gives the encoder ~60% of it, so 10 Mbps
+    // keeps ~6+ Mbps for the encoder through a Wi-Fi delay spike.)
+    floorKbps = !mobile || downlinkMbps >= 9 ? 10000 : downlinkMbps >= 4 ? 3000 : 1000
     await ps.capture()
     if (window.__casinoHoldIntro && !document.documentElement.dataset.introReleased) ps.keepAlive(true)
     track.contentHint = contentHint || 'detail'
@@ -454,25 +461,22 @@
     startStats(thisPc)
   }
 
-  // Bandwidth-adaptive resolution. The estimate sometimes starts low or collapses
-  // (a Wi-Fi hiccup while the intro is held) and needs ~10 s to climb back; the GPU
-  // encoder then drops frames rather than shrinking (2-30 fps through the card
-  // burst). Shrinking the picture while the estimate is low keeps motion at 60 fps:
-  // down at once, back up only once the estimate has clearly recovered.
-  // The GPU encoder skips frames rather than coarsening them when the budget is
-  // tight, so below ~6 Mbps the card burst stuttered at 5-39 fps even at a quarter
-  // of the pixels. A steady 30 fps cap there gave 26-32 fps: smooth, if less fluid.
-  let adaptive = 1
+  // Bandwidth-adaptive frame rate. The GPU encoder answers a tight budget by
+  // skipping frames (2-39 fps through the card burst at ~3 Mbps); a steady 30 fps
+  // cap there measured 25-31 fps instead. Only when the budget stays low for 2 s:
+  // the estimate dips for a moment while ramping up at the start of every stream,
+  // and capping then put the card burst at 30 fps for no reason.
+  // (No resolution scaling: Chrome resizes frames on the CPU before the GPU
+  // encoder, which took encoding from ~5 to ~40 ms a frame: 17-23 fps.)
+  const adaptive = 1
   let fpsCap = 60
-  const ADAPT = [[1800, 2.5], [3500, 2], [6000, 1.5]] // below kbps → scale
+  let lowSince = 0
   function adaptTo(targetKbps) {
     if (!(targetKbps > 0)) return
-    const want = ADAPT.find(([below]) => targetKbps < below)?.[1] ?? 1
-    // Going up a level needs 40% headroom over that level's threshold.
-    const up = want < adaptive && targetKbps >= 1.4 * (ADAPT.find(([, sc]) => sc === adaptive)?.[0] ?? 0)
-    const fps = targetKbps < 6000 ? 30 : targetKbps >= 8400 ? 60 : fpsCap
-    if (want > adaptive || up || fps !== fpsCap) {
-      if (want > adaptive || up) adaptive = want
+    const now = performance.now()
+    lowSince = targetKbps < 4000 ? lowSince || now : 0
+    const fps = lowSince && now - lowSince >= 2000 ? 30 : targetKbps >= 7000 ? 60 : fpsCap
+    if (fps !== fpsCap) {
       fpsCap = fps
       applyParams({})
     }

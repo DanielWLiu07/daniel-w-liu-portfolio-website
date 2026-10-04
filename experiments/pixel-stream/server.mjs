@@ -157,6 +157,7 @@ class Seat {
     this.loads = []
     this.loading = null
     this.timeline = []
+    this.viewerTimeline = []
     this.releasedAt = 0
     this.claimedAt = 0
     this.lastInput = 0
@@ -227,6 +228,13 @@ class Seat {
         if (msg.kind !== 'probe' && msg.kind !== 'keyframe') this.touch()
         this.input(msg).catch((err) => log('input', err.message))
       }
+  }
+
+  recordViewer(msg) {
+    const n = (v) => (typeof v === 'number' && Number.isFinite(v) ? Math.round(v) : null)
+    const t = Math.round((Date.now() - this.releasedAt) / 1000)
+    this.viewerTimeline.push({ t, shown: n(msg.shown), maxGapMs: n(msg.maxGapMs), freezes: n(msg.freezes), freezeMs: n(msg.freezeMs), dropped: n(msg.dropped), lost: n(msg.lost), bufferMs: n(msg.bufferMs), jitterMs: n(msg.jitterMs), player: msg.player === 'lowlat' ? 'lowlat' : 'buffered' })
+    if (this.viewerTimeline.length > 120) this.viewerTimeline.shift()
   }
 
   // The page crashed or stopped answering: hand its visitor to local rendering and
@@ -357,6 +365,7 @@ class Seat {
         this.releasedFor = this.ownerDevice
         this.releasedAt = Date.now()
         this.timeline = []
+        this.viewerTimeline = []
         this.touch()
         await page.send('Runtime.evaluate', { expression: '__ps.releaseIntro()' })
         if (this.owner) sendTo(this.owner, { type: 'intro-started', at: this.releasedAt })
@@ -757,6 +766,12 @@ const server = http.createServer(async (req, res) => {
         if (seat) seat.release('left').catch((err) => log('release', err.message))
         return res.end('ok')
       }
+      // The viewer's own per-second report (what its screen showed), beside the seat's.
+      if (msg.type === 'viewerStats') {
+        const seat = seats.find((s) => s.owner === msg.from)
+        if (seat?.introReleased) seat.recordViewer(msg)
+        return res.end('ok')
+      }
       if (msg.type === 'resume' || msg.type === 'ping') {
         seats.find((s) => s.owner === msg.from)?.touch()
         return res.end('ok')
@@ -818,7 +833,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/status') {
       if (!isLab(url)) return res.writeHead(403).end()
       res.writeHead(200, { 'content-type': 'application/json' })
-      return res.end(JSON.stringify({ pool: poolSummary(), turn: { month: turnUsage.month, gb: +(turnUsage.bytes / 1e9).toFixed(3), capGb: TURN_MONTHLY_GB, minting: turnBudgetLeft() && !!CF_TURN_KEY_ID }, seats: seats.map((s) => ({ ...s.snapshot(), owner: s.owner, frozen: s.frozen, timeline: url.searchParams.has('timeline') ? s.timeline : undefined })) }, null, 2))
+      return res.end(JSON.stringify({ pool: poolSummary(), turn: { month: turnUsage.month, gb: +(turnUsage.bytes / 1e9).toFixed(3), capGb: TURN_MONTHLY_GB, minting: turnBudgetLeft() && !!CF_TURN_KEY_ID }, seats: seats.map((s) => ({ ...s.snapshot(), owner: s.owner, frozen: s.frozen, timeline: url.searchParams.has('timeline') ? s.timeline : undefined, viewer: url.searchParams.has('timeline') ? s.viewerTimeline : undefined })) }, null, 2))
     }
     res.writeHead(404).end()
   } catch (err) {
