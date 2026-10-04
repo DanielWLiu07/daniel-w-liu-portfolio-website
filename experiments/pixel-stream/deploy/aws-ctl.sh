@@ -6,6 +6,7 @@
 #   ./aws-ctl.sh ssh [n]          shell on the instance
 #   ./aws-ctl.sh logs [n]         follow the pool's logs
 #   ./aws-ctl.sh gpu [n]          check that Chrome sees the GPU (WebGPU adapter, Vulkan)
+#   ./aws-ctl.sh load [n]         seats in use, per-seat fps/bitrate, CPU/GPU/encoder load, relay usage
 #   ./aws-ctl.sh image [n]        golden image of server n (reboots it, ~5-10 min); new
 #                                 servers launch from the newest one, ready to serve
 #   ./aws-ctl.sh teardown [n]     delete server n (and, after the last one, the shared pieces)
@@ -51,6 +52,17 @@ case "$cmd" in
   logs)
     if [ "$(server_os "$n")" = windows ]; then exec "${ssh[@]}" 'Get-Content C:\pixel-stream\logs\pool.log -Tail 40 -Wait'
     else exec "${ssh[@]}" journalctl -u pixel-stream -f; fi ;;
+  load)
+    base=$(server_base "$n"); envf="$here/server-windows.env"; [ -f "$envf" ] || envf="$here/server.env"
+    tok=$(grep '^LAB_TOKEN=' "$envf" | cut -d= -f2)
+    echo "== seats ($base)"
+    curl -fsS -m 5 "$base/status?token=$tok&timeline" | python3 "$here/load-summary.py" || echo "  unreachable"
+    if [ "$(server_os "$n")" = windows ]; then
+      echo "== machine (3 samples)"
+      "${ssh[@]}" '$c=(Get-Counter "\Processor(_Total)\% Processor Time" -SampleInterval 1 -MaxSamples 3).CounterSamples.CookedValue; "  CPU: " + (($c | % { [math]::Round($_) }) -join "%, ") + "%"; $g = & "C:\Windows\System32\nvidia-smi.exe" --query-gpu=utilization.gpu,utilization.encoder,memory.used,memory.total --format=csv,noheader,nounits; $v = $g -split ",\s*"; "  GPU: $($v[0])% | video encoder: $($v[1])% | GPU memory $($v[2])/$($v[3]) MB"; $m = Get-CimInstance Win32_OperatingSystem; "  RAM: $([math]::Round(($m.TotalVisibleMemorySize-$m.FreePhysicalMemory)/1MB,1)) / $([math]::Round($m.TotalVisibleMemorySize/1MB,1)) GB"'
+    else
+      "${ssh[@]}" 'echo "== machine"; uptime; nvidia-smi --query-gpu=utilization.gpu,utilization.encoder --format=csv,noheader'
+    fi ;;
   image)
     # Rebooting (not --no-reboot) gives a consistent disk and doubles as a check
     # that the server comes back on its own: auto-logon, display mode, seats.
