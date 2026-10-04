@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ComponentType } from 'react'
 import { useTransitionState } from '@/components/ui/page-transition'
-import { canHandOff, deviceId, requestSeat } from './stream-config'
+import { canHandOff, deviceId, lastLocalReadyMs, localGraceMs, rememberLocalReadyMs, requestSeat } from './stream-config'
 import StreamEmbed, { type StreamEvent } from './stream-embed'
 
 /** What the session tells the local casino: hold at frame 0 until it takes over. */
@@ -13,12 +13,6 @@ export interface LocalControl {
 
 type Phase = 'asking' | 'streaming' | 'handing-off' | 'local'
 
-/**
- * After the stream is live, how long a capable device's local copy gets to be
- * ready before the stream starts the show. Meanwhile the visitor sees the live
- * opening frame (not a loading screen); local usually wins on a cached visit.
- */
-const LOCAL_GRACE_MS = 4000
 const FADE_MS = 450
 
 /**
@@ -48,6 +42,12 @@ export default function StreamSession({ capable, Local }: {
   const [released, setReleased] = useState(false)
   // Inputs to the handoff decision; read from callbacks, never during render.
   const s = useRef({ phase: 'asking' as Phase, localReady: false, introStarted: false })
+  const arrivedAt = useRef(0)
+  const lastReady = useRef<number | null>(null)
+  useEffect(() => {
+    arrivedAt.current = performance.now()
+    lastReady.current = lastLocalReadyMs() // read before this visit overwrites it
+  }, [])
 
   const enter = useCallback((next: Phase) => {
     s.current.phase = next
@@ -97,6 +97,8 @@ export default function StreamSession({ capable, Local }: {
   }, [enter, tryHandoff])
 
   const onSceneReady = useCallback(() => {
+    // How long this device's local copy takes, for the next visit's grace (localGraceMs).
+    rememberLocalReadyMs(performance.now() - arrivedAt.current)
     const ready = () => {
       s.current.localReady = true
       // Ready before a seat was even assigned: no stream needed at all.
@@ -113,8 +115,9 @@ export default function StreamSession({ capable, Local }: {
     const st = s.current
     switch (e.type) {
       case 'live':
-        // Give the local copy a moment to win before the stream starts the show.
-        setTimeout(() => setGraceOver(true), capable ? LOCAL_GRACE_MS : 0)
+        // Give the local copy a moment to win before the stream starts the show,
+        // but only when it was fast here before (localGraceMs).
+        setTimeout(() => setGraceOver(true), capable ? localGraceMs(lastReady.current, performance.now() - arrivedAt.current) : 0)
         return
       case 'intro':
         st.introStarted = true

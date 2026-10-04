@@ -29,7 +29,7 @@ const pool = async () => (await fetch(`${POOL}/api/seat`)).json()
 // A device = an isolated browser context (its own storage, so its own device id);
 // two tabs in the same context are the same device.
 const devices = new Map()
-async function visitor(name, { device = name, query = '', cpuSlowdown = 1 } = {}) {
+async function visitor(name, { device = name, query = '', cpuSlowdown = 1, returning = false } = {}) {
   if (!devices.has(device)) devices.set(device, (await browser.send('Target.createBrowserContext')).browserContextId)
   const { targetId } = await browser.send('Target.createTarget', { url: 'about:blank', newWindow: true, browserContextId: devices.get(device) })
   const t = (await waitForJson(`http://127.0.0.1:${PORT}/json/list`)).find((x) => x.id === targetId)
@@ -38,6 +38,8 @@ async function visitor(name, { device = name, query = '', cpuSlowdown = 1 } = {}
   await v.send('Emulation.setDeviceMetricsOverride', { width: 393, height: 852, deviceScaleFactor: 2, mobile: true })
   await v.send('Emulation.setFocusEmulationEnabled', { enabled: true })
   if (cpuSlowdown > 1) await v.send('Emulation.setCPUThrottlingRate', { rate: cpuSlowdown })
+  // A return visit: this device's local copy was ready in 1.5 s last time.
+  if (returning) await v.send('Page.addScriptToEvaluateOnNewDocument', { source: "try { localStorage.setItem('ps-local-ready-ms', '1500') } catch {}" })
   await v.send('Runtime.enable')
   v.on('Runtime.consoleAPICalled', (e) => { const text = e.args.map((a) => a.value).join(' '); if (text.includes('[resume]')) { logs.push(text); console.log(`  ${name}: ${text}`) } })
   await v.send('Page.navigate', { url: `${SITE}${query}` })
@@ -58,8 +60,16 @@ async function until(p, pred, ms) {
 }
 const close = (p) => browser.send('Target.closeTarget', { targetId: p.targetId }).catch(() => {})
 
-console.log('== 1. capable visitor: starts streamed, hands off to local, seat goes back')
-const a = await visitor('A')
+console.log('== 0. first visit on a capable device: the stream plays the show at once (no waiting screen)')
+const f = await visitor('F')
+const fStream = await until(f, (s) => s.iframe, 8000)
+const fShow = await (async () => { const t0 = Date.now(); while (Date.now() - t0 < 6000) { if (f.logs.some((l) => l.includes('staying on the stream')) || (await state(f)).introLocal) return Date.now() - t0; await sleep(100) } return null })()
+check(fStream != null && fShow != null && fShow < 2500, `F's show started ${fShow} ms after the stream appeared (${f.logs.at(-1) ?? 'no log'})`)
+await close(f)
+await sleep(4000) // let the seat re-arm
+
+console.log('== 1. capable return visitor: starts streamed, hands off to local, seat goes back')
+const a = await visitor('A', { device: 'F' }) // F's browser: warm cache + F's recorded local timing
 const streamed = await until(a, (s) => s.iframe, 8000)
 check(streamed != null, `A started on the stream (${streamed} ms)`)
 const handed = await until(a, (s) => !s.iframe && s.localReady, 25_000)
@@ -70,7 +80,7 @@ await close(a)
 
 console.log('== 2. capable visitor whose local copy is slow: stays on the stream for the show')
 await sleep(3000) // let the seat re-arm
-const b = await visitor('B', { query: '?streamLocalDelay=9000' }) // local "ready" only after the show starts
+const b = await visitor('B', { query: '?streamLocalDelay=9000', returning: true }) // local "ready" only after the show starts
 const bStream = await until(b, (s) => s.iframe, 10_000)
 check(bStream != null, `B started on the stream (${bStream} ms)`)
 await sleep(14_000)

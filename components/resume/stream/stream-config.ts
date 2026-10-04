@@ -78,3 +78,33 @@ export interface HandoffInput {
 export function canHandOff(s: HandoffInput): boolean {
   return s.localReady && !s.introStarted
 }
+
+/** The longest the streamed show waits for a capable device's local copy. */
+export const MAX_LOCAL_GRACE_MS = 4000
+
+/**
+ * How long the stream holds the show (on its live opening frame) for the local
+ * copy to become ready, so it can take over and free the seat.
+ *
+ * Only worth it when this device's local copy was fast last time (a cached return
+ * visit, ready in ~1–2 s). On a first visit there's no such evidence and the local
+ * download rarely finishes in time, so holding would only add a waiting screen:
+ * the stream plays at once and the visitor stays streamed.
+ *
+ * @param lastReadyMs  how long the local copy took to be ready on this device's
+ *                     last visit (null: never)
+ * @param liveAtMs     how long after arriving the stream went live
+ */
+export function localGraceMs(lastReadyMs: number | null, liveAtMs: number): number {
+  if (lastReadyMs == null || !Number.isFinite(lastReadyMs)) return 0
+  const wait = lastReadyMs * 1.25 + 500 - liveAtMs // expected readiness, with margin
+  return wait > MAX_LOCAL_GRACE_MS ? 0 : Math.max(0, Math.round(wait))
+}
+
+const LAST_READY_KEY = 'ps-local-ready-ms'
+export function lastLocalReadyMs(): number | null {
+  try { const v = Number(localStorage.getItem(LAST_READY_KEY)); return v > 0 ? v : null } catch { return null }
+}
+export function rememberLocalReadyMs(ms: number) {
+  try { localStorage.setItem(LAST_READY_KEY, String(Math.round(ms))) } catch {}
+}
