@@ -2,7 +2,7 @@
 # Push the server code + server.env to render server n (default 1), write Caddy's
 # config for its host, and (re)start the pool. Safe to re-run after any change.
 #   ./deploy.sh        server 1
-#   ./deploy.sh 2      server 2
+#   ./deploy.sh 2      server 2 (Linux servers; the fleet is Windows now: deploy-windows.sh)
 set -euo pipefail
 source "$(dirname "$0")/lib.sh"
 n=${1:-1}

@@ -91,7 +91,7 @@ plus `./deploy-windows.sh n` (site build, several minutes).
 
 Once one server is good, snapshot it:
 ```sh
-./aws-ctl.sh image 2      # reboots server 2 (~2 min down), ~20 min until the image is ready
+./aws-ctl.sh image 1      # reboots server 1 (~2 min down), ~20 min until the image is ready
 ```
 After that, `./aws-launch.sh n` starts new servers from the newest image, with no
 user data and no deploy. At boot, the server points Caddy at its own name (its

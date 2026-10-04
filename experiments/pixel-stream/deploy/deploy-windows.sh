@@ -2,7 +2,7 @@
 # Deploy to a Windows render server n (OS_n=windows in config.env): copy the pool
 # code and the site, build the site, write Caddy's config, restart the pool's
 # logon task. Uses server-windows.env (falls back to server.env).
-#   ./deploy-windows.sh 2
+#   ./deploy-windows.sh 1
 set -euo pipefail
 source "$(dirname "$0")/lib.sh"
 n=${1:?server number}
