@@ -103,6 +103,46 @@ stopped server is back in ~2.5 min (measured 151 s after a reboot). `FRESH=1 ./a
 **Re-image after deploying new code**, or servers launched later run the old
 code. `image` keeps only the newest image per OS (~$1–3/month of snapshots).
 
+## Live setup (danielwliu.com)
+
+- The domain is served by Vercel project `daniel-w-liu-portfolio-website-txay`.
+  The other project, `daniel-w-liu-portfolio-website`, only serves its
+  *.vercel.app URL.
+- With one always-on server the site needs no AWS key: `STREAM_FLEET_STATIC`
+  points the front door straight at it. Switch to `STREAM_FLEET` and the
+  front-door key once servers should wake and scale.
+
+  | Variable (Production + Preview) | Value |
+  |---|---|
+  | `NEXT_PUBLIC_STREAM_MODE` | `opt-in` (only `/resume?stream=1`), later `weak` or `all` |
+  | `STREAM_FLEET_STATIC` | `https://16-54-162-165.sslip.io` |
+  | `STREAM_SEATS_PER_SERVER` | `2` |
+
+- `NEXT_PUBLIC_*` values are baked in at build time: after changing one,
+  redeploy (`vercel redeploy <url>`). Variables added after a preview was built
+  don't apply to it.
+- `EMBED_ORIGINS` (server env) lists the exact origins allowed to embed the
+  viewer: the domain and its preview aliases, never `*.vercel.app`.
+
+## Cost protection
+
+- **Cloudflare TURN:** the pool stops minting relay credentials past
+  `TURN_MONTHLY_GB` (800 with one server; set each to 400 with two). The free
+  tier is 1000 GB/month.
+- **AWS:** the CLI user deliberately has no billing or IAM rights, so this is
+  set up in the console as the root user:
+  1. IAM role `budgets-stop-stream` (use case *Budgets*, policy
+     `AWSBudgetsActions_RolePolicyForResourceAdministrationWithSSM`).
+  2. Budget `portfolio-monthly` (monthly cost): email alerts at 50/80/100% of
+     actual, plus an action at 100% that stops the stream instances
+     (ca-central-1) automatically. The site falls back to local rendering;
+     `./aws-ctl.sh start n` brings a server back.
+  - One on-demand g4dn.xlarge on Windows is ~$0.70/hr (~$510/month 24/7): size
+    the budget for that, or use the keep-on window.
+  - Add new servers to the budget action, which names instances explicitly.
+- The on-demand G quota (8 vCPU = two g4dn.xlarge) caps the worst case at
+  ~$1.40/hr.
+
 ## Removing things
 
 `./aws-ctl.sh teardown n` cancels server n's Spot request, terminates it and
