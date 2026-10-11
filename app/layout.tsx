@@ -6,6 +6,7 @@ import { PerformanceModeProvider } from "@/contexts/performance-mode-context";
 import { PageTransition } from "@/components/ui/page-transition";
 import { Analytics } from "@vercel/analytics/next";
 import StreamWarmup from "@/components/resume/stream/stream-warmup";
+import CasinoPrefetch from '@/components/resume/casino/casino-prefetch'
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -83,6 +84,8 @@ export default function RootLayout({
             <Navbar />
             {children}
           </PageTransition>
+          {/* Fills the cache with /resume's casino while visitors read other pages. */}
+          <CasinoPrefetch />
         </PerformanceModeProvider>
         {/* Vercel Web Analytics: injects the pageview beacon. Also needs
             Analytics enabled for this project in the Vercel dashboard. */}
