@@ -19,14 +19,14 @@ export function mouseLookAngles(pointer:Vector2, camera:Camera, root:Object3D, h
 export class MouseLook {
   private weight=0
   private angles:[number,number]=[0,0]
-  apply(pose:FacePose, settings:FaceSettings, target:[number,number]|null, delta:number):FacePose {
+  apply(pose:FacePose, settings:FaceSettings, target:[number,number]|null, delta:number, gain=1):FacePose {
     const active=settings.followMouse && target!==null
     if(active) {
       const turn=1-Math.exp(-Math.max(0,Math.min(delta,.1))/.16)
       this.angles=[this.angles[0]+(target[0]-this.angles[0])*turn,this.angles[1]+(target[1]-this.angles[1])*turn]
     }
     const alpha=1-Math.exp(-Math.max(0,Math.min(delta,.1))/(active ? .16 : .45))
-    this.weight+=((active ? 1 : 0)-this.weight)*alpha
+    this.weight+=((active ? gain : 0)-this.weight)*alpha
     if(this.weight<1e-5) {this.weight=0;return pose}
     const w=this.weight
     return {...pose,head:[

@@ -8,7 +8,8 @@ import type { FaceSettings } from './face-settings'
 import { MouseLook, mouseLookAngles } from './mouse-look'
 import { PANEL_EDIT_EVENT } from '@/components/panels/panel-events'
 
-export function useMouseLook() {
+/** `gain` (0..1, read each frame) scales how far the head turns toward the cursor */
+export function useMouseLook(gain?:()=>number) {
   const {gl,camera}=useThree()
   const pointer=useRef<Vector2|null>(null)
   const look=useRef(new MouseLook())
@@ -37,6 +38,6 @@ export function useMouseLook() {
   return (pose:FacePose,settings:FaceSettings,root:Object3D,delta:number)=>{
     const head=root.getObjectByName('Head')
     const target=pointer.current && head && settings.followMouse ? mouseLookAngles(pointer.current,camera,root,head) : null
-    return look.current.apply(pose,settings,target,delta)
+    return look.current.apply(pose,settings,target,delta,gain?gain():1)
   }
 }
