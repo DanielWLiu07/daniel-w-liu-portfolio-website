@@ -23,6 +23,7 @@ import { PANEL_EDIT_EVENT } from '@/components/panels/panel-events'
 import { DealerFaceRig, facePose } from '../face/face-rig'
 import { useFaceSettings } from '../face/face-settings'
 import { useMouseLook } from '../face/use-mouse-look'
+import { introLookGain } from './intro-clock'
 import { DEALER_IDLE_START, DealerEntranceRig, DEALER_ENTRANCE_END, dealerEntrance, entranceFace, blendEntranceFace } from './dealer-entrance'
 import { disposeDealerWrist } from './dealer-wrist'
 import { disposeDealerHandSkin } from './dealer-hand-skin'
@@ -62,7 +63,7 @@ export default function SkeletonDealer({ feltY, chordZ, rail, fit, fx, motionRef
   const motionRig = useRef<DealerRetargeter | null>(null)
   const faceRig = useRef<DealerFaceRig | null>(null)
   const faceSettings = useFaceSettings()
-  const mouseLook = useMouseLook()
+  const mouseLook = useMouseLook(introLookGain)
   const homePose = useRef<PoseSample | null>(null)
   const incoming = useRef<{ sample: PoseSample; at: number } | null>(null)
   const wasLive = useRef(false)

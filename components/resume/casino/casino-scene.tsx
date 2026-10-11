@@ -47,6 +47,7 @@ import ResumeWord from './resume-word'
 import CompositorPost from './compositor-post'
 import type { TableFit } from './round-table'
 import FlatTable, { RailTube, tableGraph, tableUniforms, type FlatTableSpec } from './flat-table'
+import { getIntroSkip, introPinnedAt, INTRO_ACTORS_DONE } from './intro-clock'
 import { beatTime, camLift, getTune, REVEAL_TIME_SCALE, useTune, type Tune } from './tune'
 import { driveLamp, LAMP, roomMaterial } from './materials'
 import type { SetPiece } from './set-editor'
@@ -99,7 +100,8 @@ function useAdaptiveScale(base: number, enabled: boolean): number {
   const resolved = Math.min(scale, cap)
   const st = useRef(new AdaptiveRenderQuality())
   useFrame((_, dt) => {
-    if (!enabled || document.hidden) { st.current.reset(); return }
+    // Not while settling behind the intro video: the cut needs the capture's resolution.
+    if (!enabled || document.hidden || introPinnedAt() !== null) { st.current.reset(); return }
     const next = st.current.sample(dt, resolved, base)
     if (next !== resolved) setScale(next)
   })
@@ -400,6 +402,21 @@ function Chips({ scroll }: { scroll: MutableRefObject<ScrollState> }) {
  * impact outward. Cone and gain are written to every lit material and to the shadow light together.
  */
 const LAMP_TIGHT = 7
+/**
+ * While the beat is pinned (warming behind the intro video), hold the render
+ * clock and the pointer where the video's capture had them, before any actor
+ * reads either this frame. Frame deltas still advance, so eased actors settle.
+ */
+function IntroClockPin() {
+  useFrame(({ clock, pointer }) => {
+    const at = introPinnedAt()
+    if (at === null) return
+    clock.elapsedTime = at
+    pointer.set(0, 0)
+  }, -100)
+  return null
+}
+
 function lampCurve(impactAge: number, coneFull: number, gainFull: number): { cone: number; gain: number; room: { cone: number; gain: number } } {
   // before the landing the lamp lights the chip only (the room's cone term is held at zero, so no pool on the
   // floor); at the impact the centre pool appears with a filament flicker and opens over 1.6 s
@@ -774,6 +791,7 @@ export default function CasinoScene({
   report,
   onReady,
   uniformsRef,
+  renderWidth,
 }: {
   /** the opening beat starts only once the page cover has cleared */
   armed?: boolean
@@ -786,9 +804,14 @@ export default function CasinoScene({
   report: (impactAge: number, jolt: number) => void
   onReady: () => void
   uniformsRef: MutableRefObject<MangaUniforms | null>
+  /** paint at exactly this many internal pixels across (the intro video's capture), not adaptively */
+  renderWidth?: number
 }) {
   const faces = useCardFaces()
   const [jackReady, setJackReady] = useState(false)
+  // Starting after the intro (the intro video played it): its actors would never draw a pixel, so they
+  // are not built, loaded or compiled at all.
+  const introOver = getIntroSkip() >= INTRO_ACTORS_DONE
   const [tableFit, setTableFit] = useState<TableFit | null>(null)
   // The opening King/Ace remain the same printed meshes when caught by the dealer.
   const cardHandoff = useMemo(() => new DealerCardHandoff(), [])
@@ -926,7 +949,11 @@ export default function CasinoScene({
     return v && Number.isFinite(scale) && scale > 0 ? Math.min(1, Math.max(0.25, scale)) : undefined
   }, [])
   // ?cam=pomme reproduces pomme's landing framing exactly for shader comparison
-  const adaptiveScale = useAdaptiveScale(COMP_GRAPHS[compName ?? 'night']?.renderScale ?? 1, !scaleOverride && armed)
+  // Cut from the intro video: the painterly pass at the capture's internal resolution, so its
+  // strokes are the same picture on any display (until the window changes, see intro-video.tsx).
+  const { size: canvasSize, viewport: canvasViewport } = useThree()
+  const lockedScale = renderWidth ? Math.min(1.5, renderWidth / Math.max(1, canvasSize.width * canvasViewport.dpr)) : undefined
+  const adaptiveScale = useAdaptiveScale(COMP_GRAPHS[compName ?? 'night']?.renderScale ?? 1, !scaleOverride && !lockedScale && armed)
   const pommeMatch = useMemo(
     () => (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('cam') === 'pomme' : false),
     [],
@@ -977,7 +1004,7 @@ export default function CasinoScene({
           {tableFit && (
             <>
               <Room floorY={tableFit.feltY - ROOM_FLOOR_DROP} />
-              {!noJack && <IntroBackdrop clock0={chipClock0} fx={fx} />}
+              {!noJack && !introOver && <IntroBackdrop clock0={chipClock0} fx={fx} />}
               {showDealer && <Suspense fallback={null}>
                 <SkeletonDealer feltY={tableFit.feltY} chordZ={spec.chordZ} rail={spec.rail}
                   fit={responsive.dealerFit} fx={fx} motionRef={dealerMotion} onReady={setDealerGroup} pointTarget={redChipPosition} cardHandoff={cardHandoff} />
@@ -1006,12 +1033,13 @@ export default function CasinoScene({
                   armed={armed}
                 />
               </Suspense>
+              <IntroClockPin />
               {/* the title card, before any of this: it is carried off the top as the chip falls */}
-              {!noJack && <JackIntro onReady={setJackReady} armed={armed} clock0={chipClock0} flickAt={tune.jkFlick} riseFor={tune.jkRise} holdFor={tune.jkHold} />}
-              {!noJack && <FallStreaks armed={armed} clock0={chipClock0} flickAt={tune.jkFlick} dropAt={jackDropAt} />}
-              {!noJack && <FlightRoulette clock0={chipClock0} />}
+              {!noJack && !introOver && <JackIntro onReady={setJackReady} armed={armed} clock0={chipClock0} flickAt={tune.jkFlick} riseFor={tune.jkRise} holdFor={tune.jkHold} />}
+              {!noJack && !introOver && <FallStreaks armed={armed} clock0={chipClock0} flickAt={tune.jkFlick} dropAt={jackDropAt} />}
+              {!noJack && !introOver && <FlightRoulette clock0={chipClock0} />}
               <Suspense fallback={null}>
-                {!noJack && <FlightRoyalFlush clock0={chipClock0} cardHandoff={cardHandoff} />}
+                {!noJack && !introOver && <FlightRoyalFlush clock0={chipClock0} cardHandoff={cardHandoff} />}
               </Suspense>
               {/* the eyes, off by default over the title: ?eyes puts the field back on the same beat clock */}
               {!noJack && eyesOn && <EyeField clock0={chipClock0} />}
@@ -1118,12 +1146,12 @@ export default function CasinoScene({
       )}
       {compName && COMP_GRAPHS[compName] ? (
         <CompositorPost
-          warmupReady={pommeMatch ? undefined : Boolean(tableFit && folderGroup && (noJack || jackReady) && (!showDealer || dealerGroup))}
+          warmupReady={pommeMatch ? undefined : Boolean(tableFit && folderGroup && (noJack || jackReady || introOver) && (!showDealer || dealerGroup))}
           build={COMP_GRAPHS[compName].build}
           onFrame={(u, t) => COMP_GRAPHS[compName].onFrame?.(u, t, fx.current)}
           onReady={onReady}
           rawOutput={COMP_GRAPHS[compName].rawOutput}
-          renderScale={scaleOverride ?? adaptiveScale}
+          renderScale={scaleOverride ?? lockedScale ?? adaptiveScale}
           positionPass={COMP_GRAPHS[compName].positionPass}
           positionDirty={() => {
             const previous = positionSnapshot.current

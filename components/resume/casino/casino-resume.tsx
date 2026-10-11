@@ -11,6 +11,7 @@ import dynamic from 'next/dynamic'
 import { Canvas } from '@react-three/fiber'
 import { canStartCasinoIntro, useIntroHold } from './intro-ready'
 import { startupStage } from './startup-timing'
+import { setIntroSkip } from './intro-clock'
 import { installBudgetedShaderBuild } from './budgeted-shader-build'
 import { installSharedBufferShaders } from './shared-buffer-shaders'
 import { installStableOverrideMaterials } from './stable-override-materials'
@@ -42,6 +43,10 @@ export default function CasinoResume({
   jackEditing = false,
   eyeEditing = false,
   introHold = false,
+  introAt,
+  hideLoader = false,
+  frameAspect,
+  renderWidth,
   onSceneReady,
 }: {
   layoutTuning?: boolean
@@ -49,10 +54,40 @@ export default function CasinoResume({
   eyeEditing?: boolean
   /** keep the opening beat at frame 0 (warming in the background behind a stream) */
   introHold?: boolean
+  /** start the opening beat this many seconds in (taking over from the intro video); ?introAt= for testing */
+  introAt?: number
+  /** something else covers the page while the scene loads (the intro video) */
+  hideLoader?: boolean
+  /**
+   * Render at this aspect, covering the stage and cropped like an object-fit:
+   * cover video of the same aspect, instead of reframing for the window. The
+   * intro video's last frame and the scene's first are then the same picture.
+   */
+  frameAspect?: number
+  /** with frameAspect: paint at the capture's internal width (see CasinoScene) */
+  renderWidth?: number
   /** the scene is loaded and its shaders compiled */
   onSceneReady?: () => void
 }) {
+  // Module state read by beatTime; set before the first armed frame draws.
+  setIntroSkip(introAt ?? (typeof window !== 'undefined' ? Number(new URLSearchParams(window.location.search).get('introAt')) || 0 : 0))
   const scroll = useRef<ScrollState>({ progress: 0, velocity: 0 })
+  const frameBox = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const box = frameBox.current
+    const stage = box?.parentElement
+    if (!box || !stage) return
+    if (!frameAspect) { box.style.width = box.style.height = box.style.left = box.style.top = ''; return }
+    const fit = () => {
+      const w = stage.clientWidth, h = stage.clientHeight
+      const bw = Math.max(w, h * frameAspect), bh = Math.max(h, w / frameAspect)
+      Object.assign(box.style, { width: `${bw}px`, height: `${bh}px`, left: `${(w - bw) / 2}px`, top: `${(h - bh) / 2}px` })
+    }
+    fit()
+    const observer = new ResizeObserver(fit)
+    observer.observe(stage)
+    return () => observer.disconnect()
+  }, [frameAspect])
   const uniforms = useRef<MangaUniforms | null>(null)
   const fx = useRef<ImpactFx>({ impactAge: -1, jolt: 0, landed: false })
   const [landed, setLanded] = useState(false)
@@ -187,6 +222,7 @@ export default function CasinoResume({
   return (
     <div className={`casino-root${jackEditing ? ' jack-editor-mode' : ''}${eyeEditing ? ' eye-editor-mode' : ''}`} style={{ height: jackEditing || eyeEditing ? '100dvh' : `${PAGE_HEIGHT_VH}vh` }}>
       <div className="casino-stage">
+        <div ref={frameBox} className="casino-frame">
         <Canvas
           camera={{ position: [0, 6.2, 5.4], fov: 38 }}
           dpr={hiDpr ? [1, 1.5] : [1, 1.35]}
@@ -227,9 +263,10 @@ export default function CasinoResume({
             return renderer as unknown as never
           }}
         >
-          <CasinoScene armed={armed} folderOpen={fileOpen} onFolderOpen={openFile} onFolderClose={closeFile} scroll={scroll} fx={fx} report={report} onReady={onReady} uniformsRef={uniforms} />
+          <CasinoScene armed={armed} folderOpen={fileOpen} onFolderOpen={openFile} onFolderClose={closeFile} scroll={scroll} fx={fx} report={report} onReady={onReady} uniformsRef={uniforms} renderWidth={frameAspect ? renderWidth : undefined} />
           {(showFlightTune || showTools || eyeEditing) && <PanelRenderBridge enabled />}
         </Canvas>
+        </div>
         {eyeEditing ? <TitleEyeWorkspace /> : jackEditing ? <JackWorkspace /> : layoutTuning ? <CasinoLayoutPanel /> : <>
         {showTune && <TunePanel />}
         {!showTune && showDealerTune && <CasinoLayoutPanel characterOnly />}
@@ -299,7 +336,7 @@ export default function CasinoResume({
 
       {SHOW_COPY && inSign && <SocialLinks variant="black" />}
 
-      {!sceneReady && (
+      {!sceneReady && !hideLoader && (
         <div className="fixed inset-0 z-[10000]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/landing/images/white_paper.webp" alt="" className="absolute inset-0 w-full h-full object-cover" />

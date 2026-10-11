@@ -36,6 +36,11 @@
   overflow: hidden;
 }
 
+.casino-frame {
+  position: absolute;
+  inset: 0;
+}
+
 .casino-stage canvas {
   display: block;
   width: 100% !important;

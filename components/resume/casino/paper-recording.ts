@@ -1,4 +1,5 @@
 import { Quaternion, Vector3 } from 'three'
+import { paperRecordingUrl } from './startup-assets'
 
 /** Compact baked rigid poses. Positions use clip bounds; quaternion components
  * use signed 16-bit values. Only two samples are decoded per rendered card. */
@@ -58,7 +59,7 @@ export function loadPaperRecording(portrait: boolean): Promise<PaperRecording | 
   // This switch is local-only and is never honored on a deployed site.
   if (typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname)
     && new URLSearchParams(window.location.search).has('paperBake')) return Promise.resolve(undefined)
-  const url = `/animations/paper-${portrait ? 'portrait' : 'desktop'}-v1.bin.gz`
+  const url = paperRecordingUrl(portrait)
   let pending = recordings.get(url)
   if (!pending) {
     pending = fetch(url).then(async response => {
