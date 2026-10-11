@@ -20,6 +20,20 @@ const nextConfig: NextConfig = {
   // bundle and materials render blank with no error to trace.
   transpilePackages: ['blender-to-threejs'],
 
+  // Public files default to `max-age=0, must-revalidate`, so every visit re-asks
+  // the server about each of /resume's ~40 assets before it can start. Files
+  // whose URL carries a content version (`?v=`) never change under that URL;
+  // the rest are fresh for a day and refreshed in the background after that.
+  // Replacing an unversioned file in place can show the old one for up to a
+  // day, so bump its `?v=` (or rename it) when it changes.
+  async headers() {
+    const asset = '/:path*/:file([^/]+\\.(?:webp|png|jpe?g|svg|avif|gif|glb|gltf|bin|gz|ktx2|woff2?|ttf|otf|webm|mov|mp4|json|wasm|pdf))'
+    return [
+      { source: asset, headers: [{ key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=2592000' }] },
+      { source: asset, has: [{ type: 'query', key: 'v' }], headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }] },
+    ]
+  },
+
   outputFileTracingIncludes: {
     '/api/motion-runtime/*': ['./node_modules/@mediapipe/tasks-vision/vision_bundle.js', './node_modules/@mediapipe/tasks-vision/wasm/**/*'],
   },
