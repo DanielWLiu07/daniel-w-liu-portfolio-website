@@ -34,7 +34,7 @@ export default function PortfolioPage() {
       <header className="mx-auto flex max-w-[900px] flex-col items-center gap-4 px-4 pt-28 pb-8 text-center sm:flex-row sm:justify-between sm:text-left">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Visual Portfolio</h1>
-          <p className="mt-1 text-sm opacity-70">Made in Blender. No AI generated graphics.</p>
+          <p className="mt-1 text-sm opacity-70">Made in Blender.</p>
         </div>
         <a
           href={PDF}
