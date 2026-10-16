@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useSyncExternalStore, type MutableRefObject } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
+import { introLookGain, introPinnedAt } from './intro-clock'
 import * as THREE from 'three'
 import { eyeMaterial, sharedTitleEyeMaterial } from './materials'
 import { EYE_PLANE, irisAt, type EyeInk } from './eye'
@@ -71,8 +72,13 @@ export default function TitleEyes({ fx }: { fx: MutableRefObject<ImpactFx> }) {
     const state = room.current
     if (fx.current.impactAge < 1.02) { state.placed = false; state.motionTime = 0; return }
     // The room can hold on its final beat while the eyes keep living.
-    if (!editing || previewTitleEyes()) state.motionTime += Math.min(dt, 0.05)
-    if (!state.placed || state.width !== size.width || state.height !== size.height) {
+    // On the beat's clock, so a scene that starts mid-beat (taking over from the
+    // intro video) draws the eyes exactly where a continuous run has them.
+    if (!editing) state.motionTime = fx.current.impactAge - 1.02
+    else if (previewTitleEyes()) state.motionTime += Math.min(dt, 0.05)
+    // Settling behind the intro video (intro-clock.ts): the camera is still
+    // finding the table's height, so keep re-hanging the room in front of it.
+    if (!state.placed || state.width !== size.width || state.height !== size.height || introPinnedAt() !== null) {
       const cam = camera as THREE.PerspectiveCamera
       state.hh = Math.tan(THREE.MathUtils.degToRad(cam.fov) / 2) * 24
       state.hw = state.hh * cam.aspect
@@ -117,8 +123,10 @@ function ColoredEye({ index, ink, shared, geometry, room, fx, editing }: {
     const frozen = editing && !preview
     const motion = titleEyeMotion(state.motionTime, index, frozen)
     const follow = 1 - Math.exp(-Math.min(dt, 0.05) * 7), m = gaze.current
-    m.x += (THREE.MathUtils.clamp((pointer.x - eye.x) * 0.22 + motion.gazeX, -0.25, 0.25) - m.x) * follow
-    m.y += (THREE.MathUtils.clamp((pointer.y - eye.y) * 0.16 + motion.gazeY, -0.15, 0.15) - m.y) * follow
+    // the cursor's pull fades in after the intro video's handover (centred, as captured, until then)
+    const g = introLookGain(), px = pointer.x * g, py = pointer.y * g
+    m.x += (THREE.MathUtils.clamp((px - eye.x) * 0.22 + motion.gazeX, -0.25, 0.25) - m.x) * follow
+    m.y += (THREE.MathUtils.clamp((py - eye.y) * 0.16 + motion.gazeY, -0.15, 0.15) - m.y) * follow
     const [ix, iy] = irisAt(frozen ? [0, 0] : [m.x, m.y], motion.open)
     const u = uniforms
     u.eyeOpen.value = motion.open; u.eyeWeight.value = 1.3

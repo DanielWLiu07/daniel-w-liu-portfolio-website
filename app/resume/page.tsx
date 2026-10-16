@@ -2,37 +2,22 @@
 
 import dynamic from 'next/dynamic'
 import type { ComponentType } from 'react'
-import { preload } from 'react-dom'
-import { CASINO_STARTUP_IMAGES, JACK_FONTS } from '@/components/resume/casino/startup-assets'
-import { SKELETON_DEALER_URL, FOLDER_URL } from '@/components/resume/casino/model-urls'
-import { loadCasinoFont } from '@/components/resume/casino/font-loader'
+import { loadCasinoResume, preloadCasino } from '@/components/resume/casino/preload-casino'
 import { usePerformanceMode } from '@/contexts/performance-mode-context'
 import { alwaysStreamed, isWeakDevice, wantsStream } from '@/components/resume/stream/stream-config'
 import type { LocalControl } from '@/components/resume/stream/stream-session'
+import IntroVideo, { wantsIntroVideo } from '@/components/resume/casino/intro-video'
 // The video page's components are not needed to boot the 3D scene.
 const LegacyResumePage = dynamic(() => import('./legacy'), { ssr: false })
 
 // "Always bet on Daniel W Liu": the casino table is WebGPU + TSL through the
 // node pipeline; it never renders on the server and never runs in Lite mode.
-const loadCasinoResume = () => import('@/components/resume/casino/casino-resume')
 const CasinoResume = dynamic(loadCasinoResume, { ssr: false })
 // The same casino streamed from a GPU render server first, handing off to the
 // local one (see components/resume/stream). Off unless NEXT_PUBLIC_STREAM_MODE is set.
 const StreamSession = dynamic(() => import('@/components/resume/stream/stream-session'), { ssr: false })
 // Lite visitors who ask for the stream fall back to their video page, not the casino.
 const LiteLocal: ComponentType<Partial<LocalControl>> = () => <LegacyResumePage />
-
-// Start before the large scene chunk/device initializes. Match TextureLoader's
-// anonymous CORS mode so the browser consumes the preload, not a second fetch.
-// Image hints do not outrank scene JS.
-function preloadCasino() {
-  // Queue critical scene code before low-priority model/image hints compete
-  // for bandwidth. The dynamic component consumes this same import promise.
-  void loadCasinoResume().catch(() => {})
-  for (const url of [SKELETON_DEALER_URL, FOLDER_URL]) preload(url, { as: 'fetch', crossOrigin: 'anonymous', fetchPriority: 'low' })
-  for (const url of CASINO_STARTUP_IMAGES) preload(url, { as: 'image', crossOrigin: 'anonymous', fetchPriority: 'low' })
-  for (const { key, url } of JACK_FONTS) void loadCasinoFont(key, url).catch(() => {})
-}
 
 export default function ResumePage() {
   const { isLowPerformance, isHydrated } = usePerformanceMode()
@@ -49,6 +34,10 @@ export default function ResumePage() {
     return <StreamSession capable={capable} Local={isLowPerformance ? LiteLocal : CasinoResume} />
   }
   // Lite users download none of this.
-  if (!isLowPerformance) preloadCasino()
-  return isLowPerformance ? <LegacyResumePage /> : <CasinoResume />
+  if (isLowPerformance) return <LegacyResumePage />
+  // The intro plays as a video while the scene loads (it starts the scene's
+  // downloads itself, once the video is playing), then the scene takes over.
+  if (wantsIntroVideo(search)) return <IntroVideo Local={CasinoResume} />
+  preloadCasino()
+  return <CasinoResume />
 }

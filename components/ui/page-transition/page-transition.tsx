@@ -7,7 +7,21 @@ import { usePerformanceMode } from '@/contexts/performance-mode-context'
 import { TransitionContext } from './context'
 import { InkMaskSvg } from './ink-mask-svg'
 import { MIN_LOADING_TIME, REVEAL_DURATION, NAVIGATION_DELAY } from './constants'
+
 import type { OverlayState } from './types'
+import { preloadCasino } from '@/components/resume/casino/preload-casino'
+import { warmIntroVideo, wantsIntroVideo } from '@/components/resume/casino/intro-video'
+import { wantsStream } from '@/components/resume/stream/stream-config'
+
+// The cover plays for NAVIGATION_DELAY before the route even mounts: start
+// /resume's first download now so it loads behind the cover (the intro video,
+// or the casino itself when it opens on the stream or without the video).
+const warmDestination = (href: string) => {
+  if (href.split(/[?#]/)[0] !== '/resume') return
+  const search = href.includes('?') ? href.slice(href.indexOf('?')) : ''
+  if (!wantsStream(search, navigator) && wantsIntroVideo(search)) warmIntroVideo()
+  else preloadCasino()
+}
 
 export function PageTransition({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -225,6 +239,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     setOverlayState('covering')
 
     const isSamePage = href === pathname
+    if (!isSamePage) warmDestination(href)
 
     navigationTimeoutRef.current = setTimeout(() => {
       if (transitionIdRef.current !== currentTransitionId) return
@@ -396,6 +411,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     setOverlayState('covering')
 
     router.prefetch(href)
+    warmDestination(href)
 
     navigationTimeoutRef.current = setTimeout(() => {
       if (transitionIdRef.current !== currentTransitionId) return

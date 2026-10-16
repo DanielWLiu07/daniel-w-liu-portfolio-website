@@ -25,6 +25,7 @@ import { useTexture } from '@react-three/drei'
 import { applyPainterlyStyle, modalTransform } from 'blender-to-threejs'
 import { drawSuit, SUITS } from './card-art'
 import { EYE_PLANE, inkFor, openAt } from './eye'
+import { getIntroSkip, INTRO_CLOCK0 } from './intro-clock'
 import { beatTime, easeFall, easeRise, FALL_FOR, getLetter, getTune, placingSuits, setLetter, type Tune } from './tune'
 import { IMPACT_DURATION, impactBurstMotion, impactDrift, impactEyeMotion, impactExitPosition } from './impact-eye-motion'
 import { markPropMotion } from './prop-arrival'
@@ -449,15 +450,18 @@ export default function HeroChip({
     const g = chip.current
     if (!g) return
     const st = state.current
-    const t = clock.elapsedTime
+    let t = clock.elapsedTime
     if (st.t0 < 0) {
       if (!armed) {
         g.scale.setScalar(0.0001)
         warmBurst(camera)
         return
       }
-      st.t0 = t
-      onStart?.(t)
+      // Anchor the beat (see INTRO_CLOCK0): the same clock values on every run.
+      clock.elapsedTime = INTRO_CLOCK0 + getIntroSkip()
+      st.t0 = INTRO_CLOCK0
+      onStart?.(INTRO_CLOCK0)
+      t = clock.elapsedTime
     }
     // through the beat's SHARED clock: it holds when the title's tuner freezes the beat, and it wraps when
     // ?jack=loop replays it, both at the same instant everything else does. A coin on its own clock would

@@ -9,9 +9,10 @@ import * as THREE from 'three'
 import { IMPACT_DURATION, impactBurstMotion } from './impact-eye-motion'
 import { withImpactReveal } from './impact-reveal'
 import { getTune } from './tune'
+import { PAPER_TEXTURE_URL } from './startup-assets'
 
 // pomme's paper texture for the watercolour compose step
-const paper = new THREE.TextureLoader().load('/models/paper-delivery.webp')
+const paper = new THREE.TextureLoader().load(PAPER_TEXTURE_URL)
 paper.colorSpace = THREE.SRGBColorSpace
 
 type Uniforms = Compositor['uniforms']
