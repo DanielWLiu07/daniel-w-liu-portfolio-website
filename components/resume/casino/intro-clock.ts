@@ -17,19 +17,23 @@ export function setIntroSkip(seconds: number) {
   introSkip = Math.max(0, seconds)
 }
 export const getIntroSkip = () => introSkip
+let introFollow: (() => number) | null = null
 /**
- * Hold the beat at the skip (render clock pinned, pointer centred, as in the
- * capture) while the scene warms behind the video, so every eased or settling
- * actor arrives where the video's last frame has it. Releasing it lets the
- * beat run on from exactly there.
+ * Drive the beat from outside (render clock pinned to it, pointer centred, as
+ * in the capture) while the scene warms behind the video. `follow`, read on
+ * every frame, gives the beat time to draw: the video's playback position, so
+ * the scene plays in step with it and every eased actor trails exactly as it
+ * does in the capture; without one the beat holds at the skip. Releasing it
+ * lets the beat run on from exactly where it was.
  */
-export function setIntroPinned(pinned: boolean) {
+export function setIntroPinned(pinned: boolean, follow: (() => number) | null = null) {
+  introFollow = pinned ? follow : null
   if (introPinned === pinned) return
   introPinned = pinned
   if (pinned) holdIntroLook()
   else releaseIntroLook()
 }
-export const introPinnedAt = (): number | null => (introPinned ? INTRO_CLOCK0 + introSkip : null)
+export const introPinnedAt = (): number | null => (introPinned ? INTRO_CLOCK0 + (introFollow ? introFollow() : introSkip) : null)
 
 /** no intro video: the cursor is followed from the start */
 let lookFrom = 0

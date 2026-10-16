@@ -1,8 +1,8 @@
 import { preload } from 'react-dom'
-import { CASINO_AFTER_INTRO_IMAGES, CASINO_STARTUP_IMAGES, INTRO_VIDEO, JACK_FONTS, PAPER_TEXTURE_URL, paperRecordingUrl } from './startup-assets'
+import { CASINO_AFTER_INTRO_IMAGES, CASINO_STARTUP_IMAGES, JACK_FONTS, PAPER_TEXTURE_URL, paperRecordingUrl } from './startup-assets'
 import { SKELETON_DEALER_URL, FOLDER_URL } from './model-urls'
 import { loadCasinoFont } from './font-loader'
-import { wantsIntroVideo } from './intro-video-choice'
+import { introVideoTake, wantsIntroVideo } from './intro-video-choice'
 import { wantsStream } from '@/components/resume/stream/stream-config'
 
 /** The scene's code. /resume's dynamic component consumes this same promise. */
@@ -13,8 +13,9 @@ function startupUrls(): string[] {
   const portrait = window.innerWidth / Math.max(1, window.innerHeight) < .9
   // Desktop shapes open on the intro video and start the scene after the intro.
   const video = !wantsStream('', navigator) && wantsIntroVideo('')
+  const take = introVideoTake()
   return [
-    ...(video ? [INTRO_VIDEO.poster, INTRO_VIDEO.src] : []),
+    ...(video ? [take.poster, take.src] : []),
     SKELETON_DEALER_URL,
     ...JACK_FONTS.map(font => font.url),
     FOLDER_URL,

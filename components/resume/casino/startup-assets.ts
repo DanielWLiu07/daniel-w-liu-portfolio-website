@@ -43,15 +43,11 @@ export const paperRecordingUrl = (portrait: boolean) => `/animations/paper-${por
 
 /**
  * The opening beat, pre-rendered from the live scene on a frame-exact clock
- * (one 60 fps capture, encoded at 30). It plays the moment the page opens
- * while the scene loads and compiles underneath, held at frame 0; at the
- * video's last frame the scene starts that many seconds into the beat and the
- * video fades off it. Desktop shapes only for now (the scene reframes itself
- * for portrait).
+ * (one 60 fps capture per screen shape, encoded at 30). It plays the moment
+ * the page opens while the scene loads and compiles underneath; once the
+ * intro's actors are gone the scene takes over from the beat the video is on.
  */
 export const INTRO_VIDEO = {
-  src: '/resume/intro/desktop-v4.mp4?v=4',
-  poster: '/resume/intro/desktop-v4.webp?v=4',
   /**
    * The earliest beat time the live scene takes over at: 0.9 s after the chip
    * hits the table (6.36 s), as the last of the card wall leaves the frame.
@@ -62,8 +58,31 @@ export const INTRO_VIDEO = {
   /** the video's last frame (it runs on with the dealer idling): the latest cut */
   end: 16,
   fps: 30,
-  /** the capture's frame; the scene renders at this aspect, cropped the same way, until the window changes */
-  aspect: 16 / 9,
-  /** the capture's painterly pass width: 1920 px at the night graph's 0.75 render scale */
-  renderWidth: 1440,
 }
+
+export interface IntroVideoCut {
+  src: string
+  poster: string
+  /** the capture's frame; the scene renders at this aspect, cropped the same way, until the window changes */
+  aspect: number
+  /** the capture's painterly pass width: its CSS width at the night graph's 0.75 render scale */
+  renderWidth: number
+}
+
+const cut = (name: string, width: number, height: number): IntroVideoCut => ({
+  src: `/resume/intro/${name}.mp4`,
+  poster: `/resume/intro/${name}.webp`,
+  aspect: width / height,
+  renderWidth: width * 0.75,
+})
+
+/**
+ * One take per screen shape: the scene lays itself out by aspect (title fit,
+ * dealer placement, the portrait title), so a take cropped to a far-off shape
+ * would not match the scene it hands over to. Captured at these CSS sizes.
+ */
+export const INTRO_VIDEOS: IntroVideoCut[] = [
+  { src: '/resume/intro/desktop-v4.mp4?v=4', poster: '/resume/intro/desktop-v4.webp?v=4', aspect: 16 / 9, renderWidth: 1440 },
+  cut('phone-v5', 1080, 2000),
+  // still to capture: ultrawide 2560x1080, tablet 1512x1080, tablet portrait 1080x1440
+]

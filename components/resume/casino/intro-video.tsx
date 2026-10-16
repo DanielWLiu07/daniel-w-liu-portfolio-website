@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState, type ComponentType } from 're
 import { useTransitionState } from '@/components/ui/page-transition'
 import { preloadCasino } from './preload-casino'
 import { INTRO_VIDEO } from './startup-assets'
+import { introVideoTake } from './intro-video-choice'
 import { holdIntroLook, releaseIntroLook, setIntroPinned, setIntroSkip } from './intro-clock'
 
 export { INTRO_VIDEO }
@@ -16,7 +17,7 @@ export { wantsIntroVideo } from './intro-video-choice'
  * still in flight, so on a slow link it would be downloaded twice at once.
  */
 export function warmIntroVideo() {
-  preload(INTRO_VIDEO.poster, { as: 'image', fetchPriority: 'high' })
+  preload(introVideoTake().poster, { as: 'image', fetchPriority: 'high' })
 }
 
 export interface IntroVideoLocal {
@@ -30,14 +31,16 @@ export interface IntroVideoLocal {
 
 type Phase = 'video' | 'settling' | 'live'
 
-/** release the scene (pinned) this long before the frame it cuts on, so it is settled by then */
-const SETTLE_S = 1
-/** frames the pinned scene draws before the cut: every eased actor has arrived */
-const SETTLE_FRAMES = 45
+/** frames the scene plays in step behind the video before the cut: every eased actor has caught up */
+const FOLLOW_FRAMES = 30
+/** and this many of the last ones on time, so the cut never lands on a hitch (shader compiles, decode) */
+const STEADY_FRAMES = 12
 
 export default function IntroVideo({ Local }: { Local: ComponentType<Partial<IntroVideoLocal>> }) {
   const { transitionStage, signalReady } = useTransitionState()
   const video = useRef<HTMLVideoElement>(null)
+  // chosen once: a window resized mid-video keeps its take (cropped to fit)
+  const [take] = useState(introVideoTake)
   const [phase, setPhase] = useState<Phase>('video')
   const [sceneReady, setSceneReady] = useState(false)
   const [ended, setEnded] = useState(false)
@@ -91,27 +94,22 @@ export default function IntroVideo({ Local }: { Local: ComponentType<Partial<Int
   }, [revealed, phase])
 
   /**
-   * The handoff. The video runs on past the intro (the dealer idling), so the
-   * cut can land on whichever frame the scene is ready for, from the end of
-   * the intro (INTRO_VIDEO.seconds) to the last frame (INTRO_VIDEO.end):
-   *
-   * 1. Once the scene is compiled, pick the cut frame about a second ahead and
-   *    release the scene PINNED at that beat time, behind the video, so every
-   *    eased actor settles exactly where the capture has it.
-   * 2. When the video presents that frame, pause it there (and pin the scene
-   *    to the exact frame time it stopped on).
-   * 3. In one animation frame the scene's clock runs on from there and the
-   *    video is hidden. The two pictures match, so there is nothing to see.
+   * The handoff. The scene is released behind the video once the intro-only
+   * actors are gone (INTRO_VIDEO.seconds) and it is compiled, and from then on
+   * its clock FOLLOWS the video: every frame it draws the beat time the video
+   * is showing, so both are in motion and in step. Once it has kept up for a
+   * while, on a steady frame, the video is hidden and the scene's clock simply
+   * runs on. Nothing pauses, so there is no frozen frame to give the cut away.
+   * The video runs on past the intro (the dealer idling) to cover slow scenes;
+   * one that is still not ready at its last frame takes over from that frame.
    */
   const [cutAt, setCutAt] = useState(INTRO_VIDEO.seconds)
   const release = useCallback(() => {
     const v = video.current
     if (phase !== 'video' || !sceneReady || !v) return
-    if (!v.ended && v.currentTime < INTRO_VIDEO.seconds - SETTLE_S) return
-    const frame = Math.ceil((v.ended ? INTRO_VIDEO.end : v.currentTime + SETTLE_S) * INTRO_VIDEO.fps) / INTRO_VIDEO.fps
-    const at = Math.min(INTRO_VIDEO.end, Math.max(INTRO_VIDEO.seconds, frame))
+    if (!v.ended && v.currentTime < INTRO_VIDEO.seconds) return
+    const at = Math.min(INTRO_VIDEO.end, v.currentTime)
     setIntroSkip(at)
-    setIntroPinned(true)
     setCutAt(at)
     setPhase('settling')
   }, [phase, sceneReady])
@@ -119,26 +117,37 @@ export default function IntroVideo({ Local }: { Local: ComponentType<Partial<Int
   useEffect(() => {
     const v = video.current
     if (phase !== 'settling' || !v) return
-    let frames = 0, raf = 0, held = v.ended || v.paused, live = true
-    const hold = (mediaTime: number) => {
-      v.pause()
-      setIntroSkip(mediaTime) // the frame it actually stopped on
-      held = true
-    }
-    const near = (t: number) => t >= cutAt - 0.5 / INTRO_VIDEO.fps
-    if (held) setIntroSkip(Math.min(cutAt, Math.round(v.currentTime * INTRO_VIDEO.fps) / INTRO_VIDEO.fps))
-    // the exact presented frame where supported, else the playback position each frame
-    const onFrame = (_: number, meta: VideoFrameCallbackMetadata) => {
-      if (!live || held) return
-      if (near(meta.mediaTime)) hold(meta.mediaTime)
-      else v.requestVideoFrameCallback(onFrame)
-    }
+    // The last presented video frame and when it went on screen (rVFC), or the
+    // playback position where that is not supported.
+    const shown = { media: v.currentTime, at: performance.now() }
+    let live = true, raf = 0, frames = 0, steady = 0, last = 0, interval = 1000 / 60
     const exact = typeof (v as { requestVideoFrameCallback?: unknown }).requestVideoFrameCallback === 'function'
-    if (exact && !held) v.requestVideoFrameCallback(onFrame)
-    const tick = () => {
+    const onFrame = (_: number, meta: VideoFrameCallbackMetadata) => {
+      if (!live) return
+      shown.media = meta.mediaTime
+      shown.at = meta.expectedDisplayTime
+      v.requestVideoFrameCallback(onFrame)
+    }
+    if (exact) v.requestVideoFrameCallback(onFrame)
+    // The beat the video will be showing when this animation frame reaches the screen.
+    const beat = () => {
+      if (v.paused || v.ended) return Math.min(v.currentTime, INTRO_VIDEO.end)
+      if (!exact) return v.currentTime + interval / 1000
+      return Math.min(INTRO_VIDEO.end, shown.media + Math.max(0, performance.now() + interval - shown.at) / 1000)
+    }
+    setIntroPinned(true, beat)
+    const tick = (now: number) => {
+      if (!live) return
+      if (last) {
+        const dt = now - last
+        interval += (Math.min(dt, 50) - interval) * 0.1
+        steady = dt < interval * 1.5 + 2 ? steady + 1 : 0
+      }
+      last = now
       frames++
-      if (!held && (v.ended || (!exact && near(v.currentTime)))) hold(Math.min(cutAt, v.currentTime))
-      if (held && frames >= SETTLE_FRAMES) {
+      if (frames >= FOLLOW_FRAMES && steady >= STEADY_FRAMES) {
+        // In this same frame the scene draws the video's beat and the video goes.
+        setIntroSkip(beat())
         setIntroPinned(false)
         v.style.visibility = 'hidden'
         performance.mark('casino:intro-cut')
@@ -149,7 +158,7 @@ export default function IntroVideo({ Local }: { Local: ComponentType<Partial<Int
     }
     raf = requestAnimationFrame(tick)
     return () => { live = false; cancelAnimationFrame(raf) }
-  }, [phase, cutAt])
+  }, [phase])
   useEffect(() => () => setIntroPinned(false), [])
 
   // The video covers a fixed frame: no scrolling the scene underneath it. Not
@@ -186,12 +195,12 @@ export default function IntroVideo({ Local }: { Local: ComponentType<Partial<Int
   const onReady = useCallback(() => setSceneReady(true), [])
   return (
     <>
-      {loadScene && <Local introHold={phase === 'video'} introAt={failed ? 0 : cutAt} hideLoader={!failed} frameAspect={!failed && cropped ? INTRO_VIDEO.aspect : undefined} renderWidth={INTRO_VIDEO.renderWidth} onSceneReady={onReady} />}
+      {loadScene && <Local introHold={phase === 'video'} introAt={failed ? 0 : cutAt} hideLoader={!failed} frameAspect={!failed && cropped ? take.aspect : undefined} renderWidth={take.renderWidth} onSceneReady={onReady} />}
       {showing && (
         <video
           ref={video}
-          src={INTRO_VIDEO.src}
-          poster={INTRO_VIDEO.poster}
+          src={take.src}
+          poster={take.poster}
           muted
           playsInline
           preload="auto"
