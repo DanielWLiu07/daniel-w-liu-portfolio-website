@@ -20,6 +20,18 @@ const nextConfig: NextConfig = {
   // bundle and materials render blank with no error to trace.
   transpilePackages: ['blender-to-threejs'],
 
+  // The root serves public/home.html: one static page with everything on it,
+  // no JavaScript bundle, fonts or page transitions. It skips app/layout.tsx
+  // entirely, which is the point, since that layout wraps every route in the
+  // transition, the navbar and the casino prefetch. The interactive site still
+  // lives at /about, /experience, /projects and /resume. `beforeFiles` makes
+  // this win over app/page.tsx, which stays in place but unreachable at /.
+  async rewrites() {
+    return {
+      beforeFiles: [{ source: '/', destination: '/home.html' }],
+    }
+  },
+
   // Public files default to `max-age=0, must-revalidate`, so every visit re-asks
   // the server about each of /resume's ~40 assets before it can start. Files
   // whose URL carries a content version (`?v=`) never change under that URL;
