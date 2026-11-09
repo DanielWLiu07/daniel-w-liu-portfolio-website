@@ -14,7 +14,9 @@ Autonomous produce-harvesting robot (HT6 hackathon): a rover + robotic arm with 
 
 ## Pages
 
-**Landing** - Parallax mountains with animated sun, ink splash transitions
+**Home** - One static page with everything on it: experience, projects, résumé and links. Served from `public/home.html` through a rewrite in `next.config.ts`, so it loads no JavaScript bundle or fonts
+
+**Landing** - Parallax mountains with animated sun, ink splash transitions (in `app/page.tsx`, no longer routed at `/`)
 
 **About** - Watercolor reveal animation, sparkle overlays
 
