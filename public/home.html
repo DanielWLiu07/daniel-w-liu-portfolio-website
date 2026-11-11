@@ -56,9 +56,9 @@
     margin: 0 auto;
     padding: 4.5rem 1.25rem 4rem;
   }
-  h1 { font-size: 1.6rem; line-height: 1.2; font-weight: 650; letter-spacing: -0.015em; margin: 0 0 0.75rem; }
-  h2 { font-size: 1rem; font-weight: 600; color: var(--muted); margin: 0 0 1rem; }
-  section { margin-top: 2.75rem; }
+  h1 { font-size: 1.5rem; line-height: 1.2; font-weight: 650; letter-spacing: -0.02em; margin: 0 0 0.75rem; }
+  h2 { font: 500 0.72rem/1.6 var(--mono); letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); margin: 0 0 1.1rem; }
+  section { margin-top: 3.25rem; }
   p { margin: 0; }
   ol, ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 1.25rem; }
   a {
@@ -71,7 +71,7 @@
   }
   a:hover { color: var(--accent); text-decoration-color: currentColor; }
   a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
-  .intro { color: var(--muted); max-width: 34rem; }
+  .intro { max-width: 34rem; }
   .links { display: flex; flex-wrap: wrap; gap: 0.25rem 1.25rem; margin-top: 1rem; }
   .item { display: grid; grid-template-columns: 8.5rem minmax(0, 1fr); gap: 0 1rem; }
   .when { font: 0.8rem/2 var(--mono); color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -82,6 +82,8 @@
   .meta { margin-top: 0.3rem; font-size: 0.9rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 0 1rem; }
   .more { margin-top: 1.25rem; color: var(--muted); }
   .rows { display: grid; gap: 0.35rem; }
+  /* Mark links that leave the site. FE0E keeps the arrow as text, not an emoji. */
+  .links a[href^="http"]::after, .meta a::after { content: "\00a0\2197\FE0E"; font-size: 0.8em; color: var(--muted); }
   footer { margin-top: 3.5rem; padding-top: 1.25rem; border-top: 1px solid var(--rule); font-size: 0.9rem; color: var(--muted); }
   @media (max-width: 36rem) {
     main { padding-top: 3rem; }
