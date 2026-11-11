@@ -80,7 +80,8 @@
   .role { color: var(--muted); }
   .desc { margin-top: 0.15rem; }
   .meta { margin-top: 0.3rem; font-size: 0.9rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 0 1rem; }
-  .also { margin-top: 1.25rem; color: var(--muted); }
+  .more { margin-top: 1.25rem; color: var(--muted); }
+  .rows { display: grid; gap: 0.35rem; }
   footer { margin-top: 3.5rem; padding-top: 1.25rem; border-top: 1px solid var(--rule); font-size: 0.9rem; color: var(--muted); }
   @media (max-width: 36rem) {
     main { padding-top: 3rem; }
@@ -174,7 +175,7 @@
         </div>
       </li>
     </ul>
-    <p class="also">Also: <a href="https://github.com/DanielWLiu07/basis">Basis</a>, a market-data engine in C++20 · <a href="https://devpost.com/software/vibetrade">VibeTrade</a> · <a href="https://curve-guard.vercel.app/">Curve Guard</a> · <a href="https://genai-genesis-web.vercel.app/">Lotus</a></p>
+    <p class="item more"><span class="when">Also</span><span><a href="https://github.com/DanielWLiu07/basis">Basis</a>, a market-data engine in C++20 · <a href="https://devpost.com/software/vibetrade">VibeTrade</a> · <a href="https://curve-guard.vercel.app/">Curve Guard</a> · <a href="https://genai-genesis-web.vercel.app/">Lotus</a></span></p>
   </section>
 
   <section aria-labelledby="education">
@@ -190,7 +191,11 @@
 
   <section aria-labelledby="tools">
     <h2 id="tools">Tools</h2>
-    <p>C++, Python, TypeScript, Java, SQL · React, Next.js, Node.js, FastAPI · PostgreSQL, Redis, AWS, Docker, Kubernetes</p>
+    <div class="rows">
+      <p class="item"><span class="when">Languages</span><span>C++, Python, TypeScript, Java, SQL</span></p>
+      <p class="item"><span class="when">Frameworks</span><span>React, Next.js, Node.js, FastAPI</span></p>
+      <p class="item"><span class="when">Infrastructure</span><span>PostgreSQL, Redis, AWS, Docker, Kubernetes</span></p>
+    </div>
   </section>
 
   <footer>
