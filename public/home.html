@@ -58,7 +58,6 @@
   section { margin-top: 3.25rem; }
   p { margin: 0; }
   ol, ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 1.25rem; }
-  ul { gap: 1.6rem; }
   a {
     color: inherit;
     text-decoration: underline;
@@ -82,10 +81,15 @@
   .logo { position: absolute; left: -2.9rem; top: 0.1rem; width: 2rem; height: 2rem; object-fit: contain; }
   /* One-colour marks are stored black and flipped to white on a dark page. */
   .desc { margin-top: 0.15rem; }
-  /* Projects: text on the shared left edge, a small picture on the right. */
-  .card { display: grid; grid-template-columns: minmax(0, 1fr) 9rem; gap: 0 1.5rem; align-items: start; }
-  .shot { display: block; grid-column: 2; grid-row: 1; width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: cover; border-radius: 6px; background: var(--rule); margin-top: 0.25rem; }
-  .card > div { grid-column: 1; grid-row: 1; }
+  /* Projects: three pictures across, each with a name, a line or two and its links. */
+  .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.75rem 1.25rem; }
+  .card { display: flex; flex-direction: column; }
+  .shot { display: block; margin-bottom: 0.6rem; border-radius: 6px; overflow: hidden; background: var(--rule); }
+  .shot img { display: block; width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: cover; transition: transform 0.25s; }
+  .shot:hover img { transform: scale(1.03); }
+  .card .desc { font-size: 0.9rem; line-height: 1.5; color: var(--muted); }
+  .card .meta { margin-top: auto; padding-top: 0.45rem; font-size: 0.85rem; gap: 0 0.8rem; }
+  .card .meta a::after { content: none; }
   .meta { margin-top: 0.3rem; font-size: 0.9rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 0 0.9rem; }
   .more { margin-top: 1.25rem; color: var(--muted); }
   .rows { display: grid; gap: 0.35rem; }
@@ -101,16 +105,10 @@
   @media (max-width: 36rem) {
     main { padding-top: 3rem; }
     .role { order: 1; flex-basis: 100%; }
-    /* Title runs full width; the picture sits beside the description only. */
-    .card { grid-template-columns: minmax(0, 1fr) 5.5rem; gap: 0 1rem; }
-    .card > div { display: contents; }
-    .card .head, .card .meta { grid-column: 1 / -1; }
-    .card .desc { grid-column: 1; grid-row: 2; }
-    .card .meta { grid-row: 3; }
-    .shot { grid-row: 2; margin-top: 0.45rem; }
-    .rows p { grid-template-columns: minmax(0, 1fr); }
+    .grid { grid-template-columns: minmax(0, 1fr); }
+    .shot img { aspect-ratio: 16 / 9; }
   }
-  @media (prefers-reduced-motion: reduce) { a { transition: none; } }
+  @media (prefers-reduced-motion: reduce) { a, .shot img { transition: none; } }
   @media print {
     :root { --bg: #fff; --fg: #000; --muted: #444; --rule: #bbb; }
     main { padding-top: 0; }
@@ -169,30 +167,24 @@
 
   <section aria-labelledby="projects">
     <h2 id="projects">Projects</h2>
-    <ul>
+    <ul class="grid">
       <li class="card">
-        <img class="shot" src="/home/pomme.webp" alt="Pomme dashboard sorting bananas by ripeness" width="480" height="320" loading="lazy" decoding="async">
-        <div>
-          <p class="head"><span class="what">Pomme <span class="org">· Hack the 6ix</span></span> <span class="when">2026</span></p>
-          <p class="desc">A fruit-picking robot: a rover and arm with live YOLOv8 ripeness detection and a SLAM dashboard. Won Qualcomm's Build at the Edge prize.</p>
-          <p class="meta"><a href="https://pomme.live/">Site</a><a href="https://github.com/DanielWLiu07/pomme">GitHub</a><a href="https://devpost.com/software/autoagrinator">Devpost</a></p>
-        </div>
+        <a class="shot" href="https://pomme.live/" tabindex="-1" aria-hidden="true"><img src="/home/pomme.webp" alt="" width="480" height="320" loading="lazy" decoding="async"></a>
+        <p class="head"><span class="what">Pomme</span> <span class="when">2026</span></p>
+        <p class="desc">Fruit-picking robot with live ripeness detection. Won Qualcomm's Build at the Edge prize at Hack the 6ix.</p>
+        <p class="meta"><a href="https://pomme.live/">Site</a><a href="https://github.com/DanielWLiu07/pomme">GitHub</a><a href="https://devpost.com/software/autoagrinator">Devpost</a></p>
       </li>
       <li class="card">
-        <img class="shot" src="/home/voxel.webp" alt="Voxel terrain: rock islands and trees over water" width="480" height="320" loading="lazy" decoding="async">
-        <div>
-          <p class="head"><span class="what">4D Voxel Engine <span class="org">· C++20, OpenGL</span></span> <span class="when">2026</span></p>
-          <p class="desc">Renders 3D slices of a 4D world. Greedy meshing cuts triangles 5.3× and GPU mesh memory from 127 to 10.9 MB, with chunks built on nine worker threads.</p>
-          <p class="meta"><a href="https://github.com/DanielWLiu07/voxel-engine">GitHub</a></p>
-        </div>
+        <a class="shot" href="https://github.com/DanielWLiu07/voxel-engine" tabindex="-1" aria-hidden="true"><img src="/home/voxel.webp" alt="" width="480" height="320" loading="lazy" decoding="async"></a>
+        <p class="head"><span class="what">4D Voxel Engine</span> <span class="when">2026</span></p>
+        <p class="desc">C++20 and OpenGL engine that renders 3D slices of a 4D world. Greedy meshing cuts triangles 5.3×.</p>
+        <p class="meta"><a href="https://github.com/DanielWLiu07/voxel-engine">GitHub</a></p>
       </li>
       <li class="card">
-        <img class="shot" src="/home/rainbolt.webp" style="object-position: 88% 50%" alt="rainbolt.ai landing page with a wireframe globe" width="480" height="320" loading="lazy" decoding="async">
-        <div>
-          <p class="head"><span class="what">rainbolt.ai <span class="org">· Hack the Valley X</span></span> <span class="when">2025</span></p>
-          <p class="desc">Finds where a photo was taken by matching it against street imagery with CLIP and Pinecone, then explains the clues with Gemini. Won Best UI Hack.</p>
-          <p class="meta"><a href="https://rainboltai.vercel.app/">Site</a><a href="https://github.com/DanielWLiu07/rainbolt.ai">GitHub</a><a href="https://devpost.com/software/rainbolt-ai">Devpost</a></p>
-        </div>
+        <a class="shot" href="https://rainboltai.vercel.app/" tabindex="-1" aria-hidden="true"><img src="/home/rainbolt.webp" alt="" width="480" height="320" loading="lazy" decoding="async" style="object-position: 88% 50%"></a>
+        <p class="head"><span class="what">rainbolt.ai</span> <span class="when">2025</span></p>
+        <p class="desc">Finds where a photo was taken using CLIP and Pinecone. Won Best UI Hack at Hack the Valley X.</p>
+        <p class="meta"><a href="https://rainboltai.vercel.app/">Site</a><a href="https://github.com/DanielWLiu07/rainbolt.ai">GitHub</a><a href="https://devpost.com/software/rainbolt-ai">Devpost</a></p>
       </li>
     </ul>
     <p class="more">Also: <a href="https://github.com/DanielWLiu07/basis">Basis</a>, a market-data engine in C++20 · <a href="https://devpost.com/software/vibetrade">VibeTrade</a> · <a href="https://curve-guard.vercel.app/">Curve Guard</a> · <a href="https://genai-genesis-web.vercel.app/">Lotus</a></p>
