@@ -7,9 +7,9 @@
 <meta name="description" content="Computer Science and Finance at the University of Waterloo. Experience, projects and résumé on one page.">
 <link rel="canonical" href="https://www.danielwliu.com/">
 <link rel="icon" href="/favicon.ico" sizes="any">
-<meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#fcfcfb" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#111110" media="(prefers-color-scheme: dark)">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#f6f5f1">
+<link rel="preload" as="image" href="/home/name.webp" fetchpriority="high">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Daniel W Liu">
 <meta property="og:title" content="Daniel W Liu">
@@ -25,23 +25,13 @@
 <style>
   /* One column, everything visible without interaction. */
   :root {
-    --bg: #fcfcfb;
+    --bg: #f6f5f1;
     --fg: #161615;
     --muted: #63635f;
-    --rule: #d9d9d4;
-    --accent: #c2410c;
+    --rule: #d6d3ca;
+    --accent: #6d28d9;
     --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
     --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #111110;
-      --fg: #ececea;
-      --muted: #a3a39e;
-      --rule: #3a3a37;
-      --accent: #fb923c;
-    }
-    .mono { filter: invert(1); }
   }
   * { box-sizing: border-box; }
   html { -webkit-text-size-adjust: 100%; }
@@ -51,7 +41,13 @@
     color: var(--fg);
     font: 16px/1.6 var(--sans);
     -webkit-font-smoothing: antialiased;
+    position: relative;
+    overflow-x: hidden;
   }
+  /* Watercolour paper: a faint grain over the whole page, from the About
+     page's art. */
+  body::before { content: ""; position: fixed; inset: 0; z-index: -1; background: url(/home/paper.webp) 0 0 / 384px; opacity: 0.45; pointer-events: none; }
+  .name { display: block; width: 18.5rem; max-width: 80%; height: auto; margin-left: -0.3rem; }
   main {
     max-width: 38rem;
     margin: 0 auto;
@@ -118,14 +114,14 @@
   @media print {
     :root { --bg: #fff; --fg: #000; --muted: #444; --rule: #bbb; }
     main { padding-top: 0; }
-    footer { display: none; }
+    footer, body::before { display: none; }
   }
 </style>
 </head>
 <body>
 <main>
   <header>
-    <h1>Daniel W Liu</h1>
+    <h1><img class="name" src="/home/name.webp" alt="Daniel W Liu" width="720" height="164"></h1>
     <p class="intro">Computer Science and Finance at the University of Waterloo. I like building systems end to end, from voice agents that phone insurers to a 4D voxel engine.</p>
     <nav class="links" aria-label="Links">
       <a href="/assets/resume.pdf">Résumé</a>
