@@ -84,10 +84,14 @@
   /* Projects: three pictures across, each with a name, a line or two and its links. */
   .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.75rem 1.25rem; }
   .card { display: flex; flex-direction: column; }
-  .shot { display: block; margin-bottom: 0.6rem; border-radius: 6px; overflow: hidden; background: var(--rule); }
+  .shot { display: block; position: relative; margin-bottom: 0.6rem; border-radius: 6px; overflow: hidden; background: var(--rule); }
+  /* A hairline inside the edge so pale pictures don't bleed into the paper. */
+  .shot::after { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.1); pointer-events: none; }
   .shot img { display: block; width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: cover; transition: transform 0.25s; }
   .shot:hover img { transform: scale(1.03); }
+  .card .what a { text-decoration: none; }
   .card .desc { font-size: 0.9rem; line-height: 1.5; color: var(--muted); }
+  .won { margin-top: 0.3rem; font-size: 0.75rem; line-height: 1.5; color: var(--accent); }
   .card .meta { margin-top: auto; padding-top: 0.45rem; font-size: 0.85rem; gap: 0 0.8rem; }
   .card .meta a::after { content: none; }
   .meta { margin-top: 0.3rem; font-size: 0.9rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 0 0.9rem; }
@@ -171,20 +175,23 @@
     <ul class="grid">
       <li class="card">
         <a class="shot" href="https://pomme.live/" tabindex="-1" aria-hidden="true"><img src="/home/pomme.webp" alt="" width="480" height="320" loading="lazy" decoding="async"></a>
-        <p class="head"><span class="what">Pomme</span> <span class="when">2026</span></p>
-        <p class="desc">Fruit-picking robot with live ripeness detection. Won Qualcomm's Build at the Edge prize at Hack the 6ix.</p>
+        <p class="head"><span class="what"><a href="https://pomme.live/">Pomme</a></span> <span class="when">2026</span></p>
+        <p class="desc">Fruit-picking robot with live ripeness detection on the edge.</p>
+        <p class="won">Qualcomm prize, Hack the 6ix</p>
         <p class="meta"><a href="https://pomme.live/">Site</a><a href="https://github.com/DanielWLiu07/pomme">GitHub</a><a href="https://devpost.com/software/autoagrinator">Devpost</a></p>
       </li>
       <li class="card">
         <a class="shot" href="https://github.com/DanielWLiu07/voxel-engine" tabindex="-1" aria-hidden="true"><img src="/home/voxel.webp" alt="" width="480" height="320" loading="lazy" decoding="async"></a>
-        <p class="head"><span class="what">4D Voxel Engine</span> <span class="when">2026</span></p>
-        <p class="desc">C++20 and OpenGL engine that renders 3D slices of a 4D world. Greedy meshing cuts triangles 5.3×.</p>
+        <p class="head"><span class="what"><a href="https://github.com/DanielWLiu07/voxel-engine">4D Voxel Engine</a></span> <span class="when">2026</span></p>
+        <p class="desc">C++20 and OpenGL engine that renders 3D slices of a 4D world, with greedy meshing.</p>
+        <p class="won">5.3× fewer triangles</p>
         <p class="meta"><a href="https://github.com/DanielWLiu07/voxel-engine">GitHub</a></p>
       </li>
       <li class="card">
         <a class="shot" href="https://rainboltai.vercel.app/" tabindex="-1" aria-hidden="true"><img src="/home/rainbolt.webp" alt="" width="480" height="320" loading="lazy" decoding="async" style="object-position: 88% 50%"></a>
-        <p class="head"><span class="what">rainbolt.ai</span> <span class="when">2025</span></p>
-        <p class="desc">Finds where a photo was taken using CLIP and Pinecone. Won Best UI Hack at Hack the Valley X.</p>
+        <p class="head"><span class="what"><a href="https://rainboltai.vercel.app/">rainbolt.ai</a></span> <span class="when">2025</span></p>
+        <p class="desc">Finds where a photo was taken using CLIP and Pinecone.</p>
+        <p class="won">Best UI, Hack the Valley X</p>
         <p class="meta"><a href="https://rainboltai.vercel.app/">Site</a><a href="https://github.com/DanielWLiu07/rainbolt.ai">GitHub</a><a href="https://devpost.com/software/rainbolt-ai">Devpost</a></p>
       </li>
     </ul>
